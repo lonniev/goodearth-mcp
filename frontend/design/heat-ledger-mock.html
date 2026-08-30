@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Good Earth — Heat Ledger</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+/* ------------------------------------------------------------------
+   DESIGN TOKENS — translate to Tailwind 4 `@theme` in frontend/src/index.css
+   --color-paper   field paper, green-tinted (never warm cream)
+   --color-panel   card surface
+   --color-ink     dark loden — text and rules
+   --color-growth  accrual green — actuals, progress
+   --color-honey   sat balance, action accent ("sats accumulate, honey accumulates")
+   --color-frost   frost blue — frost line, cold alerts
+   --color-clay    conflict red — won't-finish, threshold breached
+   --color-band    30-yr normal band fill
+   --font-display  Fraunces   (almanac voice: numbers, titles)
+   --font-body     Instrument Sans
+   --font-data     IBM Plex Mono (provenance, axes, GDD figures)
+   ------------------------------------------------------------------ */
+:root{
+  --paper:#F1F2E8; --panel:#FAFAF3; --ink:#20301B; --ink-soft:#5A6650; --rule:#C9CDB6;
+  --growth:#4C7A3D; --honey:#D99A06; --frost:#4A7BA6; --clay:#A8442A; --band:#DDE2C8;
+  --rail:#20301B; --rail-ink:#DCE2CC;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{font-family:'Instrument Sans',system-ui,sans-serif;color:var(--ink);background:var(--paper);-webkit-font-smoothing:antialiased;}
+.mono{font-family:'IBM Plex Mono',monospace;}
+.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);}
+
+/* ---------- app shell: rail + topbar + main ---------- */
+.app{display:grid;grid-template-columns:200px 1fr;grid-template-rows:56px 1fr;height:100vh;}
+nav.rail{grid-row:1/3;background:var(--rail);color:var(--rail-ink);display:flex;flex-direction:column;padding:16px 12px;}
+.wordmark{font-family:'Fraunces',serif;font-weight:700;font-size:21px;color:#F1F2E8;letter-spacing:-.01em;padding:4px 8px 18px;}
+.wordmark em{font-style:italic;font-weight:400;color:var(--honey);}
+.rail a{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:6px;color:var(--rail-ink);text-decoration:none;font-size:13.5px;font-weight:500;margin-bottom:2px;}
+.rail a svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;opacity:.85;}
+.rail a.active{background:#F1F2E8;color:var(--ink);}
+.rail a:hover:not(.active){background:rgba(241,242,232,.09);}
+.rail .spacer{flex:1;}
+.patron{display:flex;align-items:center;gap:9px;padding:10px 8px;border-top:1px solid rgba(241,242,232,.15);font-size:12px;}
+.patron .av{width:28px;height:28px;border-radius:50%;background:var(--honey);flex:none;}
+.patron .np{font-family:'IBM Plex Mono',monospace;font-size:10.5px;opacity:.7;}
+
+header.top{display:flex;align-items:center;gap:14px;padding:0 22px;border-bottom:1px solid var(--rule);background:var(--paper);}
+.regionpick{display:flex;align-items:center;gap:8px;border:1.5px solid var(--ink);border-radius:6px;padding:6px 12px;background:var(--panel);font-weight:600;font-size:13.5px;cursor:pointer;}
+.regionpick small{font-weight:400;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;font-size:10.5px;}
+.regionpick .chev{font-size:10px;color:var(--ink-soft);}
+.cond{font-size:12.5px;color:var(--ink-soft);}
+.cond b{font-family:'Fraunces',serif;font-size:15px;color:var(--ink);font-weight:600;}
+.satchip{margin-left:auto;display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--ink);border-radius:999px;padding:5px 12px;background:var(--panel);font-family:'IBM Plex Mono',monospace;font-size:12px;white-space:nowrap;}
+.satchip .bolt{color:var(--honey);font-size:13px;}
+.satchip .spend{color:var(--ink-soft);}
+
+main{overflow:auto;padding:22px 26px 60px;position:relative;}
+.view-title{display:flex;align-items:baseline;gap:12px;margin-bottom:14px;}
+.view-title h1{font-family:'Fraunces',serif;font-size:26px;font-weight:700;letter-spacing:-.01em;}
+.view-title .sub{font-size:13px;color:var(--ink-soft);}
+
+/* ---------- pulse strip ---------- */
+.pulse{display:grid;grid-template-columns:repeat(4,1fr);border-top:2px solid var(--ink);border-bottom:1px solid var(--rule);margin-bottom:20px;}
+.pulse>div{padding:12px 14px 14px;border-left:1px solid var(--rule);}
+.pulse>div:first-child{border-left:none;padding-left:0;}
+.pulse .num{font-family:'Fraunces',serif;font-size:clamp(20px,2.4vw,28px);font-weight:600;line-height:1.1;}
+.pulse .num small{font-size:.55em;font-weight:400;color:var(--ink-soft);}
+.pulse .lbl{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+.up{color:var(--growth);} .cold{color:var(--frost);}
+
+/* spread callout — the product */
+.spread{display:flex;gap:14px;align-items:center;background:var(--panel);border:1px solid var(--rule);border-left:4px solid var(--growth);border-radius:6px;padding:10px 14px;margin-bottom:20px;font-size:13px;}
+.spread b{font-family:'Fraunces',serif;font-size:17px;}
+.spread .res{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-soft);text-align:right;}
+
+h2{font-family:'Fraunces',serif;font-size:18px;font-weight:600;display:flex;align-items:baseline;gap:10px;margin:22px 0 10px;}
+h2 .srcnote{font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:400;color:var(--ink-soft);margin-left:auto;text-align:right;}
+.z{color:var(--honey);}
+
+/* ---------- chart ---------- */
+.chartwrap{background:var(--panel);border:1px solid var(--rule);border-radius:6px;padding:14px 10px 8px;overflow-x:auto;}
+svg.chart{display:block;width:100%;height:auto;min-width:560px;}
+.legend{display:flex;flex-wrap:wrap;gap:14px;padding:8px 8px 4px;font-size:11.5px;color:var(--ink-soft);}
+.legend span{display:inline-flex;align-items:center;gap:6px;}
+.key{display:inline-block;width:18px;height:0;border-top:3px solid;}
+.key.band{height:10px;background:var(--band);border:none;}
+.key.dash{border-top-style:dashed;} .key.dot{border-top-style:dotted;}
+
+/* ---------- two-column body ---------- */
+.grid{display:grid;grid-template-columns:1.6fr 1fr;gap:26px;align-items:start;}
+.card{background:var(--panel);border:1px solid var(--rule);border-radius:6px;padding:13px 15px;margin-bottom:12px;}
+.card.frostc{border-left:4px solid var(--frost);} .card.pest{border-left:4px solid var(--honey);} .card.conflict{border-left:4px solid var(--clay);}
+.card h3{font-family:'Fraunces',serif;font-size:15.5px;font-weight:600;margin-bottom:4px;}
+.card p{font-size:13px;line-height:1.5;color:#3A4531;}
+.card .act{display:inline-block;margin-top:8px;font-size:12.5px;font-weight:600;border:1.5px solid var(--ink);border-radius:4px;padding:4px 10px;background:transparent;cursor:pointer;color:var(--ink);font-family:inherit;}
+.card .act:hover{background:var(--ink);color:var(--paper);}
+.card .act:focus-visible{outline:2px solid var(--honey);outline-offset:2px;}
+.provenance{margin-top:9px;padding-top:7px;border-top:1px dashed var(--rule);font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-soft);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+
+table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--rule);border-radius:6px;overflow:hidden;font-size:13px;}
+thead th{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);text-align:left;padding:9px 12px;border-bottom:1.5px solid var(--ink);font-weight:500;}
+tbody td{padding:9px 12px;border-bottom:1px solid var(--rule);vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+td.crop{font-weight:600;} td.crop small{display:block;font-weight:400;font-size:11px;color:var(--ink-soft);}
+.bar{height:7px;background:var(--band);border-radius:4px;min-width:90px;position:relative;overflow:hidden;}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:var(--growth);border-radius:4px;}
+.bar.over i{background:var(--honey);}
+td .gddnum{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);margin-top:3px;display:block;}
+.status{font-size:11px;font-weight:600;padding:3px 8px;border-radius:999px;white-space:nowrap;}
+.s-cut{background:#E4EBD6;color:var(--growth);} .s-wait{background:#EDEDE2;color:var(--ink-soft);}
+.s-risk{background:#F3E0D8;color:var(--clay);} .s-frost{background:#E0E9F1;color:var(--frost);}
+
+/* ---------- the hive: instrument, not wallpaper ---------- */
+.hive{position:fixed;right:18px;bottom:12px;width:150px;opacity:.28;pointer-events:none;}
+.hive .bee{animation:settle 6s ease-in-out infinite;transform-origin:center;}
+.hive .bee.b2{animation-delay:-2.7s;}
+@keyframes settle{0%,100%{transform:translate(0,0)}50%{transform:translate(1.5px,-1px)}}
+@media (prefers-reduced-motion:reduce){.hive .bee{animation:none;}}
+
+@media (max-width:900px){
+  .app{grid-template-columns:1fr;grid-template-rows:56px 1fr 56px;}
+  nav.rail{grid-row:3;flex-direction:row;padding:6px;gap:2px;overflow-x:auto;}
+  .wordmark,.patron,.rail .spacer{display:none;}
+  .rail a{flex-direction:column;gap:3px;font-size:10px;padding:6px 8px;}
+  .grid{grid-template-columns:1fr;}
+  .pulse{grid-template-columns:repeat(2,1fr);}
+  .pulse>div:nth-child(3){border-left:none;padding-left:0;}
+  .cond{display:none;}
+  .hive{display:none;}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <nav class="rail" aria-label="Views">
+    <div class="wordmark">Good <em>Earth</em></div>
+    <a href="#"><svg viewBox="0 0 24 24"><path d="M1 6l7-3 8 3 7-3v15l-7 3-8-3-7 3z"/><path d="M8 3v15M16 6v15"/></svg>Map</a>
+    <a href="#" class="active"><svg viewBox="0 0 24 24"><path d="M3 20h18M4 16c3-7 6-9 8-9s5 2 8 9"/></svg>Heat Ledger</a>
+    <a href="#"><svg viewBox="0 0 24 24"><path d="M12 22V10M12 10c-5 0-8-3-8-8 5 0 8 3 8 8zM12 14c0-4 3-7 8-7 0 5-3 8-8 8"/></svg>Crops</a>
+    <a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="6"/><path d="M12 7V4M8 8L5 5M16 8l3-3M4 13H1M23 13h-3M6 18l-3 3M18 18l3 3"/></svg>Pests</a>
+    <a href="#"><svg viewBox="0 0 24 24"><path d="M9 11l2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="2"/></svg>To-Do</a>
+    <a href="#"><svg viewBox="0 0 24 24"><path d="M4 4h12l4 4v12H4z"/><path d="M8 12h8M8 16h8"/></svg>Field Reports</a>
+    <a href="#"><svg viewBox="0 0 24 24"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg>Favorites</a>
+    <div class="spacer"></div>
+    <div class="patron"><div class="av"></div><div>Foxglove Bench<br><span class="np">npub1d99…q64z</span></div></div>
+  </nav>
+
+  <header class="top">
+    <div class="regionpick" role="button" aria-haspopup="listbox">East Bench <small>3.2 ha · 7 samples</small><span class="chev">&#9660;</span></div>
+    <div class="cond"><b>68&deg;F</b> &middot; dew pt 61 &middot; light SW &middot; Sun Aug 30</div>
+    <div class="satchip" title="Pre-funded balance. Each answer below cost the sats on its card."><span class="bolt">&#9889;</span><b>1,236 sats</b><span class="spend">&middot; 21 spent today</span></div>
+  </header>
+
+  <main>
+    <div class="view-title"><h1>Heat Ledger</h1><span class="sub">East Bench &middot; season from Apr 1 &middot; base 50&deg;F</span></div>
+
+    <div class="pulse">
+      <div><div class="num">1,872 <small>GDD&#8325;&#8320;</small></div><div class="lbl">accumulated across the block (mean)</div></div>
+      <div><div class="num up">+118</div><div class="lbl">ahead of the last 10 seasons (&asymp; 6 days)</div></div>
+      <div><div class="num cold">Sep 28</div><div class="lbl">median first frost &middot; earliest on record Sep 8</div></div>
+      <div><div class="num cold">36&deg;F</div><div class="lbl">forecast low Thu night &mdash; frost watch below</div></div>
+    </div>
+
+    <div class="spread">
+      <span><b>94 GDD</b> between the coolest and warmest ground on this block (1,826&ndash;1,920)</span>
+      <span class="res">archive 9 km &middot; terrain 90 m &middot; lapse + cold-air drainage</span>
+    </div>
+
+    <h2>Season heat curve <span class="srcnote">goodearth_gdd_season_curve &middot; 6:12 am &middot; <span class="z">3 sats</span></span></h2>
+    <div class="chartwrap">
+      <svg id="gddChart" class="chart" viewBox="0 0 740 268" role="img" aria-label="Cumulative growing degree days for 2026 against the normal band, with crop targets and the frost line"></svg>
+      <div class="legend">
+        <span><span class="key band"></span>10-season range</span>
+        <span><span class="key" style="border-color:var(--growth)"></span>2026 actual (mean)</span>
+        <span><span class="key dash" style="border-color:var(--growth)"></span>7-day forecast</span>
+        <span><span class="key dot" style="border-color:var(--ink-soft)"></span>projection on normals</span>
+        <span><span class="key dash" style="border-color:var(--frost)"></span>median first frost</span>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top:8px;">
+      <section>
+        <h2>Crop ledger <span class="srcnote">goodearth_crop_gdd_status &times; 7 &middot; <span class="z">7 sats</span></span></h2>
+        <table>
+          <thead><tr><th>Crop</th><th>Set out</th><th style="width:34%">Heat to target</th><th>Projected</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td class="crop">Dahlia &middot; Caf&eacute; au Lait<small>bloom target 1,200 GDD</small></td><td>May 24</td><td><div class="bar over"><i style="width:100%"></i></div><span class="gddnum">1,410 / 1,200 &middot; past target Jul 31</span></td><td>&mdash;</td><td><span class="status s-cut">Cutting</span></td></tr>
+            <tr><td class="crop">Heirloom tomatoes<small>first ripe 1,300 GDD</small></td><td>May 26</td><td><div class="bar over"><i style="width:100%"></i></div><span class="gddnum">1,395 / 1,300 &middot; past target Aug 6</span></td><td>&mdash;</td><td><span class="status s-cut">Harvesting</span></td></tr>
+            <tr><td class="crop">Lisianthus &middot; 2nd flush<small>cut stage 1,050 GDD from pinch</small></td><td>pinched Jul 6</td><td><div class="bar"><i style="width:78%"></i></div><span class="gddnum">818 / 1,050</span></td><td>Sep 14</td><td><span class="status s-wait">On pace</span></td></tr>
+            <tr><td class="crop">Celosia &middot; Chief mix<small>cut stage 900 GDD</small></td><td>Jun 20</td><td><div class="bar"><i style="width:91%"></i></div><span class="gddnum">821 / 900</span></td><td>Sep 5</td><td><span class="status s-wait">On pace</span></td></tr>
+            <tr><td class="crop">Hot peppers &middot; Aji Amarillo<small>ripe fruit 1,650 GDD</small></td><td>May 30</td><td><div class="bar"><i style="width:83%"></i></div><span class="gddnum">1,368 / 1,650</span></td><td>Sep 24</td><td><span class="status s-frost">Frost-tight</span></td></tr>
+            <tr><td class="crop">Zinnias &middot; succession 4<small>cut stage 780 GDD from sow</small></td><td>Aug 2</td><td><div class="bar"><i style="width:44%"></i></div><span class="gddnum">341 / 780</span></td><td>Oct 9</td><td><span class="status s-risk">Won't finish</span></td></tr>
+            <tr><td class="crop">Seed garlic &middot; German White<small>fall planting by soil temp</small></td><td>&mdash;</td><td><div class="bar"><i style="width:0%"></i></div><span class="gddnum">plant when 4&Prime; soil &le; 60&deg;F</span></td><td>Oct 14</td><td><span class="status s-wait">Waiting</span></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>React</h2>
+        <div class="card frostc">
+          <h3>Frost watch &middot; Thursday night</h3>
+          <p>Forecast low 36&deg;F with clearing skies and calm wind. The hollow at the east end runs 4&deg;F colder than the bench on nights like this &mdash; patchy frost likely there, four weeks ahead of the median.</p>
+          <button class="act">Row-cover plan for 3 beds</button>
+          <div class="provenance"><span>goodearth_frost_window &middot; 6:12 am</span><span class="z">4 sats</span></div>
+        </div>
+        <div class="card pest">
+          <h3>Scout for aster leafhopper</h3>
+          <p>Second-generation flight threshold (1,850 GDD) crossed yesterday on the warm half of the block. Walk the zinnia and aster rows this week before cutting for Saturday market.</p>
+          <button class="act">Mark scouting done</button>
+          <div class="provenance"><span>goodearth_pest_threshold &middot; 6:12 am</span><span class="z">2 sats</span></div>
+        </div>
+        <div class="card conflict">
+          <h3>Zinnia succession 4 won't finish outside</h3>
+          <p>Projected to reach cut stage Oct 9 &mdash; about 240 GDD past the median frost. Finishing it needs the tunnel, or the bed goes to fall greens now.</p>
+          <button class="act">Compare tunnel vs. greens</button>
+          <div class="provenance"><span>goodearth_finish_before_frost &middot; 6:12 am</span><span class="z">3 sats</span></div>
+        </div>
+        <div class="card">
+          <h3>Garlic planting window opens ~Oct 14</h3>
+          <p>Four-inch soil is projected to cool through 60&deg;F in mid-October, six days later than last year. Order gets placed by Sep 15 either way.</p>
+          <div class="provenance"><span>goodearth_soil_temp_projection &middot; 6:11 am</span><span class="z">5 sats</span></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- the skep: low contrast, never competes with a frost warning; bees settled (68F, warm - full traffic would animate when motion allowed) -->
+    <svg class="hive" viewBox="0 0 150 120" aria-hidden="true">
+      <g fill="none" stroke="#20301B" stroke-width="2.2" stroke-linecap="round">
+        <path d="M30 100h90M38 100V108M112 100V108"/>
+        <path d="M45 100c-4-14-2-34 10-48s26-22 20-52"/>
+        <path d="M105 100c4-14 2-34-10-48S69-22 75 0"/>
+        <path d="M43 86h64M47 72h56M52 58h46M58 44h34M65 30h20"/>
+        <path d="M68 100a7 7 0 0 1 14 0"/>
+      </g>
+      <g fill="#D99A06">
+        <ellipse class="bee b1" cx="83" cy="92" rx="3.2" ry="2.2"/>
+        <ellipse class="bee b2" cx="61" cy="52" rx="3.2" ry="2.2"/>
+      </g>
+    </svg>
+  </main>
+</div>
+
+<script>
+(function(){
+  const L=44,R=716,T=16,B=232,days=213,gMax=2400;
+  const x=d=>L+(d*(R-L)/days), y=g=>B-(g*(B-T)/gMax);
+  const normalPts=[[0,0],[30,60],[61,300],[91,720],[122,1250],[153,1754],[183,2050],[213,2150]];
+  const interp=(pts,d)=>{for(let i=1;i<pts.length;i++)if(d<=pts[i][0]){const[d0,g0]=pts[i-1],[d1,g1]=pts[i];return g0+(g1-g0)*(d-d0)/(d1-d0);}return pts[pts.length-1][1];};
+  const todayD=151, scale=1872/interp(normalPts,todayD);
+  const svg=document.getElementById('gddChart'),NS='http://www.w3.org/2000/svg';
+  const el=(n,a)=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);svg.appendChild(e);return e;};
+  const path=pts=>pts.map((p,i)=>(i?'L':'M')+x(p[0]).toFixed(1)+' '+y(p[1]).toFixed(1)).join(' ');
+  let band='M';for(let d=0;d<=days;d+=3)band+=x(d).toFixed(1)+' '+y(interp(normalPts,d)*1.12).toFixed(1)+' L';band=band.slice(0,-1);
+  for(let d=days;d>=0;d-=3)band+='L'+x(d).toFixed(1)+' '+y(interp(normalPts,d)*0.88).toFixed(1)+' ';
+  el('path',{d:band+'Z',fill:'#DDE2C8'});
+  [500,1000,1500,2000].forEach(g=>{el('line',{x1:L,x2:R,y1:y(g),y2:y(g),stroke:'#C9CDB6','stroke-width':1,'stroke-dasharray':'1 4'});el('text',{x:L-6,y:y(g)+3,'text-anchor':'end','font-size':9,fill:'#5A6650','font-family':'IBM Plex Mono,monospace'}).textContent=g;});
+  [[0,'APR'],[30,'MAY'],[61,'JUN'],[91,'JUL'],[122,'AUG'],[153,'SEP'],[183,'OCT']].forEach(([d,m])=>{el('text',{x:x(d)+2,y:B+16,'font-size':9,fill:'#5A6650','font-family':'IBM Plex Mono,monospace','letter-spacing':'1'}).textContent=m;el('line',{x1:x(d),x2:x(d),y1:B,y2:B+4,stroke:'#5A6650'});});
+  el('line',{x1:L,x2:R,y1:B,y2:B,stroke:'#20301B','stroke-width':1.5});
+  let rib='M';for(let d=0;d<=todayD;d+=2)rib+=x(d).toFixed(1)+' '+y(interp(normalPts,d)*scale*1.026).toFixed(1)+' L';rib=rib.slice(0,-1);
+  for(let d=todayD;d>=0;d-=2)rib+='L'+x(d).toFixed(1)+' '+y(interp(normalPts,d)*scale*0.975).toFixed(1)+' ';
+  el('path',{d:rib+'Z',fill:'#4C7A3D',opacity:.18});
+  const actual=[];for(let d=0;d<=todayD;d+=2)actual.push([d,interp(normalPts,d)*scale]);actual.push([todayD,1872]);
+  el('path',{d:path(actual),fill:'none',stroke:'#4C7A3D','stroke-width':2.5});
+  const fc=[[todayD,1872]];for(let i=1;i<=7;i++)fc.push([todayD+i,1872+i*14-(i*i*0.4)]);
+  el('path',{d:path(fc),fill:'none',stroke:'#4C7A3D','stroke-width':2.5,'stroke-dasharray':'6 4'});
+  const pEnd=fc[fc.length-1],proj=[pEnd];for(let d=pEnd[0]+3;d<=days;d+=3)proj.push([d,pEnd[1]+(interp(normalPts,d)-interp(normalPts,pEnd[0]))]);
+  el('path',{d:path(proj),fill:'none',stroke:'#5A6650','stroke-width':1.6,'stroke-dasharray':'2 5'});
+  const fx=x(180);el('line',{x1:fx,x2:fx,y1:T,y2:B,stroke:'#4A7BA6','stroke-width':1.6,'stroke-dasharray':'7 4'});
+  el('text',{x:fx-5,y:T+10,'text-anchor':'end','font-size':9.5,fill:'#4A7BA6','font-family':'IBM Plex Mono,monospace'}).textContent='MEDIAN FIRST FROST';
+  const all=actual.concat(fc.slice(1),proj.slice(1));
+  const dayAt=g=>{for(let i=1;i<all.length;i++)if(all[i][1]>=g){const[a,b]=[all[i-1],all[i]];return a[0]+(b[0]-a[0])*(g-a[1])/(b[1]-a[1]);}return null;};
+  [{g:1200,l:'dahlia bloom',dy:0,c:'#4C7A3D'},{g:1300,l:'tomato ripe',dy:14,c:'#4C7A3D'},{g:1850,l:'leafhopper G2',dy:0,c:'#D99A06'},{g:2112,l:'zinnia s.4 cut',dy:0,c:'#A8442A'}].forEach(f=>{
+    const d=dayAt(f.g);if(d==null)return;const cx=x(d),cy=y(f.g);
+    el('circle',{cx,cy,r:4,fill:f.c,stroke:'#FAFAF3','stroke-width':1.5});
+    el('line',{x1:cx,y1:cy-5,x2:cx,y2:cy-16-f.dy,stroke:f.c});
+    el('text',{x:cx+4,y:cy-18-f.dy,'font-size':9.5,fill:f.c,'font-family':'IBM Plex Mono,monospace'}).textContent=f.l;
+  });
+  el('circle',{cx:x(todayD),cy:y(1872),r:4.5,fill:'#20301B'});
+  el('text',{x:x(todayD)+7,y:y(1872)+4,'font-size':10,fill:'#20301B','font-weight':'600','font-family':'Instrument Sans,sans-serif'}).textContent='today · 1,872';
+})();
+</script>
+</body>
+</html>
