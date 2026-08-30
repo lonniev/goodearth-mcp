@@ -1,0 +1,16 @@
+{
+  "name": "Good Earth",
+  "source": {
+    "path": "src/goodearth_mcp/server.py",
+    "entrypoint": "mcp"
+  },
+  "environment": {
+    "type": "uv",
+    "project": "."
+  },
+  "deployment": {
+    "env": {
+      "TOLLBOOTH_NOSTR_OPERATOR_NSEC": "${TOLLBOOTH_NOSTR_OPERATOR_NSEC}"
+    }
+  }
+}
