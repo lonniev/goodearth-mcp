@@ -93,16 +93,16 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost, onView
   useEffect(() => { void run(); void runFrost(); void runSoil(); }, [run, runFrost, runSoil]);
 
   // Every threshold the grower has entered is a GDD number, and where it meets
-  // this curve is a date. The curve is already paid for, so the whole calendar
-  // comes free — no second call, no second fare.
+  // this curve is a date. The curve is already on the page, so this needs no
+  // second call.
   const flags: LedgerFlag[] = data
     ? buildFlags(data, listPlantings(region.id), listPests(region.id), listWildlife(region.id))
     : [];
 
   // One chiclet, one tap per measure, and a tap that clears it. The almanac is
-  // fetched only on the first tap — a grower who never asks for weather never
-  // pays for it, and after that the cycle is free because the data is already
-  // here.
+  // fetched lazily on the first tap rather than with the page: a reader who
+  // never opens the weather never triggers the call, and once it is here the
+  // rest of the cycle reads from what was already fetched.
   const cycleWeather = useCallback(async () => {
     const next = (wx + 1) % (WEATHER.length + 1);
     setWx(next);
@@ -270,7 +270,7 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost, onView
           <span className="text-growth">● crops</span>{" · "}
           <span className="text-honey">● pests</span>{" · "}
           <span className="text-frost">● wildlife</span>
-          {" — placed where your own thresholds meet this curve, at no extra cost."}
+          {" — placed where your own thresholds meet this curve."}
           {flags.some((f) => f.baseMismatch) &&
             " Dimmed flags count from a different base temperature than this block."}
         </p>

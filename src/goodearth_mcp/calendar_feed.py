@@ -12,11 +12,11 @@ them differently:
 * **To-dos → VTODO**, which Apple Reminders, Google Tasks and Thunderbird
   surface as tasks rather than as another appointment on an already full day.
 
-Billing shape, and it matters: recomputing the feed is the paid act, and it
-happens when the grower asks. Serving it is free. A calendar client polls
-unattended every few hours forever, and a design that charged per poll would
-drain a balance overnight while its owner slept — which is the precise
-opposite of Don't Pester Your Customer.
+Recomputing and serving are separate acts, and the operator prices each of
+them independently in Pricing Studio. Recomputing runs the weather feeds and
+rebuilds the calendar; serving returns what was last built. Which of them
+carries a fare, and how much, is the operator's dial — this module only keeps
+them separable so that dial exists.
 """
 
 from __future__ import annotations

@@ -1,9 +1,8 @@
 // A still of the ground, for a chart's background.
 //
 // The season curve is an abstraction of a real field. Ghosting that field in
-// behind it costs nothing and answers a question the axes cannot: *whose*
-// season is this. On a farm with six saved blocks that is not decoration, it is
-// orientation.
+// behind it answers a question the axes cannot: *whose* season is this. On a
+// farm with six saved blocks that is not decoration, it is orientation.
 //
 // Esri's World Imagery export endpoint, no key, same imagery the map draws.
 

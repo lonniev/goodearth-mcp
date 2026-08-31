@@ -785,9 +785,8 @@ async def calendar_subscribe(
     and the season appears alongside the school run and the market stall —
     which is where a grower will actually see it.
 
-    Recomputing is the paid act and happens when you ask; SERVING the feed is
-    free. A calendar client polls unattended every few hours forever, and
-    charging per poll would drain a balance overnight while its owner slept.
+    Recomputing rebuilds the calendar against current weather; serving returns
+    what was last built. The operator prices each independently.
 
     Pass the same token again to refresh a feed in place. Subscribers keep
     their subscription and the events update rather than duplicating.
@@ -843,9 +842,9 @@ async def calendar_subscribe(
         "computed_on": built["computed_on"],
         "note": (
             "Subscribe with the webcal link, or paste the https one into "
-            "Google Calendar's 'From URL'. Serving is free and unmetered; call "
-            "this tool again with the same token to recompute against new "
-            "weather, and subscribers update rather than duplicating."
+            "Google Calendar's 'From URL'. Call this tool again with the same "
+            "token to recompute against current weather; subscribers update "
+            "rather than duplicating."
         ),
     }
 
@@ -856,7 +855,7 @@ async def calendar_list(
     npub: Annotated[str, Field(description="Required. Your Nostr public key.")] = "",
     dpop_token: str = "",
 ) -> dict[str, Any]:
-    """The calendar feeds you have published. Free."""
+    """The calendar feeds you have published, and how often each is polled."""
     try:
         rows = await feed_store.list_for(npub)
     except Exception as exc:  # noqa: BLE001
@@ -903,8 +902,12 @@ async def calendar_revoke(
 # feed is served from a custom route, and the unguessable token in the URL is
 # the credential.
 #
-# Free and unmetered by design: clients poll unattended, forever, and a design
-# that billed per poll would empty a balance overnight.
+# This route serves what `calendar_subscribe` last built; it does not recompute.
+# The two are separable so the operator can price them independently in Pricing
+# Studio — a frequently polled feed is a perfectly reasonable thing to meter,
+# and whether it is metered is not this file's decision. The stored feed carries
+# its owner's npub, so a per-fetch debit has everything it needs if the operator
+# wants one.
 
 
 @mcp.custom_route("/calendar/{token}.ics", methods=["GET"])
@@ -924,13 +927,20 @@ async def serve_calendar(request: Any) -> Any:
     if not row:
         return PlainTextResponse("Not found", status_code=404)
 
+    # Meter the poll. Serving is a distinct act from recomputing and is counted
+    # as one; a failure to record must not withhold a calendar the subscriber
+    # is entitled to.
+    try:
+        await feed_store.note_fetch(token)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("calendar fetch accounting failed: %s", exc)
+
     return Response(
         content=row["ics"],
         media_type="text/calendar; charset=utf-8",
         headers={
             "Content-Disposition": 'inline; filename="goodearth.ics"',
-            # Clients that respect this poll politely; the rest are harmless
-            # because serving costs nothing.
+            # Sets a polite default poll rate for clients that respect it.
             "Cache-Control": "public, max-age=3600",
         },
     )

@@ -47,10 +47,9 @@ export default function About() {
       <h2 className="figure mb-2.5 text-[18px] font-semibold">⚡ How paying works</h2>
       <div className="rounded-md border border-rule bg-panel px-4 py-3.5 text-[13px] leading-relaxed">
         <p>
-          The app is free. Individual answers draw from a pre-funded balance of
-          satoshis — Bitcoin's smallest unit — over the Lightning network. You
-          top up when you choose to; nothing subscribes, nothing renews, and
-          nothing interrupts you mid-task to ask for a card.
+          Answers draw from a pre-funded balance of satoshis — Bitcoin's
+          smallest unit — over the Lightning network. You top up when you
+          choose to, and nothing interrupts you mid-task to ask for a card.
         </p>
         <p className="mt-2">
           That is the point of <b>DPYC</b>, which stands for{" "}

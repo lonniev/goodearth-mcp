@@ -159,10 +159,10 @@ export default function TodoView({
 
           <p className="data mt-2.5 break-all text-[10.5px] text-ink-soft">{url}</p>
           <p className="mt-2 max-w-prose text-[12px] leading-relaxed text-ink-soft">
-            Your client re-reads this on its own schedule and that costs nothing —
-            polling forever must never drain a balance. <b>Recompute</b> is the
-            paid act, and it rewrites the same feed in place, so subscribers
-            update rather than ending up with two of everything.
+            Your client re-reads this on its own schedule. <b>Recompute</b>
+            rebuilds it against current weather and rewrites the same feed in
+            place, so subscribers update rather than ending up with two of
+            everything.
           </p>
         </div>
       ) : (

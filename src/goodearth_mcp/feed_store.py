@@ -29,7 +29,13 @@ _DDL = (
     "entry_count INTEGER DEFAULT 0, "
     "computed_on DATE, "
     "created_at TIMESTAMPTZ DEFAULT NOW(), "
-    "updated_at TIMESTAMPTZ DEFAULT NOW())"
+    "updated_at TIMESTAMPTZ DEFAULT NOW(), "
+    # Fetch accounting. The feed's owner npub is already on the row, so an
+    # operator who wants to meter serving has what a debit needs; this counts
+    # the polls either way, which is also the number that tells them whether
+    # metering is worth switching on.
+    "fetch_count BIGINT DEFAULT 0, "
+    "last_fetched_at TIMESTAMPTZ)"
 )
 
 
@@ -107,3 +113,21 @@ async def revoke(token: str, npub: str) -> bool:
         [token, npub],
     )
     return bool(r.get("rows"))
+
+
+async def note_fetch(token: str) -> None:
+    """Record that a subscriber polled.
+
+    Serving and recomputing are separate acts with separate prices, and this is
+    the meter for the first of them. It counts unconditionally; whether a count
+    also carries a fare is the operator's dial in Pricing Studio, not this
+    module's decision.
+    """
+    v = await _vault_for()
+    await v._execute(
+        _qualify(
+            f"UPDATE {TABLE} SET fetch_count = COALESCE(fetch_count, 0) + 1, "
+            "last_fetched_at = NOW() WHERE token = $1"
+        ),
+        [token],
+    )

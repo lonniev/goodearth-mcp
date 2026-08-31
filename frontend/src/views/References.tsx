@@ -133,8 +133,7 @@ export default function References() {
 
       <h2 className="figure mb-2.5 text-[18px] font-semibold">🛰️ Data sources</h2>
       <p className="mb-3 text-[12.5px] text-ink-soft">
-        All free and public. No key is required for any of them, which is part
-        of why an answer here costs a few sats rather than a subscription.
+        All public, and none requires an API key.
       </p>
       <div className="space-y-2.5">
         {SOURCES.map((s) => (

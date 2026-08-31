@@ -1,9 +1,9 @@
 // Provenance line — which tool answered, when, and what it cost.
 //
-// The DPYC economics stay visible but quiet. The figure is read live from
-// check_price and is NEVER a constant: prices live in the operator's pricing
-// model and change without a redeploy, so a number baked into this file would
-// become a lie the first time the model moves.
+// The figure is read live from check_price and is NEVER a constant: prices
+// live in the operator's pricing model and change without a redeploy, so a
+// number baked into this file would become a lie the first time the model
+// moves.
 
 import { useEffect, useState } from "react";
 import { checkPrice } from "../lib/mcp";

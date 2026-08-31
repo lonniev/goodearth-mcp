@@ -1,10 +1,9 @@
 // Model events placed on the season curve.
 //
-// The curve is already paid for. Every threshold a grower has entered — a crop
-// target, a pest stage, a heat-driven wildlife event — is a GDD number, and
-// where that number meets the curve is a date. So the whole calendar can be
-// derived here, client-side, from data already on the page: no extra call, no
-// extra sats.
+// Every threshold a grower has entered — a crop target, a pest stage, a
+// heat-driven wildlife event — is a GDD number, and where that number meets the
+// season curve is a date. The curve is already on the page, so the whole
+// calendar is derived here rather than fetched again.
 //
 // Date-driven events (a photoperiod crossing, a date from the grower's own
 // record) are placed by date instead, since they do not read the heat axis at
