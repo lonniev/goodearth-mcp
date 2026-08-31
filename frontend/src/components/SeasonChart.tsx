@@ -23,6 +23,38 @@ import ZoomControls from "./ZoomControls";
 
 const W = 740, H = 268, L = 46, R = 716, T = 16, B = 232;
 
+// SVG <text> does not wrap — it runs off the plot and over whatever is there.
+// So labels are broken into tspans here, on whole words, with a hard split for
+// a word longer than the line so nothing can escape.
+const FLAG_CHARS = 17;
+const FLAG_LINES = 2;
+
+function wrapLabel(text: string, width = FLAG_CHARS, max = FLAG_LINES): string[] {
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let cur = "";
+  for (const w of words) {
+    if (!cur) {
+      cur = w.length > width ? w.slice(0, width - 1) + "-" : w;
+      if (w.length > width) { lines.push(cur); cur = w.slice(width - 1); }
+      continue;
+    }
+    if ((cur + " " + w).length <= width) cur += " " + w;
+    else { lines.push(cur); cur = w; }
+    if (lines.length >= max) break;
+  }
+  if (cur && lines.length < max) lines.push(cur);
+  if (lines.length > max) lines.length = max;
+  // Mark truncation on the last line rather than silently dropping words.
+  const used = lines.join(" ").replace(/-$/, "").length;
+  if (used < text.replace(/\s+/g, " ").length - 1) {
+    const last = lines[lines.length - 1];
+    lines[lines.length - 1] =
+      last.length > width - 1 ? last.slice(0, width - 1) + "…" : last + "…";
+  }
+  return lines;
+}
+
 interface Props {
   data: SeasonCurveResult;
   /// Median first frost as a day-index into the curve, when known (T2).
@@ -281,16 +313,33 @@ export default function SeasonChart({
                 {/* An invisible finger target. The dot is 7 px because a bigger
                     one would hide the curve it sits on; the tap area is 44. */}
                 {onFlag && (
-                  <rect x={cx - 22} y={cy - stem - 16} width={44} height={stem + 38}
+                  <rect x={cx - 22} y={cy - stem - 26} width={44} height={stem + 48}
                     fill="transparent" />
                 )}
                 <line x1={cx} y1={cy} x2={cx} y2={cy - stem} stroke={tone} strokeWidth={1} />
                 <circle cx={cx} cy={cy} r={3.5} fill={tone} stroke="var(--color-panel)" strokeWidth={1.2} />
-                <text x={cx + 4} y={cy - stem - 2} fontSize={9.5} fontWeight={600}
-                  fill={tone} fontFamily="var(--font-data)"
-                  paintOrder="stroke" stroke="var(--color-panel)" strokeWidth={3.5} strokeLinejoin="round">
-                  {f.emoji} {f.label.length > 22 ? f.label.slice(0, 21) + "…" : f.label}
-                </text>
+                {(() => {
+                  const lines = wrapLabel(f.label);
+                  // Flip the label to the left of its stem when the stem is
+                  // near the right edge, or a wrapped label runs off the plot.
+                  const flip = cx > R - 96;
+                  return (
+                    <text
+                      x={flip ? cx - 4 : cx + 4}
+                      y={cy - stem - 2 - (lines.length - 1) * 10}
+                      textAnchor={flip ? "end" : "start"}
+                      fontSize={9.5} fontWeight={600}
+                      fill={tone} fontFamily="var(--font-data)"
+                      paintOrder="stroke" stroke="var(--color-panel)"
+                      strokeWidth={3.5} strokeLinejoin="round">
+                      {lines.map((ln, li) => (
+                        <tspan key={li} x={flip ? cx - 4 : cx + 4} dy={li === 0 ? 0 : 10}>
+                          {li === 0 ? `${f.emoji ?? ""} ${ln}`.trim() : ln}
+                        </tspan>
+                      ))}
+                    </text>
+                  );
+                })()}
               </g>
             );
           })}

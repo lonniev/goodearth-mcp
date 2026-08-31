@@ -103,9 +103,18 @@ function spawn(n: number): Bee[] {
 export default function Bees({
   mood = "unknown", tempF = null,
 }: { mood?: HiveMood; tempF?: number | null }) {
+  // Respawn only when the NUMBER of bees would change, never merely because
+  // the temperature moved a degree.
+  const beeTier = beeCount(mood, activityOf(tempF));
   const layer = useRef<HTMLDivElement | null>(null);
   const raf = useRef<number>(0);
   const pointer = useRef<{ x: number; y: number; until: number } | null>(null);
+  // Warmth is read live from a ref, not closed over. Putting tempF in the
+  // effect's deps respawned the whole flight every time the frost reading
+  // landed — every bee teleported back to the hive and restarted its stagger
+  // timer, which is exactly what "the bees look idle" looks like.
+  const activityRef = useRef(activityOf(tempF));
+  activityRef.current = activityOf(tempF);
 
   // Track the pointer so bees can get out of its way. Passive, on window, and
   // never preventDefault — this must not alter a single interaction.
@@ -132,7 +141,7 @@ export default function Bees({
     if (!host) return;
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-    const activity = activityOf(tempF);
+    const activity = activityRef.current;
     const n = beeCount(mood, activity);
     host.replaceChildren();
     if (!n) return;
@@ -150,27 +159,26 @@ export default function Bees({
       nodes.push(el);
     }
 
-    if (reduced) {
-      // Parked on the skep, still telling the same story by their number.
-      nodes.forEach((el, i) => {
-        el.style.transform =
-          `translate(${(HIVE.x - 0.012 * i) * 100}vw, ${(HIVE.y - 0.01 * i) * 100}vh)`;
-      });
-      return;
-    }
-
-    // Warmth is speed. A cold bee that does fly, flies sluggishly.
-    const CRUISE = 0.10 + activity * 0.16;   // fractions of viewport per second
-    const ACCEL = 0.55 + activity * 0.85;
-    const DRAG = 2.4;
-    const FLEE_RADIUS = 0.13;
-    const FLEE_FORCE = 3.2;
+    // Reduced motion CALMS the flight rather than stopping it. A frozen
+    // instrument has lost its second channel entirely, and the setting asks to
+    // reduce motion, not to eliminate it — so they cruise slowly, buzz gently,
+    // and still scatter from a hand.
+    const calm = reduced ? 0.4 : 1;
 
     let last = performance.now();
     const step = (now: number) => {
       const dt = Math.min((now - last) / 1000, 0.05);
       last = now;
       const ptr = pointer.current && pointer.current.until > now ? pointer.current : null;
+
+      // Read warmth every frame so a temperature that arrives mid-flight
+      // speeds them up rather than restarting them.
+      const act = activityRef.current;
+      const CRUISE = (0.15 + act * 0.20) * calm;
+      const ACCEL = (0.9 + act * 1.1) * calm;
+      const DRAG = 2.4;
+      const FLEE_RADIUS = 0.13;
+      const FLEE_FORCE = 3.2;
 
       bees.forEach((b, i) => {
         b.timer -= dt;
@@ -246,8 +254,8 @@ export default function Bees({
         // would jitter its way across the screen. Amplitude and rate rise with
         // warmth, which is the second channel of the reading.
         const t = now / 1000;
-        const amp = (0.0009 + activity * 0.0028) * (b.phase === "resting" ? 0.35 : 1);
-        const rate = 26 + activity * 30;
+        const amp = (0.0011 + act * 0.0032) * calm * (b.phase === "resting" ? 0.35 : 1);
+        const rate = (28 + act * 32) * calm;
         const jx = amp * Math.sin(t * rate + b.buzz);
         const jy = amp * Math.cos(t * rate * 1.37 + b.buzz);
 
@@ -265,7 +273,7 @@ export default function Bees({
     };
     raf.current = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf.current);
-  }, [mood, tempF]);
+  }, [mood, beeTier]);
 
   return (
     <div
