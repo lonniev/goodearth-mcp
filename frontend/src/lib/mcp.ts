@@ -948,3 +948,52 @@ export async function pestThreshold(
 ): Promise<PestWindowResult> {
   return callTool<PestWindowResult>("pest_threshold", { region, pests: models });
 }
+
+
+// ─── Calibration ─────────────────────────────────────────────────────────
+
+export interface FieldObservation {
+  kind: "frost" | "stage";
+  observed_on: string;
+  note?: string;
+  crop?: string;
+  stage?: string;
+  gdd_target?: number;
+  set_out?: string;
+}
+
+export interface BiasSummary {
+  median: number;
+  min: number;
+  max: number;
+  spread: number;
+  n: number;
+  rejected_as_implausible: number;
+  applicable: boolean;
+  why_not: string | null;
+  confidence?: "provisional" | "early" | "firming" | "settled";
+  reading?: string;
+  predicted_median?: string | null;
+  rows?: Record<string, unknown>[];
+}
+
+export interface CalibrationResult {
+  success: boolean;
+  error?: string;
+  as_of: string;
+  observations_used: number;
+  heat: BiasSummary & { rows: Record<string, unknown>[] };
+  first_frost: BiasSummary & { rows: Record<string, unknown>[] };
+  corrections: { heat_multiplier?: number; first_frost_offset_days?: number };
+  note: string;
+}
+
+/// Turn a block's own field reports into a correction on the model. This is
+/// the loop that makes Good Earth better the longer a farm uses it.
+export async function calibration(
+  region: Region, observations: FieldObservation[], baseTemp = 50,
+): Promise<CalibrationResult> {
+  return callTool<CalibrationResult>("calibration", {
+    region, observations, base_temp: baseTemp,
+  });
+}

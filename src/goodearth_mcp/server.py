@@ -21,6 +21,9 @@ from tollbooth.runtime import OperatorRuntime, register_standard_tools
 from tollbooth.tool_identity import STANDARD_IDENTITIES, ToolIdentity
 
 from goodearth_mcp import __version__, season, sources
+from goodearth_mcp.calibrate import CalibrateError
+from goodearth_mcp.calibrate import region_calibration as calibration_impl
+from goodearth_mcp.calibration import CalibrationError
 from goodearth_mcp.crop_status import LedgerError
 from goodearth_mcp.crop_status import region_crop_ledger as crop_ledger_impl
 from goodearth_mcp.crops import CropError
@@ -78,7 +81,7 @@ SOIL_TEMP_PROJECTION_UUID  = "03764cdc-c9d9-5396-9eb1-9b7f56da08f6"
 CROP_GDD_STATUS_UUID       = "a8f72831-77df-57d4-9e6a-dcf81b06832e"
 FINISH_BEFORE_FROST_UUID   = "b5f11328-8d8f-58db-ba89-11f8cbcc3314"  # T4
 PEST_THRESHOLD_UUID        = "79463a63-2076-5376-a357-673c4adb33f0"
-CALIBRATION_UUID           = "2e7c72db-e886-53be-b948-bcc97a57986d"  # T6
+CALIBRATION_UUID           = "2e7c72db-e886-53be-b948-bcc97a57986d"
 
 _DOMAIN_TOOLS = [
     ToolIdentity(
@@ -110,6 +113,12 @@ _DOMAIN_TOOLS = [
         capability="pest_threshold",
         category="read",
         intent="Where a pest model's degree-day stages stand on this ground, and when the next arrives",
+    ),
+    ToolIdentity(
+        tool_id=CALIBRATION_UUID,
+        capability="calibration",
+        category="write",
+        intent="Turn a block's own field reports into a per-region correction on the model",
     ),
 ]
 
@@ -440,6 +449,71 @@ async def pest_threshold(
         return {"success": False, "error": str(exc), "error_code": "invalid_request"}
     except (sources.UpstreamError, OSError) as exc:
         logger.warning("pest_threshold failed: %s", exc)
+        return {"success": False, "error": f"A weather feed did not answer: {exc}",
+                "error_code": "upstream_unavailable"}
+
+
+@tool
+@runtime.paid_tool(CALIBRATION_UUID)
+async def calibration(
+    region: Annotated[
+        dict[str, Any],
+        Field(description="GeoJSON Polygon or {lat, lon, radius_m} — the block these reports are from."),
+    ],
+    observations: Annotated[
+        list[dict[str, Any]],
+        Field(
+            description=(
+                "The block's field reports. A frost report is "
+                '{"kind": "frost", "observed_on": "2026-10-02"}. A crop stage is '
+                '{"kind": "stage", "observed_on": "2026-07-31", "crop": "Dahlia", '
+                '"stage": "first bloom", "gdd_target": 1200, "set_out": "2026-05-24"}. '
+                "Both accept an optional note."
+            ),
+        ),
+    ],
+    base_temp: Annotated[
+        float,
+        Field(description="Base temperature in °F the stage targets are counted at."),
+    ] = 50.0,
+    npub: Annotated[
+        str,
+        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
+    ] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """Turn a block's own field reports into a correction on the model.
+
+    Every other tool here answers from a 9 km grid refined by a physical
+    terrain model. What that cannot know is the part that makes a farm
+    particular — the hedgerow, the pond, the outlet the cold air drains
+    through. Your observations measure exactly that gap.
+
+    Returns two corrections, kept separate because they fix different things:
+    a bias in *heat* from crop stages (this ground accumulates more or less
+    than the grid credits) and a bias in *days* from observed frost (this
+    ground frosts earlier or later than the region).
+
+    Nothing is applied silently. A correction appears only once several
+    observations agree, implausible values are set aside rather than averaged
+    in, and the reports behind every figure come back with it.
+
+    Args:
+        region: GeoJSON Polygon or {lat, lon, radius_m}.
+        observations: The block's field reports.
+        base_temp: Base temperature in °F.
+    """
+    try:
+        parsed = parse_region(region)
+    except RegionError as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+
+    try:
+        return await calibration_impl(parsed, observations, base_temp)
+    except (CalibrateError, CalibrationError) as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_request"}
+    except (sources.UpstreamError, OSError) as exc:
+        logger.warning("calibration failed: %s", exc)
         return {"success": False, "error": f"A weather feed did not answer: {exc}",
                 "error_code": "upstream_unavailable"}
 

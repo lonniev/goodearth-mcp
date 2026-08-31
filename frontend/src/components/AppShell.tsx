@@ -40,7 +40,7 @@ export const RAIL: RailItem[] = [
     icon: I(<><circle cx="12" cy="13" r="6" /><path d="M12 7V4M8 8L5 5M16 8l3-3M4 13H1M23 13h-3M6 18l-3 3M18 18l3 3" /></>) },
   { key: "todo", label: "To-Do", ready: false, soon: "Tasks born from the analytics above",
     icon: I(<><path d="M9 11l2 2 4-4" /><rect x="3" y="4" width="18" height="16" rx="2" /></>) },
-  { key: "reports", label: "Field Reports", ready: false, soon: "Feeds the calibration loop",
+  { key: "reports", label: "Field Reports", ready: true,
     icon: I(<><path d="M4 4h12l4 4v12H4z" /><path d="M8 12h8M8 16h8" /></>) },
   { key: "favorites", label: "Favorites", ready: true,
     icon: I(<><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z" /></>) },
