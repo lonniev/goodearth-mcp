@@ -232,3 +232,87 @@ def frost_series(record: dict[str, Any]) -> list[dict[str, Any]]:
             }
         )
     return out
+
+
+async def fetch_soil_forecast(lat: float, lon: float, hourly_field: str, days: int = 16) -> dict[str, Any]:
+    """Hourly soil temperature at the given band, for as far as the model runs.
+
+    The DAILY soil aggregates come back null from this endpoint — only the
+    hourly series is populated — so this asks hourly and the caller collapses
+    it to daily means. Worth knowing: a daily request looks like the feed has
+    no soil data at all.
+    """
+    days = max(1, min(days, 16))
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        payload = await _get(
+            client,
+            _FORECAST,
+            {
+                "latitude": lat,
+                "longitude": lon,
+                "hourly": hourly_field,
+                "forecast_days": days,
+                "timezone": "auto",
+                **_US_UNITS,
+            },
+        )
+    results = _as_list(payload)
+    if not results:
+        raise UpstreamError("soil forecast returned no locations")
+    return results[0]
+
+
+def hourly_series(record: dict[str, Any], field: str) -> tuple[list[str], list[float | None]]:
+    """Pull one hourly field out of a forecast record."""
+    hourly = record.get("hourly")
+    if not isinstance(hourly, dict):
+        raise UpstreamError("record has no hourly block")
+    times = hourly.get("time") or []
+    vals = hourly.get(field) or []
+    if not isinstance(times, list) or not isinstance(vals, list):
+        raise UpstreamError("hourly block is not in the expected array shape")
+    n = min(len(times), len(vals))
+    return (
+        [str(t) for t in times[:n]],
+        [float(v) if isinstance(v, (int, float)) else None for v in vals[:n]],
+    )
+
+
+async def fetch_soil_history(
+    lat: float, lon: float, archive_field: str, start: str, end: str,
+) -> dict[str, Any]:
+    """Daily mean soil temperature from the archive, for the climatology."""
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        payload = await _get(
+            client,
+            _ARCHIVE,
+            {
+                "latitude": lat,
+                "longitude": lon,
+                "start_date": start,
+                "end_date": end,
+                "daily": archive_field,
+                "timezone": "auto",
+                **_US_UNITS,
+            },
+        )
+    results = _as_list(payload)
+    if not results:
+        raise UpstreamError("soil archive returned no locations")
+    return results[0]
+
+
+def daily_field(record: dict[str, Any], field: str) -> tuple[list[str], list[float | None]]:
+    """Pull one daily field out of an archive record."""
+    daily = record.get("daily")
+    if not isinstance(daily, dict):
+        raise UpstreamError("record has no daily block")
+    times = daily.get("time") or []
+    vals = daily.get(field) or []
+    if not isinstance(times, list) or not isinstance(vals, list):
+        raise UpstreamError("daily block is not in the expected array shape")
+    n = min(len(times), len(vals))
+    return (
+        [str(t) for t in times[:n]],
+        [float(v) if isinstance(v, (int, float)) else None for v in vals[:n]],
+    )

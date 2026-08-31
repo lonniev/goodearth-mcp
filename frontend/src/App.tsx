@@ -12,6 +12,7 @@ import NpubGate from "./components/NpubGate";
 import NostrProfilePanel from "./components/NostrProfilePanel";
 import HeatLedger from "./views/HeatLedger";
 import Crops from "./views/Crops";
+import Pests from "./views/Pests";
 import Favorites from "./views/Favorites";
 import { AVATAR_EVENT, avatarFor, hydrateAvatarFromNostr } from "./lib/avatar";
 import { fetchProfile } from "./lib/nostrProfile";
@@ -130,6 +131,7 @@ export default function App() {
           <HeatLedger region={region} onMeasured={onMeasured} onCost={onCost} onFrost={setFrost} />
         )}
         {view === "crops" && <Crops region={region} onCost={onCost} />}
+        {view === "pests" && <Pests region={region} onCost={onCost} />}
         {view === "favorites" && <Favorites active={region} onPick={pickRegion} />}
         {view === "account" && (
           <>

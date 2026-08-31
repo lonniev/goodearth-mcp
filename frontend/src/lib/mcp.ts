@@ -870,3 +870,81 @@ export async function cropGddStatus(
     region, plantings, base_temp: baseTemp,
   });
 }
+
+
+// ─── Soil window ─────────────────────────────────────────────────────────
+
+export interface SoilWindowResult {
+  success: boolean;
+  error?: string;
+  as_of: string;
+  band: { key: string; label: string };
+  threshold_f: number;
+  direction: "cooling" | "warming";
+  current_soil_f: number | null;
+  near_term: {
+    days: { date: string; soil_f: number | null }[];
+    crossing_date: string | null;
+    note: string;
+  } | null;
+  typical: { median: string; earliest: string; latest: string; years_on_record: number } | null;
+  days_to_typical_crossing: number | null;
+  note: string;
+}
+
+/// When soil at planting depth crosses a threshold on this ground.
+export async function soilTempProjection(
+  region: Region, threshold = 60, direction: "cooling" | "warming" = "cooling",
+  band: "planting" | "shallow" = "planting",
+): Promise<SoilWindowResult> {
+  return callTool<SoilWindowResult>("soil_temp_projection", { region, threshold, direction, band });
+}
+
+// ─── Pest thresholds ─────────────────────────────────────────────────────
+
+export interface PestStage {
+  stage: string;
+  gdd: number;
+  reached: boolean;
+  gdd_remaining: number;
+  projected_date: string | null;
+}
+
+export interface PestAssessment {
+  pest: string;
+  base_temp_f?: number;
+  biofix?: string | null;
+  counted_from?: string;
+  gdd_accumulated?: number;
+  current_stage?: string | null;
+  next_stage?: PestStage | null;
+  stages?: PestStage[];
+  state: "active" | "before_first_stage" | "not_started";
+  note: string;
+}
+
+export interface PestWindowResult {
+  success: boolean;
+  error?: string;
+  as_of: string;
+  pests: PestAssessment[];
+  scout_now: string[];
+  summary: string;
+  note: string;
+}
+
+export interface PestModel {
+  pest: string;
+  base_temp?: number;
+  biofix?: string;
+  stages: { stage: string; gdd: number }[];
+}
+
+/// Where your pest models' degree-day stages stand on this ground. The
+/// thresholds are the caller's — Good Earth computes, it does not publish
+/// entomology.
+export async function pestThreshold(
+  region: Region, models: PestModel[],
+): Promise<PestWindowResult> {
+  return callTool<PestWindowResult>("pest_threshold", { region, pests: models });
+}

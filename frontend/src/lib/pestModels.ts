@@ -1,0 +1,89 @@
+// The grower's pest models.
+//
+// These are the patron's own, not Good Earth's. The service computes when a
+// model's stages arrive on a given piece of ground; it does not publish
+// entomology, because the authoritative thresholds belong to the grower's
+// extension service and vary by region and biotype.
+//
+// The starters below are offered as a shape to edit, and are labelled that way
+// everywhere they surface. Stored per-region like plantings; NIP-78
+// `goodearth/pests` is where they belong once the write-through lands.
+
+import type { PestModel } from "./mcp";
+
+export interface SavedPest extends PestModel {
+  id: string;
+  regionId: string;
+}
+
+const KEY = "goodearth:pests:v1";
+
+/// Starting shapes only. Every number here must be confirmed against a local
+/// extension bulletin before anyone sprays or skips a scouting round — which
+/// is why the UI says so next to them rather than in a footnote.
+export const PEST_STARTERS: { pest: string; base_temp: number; stages: { stage: string; gdd: number }[] }[] = [
+  { pest: "Codling moth", base_temp: 50, stages: [
+      { stage: "first egg hatch", gdd: 250 }, { stage: "second flight", gdd: 1250 } ] },
+  { pest: "European corn borer", base_temp: 50, stages: [
+      { stage: "first flight", gdd: 375 }, { stage: "second flight", gdd: 1400 } ] },
+  { pest: "Cabbage maggot", base_temp: 40, stages: [
+      { stage: "first flight", gdd: 300 }, { stage: "second flight", gdd: 1500 } ] },
+  { pest: "Squash vine borer", base_temp: 50, stages: [
+      { stage: "peak flight", gdd: 1000 } ] },
+  { pest: "Colorado potato beetle", base_temp: 52, stages: [
+      { stage: "first adults", gdd: 185 }, { stage: "first larvae", gdd: 400 } ] },
+];
+
+function read(): SavedPest[] {
+  try {
+    const raw = window.localStorage.getItem(KEY);
+    return raw ? (JSON.parse(raw) as SavedPest[]) : [];
+  } catch { return []; }
+}
+
+function write(all: SavedPest[]): SavedPest[] {
+  try { window.localStorage.setItem(KEY, JSON.stringify(all)); } catch { /* noop */ }
+  return all;
+}
+
+export function listPests(regionId?: string): SavedPest[] {
+  const all = read();
+  return regionId ? all.filter((p) => p.regionId === regionId) : all;
+}
+
+export function savePest(p: SavedPest): SavedPest[] {
+  return write([...read().filter((x) => x.id !== p.id), p]);
+}
+
+export function deletePest(id: string): SavedPest[] {
+  return write(read().filter((x) => x.id !== id));
+}
+
+/// Validate the way the server does, so the grower is corrected in the form.
+export function makePest(
+  pest: string, baseTemp: number, stagesRaw: string, regionId: string, biofix?: string,
+): SavedPest | string {
+  if (!pest.trim()) return "Give the pest a name.";
+  if (!Number.isFinite(baseTemp) || baseTemp < 20 || baseTemp > 80)
+    return "Base temperature must be between 20 and 80 °F.";
+  if (biofix && (!/^\d{4}-\d{2}-\d{2}$/.test(biofix) || Number.isNaN(Date.parse(biofix))))
+    return "Biofix must be YYYY-MM-DD, or left empty to count from Jan 1.";
+
+  // "first flight 375, second flight 1400" — one stage per comma.
+  const stages = stagesRaw.split(",").map((chunk) => {
+    const m = chunk.trim().match(/^(.*?)[\s:]+(\d+(?:\.\d+)?)$/);
+    if (!m) return null;
+    const g = Number(m[2]);
+    if (!Number.isFinite(g) || g <= 0 || g > 20_000) return null;
+    return { stage: m[1].trim(), gdd: g };
+  });
+  if (!stages.length || stages.some((s) => s === null))
+    return 'Stages look like "first flight 375, second flight 1400".';
+
+  return {
+    id: `pe-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`,
+    pest: pest.trim(), base_temp: baseTemp, regionId,
+    stages: stages as { stage: string; gdd: number }[],
+    ...(biofix ? { biofix } : {}),
+  };
+}

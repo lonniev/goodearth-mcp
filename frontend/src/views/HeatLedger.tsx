@@ -8,8 +8,9 @@
 import { useCallback, useEffect, useState } from "react";
 import SeasonChart from "../components/SeasonChart";
 import FrostCard from "../components/FrostCard";
+import SoilCard from "../components/SoilCard";
 import Provenance from "../components/Provenance";
-import { frostWindow, gddSeasonCurve, type FrostWindowResult, type SeasonCurveResult } from "../lib/mcp";
+import { frostWindow, gddSeasonCurve, soilTempProjection, type FrostWindowResult, type SeasonCurveResult, type SoilWindowResult } from "../lib/mcp";
 import type { SavedRegion } from "../lib/regions";
 
 interface Props {
@@ -28,6 +29,8 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost }: Prop
   const [ranAt, setRanAt] = useState<Date | null>(null);
   const [frost, setFrost] = useState<FrostWindowResult | null>(null);
   const [frostAt, setFrostAt] = useState<Date | null>(null);
+  const [soil, setSoil] = useState<SoilWindowResult | null>(null);
+  const [soilAt, setSoilAt] = useState<Date | null>(null);
 
   const run = useCallback(async () => {
     setBusy(true); setError("");
@@ -59,8 +62,18 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost }: Prop
     }
   }, [region, onFrost]);
 
+  const runSoil = useCallback(async () => {
+    try {
+      // Autumn window at planting depth — the garlic question. A spring
+      // warming window is the same call with direction flipped.
+      const s = await soilTempProjection(region.region, 60, "cooling");
+      if (!s.success) { setSoil(null); return; }
+      setSoil(s); setSoilAt(new Date());
+    } catch { setSoil(null); }
+  }, [region]);
+
   // Re-read whenever the active region changes — the whole app is scoped by it.
-  useEffect(() => { void run(); void runFrost(); }, [run, runFrost]);
+  useEffect(() => { void run(); void runFrost(); void runSoil(); }, [run, runFrost, runSoil]);
 
   const g = data?.accumulated_gdd;
   const ahead = data?.normals?.ahead_of_normal_gdd ?? null;
@@ -173,12 +186,22 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost }: Prop
         </>
       )}
 
+      {soil && (
+        <>
+          {!frost && <h2 className="figure mt-6 mb-2.5 text-[18px] font-semibold">React</h2>}
+          <div className="flex items-baseline gap-2.5">
+            <Provenance tool="goodearth_soil_temp_projection" at={soilAt} onCost={onCost} />
+          </div>
+          <SoilCard data={soil} />
+        </>
+      )}
+
       <div className="mt-6 rounded-md border border-dashed border-rule bg-panel/60 p-4 text-[13px] text-ink-soft">
         <span className="figure text-[15px] text-ink">Still to come on this page</span>
         <p className="mt-1 leading-relaxed">
-          The crop ledger, pest thresholds and the soil-temperature window each
-          need their own tool. They are designed and staged — the page fills in
-          as those ship, and until then it shows only what it can answer.
+          The map view and field reports are what remain. Field reports are the
+          interesting one: they feed the calibration loop, which is how this
+          block learns its own microclimate rather than borrowing the region's.
         </p>
       </div>
     </>

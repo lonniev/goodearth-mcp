@@ -36,7 +36,7 @@ export const RAIL: RailItem[] = [
     icon: I(<><path d="M3 20h18M4 16c3-7 6-9 8-9s5 2 8 9" /></>) },
   { key: "crops", label: "Crops", ready: true,
     icon: I(<><path d="M12 22V10M12 10c-5 0-8-3-8-8 5 0 8 3 8 8zM12 14c0-4 3-7 8-7 0 5-3 8-8 8" /></>) },
-  { key: "pests", label: "Pests", ready: false, soon: "Arrives with pest_threshold",
+  { key: "pests", label: "Pests", ready: true,
     icon: I(<><circle cx="12" cy="13" r="6" /><path d="M12 7V4M8 8L5 5M16 8l3-3M4 13H1M23 13h-3M6 18l-3 3M18 18l3 3" /></>) },
   { key: "todo", label: "To-Do", ready: false, soon: "Tasks born from the analytics above",
     icon: I(<><path d="M9 11l2 2 4-4" /><rect x="3" y="4" width="18" height="16" rx="2" /></>) },

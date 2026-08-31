@@ -26,7 +26,13 @@ from goodearth_mcp.crop_status import region_crop_ledger as crop_ledger_impl
 from goodearth_mcp.crops import CropError
 from goodearth_mcp.frost_window import FrostError
 from goodearth_mcp.frost_window import region_frost_window as frost_window_impl
+from goodearth_mcp.pest_window import PestWindowError
+from goodearth_mcp.pest_window import region_pest_window as pest_window_impl
+from goodearth_mcp.pests import PestError
 from goodearth_mcp.region import RegionError, parse_region
+from goodearth_mcp.soil import SoilError
+from goodearth_mcp.soil_window import SoilWindowError
+from goodearth_mcp.soil_window import region_soil_window as soil_window_impl
 
 logger = logging.getLogger(__name__)
 
@@ -68,10 +74,10 @@ REGION_CLIMATE_BUNDLE_UUID = "2a6cda20-40e0-5aea-8b3a-3f8310937f05"  # T2
 FROST_WINDOW_UUID          = "2b611018-f61d-5d72-bc8e-27abb605b669"
 DLI_CURVE_UUID             = "b111cfd0-1bef-5cf4-907c-37bbf8d2d96a"  # T3
 WATER_BALANCE_UUID         = "c4ec3643-1e8b-59bc-a239-82353c4a0f52"  # T3
-SOIL_TEMP_PROJECTION_UUID  = "03764cdc-c9d9-5396-9eb1-9b7f56da08f6"  # T4
+SOIL_TEMP_PROJECTION_UUID  = "03764cdc-c9d9-5396-9eb1-9b7f56da08f6"
 CROP_GDD_STATUS_UUID       = "a8f72831-77df-57d4-9e6a-dcf81b06832e"
 FINISH_BEFORE_FROST_UUID   = "b5f11328-8d8f-58db-ba89-11f8cbcc3314"  # T4
-PEST_THRESHOLD_UUID        = "79463a63-2076-5376-a357-673c4adb33f0"  # T5
+PEST_THRESHOLD_UUID        = "79463a63-2076-5376-a357-673c4adb33f0"
 CALIBRATION_UUID           = "2e7c72db-e886-53be-b948-bcc97a57986d"  # T6
 
 _DOMAIN_TOOLS = [
@@ -92,6 +98,18 @@ _DOMAIN_TOOLS = [
         capability="crop_gdd_status",
         category="heavy",
         intent="Heat to target and projected date for every planting on a block, with a frost verdict",
+    ),
+    ToolIdentity(
+        tool_id=SOIL_TEMP_PROJECTION_UUID,
+        capability="soil_temp_projection",
+        category="read",
+        intent="When soil at planting depth crosses a threshold on this ground",
+    ),
+    ToolIdentity(
+        tool_id=PEST_THRESHOLD_UUID,
+        capability="pest_threshold",
+        category="read",
+        intent="Where a pest model's degree-day stages stand on this ground, and when the next arrives",
     ),
 ]
 
@@ -316,6 +334,114 @@ async def crop_gdd_status(
             "error": f"A weather feed did not answer: {exc}",
             "error_code": "upstream_unavailable",
         }
+
+
+@tool
+@runtime.paid_tool(SOIL_TEMP_PROJECTION_UUID)
+async def soil_temp_projection(
+    region: Annotated[
+        dict[str, Any],
+        Field(description="GeoJSON Polygon or {lat, lon, radius_m}."),
+    ],
+    threshold: Annotated[
+        float,
+        Field(description="The soil temperature in °F that opens or closes the window. Garlic goes in below about 60."),
+    ] = 60.0,
+    direction: Annotated[
+        str,
+        Field(description="'cooling' for an autumn window, 'warming' for a spring one."),
+    ] = "cooling",
+    band: Annotated[
+        str,
+        Field(description="'planting' for 7-28 cm (~3-11 in, the default) or 'shallow' for 0-7 cm."),
+    ] = "planting",
+    npub: Annotated[
+        str,
+        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
+    ] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """When the soil on this ground crosses a planting threshold.
+
+    Returns the near-term forecast at planting depth, the date it crosses
+    within that horizon if it does, and when the crossing normally happens
+    here — so a grower knows both "plant this week?" and "how long have I got?".
+
+    Soil lags air by weeks and is the steadier signal. It is what decides
+    whether a clove or a seed should go in, not one warm afternoon.
+
+    Args:
+        region: GeoJSON Polygon or {lat, lon, radius_m}.
+        threshold: Soil temperature in °F.
+        direction: 'cooling' (autumn) or 'warming' (spring).
+        band: Soil depth band.
+    """
+    try:
+        parsed = parse_region(region)
+    except RegionError as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+
+    try:
+        return await soil_window_impl(parsed, threshold, direction, band)
+    except (SoilWindowError, SoilError) as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_request"}
+    except (sources.UpstreamError, OSError) as exc:
+        logger.warning("soil_temp_projection failed: %s", exc)
+        return {"success": False, "error": f"A weather feed did not answer: {exc}",
+                "error_code": "upstream_unavailable"}
+
+
+@tool
+@runtime.paid_tool(PEST_THRESHOLD_UUID)
+async def pest_threshold(
+    region: Annotated[
+        dict[str, Any],
+        Field(description="GeoJSON Polygon or {lat, lon, radius_m}."),
+    ],
+    pests: Annotated[
+        list[dict[str, Any]],
+        Field(
+            description=(
+                "The pest models to evaluate, from your extension service. Each is "
+                '{"pest": "Aster leafhopper", "base_temp": 50, "biofix": "2026-05-01", '
+                '"stages": [{"stage": "second flight", "gdd": 1850}]}. '
+                "biofix is optional; without it the count runs from Jan 1."
+            ),
+        ),
+    ],
+    npub: Annotated[
+        str,
+        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
+    ] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """Where a pest model's degree-day stages stand on this ground.
+
+    Returns, per model: heat accumulated since its biofix, which stages have
+    been crossed, and the projected date of the next one — plus a short list of
+    which pests are worth walking the rows for this week.
+
+    Good Earth computes when your models arrive on your ground. It does not
+    publish entomology: the thresholds are yours, because the authoritative
+    numbers belong to your extension service and vary by region and biotype.
+
+    Args:
+        region: GeoJSON Polygon or {lat, lon, radius_m}.
+        pests: Your pest models.
+    """
+    try:
+        parsed = parse_region(region)
+    except RegionError as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+
+    try:
+        return await pest_window_impl(parsed, pests)
+    except (PestWindowError, PestError) as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_request"}
+    except (sources.UpstreamError, OSError) as exc:
+        logger.warning("pest_threshold failed: %s", exc)
+        return {"success": False, "error": f"A weather feed did not answer: {exc}",
+                "error_code": "upstream_unavailable"}
 
 
 # ---------------------------------------------------------------------------
