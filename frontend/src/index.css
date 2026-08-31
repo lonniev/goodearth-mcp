@@ -1,1 +1,60 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
+
+/* Design tokens from frontend/design/heat-ledger-mock.html — the almanac
+   palette. Field paper is green-tinted, never warm cream: this is a tool for
+   people who work outside, and warm cream reads as a receipt. */
+@theme {
+  --color-paper:    #F1F2E8;
+  --color-panel:    #FAFAF3;
+  --color-ink:      #20301B;
+  --color-ink-soft: #5A6650;
+  --color-rule:     #C9CDB6;
+
+  --color-growth:   #4C7A3D;  /* accrual green — actuals, progress */
+  --color-honey:    #D99A06;  /* sats accumulate, honey accumulates */
+  --color-frost:    #4A7BA6;  /* frost line, cold alerts */
+  --color-clay:     #A8442A;  /* won't finish, threshold breached */
+  --color-band:     #DDE2C8;  /* normals band fill */
+  --color-rail-ink: #DCE2CC;
+
+  --font-display: 'Fraunces', ui-serif, Georgia, serif;
+  --font-body:    'Instrument Sans', system-ui, sans-serif;
+  --font-data:    'IBM Plex Mono', ui-monospace, monospace;
+}
+
+@layer base {
+  html, body, #root { height: 100%; }
+  body {
+    font-family: var(--font-body);
+    color: var(--color-ink);
+    background: var(--color-paper);
+    -webkit-font-smoothing: antialiased;
+  }
+  /* Figures are the almanac's voice — they carry the answer, so they get the
+     serif everywhere, not just in headings. */
+  .figure { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.01em; }
+  .data   { font-family: var(--font-data); }
+  .eyebrow {
+    font-family: var(--font-data); font-size: 10.5px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--color-ink-soft);
+  }
+}
+
+/* The skep breathes on a long cycle. Bee traffic is driven by temperature in
+   Hive.tsx — this only carries the idle drift. */
+@keyframes ge-settle {
+  0%, 100% { transform: translate(0, 0); }
+  50%      { transform: translate(1.5px, -1px); }
+}
+@keyframes ge-arrive {
+  0%   { transform: translate(-26px, -20px) scale(.7); opacity: 0; }
+  18%  { opacity: 1; }
+  70%  { transform: translate(2px, -3px) scale(1); opacity: 1; }
+  100% { transform: translate(0, 0) scale(1); opacity: 1; }
+}
+.ge-bee     { animation: ge-settle 6s ease-in-out infinite; transform-origin: center; }
+.ge-bee-in  { animation: ge-arrive 9s ease-in-out infinite; transform-origin: center; }
+@media (prefers-reduced-motion: reduce) {
+  .ge-bee, .ge-bee-in { animation: none; }
+}

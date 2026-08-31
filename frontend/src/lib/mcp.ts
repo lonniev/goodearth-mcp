@@ -577,21 +577,42 @@ export interface CheckPriceResult {
   success: boolean;
   tool_id?: string;
   tool_name?: string;
-  base_cost?: number;
-  effective_cost?: number;
-  cost?: number;
+  /// Wheel 0.89.0 names these `*_api_sats`. The field names carried over from
+  /// the sibling frontend were the older unsuffixed spelling and never
+  /// matched, so every price read as undefined.
+  base_cost_api_sats?: number;
+  effective_cost_api_sats?: number;
+  pricing_type?: string;
+  constraints_enabled?: boolean;
+  constraint_effects?: unknown[];
   error?: string;
   error_code?: string;
 }
 
-export async function checkPrice(
-  toolCapability: string,
-  toolKwargs: Record<string, unknown> = {},
-): Promise<CheckPriceResult> {
-  return callTool<CheckPriceResult>("check_price", {
-    tool_id: toolCapability,
-    tool_kwargs: JSON.stringify(toolKwargs),
-  });
+/// Frozen tool UUIDs, mirroring src/goodearth_mcp/server.py. check_price is
+/// keyed by tool_id, not by name — a capability can be renamed without
+/// orphaning its pricing row, which is the whole point of freezing the UUID.
+export const TOOL_ID: Record<string, string> = {
+  goodearth_gdd_season_curve: "886ebfd6-dde4-5297-9145-2154caefb943",
+  goodearth_region_climate_bundle: "2a6cda20-40e0-5aea-8b3a-3f8310937f05",
+  goodearth_frost_window: "2b611018-f61d-5d72-bc8e-27abb605b669",
+  goodearth_dli_curve: "b111cfd0-1bef-5cf4-907c-37bbf8d2d96a",
+  goodearth_water_balance: "c4ec3643-1e8b-59bc-a239-82353c4a0f52",
+  goodearth_soil_temp_projection: "03764cdc-c9d9-5396-9eb1-9b7f56da08f6",
+  goodearth_crop_gdd_status: "a8f72831-77df-57d4-9e6a-dcf81b06832e",
+  goodearth_finish_before_frost: "b5f11328-8d8f-58db-ba89-11f8cbcc3314",
+  goodearth_pest_threshold: "79463a63-2076-5376-a357-673c4adb33f0",
+  goodearth_calibration: "2e7c72db-e886-53be-b948-bcc97a57986d",
+};
+
+/// The fare for one tool, in api_sats, as the operator's live pricing model
+/// resolves it right now — constraints included. Null when unreadable; the
+/// caller shows the answer without a price rather than inventing one.
+export async function checkPrice(toolName: string): Promise<number | null> {
+  const id = TOOL_ID[toolName] ?? toolName;
+  const r = await callTool<CheckPriceResult>("check_price", { tool_id: id });
+  const v = r.effective_cost_api_sats ?? r.base_cost_api_sats;
+  return typeof v === "number" ? v : null;
 }
 
 export interface PurchaseCreditsResult {
