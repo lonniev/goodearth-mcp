@@ -11,7 +11,8 @@ import RegionPicker from "./RegionPicker";
 import type { SavedRegion } from "../lib/regions";
 
 export type ViewKey =
-  | "map" | "ledger" | "crops" | "pests" | "todo" | "reports" | "favorites" | "account";
+  | "map" | "ledger" | "almanac" | "crops" | "pests" | "wildlife" | "todo"
+  | "reports" | "favorites" | "account";
 
 interface RailItem {
   key: ViewKey;
@@ -34,10 +35,14 @@ export const RAIL: RailItem[] = [
     icon: I(<><path d="M1 6l7-3 8 3 7-3v15l-7 3-8-3-7 3z" /><path d="M8 3v15M16 6v15" /></>) },
   { key: "ledger", label: "Heat Ledger", ready: true,
     icon: I(<><path d="M3 20h18M4 16c3-7 6-9 8-9s5 2 8 9" /></>) },
+  { key: "almanac", label: "Almanac", ready: true,
+    icon: I(<><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>) },
   { key: "crops", label: "Crops", ready: true,
     icon: I(<><path d="M12 22V10M12 10c-5 0-8-3-8-8 5 0 8 3 8 8zM12 14c0-4 3-7 8-7 0 5-3 8-8 8" /></>) },
   { key: "pests", label: "Pests", ready: true,
     icon: I(<><circle cx="12" cy="13" r="6" /><path d="M12 7V4M8 8L5 5M16 8l3-3M4 13H1M23 13h-3M6 18l-3 3M18 18l3 3" /></>) },
+  { key: "wildlife", label: "Wildlife", ready: true,
+    icon: I(<><path d="M4 14c0-4 3-7 8-7s8 3 8 7" /><path d="M8 7L6 3M16 7l2-4" /><circle cx="9" cy="13" r="1" /><circle cx="15" cy="13" r="1" /><path d="M12 16v3" /></>) },
   { key: "todo", label: "To-Do", ready: false, soon: "Tasks born from the analytics above",
     icon: I(<><path d="M9 11l2 2 4-4" /><rect x="3" y="4" width="18" height="16" rx="2" /></>) },
   { key: "reports", label: "Field Reports", ready: true,

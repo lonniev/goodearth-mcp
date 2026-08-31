@@ -1,0 +1,117 @@
+"""Assemble the wildlife calendar for a region.
+
+Shares one season curve per distinct base temperature across the heat-driven
+events, and computes day length exactly for the photoperiod ones — so a whole
+year's worth of species costs one round trip and no astronomy is guessed at.
+"""
+
+from __future__ import annotations
+
+from datetime import UTC, date, datetime
+from typing import Any
+
+from goodearth_mcp import crops, gdd, sources, wildlife
+from goodearth_mcp.region import Region
+
+
+class WildlifeWindowError(ValueError):
+    """The request cannot be answered as asked."""
+
+
+async def region_wildlife(
+    region: Region,
+    events: Any,
+    today: date | None = None,
+) -> dict[str, Any]:
+    """Where each event stands on this ground, and which are due soon."""
+    today = today or datetime.now(UTC).date()
+
+    if not isinstance(events, list) or not events:
+        raise WildlifeWindowError("events must be a non-empty list")
+    if len(events) > wildlife.MAX_EVENTS:
+        raise WildlifeWindowError(
+            f"{len(events)} events is more than one call should carry "
+            f"(limit {wildlife.MAX_EVENTS})"
+        )
+
+    parsed = [wildlife.validate_event(e) for e in events]
+    needs_heat = any(e["driver"] == "heat" for e in parsed)
+    needs_light = any(e["driver"] == "daylight" for e in parsed)
+
+    dates: list[str] = []
+    curves: dict[float, list[float]] = {}
+    daylight: list[float | None] = []
+
+    if needs_heat or needs_light:
+        start = gdd.season_start(today)
+        try:
+            record = await sources.fetch_almanac_history(
+                region.centroid.lat, region.centroid.lon,
+                start.isoformat(), today.isoformat(),
+            )
+        except sources.UpstreamError as exc:
+            raise WildlifeWindowError(f"could not read the season for this ground: {exc}") from exc
+
+        block = sources.daily_block(record)
+        dates = [str(d) for d in (block.get("time") or [])]
+        if not dates:
+            raise WildlifeWindowError("the archive returned no days for this region")
+
+        def num(v: Any) -> float | None:
+            return float(v) if isinstance(v, (int, float)) else None
+
+        if needs_heat:
+            tmax = [num(v) for v in (block.get("temperature_2m_max") or [])]
+            tmin = [num(v) for v in (block.get("temperature_2m_min") or [])]
+            for b in sorted({e["base_temp_f"] for e in parsed if e["driver"] == "heat"}):
+                curves[b] = gdd.accumulate(tmax, tmin, b)
+
+        if needs_light:
+            daylight = [
+                (v / 3600.0) if isinstance(v, (int, float)) else None
+                for v in (block.get("daylight_duration") or [])
+            ]
+
+    rows: list[dict[str, Any]] = []
+    for e in parsed:
+        if e["driver"] == "heat":
+            curve = curves[e["base_temp_f"]]
+            detail = wildlife.heat_event(e, dates, curve, crops.recent_rate(curve), today)
+        elif e["driver"] == "daylight":
+            detail = wildlife.daylight_event(
+                e, dates, daylight, region.centroid.lat, today
+            )
+        else:
+            detail = wildlife.calendar_event(e, today)
+        rows.append({
+            "species": e["species"], "event": e["event"],
+            "emoji": e["emoji"], "note": e["note"] or None,
+            **detail,
+        })
+
+    soon = wildlife.upcoming(rows, today)
+    seen = [r for r in rows if r.get("reached_on")]
+
+    return {
+        "success": True,
+        "as_of": today.isoformat(),
+        "region": region.describe(),
+        "events": rows,
+        "due_soon": soon,
+        "summary": (
+            f"{len(seen)} of {len(rows)} already this season"
+            + (f"; {len(soon)} due in the next three weeks." if soon else ".")
+        ),
+        "note": (
+            "These are your own thresholds. Good Earth works out when they "
+            "arrive on your ground; it does not publish natural history — the "
+            "number that is right for a particular valley belongs to a local "
+            "naturalist, an extension bulletin, or your own years of noticing. "
+            "Daylight-driven dates are astronomy and barely move; heat-driven "
+            "ones move with the season."
+        ),
+        "sources": [
+            {"name": "Open-Meteo archive (ERA5)", "role": "season heat and day length",
+             "resolution_m": sources.ARCHIVE_RESOLUTION_M},
+        ],
+    }

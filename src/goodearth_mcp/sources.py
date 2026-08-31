@@ -37,6 +37,20 @@ _DAILY = "temperature_2m_max,temperature_2m_min"
 # cold air stratifies at all. Without them a forecast low is just a number.
 _DAILY_FROST = "temperature_2m_min,wind_speed_10m_max,cloud_cover_mean,dew_point_2m_min"
 
+# The almanac's own field set. Sunrise/sunset and the durations are only on the
+# forecast endpoint; the archive carries the measures but not the sun, so the
+# two lists differ and the caller must not assume symmetry.
+_DAILY_ALMANAC_FORECAST = (
+    "temperature_2m_max,temperature_2m_min,dew_point_2m_mean,precipitation_sum,"
+    "rain_sum,snowfall_sum,sunrise,sunset,daylight_duration,sunshine_duration,"
+    "wind_speed_10m_max,wind_direction_10m_dominant,weather_code,"
+    "precipitation_probability_max"
+)
+_DAILY_ALMANAC_ARCHIVE = (
+    "temperature_2m_max,temperature_2m_min,dew_point_2m_mean,precipitation_sum,"
+    "daylight_duration,sunshine_duration,wind_speed_10m_max,weather_code"
+)
+
 
 class UpstreamError(RuntimeError):
     """An upstream feed failed or answered in a shape we don't recognise."""
@@ -316,3 +330,51 @@ def daily_field(record: dict[str, Any], field: str) -> tuple[list[str], list[flo
         [str(t) for t in times[:n]],
         [float(v) if isinstance(v, (int, float)) else None for v in vals[:n]],
     )
+
+
+async def fetch_almanac_forecast(lat: float, lon: float, days: int = 14) -> dict[str, Any]:
+    """Everything the sky is about to do, at the region centroid."""
+    days = max(1, min(days, 16))
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        payload = await _get(
+            client, _FORECAST,
+            {
+                "latitude": lat, "longitude": lon,
+                "daily": _DAILY_ALMANAC_FORECAST,
+                "forecast_days": days, "timezone": "auto",
+                "precipitation_unit": "inch",
+                **_US_UNITS,
+            },
+        )
+    results = _as_list(payload)
+    if not results:
+        raise UpstreamError("almanac forecast returned no locations")
+    return results[0]
+
+
+async def fetch_almanac_history(lat: float, lon: float, start: str, end: str) -> dict[str, Any]:
+    """The same measures from the record, for actuals and for normals."""
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        payload = await _get(
+            client, _ARCHIVE,
+            {
+                "latitude": lat, "longitude": lon,
+                "start_date": start, "end_date": end,
+                "daily": _DAILY_ALMANAC_ARCHIVE,
+                "timezone": "auto",
+                "precipitation_unit": "inch",
+                **_US_UNITS,
+            },
+        )
+    results = _as_list(payload)
+    if not results:
+        raise UpstreamError("almanac archive returned no locations")
+    return results[0]
+
+
+def daily_block(record: dict[str, Any]) -> dict[str, list[Any]]:
+    """The whole daily block as-is, for callers reading many fields at once."""
+    daily = record.get("daily")
+    if not isinstance(daily, dict):
+        raise UpstreamError("record has no daily block")
+    return {k: (v if isinstance(v, list) else []) for k, v in daily.items()}

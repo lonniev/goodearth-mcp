@@ -997,3 +997,105 @@ export async function calibration(
     region, observations, base_temp: baseTemp,
   });
 }
+
+
+// ─── Almanac ─────────────────────────────────────────────────────────────
+
+export interface Sky { label: string; emoji: string }
+export interface Wind {
+  from: string | null; arrow: string | null; emoji: string;
+  strength: string | null; speed_mph?: number;
+}
+
+export interface Measure {
+  unit: string;
+  actual: (number | null)[];
+  forecast: (number | null)[];
+  normal: { min: number; mean: number; max: number }[] | null;
+  accumulates: boolean;
+  latest?: number | null;
+  normal_today?: { min: number; mean: number; max: number } | null;
+  actual_total?: number;
+  normal_total?: number;
+}
+
+export type MeasureKey =
+  | "temp_max" | "temp_min" | "dew_point" | "precip" | "sunshine" | "daylight" | "wind_max";
+
+export interface AlmanacResult {
+  success: boolean;
+  error?: string;
+  as_of: string;
+  season_start: string;
+  dates: string[];
+  forecast_dates: string[];
+  measures: Record<MeasureKey, Measure>;
+  conditions: {
+    date: string; sky: Sky; wind: Wind;
+    high_f: number | null; low_f: number | null; dew_point_f: number | null;
+    precip_chance_pct: number | null;
+    sunrise: string | null; sunset: string | null;
+    daylight_hours: number | null; sunshine_hours: number | null;
+    sunshine_fraction: number | null;
+  } | null;
+  upcoming: {
+    date: string; sky: Sky; wind: Wind;
+    high_f: number | null; low_f: number | null; dew_point_f: number | null;
+    precip_in: number | null; precip_chance_pct: number | null;
+    sunshine_hours: number | null;
+  }[];
+  sun: { daylight_change_min_per_day: number | null; note: string };
+  moon: {
+    phase: number; illumination: number; name: string; emoji: string;
+    age_days: number; next_full: string | null; note: string;
+  };
+  normals_span_years: number;
+}
+
+/// Temperature, dew point, rain, wind, sun and moon — normal, actual, forecast.
+export async function almanacFor(region: Region): Promise<AlmanacResult> {
+  return callTool<AlmanacResult>("almanac", { region });
+}
+
+// ─── Wildlife calendar ───────────────────────────────────────────────────
+
+export interface WildlifeEventInput {
+  species: string;
+  event: string;
+  driver: "heat" | "daylight" | "calendar";
+  emoji?: string;
+  note?: string;
+  gdd?: number;
+  base_temp?: number;
+  daylight_hours?: number;
+  rising?: boolean;
+  typical_on?: string;
+}
+
+export interface WildlifeRow {
+  species: string; event: string; emoji: string | null; note: string | null;
+  driver: "heat" | "daylight" | "calendar";
+  threshold: string;
+  reached_on: string | null;
+  projected_date: string | null;
+  gdd_accumulated?: number;
+  gdd_remaining?: number | null;
+  days_away?: number;
+}
+
+export interface WildlifeResult {
+  success: boolean;
+  error?: string;
+  as_of: string;
+  events: WildlifeRow[];
+  due_soon: WildlifeRow[];
+  summary: string;
+  note: string;
+}
+
+/// When the grower's own wildlife events arrive on this ground.
+export async function wildlifeCalendar(
+  region: Region, events: WildlifeEventInput[],
+): Promise<WildlifeResult> {
+  return callTool<WildlifeResult>("wildlife_calendar", { region, events });
+}

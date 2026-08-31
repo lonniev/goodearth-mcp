@@ -21,6 +21,8 @@ from tollbooth.runtime import OperatorRuntime, register_standard_tools
 from tollbooth.tool_identity import STANDARD_IDENTITIES, ToolIdentity
 
 from goodearth_mcp import __version__, season, sources
+from goodearth_mcp.almanac_window import AlmanacError
+from goodearth_mcp.almanac_window import region_almanac as almanac_impl
 from goodearth_mcp.calibrate import CalibrateError
 from goodearth_mcp.calibrate import region_calibration as calibration_impl
 from goodearth_mcp.calibration import CalibrationError
@@ -36,6 +38,9 @@ from goodearth_mcp.region import RegionError, parse_region
 from goodearth_mcp.soil import SoilError
 from goodearth_mcp.soil_window import SoilWindowError
 from goodearth_mcp.soil_window import region_soil_window as soil_window_impl
+from goodearth_mcp.wildlife import WildlifeError
+from goodearth_mcp.wildlife_window import WildlifeWindowError
+from goodearth_mcp.wildlife_window import region_wildlife as wildlife_impl
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +87,8 @@ CROP_GDD_STATUS_UUID       = "a8f72831-77df-57d4-9e6a-dcf81b06832e"
 FINISH_BEFORE_FROST_UUID   = "b5f11328-8d8f-58db-ba89-11f8cbcc3314"  # T4
 PEST_THRESHOLD_UUID        = "79463a63-2076-5376-a357-673c4adb33f0"
 CALIBRATION_UUID           = "2e7c72db-e886-53be-b948-bcc97a57986d"
+ALMANAC_UUID               = "ca2ca4ce-69ed-559a-9a7d-12425716dbae"
+WILDLIFE_CALENDAR_UUID     = "b8948acf-27c1-5e72-aeae-b7029567f364"
 
 _DOMAIN_TOOLS = [
     ToolIdentity(
@@ -119,6 +126,18 @@ _DOMAIN_TOOLS = [
         capability="calibration",
         category="write",
         intent="Turn a block's own field reports into a per-region correction on the model",
+    ),
+    ToolIdentity(
+        tool_id=ALMANAC_UUID,
+        capability="almanac",
+        category="heavy",
+        intent="Temperature, dew point, rain, sun and moon for a region — normal, actual and forecast",
+    ),
+    ToolIdentity(
+        tool_id=WILDLIFE_CALENDAR_UUID,
+        capability="wildlife_calendar",
+        category="read",
+        intent="When a grower's own wildlife events arrive on this ground — heat, daylight or calendar driven",
     ),
 ]
 
@@ -514,6 +533,113 @@ async def calibration(
         return {"success": False, "error": str(exc), "error_code": "invalid_request"}
     except (sources.UpstreamError, OSError) as exc:
         logger.warning("calibration failed: %s", exc)
+        return {"success": False, "error": f"A weather feed did not answer: {exc}",
+                "error_code": "upstream_unavailable"}
+
+
+@tool
+@runtime.paid_tool(ALMANAC_UUID)
+async def almanac(
+    region: Annotated[
+        dict[str, Any],
+        Field(description="GeoJSON Polygon or {lat, lon, radius_m}."),
+    ],
+    npub: Annotated[
+        str,
+        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
+    ] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """The sky's own record for this ground — normal, actual, and what is coming.
+
+    Degree days say what the season is doing to the plants. This says what the
+    season is doing: temperature, dew point, rain, wind, sunshine and day
+    length, each against what is normal here, what has actually happened, and
+    the fortnight ahead. Plus the sun and moon, which are astronomy and so are
+    computed exactly rather than forecast.
+
+    Growers read these together with the heat. A week of high dew points is
+    disease weather whatever the degree-day total says, and a dry August is an
+    irrigation decision that heat accumulation cannot make for you.
+
+    One call covers every measure — three upstream requests regardless.
+
+    Args:
+        region: GeoJSON Polygon or {lat, lon, radius_m}.
+    """
+    try:
+        parsed = parse_region(region)
+    except RegionError as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+
+    try:
+        return await almanac_impl(parsed)
+    except AlmanacError as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_request"}
+    except (sources.UpstreamError, OSError) as exc:
+        logger.warning("almanac failed: %s", exc)
+        return {"success": False, "error": f"A weather feed did not answer: {exc}",
+                "error_code": "upstream_unavailable"}
+
+
+@tool
+@runtime.paid_tool(WILDLIFE_CALENDAR_UUID)
+async def wildlife_calendar(
+    region: Annotated[
+        dict[str, Any],
+        Field(description="GeoJSON Polygon or {lat, lon, radius_m}."),
+    ],
+    events: Annotated[
+        list[dict[str, Any]],
+        Field(
+            description=(
+                "The events to time, with your own thresholds. Heat-driven: "
+                '{"species": "Woodchuck", "event": "emergence", "driver": "heat", '
+                '"gdd": 120, "base_temp": 43}. Daylight-driven: '
+                '{"species": "Robin", "event": "first arrival", "driver": "daylight", '
+                '"daylight_hours": 11.5, "rising": true}. From your own record: '
+                '{"species": "Grey squirrel", "event": "nut caching", '
+                '"driver": "calendar", "typical_on": "09-15"}. All accept an '
+                "optional emoji and note."
+            ),
+        ),
+    ],
+    npub: Annotated[
+        str,
+        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
+    ] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """When the other creatures working your season arrive.
+
+    A farm is not only its crops. Robins arrive, woodchucks wake, squirrels
+    start caching. The same drivers that time a crop time the animals — heat
+    accumulation, day length, and the calendar the sun keeps — so they can be
+    computed for your ground rather than read off a regional average.
+
+    Three clocks, because animals do not all run on one: a degree-day
+    threshold, a photoperiod threshold (migration runs on this, which is why it
+    barely moves between a warm year and a cold one), or a date from your own
+    record.
+
+    The thresholds are yours. Good Earth works out when they arrive here; it
+    does not publish natural history.
+
+    Args:
+        region: GeoJSON Polygon or {lat, lon, radius_m}.
+        events: Your wildlife events.
+    """
+    try:
+        parsed = parse_region(region)
+    except RegionError as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+
+    try:
+        return await wildlife_impl(parsed, events)
+    except (WildlifeWindowError, WildlifeError) as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_request"}
+    except (sources.UpstreamError, OSError) as exc:
+        logger.warning("wildlife_calendar failed: %s", exc)
         return {"success": False, "error": f"A weather feed did not answer: {exc}",
                 "error_code": "upstream_unavailable"}
 

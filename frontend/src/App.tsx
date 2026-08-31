@@ -15,6 +15,8 @@ import Crops from "./views/Crops";
 import Pests from "./views/Pests";
 import MapView from "./views/MapView";
 import FieldReports from "./views/FieldReports";
+import Almanac from "./views/Almanac";
+import Wildlife from "./views/Wildlife";
 import Favorites from "./views/Favorites";
 import { AVATAR_EVENT, avatarFor, hydrateAvatarFromNostr } from "./lib/avatar";
 import { fetchProfile } from "./lib/nostrProfile";
@@ -133,7 +135,9 @@ export default function App() {
           <HeatLedger region={region} onMeasured={onMeasured} onCost={onCost} onFrost={setFrost} />
         )}
         {view === "map" && <MapView active={region} onSaved={(r) => { pickRegion(r); setView("ledger"); }} />}
+        {view === "almanac" && <Almanac region={region} onCost={onCost} />}
         {view === "crops" && <Crops region={region} onCost={onCost} />}
+        {view === "wildlife" && <Wildlife region={region} onCost={onCost} />}
         {view === "pests" && <Pests region={region} onCost={onCost} />}
         {view === "reports" && <FieldReports region={region} onCost={onCost} />}
         {view === "favorites" && <Favorites active={region} onPick={pickRegion} />}
