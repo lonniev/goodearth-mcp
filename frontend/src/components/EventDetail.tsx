@@ -1,17 +1,30 @@
 // One event on the ledger, opened.
 //
-// The narrative is COMPOSED, not fetched. Everything a grower needs to judge a
-// flag is already on the page: what the threshold is, where it came from, what
-// the curve says, and how firm that is. Sending it to a model to be written up
-// would cost a fare and add nothing but adjectives — and would risk asserting
-// agronomy the rest of this app is careful not to claim.
+// Two halves, and the line between them is deliberate.
 //
-// What the modal does add is the part a flag on a curve cannot show: whether
-// the date is measured or projected, and how much to trust it.
+// The TIMING half is composed from what is already on the page — whether the
+// date is recorded, forecast or projected, and therefore how much to trust it.
+// Sending that to a model would cost a fare and add adjectives.
+//
+// The IDENTITY half is fetched, because a grower new to a pest genuinely does
+// not know what it is: scientific name, a cited encyclopaedia summary, a
+// photograph, and links that can be checked.
+//
+// What is NOT here is treatment. Pesticide registration is jurisdiction-
+// specific and changes annually; a label rate is law, not guidance. A
+// generated recommendation could be out of date, off-label, or illegal to
+// follow, and this would be the one screen in the app where confident wrongness
+// costs a grower their crop or their certification. So instead of answering
+// "what is the usual treatment", it ROUTES — names the jurisdiction and hands
+// over the extension service whose bulletin is actually authoritative there.
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { LedgerFlag } from "../lib/ledgerFlags";
 import type { SeasonCurveResult } from "../lib/mcp";
+import {
+  guidanceLinks, jurisdictionFor, lookupSpecies,
+  type GuidanceLink, type SpeciesInfo,
+} from "../lib/species";
 
 const KIND: Record<LedgerFlag["kind"], { label: string; tone: string; source: string }> = {
   crop: {
@@ -42,6 +55,35 @@ export default function EventDetail({
 }) {
   const box = useRef<HTMLDivElement | null>(null);
   const k = KIND[flag.kind];
+  const [info, setInfo] = useState<SpeciesInfo | null>(null);
+  const [looking, setLooking] = useState(true);
+  const [links, setLinks] = useState<GuidanceLink[]>([]);
+
+  // The subject is the part before the separator: "Codling moth · first egg
+  // hatch" is a moth, not an egg hatch.
+  const subject = flag.label.split("·")[0].trim();
+
+  useEffect(() => {
+    const ac = new AbortController();
+    setLooking(true);
+    setInfo(null);
+    lookupSpecies(subject, ac.signal)
+      .then((r) => { if (!ac.signal.aborted) setInfo(r); })
+      .catch(() => { /* identity is a bonus; the timing stands without it */ })
+      .finally(() => { if (!ac.signal.aborted) setLooking(false); });
+
+    const c = curve.region?.centroid;
+    if (c) {
+      jurisdictionFor(c.lat, c.lon, ac.signal)
+        .then((state) => {
+          if (!ac.signal.aborted) setLinks(guidanceLinks(subject, flag.kind, state));
+        })
+        .catch(() => setLinks(guidanceLinks(subject, flag.kind, null)));
+    } else {
+      setLinks(guidanceLinks(subject, flag.kind, null));
+    }
+    return () => ac.abort();
+  }, [subject, flag.kind, curve.region]);
 
   // Escape closes, and focus moves in — a modal a keyboard cannot leave is a trap.
   useEffect(() => {
@@ -113,6 +155,52 @@ export default function EventDetail({
           </div>
         </div>
 
+        {/* ── What it is ──────────────────────────────────────────── */}
+        {looking ? (
+          <Row label="What it is"><span className="text-ink-soft">Looking it up…</span></Row>
+        ) : info ? (
+          <div className="mt-3.5">
+            <div className="eyebrow">What it is</div>
+            <div className="mt-1 flex gap-3">
+              {info.photo && (
+                <img src={info.photo.url} alt={info.commonName ?? info.scientificName}
+                  className="h-20 w-20 shrink-0 rounded-md border border-rule object-cover" />
+              )}
+              <div className="min-w-0">
+                <div className="text-[13px]">
+                  <b>{info.commonName ?? info.scientificName}</b>
+                  {info.commonName && (
+                    <span className="ml-1.5 italic text-ink-soft">{info.scientificName}</span>
+                  )}
+                </div>
+                {info.summary && (
+                  <p className="mt-1 text-[12.5px] leading-relaxed">
+                    {info.summary.length > 420 ? info.summary.slice(0, 419) + "…" : info.summary}
+                  </p>
+                )}
+              </div>
+            </div>
+            <p className="data mt-1.5 flex flex-wrap gap-x-3 text-[10.5px]">
+              {info.wikipediaUrl && (
+                <a href={info.wikipediaUrl} target="_blank" rel="noreferrer"
+                  className="text-frost underline">Wikipedia</a>
+              )}
+              <a href={info.inatUrl} target="_blank" rel="noreferrer"
+                className="text-frost underline">iNaturalist</a>
+              {info.photo?.attribution && (
+                <span className="text-ink-soft">{info.photo.attribution.slice(0, 70)}</span>
+              )}
+            </p>
+          </div>
+        ) : (
+          <Row label="What it is">
+            <span className="text-ink-soft">
+              No match for "{subject}" in the taxonomy — which usually means the
+              name here is a local one. The timing below still stands.
+            </span>
+          </Row>
+        )}
+
         <Row label="How firm is this?">{confidence}</Row>
         <Row label="Where the threshold came from">{k.source}</Row>
 
@@ -132,6 +220,28 @@ export default function EventDetail({
             of a spread rather than a line across the field. Expect the bench first
             and the hollow last.
           </Row>
+        )}
+
+        {/* ── Management: routed, never generated ─────────────────── */}
+        {links.length > 0 && (
+          <div className="mt-3.5">
+            <div className="eyebrow">Where management guidance lives</div>
+            <p className="mt-1 text-[13px] leading-relaxed">
+              Good Earth does not recommend treatments. Pesticide registration
+              is state-specific and changes yearly, and a label rate is law
+              rather than advice — so the bulletin below is the authority, not
+              this screen.
+            </p>
+            <div className="mt-2 flex flex-col gap-1.5">
+              {links.map((l) => (
+                <a key={l.url} href={l.url} target="_blank" rel="noreferrer"
+                  className="flex min-h-11 items-center rounded-md border border-rule bg-paper/60 px-3 text-[12.5px] font-medium text-ink active:border-ink">
+                  🔗 {l.label}
+                  {l.note && <span className="ml-2 hidden font-normal text-ink-soft sm:inline">— {l.note}</span>}
+                </a>
+              ))}
+            </div>
+          </div>
         )}
 
         <Row label="What would sharpen it">
