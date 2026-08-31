@@ -143,3 +143,53 @@ def test_region_is_immutable():
     with pytest.raises(dataclasses.FrozenInstanceError):
         r.kind = "circle"  # type: ignore[misc]
     assert isinstance(r, Region)
+
+
+# ── sampling floor ───────────────────────────────────────────────────────
+
+
+def test_farm_sized_block_gets_many_samples():
+    """A working field must not collapse to one point.
+
+    A 9 ha block is roughly 300 m across — narrower than a single weather
+    cell. Flooring the grid at the weather resolution gave it one sample and
+    therefore a spread of zero, which reads as "this ground is flat" when it
+    only means nobody looked. The spread is the whole product, so this is a
+    correctness test, not a tuning knob.
+    """
+    block = {
+        "type": "Polygon",
+        "coordinates": [
+            [
+                [-73.2100, 44.4800],
+                [-73.2065, 44.4800],
+                [-73.2065, 44.4827],
+                [-73.2100, 44.4827],
+                [-73.2100, 44.4800],
+            ]
+        ],
+    }
+    r = parse_region(block)
+    assert 0.05 < r.area_km2 < 0.15, "fixture drifted off farm scale"
+    assert r.sample_count > 8
+
+
+def test_grid_spacing_floors_at_the_elevation_model():
+    """Spacing is bounded below by SRTM's 90 m — the feed spread comes from.
+
+    Uses a small region on purpose: a big one legitimately widens past the
+    floor, so it could not tell a working floor from a missing one.
+    """
+    small = parse_region({"lat": 44.48, "lon": -73.21, "radius_m": 200})
+    assert small.describe()["grid_spacing_m"] == 90
+
+
+def test_describe_reports_the_spacing_actually_used():
+    """Widening a big region must widen its provenance too.
+
+    Reporting a constant would tell a grower comparing two answers that they
+    covered the same ground at the same resolution when they did not.
+    """
+    wide = parse_region({"lat": 44.48, "lon": -73.21, "radius_m": 5000})
+    assert wide.describe()["grid_spacing_m"] > 90
+    assert wide.describe()["grid_spacing_m"] == round(wide.spacing_m)

@@ -5,7 +5,7 @@
 // plainly instead of showing a plausible number: a grower who plans around a
 // fabricated frost date loses a crop.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import SeasonChart from "../components/SeasonChart";
 import FrostCard from "../components/FrostCard";
 import EventDetail from "../components/EventDetail";
@@ -29,7 +29,7 @@ interface Props {
   onFrost?: (f: FrostWindowResult | null) => void;
   /// The ledger raises questions the other views answer; it should be able to
   /// hand the reader straight to them.
-  onView?: (v: "map" | "almanac" | "crops" | "pests" | "wildlife" | "reports") => void;
+  onView?: (v: "map" | "almanac" | "crops" | "pests" | "wildlife" | "reports" | "references") => void;
 }
 
 export default function HeatLedger({ region, onMeasured, onCost, onFrost, onView }: Props) {
@@ -126,12 +126,24 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost, onView
 
   return (
     <>
-      <div className="mb-3.5 flex items-baseline gap-3">
-        <h1 className="figure text-[26px] font-bold">Heat Ledger</h1>
-        <span className="text-[13px] text-ink-soft">
-          {region.name}
-          {data ? ` · season from ${fmt(data.season_start)} · base ${data.base_temp_f}°F` : ""}
-        </span>
+      {/* The rail already names this view and the region chip already names
+          the ground, so neither is repeated here. What is left is the two
+          dials a grower actually set, and the way to the sources. */}
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1.5">
+        <h1 className="figure text-[22px] font-bold leading-none">GDD</h1>
+        {data && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Tag>base {Math.round(data.base_temp_f)}°F</Tag>
+            <Tag>from {fmt(data.season_start)}</Tag>
+            {data.region && (
+              <Tag>{data.region.sample_count} samples · {Math.round(data.region.grid_spacing_m)} m</Tag>
+            )}
+            <button onClick={() => onView?.("references")}
+              className="data rounded-full border border-rule px-2.5 py-1 text-[10px] text-ink-soft active:bg-band">
+              sources ↗
+            </button>
+          </div>
+        )}
       </div>
 
       {error && (
@@ -142,13 +154,29 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost, onView
       )}
 
       {/* ── Pulse strip ───────────────────────────────────────────────── */}
-      <div className="mb-5 grid grid-cols-2 border-t-2 border-b border-t-ink border-b-rule md:grid-cols-4">
+      <div className="mb-4 grid grid-cols-2 border-t-2 border-b border-t-ink border-b-rule sm:grid-cols-3 lg:grid-cols-5">
         <Pulse
           emoji="🌡️"
           value={g ? Math.round(g.mean).toLocaleString() : busy ? "…" : "—"}
           unit={data ? `GDD${sub(data.base_temp_f)}` : ""}
-          label="accumulated across the block"
+          label="across the block"
           gauge={heatGauge(data)}
+        />
+        <Pulse
+          emoji="⛰️"
+          value={g ? Math.round(g.spread).toLocaleString() : busy ? "…" : "—"}
+          unit={g ? "GDD" : ""}
+          muted={!g || g.spread <= 0}
+          label={
+            !g
+              ? "hollow to bench"
+              : g.spread <= 0
+                ? "every sample alike"
+                : daysApart(g, data) != null
+                  ? `hollow to bench · ≈ ${daysApart(g, data)} days`
+                  : "hollow to bench"
+          }
+          gauge={spreadGauge(g)}
         />
         <Pulse
           emoji={ahead == null ? "📊" : ahead >= 0 ? "📈" : "📉"}
@@ -156,8 +184,8 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost, onView
           tone={ahead == null ? undefined : ahead >= 0 ? "growth" : "frost"}
           label={
             data?.normals
-              ? `${ahead == null ? "" : ahead >= 0 ? "ahead of" : "behind"} the last ${data.normals.span_years} seasons`
-              : "against recent seasons"
+              ? `${ahead == null ? "vs" : ahead >= 0 ? "ahead of" : "behind"} ${data.normals.span_years} seasons`
+              : "vs recent seasons"
           }
         />
         <Pulse
@@ -167,7 +195,7 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost, onView
           muted={!frost?.first_frost}
           label={
             frost?.first_frost
-              ? `median first frost · earliest ${shortDate(frost.first_frost.earliest)}`
+              ? `median first · earliest ${shortDate(frost.first_frost.earliest)}`
               : "median first frost"
           }
         />
@@ -178,58 +206,13 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost, onView
           muted={!frost?.worst_night}
           label={
             frost?.worst_night
-              ? `coldest ground, ${shortDate(frost.worst_night.date)} — forecast says ${Math.round(frost.worst_night.forecast_low_f)}°F`
-              : "coldest ground in the outlook"
+              ? `coldest ground ${shortDate(frost.worst_night.date)} · forecast ${Math.round(frost.worst_night.forecast_low_f)}°F`
+              : "coldest ground ahead"
           }
         />
       </div>
 
-      {/* ── The spread. This is the product. ──────────────────────────── */}
-      {g && (
-        <div className="mb-5 rounded-md border border-rule border-l-4 border-l-growth bg-panel px-4 py-3.5">
-          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <span className="text-[17px] leading-none">⛰️</span>
-            <b className="figure text-[19px]">{Math.round(g.spread).toLocaleString()} GDD</b>
-            <span className="text-[13px]">
-              {g.spread > 0
-                ? "between the coolest and warmest ground on this block"
-                : "of variation — this ground is flat enough that every sample reads alike"}
-            </span>
-            {daysApart(g, data) != null && (
-              <span className="rounded-full bg-growth/12 px-2.5 py-1 text-[11.5px] font-semibold text-growth">
-                ≈ {daysApart(g, data)} days apart
-              </span>
-            )}
-          </div>
-
-          {/* The block, drawn. A sentence about min and max is a fact; this is
-              the same fact as a picture of the ground it came from. */}
-          {g.spread > 0 && (
-            <div className="mt-3">
-              <div className="relative h-2 rounded-full bg-gradient-to-r from-frost/35 via-band to-growth/45">
-                <span className="absolute -top-0.5 h-3 w-[3px] rounded bg-ink"
-                  style={{ left: `calc(${((g.mean - g.min) / (g.max - g.min)) * 100}% - 1.5px)` }} />
-              </div>
-              <div className="data mt-1 flex justify-between text-[10px] text-ink-soft">
-                <span>🥶 hollow {Math.round(g.min).toLocaleString()}</span>
-                <span>mean {Math.round(g.mean).toLocaleString()}</span>
-                <span>{Math.round(g.max).toLocaleString()} bench ☀️</span>
-              </div>
-            </div>
-          )}
-
-          <p className="data mt-2.5 text-[10px] leading-relaxed text-ink-soft">
-            {data?.sources?.map((s) => `${s.name.replace(/^Open-Meteo /, "")} ${Math.round(s.resolution_m / (s.resolution_m >= 1000 ? 1000 : 1))}${s.resolution_m >= 1000 ? " km" : " m"}`).join(" · ")}
-            {" · "}
-            {data?.across_region.terrain_correction === "applied"
-              ? "lapse + cold-air drainage"
-              : "terrain correction unavailable"}
-          </p>
-        </div>
-      )}
-
-      <h2 className="figure mt-5 mb-2.5 flex flex-wrap items-baseline gap-2.5 text-[18px] font-semibold">
-        <span className="mr-0.5">📈</span>Season heat curve
+      <div className="mb-2.5 flex flex-wrap items-center gap-2">
         {flags.length > 0 && (
           <button onClick={() => setShowFlags((v) => !v)}
             className={`min-h-11 rounded-full border px-3.5 text-[12px] font-medium ${
@@ -253,7 +236,7 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost, onView
           🛰️ Ground
         </button>
         <Provenance tool="goodearth_gdd_season_curve" at={ranAt} onCost={onCost} />
-      </h2>
+      </div>
 
       {busy && !data ? (
         <div className="rounded-md border border-rule bg-panel">
@@ -341,6 +324,12 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost, onView
   );
 }
 
+function Tag({ children }: { children: ReactNode }) {
+  return (
+    <span className="data rounded-full bg-band px-2.5 py-1 text-[10px] text-ink-soft">{children}</span>
+  );
+}
+
 function Pulse({ emoji, value, unit, label, tone, muted, gauge }: {
   emoji: string;
   value: string; unit?: string; label: string;
@@ -352,7 +341,7 @@ function Pulse({ emoji, value, unit, label, tone, muted, gauge }: {
   const color = tone === "growth" ? "text-growth" : tone === "frost" ? "text-frost" : "";
   const bar = tone === "frost" ? "bg-frost" : "bg-growth";
   return (
-    <div className={`border-l border-rule px-3.5 pt-3 pb-3.5 first:border-l-0 first:pl-0 md:[&:nth-child(3)]:border-l ${muted ? "opacity-45" : ""}`}>
+    <div className={`border-l border-rule px-3 pt-3 pb-3.5 text-center first:border-l-0 ${muted ? "opacity-45" : ""}`}>
       <div className="mb-0.5 text-[15px] leading-none">{emoji}</div>
       <div className={`figure text-[clamp(20px,2.4vw,28px)] leading-tight ${color}`}>
         {value}
@@ -401,6 +390,19 @@ function heatGauge(data: SeasonCurveResult | null) {
     pos: (mean - t.min) / (t.max - t.min),
     lo: `coolest ${Math.round(t.min).toLocaleString()}`,
     hi: `${Math.round(t.max).toLocaleString()} warmest`,
+  };
+}
+
+/// The block itself, drawn on the strip's own gauge: where the average sits
+/// between the coolest hollow and the warmest bench. Null when every sample
+/// reads alike — a gauge with both ends at one value would draw a picture of
+/// variation that is not there.
+function spreadGauge(g?: { min: number; mean: number; max: number; spread: number } | null) {
+  if (!g || g.spread <= 0 || g.max <= g.min) return null;
+  return {
+    pos: (g.mean - g.min) / (g.max - g.min),
+    lo: `🥶 ${Math.round(g.min).toLocaleString()}`,
+    hi: `${Math.round(g.max).toLocaleString()} ☀️`,
   };
 }
 
