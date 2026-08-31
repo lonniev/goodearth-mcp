@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState } from "react";
 import CropLedger from "../components/CropLedger";
 import Provenance from "../components/Provenance";
+import QuoteScroller from "../components/QuoteScroller";
 import { cropGddStatus, cropSuitability, type CropLedgerResult, type SuitabilityResult, type Verdict } from "../lib/mcp";
 import {
   CROP_CATEGORIES, CROP_PRESETS, deletePlanting, listPlantings, makePlanting,
@@ -134,8 +135,8 @@ export default function Crops({
       )}
 
       {busy && !ledger ? (
-        <div className="rounded-md border border-rule bg-panel p-8 text-center text-[13px] text-ink-soft">
-          Reading the ledger…
+        <div className="rounded-md border border-rule bg-panel">
+          <QuoteScroller heading="Reading the ledger" />
         </div>
       ) : ledger ? (
         <CropLedger rows={ledger.plantings} plantings={plantings} onDelete={remove} />

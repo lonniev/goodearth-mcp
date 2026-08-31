@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Provenance from "../components/Provenance";
+import QuoteScroller from "../components/QuoteScroller";
 import { calibration, type CalibrationResult } from "../lib/mcp";
 import { boundsFrom, fetchObservations, type INatObservation } from "../lib/inaturalist";
 import { geoJSONToRing } from "../lib/geo";
@@ -181,7 +182,7 @@ export default function FieldReports({
       </h2>
 
       {busy && !cal ? (
-        <div className="rounded-md border border-rule bg-panel p-6 text-[13px] text-ink-soft">Reading…</div>
+        <div className="rounded-md border border-rule bg-panel"><QuoteScroller heading="Reading your reports" /></div>
       ) : cal ? (
         <div className="grid gap-3 sm:grid-cols-2">
           <Bias title="Heat" s={cal.heat} unit="%" />

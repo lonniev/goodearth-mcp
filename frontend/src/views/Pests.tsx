@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Provenance from "../components/Provenance";
+import QuoteScroller from "../components/QuoteScroller";
 import { pestThreshold, type PestWindowResult } from "../lib/mcp";
 import {
   deletePest, listPests, makePest, PEST_STARTERS, savePest, type SavedPest,
@@ -92,8 +93,8 @@ export default function Pests({
       {data?.summary && <p className="mb-2.5 text-[13px] text-ink-soft">{data.summary}</p>}
 
       {busy && !data ? (
-        <div className="rounded-md border border-rule bg-panel p-8 text-center text-[13px] text-ink-soft">
-          Reading thresholds…
+        <div className="rounded-md border border-rule bg-panel">
+          <QuoteScroller heading="Reading thresholds" />
         </div>
       ) : data ? (
         <div className="space-y-2.5">

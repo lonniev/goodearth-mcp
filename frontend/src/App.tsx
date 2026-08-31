@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState } from "react";
 import AppShell, { type ViewKey } from "./components/AppShell";
 import Hive, { hiveMood } from "./components/Hive";
+import Bees from "./components/Bees";
 import NpubGate from "./components/NpubGate";
 import NostrProfilePanel from "./components/NostrProfilePanel";
 import HeatLedger from "./views/HeatLedger";
@@ -37,16 +38,35 @@ function frostWatchLive(f: FrostWindowResult | null): boolean {
 }
 
 /// The top bar's conditions line. Quiet, and only what we actually know.
+///
+/// Glyphs carry the category so the eye can skip to the number it wants
+/// without reading the words — the same trick the Almanac uses, and the reason
+/// that page scans faster than a sentence does.
 function conditions(f: FrostWindowResult | null) {
   const n = f?.nights?.[0];
   if (!n) return null;
+  const cold = n.low_ground_f <= 40;
+  const cloud = n.cloud_pct == null ? null
+    : n.cloud_pct >= 70 ? "☁️" : n.cloud_pct >= 30 ? "⛅" : "🌙";
+  const wind = n.wind_mph == null ? null
+    : n.wind_mph >= 25 ? "💨" : n.wind_mph >= 13 ? "🌬️" : "🍃";
   return (
-    <>
-      Tonight <b className="figure text-[15px] text-ink">{Math.round(n.low_ground_f)}°F</b>
-      {" on low ground"}
-      {n.wind_mph != null && <> · wind {Math.round(n.wind_mph)} mph</>}
-      {n.cloud_pct != null && <> · {Math.round(n.cloud_pct)}% cloud</>}
-    </>
+    <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-0.5">
+      <span>
+        <span className="mr-1">{cold ? "🥶" : "🌡️"}</span>
+        Tonight <b className="figure text-[15px] text-ink">{Math.round(n.low_ground_f)}°F</b>
+        <span className="text-ink-soft"> on low ground</span>
+      </span>
+      {wind && (
+        <span><span className="mr-1">{wind}</span>{Math.round(n.wind_mph!)} mph</span>
+      )}
+      {cloud && (
+        <span><span className="mr-1">{cloud}</span>{Math.round(n.cloud_pct!)}% cloud</span>
+      )}
+      {n.dew_point_f != null && (
+        <span><span className="mr-1">💧</span>{Math.round(n.dew_point_f)}°F dew</span>
+      )}
+    </span>
   );
 }
 
@@ -153,6 +173,9 @@ export default function App() {
           never disagree with the page. Tonight's low on the coldest ground
           against the 55°F flight threshold; shut on a live frost watch. */}
       <Hive mood={hiveMood(tonightLow(frost), frostWatchLive(frost))} />
+      {/* The foragers work the whole page. pointer-events:none throughout, so
+          a bee can never swallow a tap on a frost warning. */}
+      <Bees mood={hiveMood(tonightLow(frost), frostWatchLive(frost))} />
     </>
   );
 }

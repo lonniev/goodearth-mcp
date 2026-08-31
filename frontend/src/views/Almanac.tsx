@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useState } from "react";
 import MeasureChart from "../components/MeasureChart";
 import Provenance from "../components/Provenance";
+import QuoteScroller from "../components/QuoteScroller";
 import { almanacFor, type AlmanacResult, type MeasureKey } from "../lib/mcp";
 import type { SavedRegion } from "../lib/regions";
 
@@ -155,8 +156,8 @@ export default function Almanac({
       </div>
 
       {busy && !data ? (
-        <div className="rounded-md border border-rule bg-panel p-8 text-center text-[13px] text-ink-soft">
-          Reading the season…
+        <div className="rounded-md border border-rule bg-panel">
+          <QuoteScroller heading="Reading the season" />
         </div>
       ) : data ? (
         <div className="space-y-3">

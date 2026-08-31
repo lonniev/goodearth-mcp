@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Provenance from "../components/Provenance";
+import QuoteScroller from "../components/QuoteScroller";
 import { wildlifeCalendar, type WildlifeResult } from "../lib/mcp";
 import {
   deleteWildlife, DRIVER_HELP, HUSBANDRY_INTERVALS, listWildlife, makeWildlife,
@@ -107,7 +108,7 @@ export default function Wildlife({
       {data?.summary && <p className="mb-2.5 text-[13px] text-ink-soft">{data.summary}</p>}
 
       {busy && !data ? (
-        <div className="rounded-md border border-rule bg-panel p-8 text-center text-[13px] text-ink-soft">Reading…</div>
+        <div className="rounded-md border border-rule bg-panel"><QuoteScroller heading="Reading the year" /></div>
       ) : data ? (
         <ul className="space-y-2">
           {data.events.map((e) => {

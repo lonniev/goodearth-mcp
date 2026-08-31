@@ -14,11 +14,11 @@
 // where the server returned no band or forecast, that element is absent rather
 // than guessed at.
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { SeasonCurveResult } from "../lib/mcp";
 import type { LedgerFlag } from "../lib/ledgerFlags";
 import { regionImageUrl } from "../lib/basemapImage";
-import { useChartZoom, windowToDomain } from "../lib/useChartZoom";
+import { TIMESCALES, useChartZoom, windowToDomain } from "../lib/useChartZoom";
 import ZoomControls from "./ZoomControls";
 
 const W = 740, H = 268, L = 46, R = 716, T = 16, B = 232;
@@ -45,7 +45,8 @@ function niceStep(span: number): number {
 export default function SeasonChart({
   data, frostDayIndex = null, flags = [], onFlag, showGround = true,
 }: Props) {
-  const { zoom, zoomX, zoomY, reset, isZoomed, svgRef } = useChartZoom();
+  const { zoom, zoomX, zoomY, reset, showSpan, isZoomed, svgRef } = useChartZoom();
+  const [span, setSpan] = useState<string | null>("season");
   const clipId = "ge-plot-clip";
   const ground = showGround && data.region?.bbox ? regionImageUrl(data.region.bbox) : null;
 
@@ -133,7 +134,7 @@ export default function SeasonChart({
         } · ${Math.round(gLo).toLocaleString()}–${Math.round(gHi).toLocaleString()} GDD`
       : "";
 
-    return { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, rangeLabel };
+    return { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, rangeLabel, totalDays };
   }, [data, zoom]);
 
   if (!view) {
@@ -144,7 +145,8 @@ export default function SeasonChart({
     );
   }
 
-  const { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, rangeLabel } = view;
+  const { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, rangeLabel, totalDays } = view;
+  const todayIndex = last;
   const todayGdd = mean[last];
 
   return (
@@ -162,10 +164,13 @@ export default function SeasonChart({
           <clipPath id={clipId}>
             <rect x={L} y={T} width={R - L} height={B - T} />
           </clipPath>
-          {/* Fade the still toward the axis so it never fights the numbers. */}
+          {/* Fade the still toward the axis so it never fights the numbers —
+              but not so far that it reads as a smudge. The curve is drawn on
+              top at full strength, so the image can afford to be seen. */}
           <linearGradient id="ge-ground-fade" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#fff" stopOpacity="0.55" />
-            <stop offset="100%" stopColor="#fff" stopOpacity="0.1" />
+            <stop offset="0%" stopColor="#fff" stopOpacity="1" />
+            <stop offset="70%" stopColor="#fff" stopOpacity="0.75" />
+            <stop offset="100%" stopColor="#fff" stopOpacity="0.35" />
           </linearGradient>
           <mask id="ge-ground-mask">
             <rect x={L} y={T} width={R - L} height={B - T} fill="url(#ge-ground-fade)" />
@@ -176,7 +181,7 @@ export default function SeasonChart({
             saved blocks this is orientation, not decoration. */}
         {ground && (
           <image href={ground} x={L} y={T} width={R - L} height={B - T}
-            preserveAspectRatio="xMidYMid slice" opacity={0.22}
+            preserveAspectRatio="xMidYMid slice" opacity={0.55}
             mask="url(#ge-ground-mask)" aria-hidden="true" />
         )}
 
@@ -266,7 +271,20 @@ export default function SeasonChart({
         <line x1={L} x2={R} y1={B} y2={B} stroke="var(--color-ink)" strokeWidth={1.5} />
       </svg>
 
-      <ZoomControls onZoomX={zoomX} onZoomY={zoomY} onReset={reset} isZoomed={isZoomed} range={rangeLabel} />
+      <ZoomControls
+        onZoomX={(f) => { setSpan(null); zoomX(f); }}
+        onZoomY={zoomY}
+        onReset={() => { setSpan("season"); reset(); }}
+        isZoomed={isZoomed}
+        range={rangeLabel}
+        activeSpan={span}
+        onSpan={(days) => {
+          setSpan(TIMESCALES.find((t) => t.days === days)?.key ?? null);
+          // Anchor on today, because that is where the reader is standing —
+          // a month view that lands in March is a month of the wrong month.
+          showSpan(days, totalDays, todayIndex);
+        }}
+      />
 
       <div className="flex flex-wrap gap-3.5 px-2 pt-2 pb-1 text-[11.5px] text-ink-soft">
         {data.normals && (

@@ -48,6 +48,19 @@ export interface ZoomState {
 
 export const FULL: ZoomState = { x: { lo: 0, hi: 1 }, y: { lo: 0, hi: 1 } };
 
+/// Named spans, so a reader can jump to the altitude their question lives at
+/// instead of pinching their way there. The ledger's series is DAILY, so a
+/// week is the finest span that still shows a shape — anything below it is
+/// seven points and a straight line, and "hours" would need an hourly fetch
+/// this chart does not make.
+export const TIMESCALES: { key: string; label: string; days: number | null }[] = [
+  { key: "season", label: "Season", days: null },
+  { key: "quarter", label: "3 months", days: 90 },
+  { key: "month", label: "Month", days: 30 },
+  { key: "fortnight", label: "2 weeks", days: 14 },
+  { key: "week", label: "Week", days: 7 },
+];
+
 const MIN_SPAN = 0.02; // never zoom past ~2% of the domain
 
 function clampWindow(w: Window1D): Window1D {
@@ -101,6 +114,18 @@ export function useChartZoom() {
   const panX = useCallback((d: number) => setZoom((z) => ({ ...z, x: panBy(z.x, d) })), []);
   const panY = useCallback((d: number) => setZoom((z) => ({ ...z, y: panBy(z.y, d) })), []);
   const reset = useCallback(() => setZoom(FULL), []);
+
+  /// Show `days` of a `total`-day series, anchored on a point of interest —
+  /// today, normally, because that is where a grower is standing.
+  const showSpan = useCallback((days: number | null, total: number, anchorIdx?: number) => {
+    if (days == null || total <= 1) { setZoom(FULL); return; }
+    const frac = Math.min(days / total, 1);
+    const centre = anchorIdx != null ? anchorIdx / (total - 1) : 1 - frac / 2;
+    setZoom((z) => ({
+      ...z,
+      x: clampWindow({ lo: centre - frac / 2, hi: centre + frac / 2 }),
+    }));
+  }, []);
 
   const isZoomed = zoom.x.lo > 0 || zoom.x.hi < 1 || zoom.y.lo > 0 || zoom.y.hi < 1;
   const isPanned = Math.abs(zoom.x.lo) > 1e-6 || Math.abs(zoom.x.hi - 1) > 1e-6;
@@ -270,7 +295,7 @@ export function useChartZoom() {
     };
   }, [isZoomed, panX, panY, zoomX, zoomY]);
 
-  return { zoom, setZoom, zoomX, zoomY, panX, panY, reset, isZoomed, isPanned, svgRef };
+  return { zoom, setZoom, zoomX, zoomY, panX, panY, reset, showSpan, isZoomed, isPanned, svgRef };
 }
 
 /// Map a zoom window onto a domain, giving the visible [min,max].

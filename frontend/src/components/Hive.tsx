@@ -28,7 +28,6 @@ const LABEL: Record<HiveMood, string> = {
 export default function Hive({ mood = "unknown" }: { mood?: HiveMood }) {
   // Bee count IS the reading. Two out foraging when warm, one at the entrance
   // when cold, none when shut.
-  const flying = mood === "flying";
   const quiet = mood === "quiet";
 
   return (
@@ -50,17 +49,8 @@ export default function Hive({ mood = "unknown" }: { mood?: HiveMood }) {
         {mood !== "closed" && (
           <ellipse className="ge-bee" cx="75" cy="95" rx="3.2" ry="2.2" />
         )}
-        {flying && <ellipse className="ge-bee-in" cx="83" cy="66" rx="3.2" ry="2.2" />}
-        {flying && (
-          <ellipse
-            className="ge-bee-in"
-            style={{ animationDelay: "-4.5s" }}
-            cx="58"
-            cy="52"
-            rx="3.2"
-            ry="2.2"
-          />
-        )}
+        {/* Foragers are drawn by the roaming Bees layer, which works the whole
+            page. The skep keeps only its doorway, or the two would double up. */}
         {quiet && <ellipse className="ge-bee" cx="61" cy="88" rx="3" ry="2.1" />}
       </g>
     </svg>

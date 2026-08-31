@@ -1,3 +1,4 @@
+import { TIMESCALES } from "../lib/useChartZoom";
 // Zoom controls for a chart, X and Y independently.
 //
 // Two axes, one row, and a reset that only appears when there is something to
@@ -10,6 +11,9 @@ interface Props {
   onZoomY: (factor: number) => void;
   onReset: () => void;
   isZoomed: boolean;
+  /// Named spans. Jumping to an altitude beats pinching your way there.
+  onSpan?: (days: number | null) => void;
+  activeSpan?: string | null;
   /// Rendered under the buttons — the visible range, so the reader always
   /// knows what window they are looking at.
   range?: string;
@@ -20,9 +24,25 @@ interface Props {
 const btn =
   "flex h-11 w-11 items-center justify-center rounded border border-rule bg-panel text-[17px] leading-none text-ink active:bg-band focus-visible:outline-2 focus-visible:outline-honey";
 
-export default function ZoomControls({ onZoomX, onZoomY, onReset, isZoomed, range }: Props) {
+export default function ZoomControls({
+  onZoomX, onZoomY, onReset, isZoomed, range, onSpan, activeSpan,
+}: Props) {
   return (
     <div className="flex flex-wrap items-center gap-3 px-2 pt-2 text-[11px] text-ink-soft">
+      {onSpan && (
+        <span className="flex w-full flex-wrap items-center gap-1.5 pb-1">
+          <span className="eyebrow mr-0.5">Span</span>
+          {TIMESCALES.map((t) => (
+            <button key={t.key} onClick={() => onSpan(t.days)}
+              className={`min-h-11 rounded-full border px-3.5 text-[12px] font-medium ${
+                activeSpan === t.key
+                  ? "border-ink bg-ink text-paper"
+                  : "border-rule text-ink active:bg-band"}`}>
+              {t.label}
+            </button>
+          ))}
+        </span>
+      )}
       <span className="inline-flex items-center gap-1">
         <span className="eyebrow">Dates</span>
         <button className={btn} onClick={() => onZoomX(1 / 1.4)} aria-label="Zoom in on dates" title="Narrow the date range">+</button>
@@ -35,7 +55,7 @@ export default function ZoomControls({ onZoomX, onZoomY, onReset, isZoomed, rang
         <button className={btn} onClick={() => onZoomY(1.4)} aria-label="Zoom out on degree days" title="Compress the vertical scale">−</button>
       </span>
 
-      {isZoomed && (
+      {isZoomed && !onSpan && (
         <button
           onClick={onReset}
           className="min-h-11 rounded border border-rule px-3 text-[12px] active:bg-band focus-visible:outline-2 focus-visible:outline-honey"

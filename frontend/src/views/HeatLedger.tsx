@@ -11,6 +11,7 @@ import FrostCard from "../components/FrostCard";
 import EventDetail from "../components/EventDetail";
 import SoilCard from "../components/SoilCard";
 import Provenance from "../components/Provenance";
+import QuoteScroller from "../components/QuoteScroller";
 import { buildFlags, type LedgerFlag } from "../lib/ledgerFlags";
 import { listPlantings } from "../lib/plantings";
 import { listPests } from "../lib/pestModels";
@@ -219,8 +220,8 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost, onView
       </h2>
 
       {busy && !data ? (
-        <div className="rounded-md border border-rule bg-panel p-8 text-center text-[13px] text-ink-soft">
-          Reading the season for {region.name}…
+        <div className="rounded-md border border-rule bg-panel">
+          <QuoteScroller heading={`Reading the season for ${region.name}`} />
         </div>
       ) : data ? (
         <SeasonChart data={data} frostDayIndex={frostIndex(data, frost)}
