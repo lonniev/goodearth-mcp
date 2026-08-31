@@ -16,7 +16,8 @@ import { buildFlags, type LedgerFlag } from "../lib/ledgerFlags";
 import { listPlantings } from "../lib/plantings";
 import { listPests } from "../lib/pestModels";
 import { listWildlife } from "../lib/wildlifeModels";
-import { frostWindow, gddSeasonCurve, soilTempProjection, type FrostWindowResult, type SeasonCurveResult, type SoilWindowResult } from "../lib/mcp";
+import { almanacFor, type AlmanacResult, type MeasureKey,
+  frostWindow, gddSeasonCurve, soilTempProjection, type FrostWindowResult, type SeasonCurveResult, type SoilWindowResult } from "../lib/mcp";
 import type { SavedRegion } from "../lib/regions";
 
 interface Props {
@@ -43,6 +44,10 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost, onView
   const [showFlags, setShowFlags] = useState(true);
   const [openFlag, setOpenFlag] = useState<LedgerFlag | null>(null);
   const [showGround, setShowGround] = useState(true);
+  const [almanac, setAlmanac] = useState<AlmanacResult | null>(null);
+  const [almanacAt, setAlmanacAt] = useState<Date | null>(null);
+  const [wx, setWx] = useState(0);          // 0 = off; cycles through WEATHER
+  const [wxBusy, setWxBusy] = useState(false);
 
   const run = useCallback(async () => {
     setBusy(true); setError("");
@@ -93,6 +98,28 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost, onView
   const flags: LedgerFlag[] = data
     ? buildFlags(data, listPlantings(region.id), listPests(region.id), listWildlife(region.id))
     : [];
+
+  // One chiclet, one tap per measure, and a tap that clears it. The almanac is
+  // fetched only on the first tap — a grower who never asks for weather never
+  // pays for it, and after that the cycle is free because the data is already
+  // here.
+  const cycleWeather = useCallback(async () => {
+    const next = (wx + 1) % (WEATHER.length + 1);
+    setWx(next);
+    if (next === 0 || almanac) return;
+    setWxBusy(true);
+    try {
+      const a = await almanacFor(region.region);
+      if (a.success) { setAlmanac(a); setAlmanacAt(new Date()); }
+      else setError(a.error || "The weather could not be read.");
+    } catch (e) { setError((e as Error).message); }
+    finally { setWxBusy(false); }
+  }, [wx, almanac, region]);
+
+  // Reading a different block means the old block's weather is wrong.
+  useEffect(() => { setAlmanac(null); setWx(0); }, [region.id]);
+
+  const overlay = wx > 0 && almanac ? buildOverlay(WEATHER[wx - 1], almanac) : null;
 
   const g = data?.accumulated_gdd;
   const ahead = data?.normals?.ahead_of_normal_gdd ?? null;
@@ -210,6 +237,15 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost, onView
             {flags.length} of your events
           </button>
         )}
+        <button onClick={cycleWeather} disabled={wxBusy}
+          title="Tap to cycle a weather reading behind the curve; tap past the last to clear it"
+          className={`min-h-11 rounded-full border px-3.5 text-[12px] font-medium ${
+            wx > 0 ? "border-ink bg-ink text-paper" : "border-rule text-ink-soft active:bg-band"}`}>
+          {wxBusy ? "…" : wx === 0 ? "🌦️ Weather" : `${WEATHER[wx - 1].emoji} ${WEATHER[wx - 1].label}`}
+        </button>
+        {almanacAt && (
+          <Provenance tool="goodearth_almanac" at={almanacAt} onCost={onCost} />
+        )}
         <button onClick={() => setShowGround((v) => !v)}
           title="Ghost this block's satellite still behind the curve"
           className={`min-h-11 rounded-full border px-3.5 text-[12px] font-medium ${
@@ -225,7 +261,8 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost, onView
         </div>
       ) : data ? (
         <SeasonChart data={data} frostDayIndex={frostIndex(data, frost)}
-          flags={showFlags ? flags : []} onFlag={setOpenFlag} showGround={showGround} />
+          flags={showFlags ? flags : []} onFlag={setOpenFlag} showGround={showGround}
+          overlay={overlay} />
       ) : null}
 
       {data && flags.length > 0 && showFlags && (
@@ -379,6 +416,36 @@ function daysApart(
   if (recent <= 0) return null;
   const days = Math.round(g.spread / recent);
   return days >= 1 ? days : null;
+}
+
+/// The cycle. Order runs from what a grower checks most often to least.
+const WEATHER: { key: MeasureKey; label: string; emoji: string; colour: string; bars?: boolean }[] = [
+  { key: "precip",    label: "Rain",      emoji: "🌧️", colour: "var(--color-frost)", bars: true },
+  { key: "temp_max",  label: "High",      emoji: "🌡️", colour: "var(--color-clay)" },
+  { key: "temp_min",  label: "Low",       emoji: "🌙", colour: "var(--color-frost)" },
+  { key: "dew_point", label: "Dew point", emoji: "💧", colour: "var(--color-frost)" },
+  { key: "sunshine",  label: "Sunshine",  emoji: "☀️", colour: "var(--color-honey)" },
+  { key: "wind_max",  label: "Wind",      emoji: "🌬️", colour: "var(--color-ink-soft)" },
+];
+
+/// Splice the almanac's actual + forecast into one series on the curve's own
+/// day axis. The two charts count from the same Jan 1, so the indices line up
+/// without any date matching.
+function buildOverlay(
+  spec: (typeof WEATHER)[number],
+  a: AlmanacResult,
+): NonNullable<Parameters<typeof SeasonChart>[0]["overlay"]> | null {
+  const m = a.measures?.[spec.key];
+  if (!m) return null;
+  return {
+    key: spec.key,
+    label: spec.label,
+    emoji: spec.emoji,
+    unit: m.unit,
+    colour: spec.colour,
+    asBars: spec.bars,
+    values: [...(m.actual ?? []), ...(m.forecast ?? [])],
+  };
 }
 
 const SUBS = "₀₁₂₃₄₅₆₇₈₉";

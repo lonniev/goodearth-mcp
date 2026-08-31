@@ -34,6 +34,18 @@ interface Props {
   onFlag?: (f: LedgerFlag) => void;
   /// Ghost the block's own satellite still behind the plot.
   showGround?: boolean;
+  /// One weather series drawn behind the curve on its own scale.
+  overlay?: {
+    key: string;
+    label: string;
+    emoji: string;
+    unit: string;
+    /// Aligned to the curve's own day axis: recorded days then forecast.
+    values: (number | null)[];
+    colour: string;
+    /// Rain reads as bars; everything else as a line.
+    asBars?: boolean;
+  } | null;
 }
 
 function niceStep(span: number): number {
@@ -43,7 +55,7 @@ function niceStep(span: number): number {
 }
 
 export default function SeasonChart({
-  data, frostDayIndex = null, flags = [], onFlag, showGround = true,
+  data, frostDayIndex = null, flags = [], onFlag, showGround = true, overlay = null,
 }: Props) {
   const { zoom, zoomX, zoomY, reset, showSpan, isZoomed, svgRef } = useChartZoom();
   const [span, setSpan] = useState<string | null>("season");
@@ -178,26 +190,65 @@ export default function SeasonChart({
         </defs>
 
         {/* The ground this season belongs to, ghosted. On a farm with six
-            saved blocks this is orientation, not decoration. */}
+            saved blocks this is orientation, not decoration.
+            A paper scrim sits over it so legibility does not depend on how
+            bright the satellite happened to find the field that day — a dark
+            wood and a bare ploughed field are very different backgrounds. */}
         {ground && (
-          <image href={ground} x={L} y={T} width={R - L} height={B - T}
-            preserveAspectRatio="xMidYMid slice" opacity={0.55}
-            mask="url(#ge-ground-mask)" aria-hidden="true" />
+          <>
+            <image href={ground} x={L} y={T} width={R - L} height={B - T}
+              preserveAspectRatio="xMidYMid slice" opacity={0.38}
+              mask="url(#ge-ground-mask)" aria-hidden="true" />
+            <rect x={L} y={T} width={R - L} height={B - T}
+              fill="var(--color-paper)" opacity={0.42} aria-hidden="true" />
+          </>
         )}
 
         {gridLines.map((g) => (
           <g key={g}>
             <line x1={L} x2={R} y1={y(g)} y2={y(g)} stroke="var(--color-rule)" strokeWidth={1} strokeDasharray="1 4" />
-            <text x={L - 6} y={y(g) + 3} textAnchor="end" fontSize={9} fill="var(--color-ink-soft)" fontFamily="var(--font-data)">
+            <text x={L - 6} y={y(g) + 3} textAnchor="end" fontSize={9.5} fill="var(--color-ink-soft)" fontFamily="var(--font-data)"
+              paintOrder="stroke" stroke="var(--color-paper)" strokeWidth={3} strokeLinejoin="round">
               {g.toLocaleString()}
             </text>
           </g>
         ))}
 
         <g clipPath={`url(#${clipId})`}>
+          {/* Weather sits BEHIND the heat, on its own scale, faint. It is
+              context for the curve, not a second subject competing with it —
+              which is why it carries no axis of its own beyond a min/max note. */}
+          {overlay && (() => {
+            const vals = overlay.values.filter((v): v is number => typeof v === "number");
+            if (vals.length < 2) return null;
+            const lo = Math.min(...vals), hi = Math.max(...vals);
+            const span = hi - lo || 1;
+            const oy = (v: number) => B - ((v - lo) / span) * (B - T) * 0.55;
+            if (overlay.asBars) {
+              const w = Math.max(1, (R - L) / Math.max(overlay.values.length, 1) - 0.5);
+              return (
+                <g opacity={0.5}>
+                  {overlay.values.map((v, i) =>
+                    typeof v === "number" && v > 0 ? (
+                      <rect key={i} x={x(i) - w / 2} y={oy(v)} width={w} height={B - oy(v)}
+                        fill={overlay.colour} />
+                    ) : null,
+                  )}
+                </g>
+              );
+            }
+            let d = "", pen = false;
+            overlay.values.forEach((v, i) => {
+              if (v == null) { pen = false; return; }
+              d += `${pen ? "L" : "M"}${x(i).toFixed(1)} ${oy(v).toFixed(1)}`;
+              pen = true;
+            });
+            return <path d={d} fill="none" stroke={overlay.colour} strokeWidth={1.8} opacity={0.55} />;
+          })()}
+
           {bandPath && <path d={bandPath} fill="var(--color-band)" />}
           {ribbon && <path d={ribbon} fill="var(--color-growth)" opacity={0.18} />}
-          <path d={line(actual)} fill="none" stroke="var(--color-growth)" strokeWidth={2.5} />
+          <path d={line(actual)} fill="none" stroke="var(--color-growth)" strokeWidth={3.2} />
           {fcPts.length > 1 && (
             <path d={line(fcPts)} fill="none" stroke="var(--color-growth)" strokeWidth={2.5} strokeDasharray="6 4" />
           )}
@@ -205,7 +256,7 @@ export default function SeasonChart({
             <path d={line(projPts)} fill="none" stroke="var(--color-ink-soft)" strokeWidth={1.6} strokeDasharray="2 5" />
           )}
           {frostDayIndex != null && (
-            <line x1={x(frostDayIndex)} x2={x(frostDayIndex)} y1={T} y2={B} stroke="var(--color-frost)" strokeWidth={1.6} strokeDasharray="7 4" />
+            <line x1={x(frostDayIndex)} x2={x(frostDayIndex)} y1={T} y2={B} stroke="var(--color-frost)" strokeWidth={2.2} strokeDasharray="7 4" />
           )}
             {/* The grower's own calendar, on the curve that produces it.
               Stems alternate length so neighbouring flags do not collide, and
@@ -235,7 +286,9 @@ export default function SeasonChart({
                 )}
                 <line x1={cx} y1={cy} x2={cx} y2={cy - stem} stroke={tone} strokeWidth={1} />
                 <circle cx={cx} cy={cy} r={3.5} fill={tone} stroke="var(--color-panel)" strokeWidth={1.2} />
-                <text x={cx + 4} y={cy - stem - 2} fontSize={9} fill={tone} fontFamily="var(--font-data)">
+                <text x={cx + 4} y={cy - stem - 2} fontSize={9.5} fontWeight={600}
+                  fill={tone} fontFamily="var(--font-data)"
+                  paintOrder="stroke" stroke="var(--color-panel)" strokeWidth={3.5} strokeLinejoin="round">
                   {f.emoji} {f.label.length > 22 ? f.label.slice(0, 21) + "…" : f.label}
                 </text>
               </g>
@@ -243,13 +296,16 @@ export default function SeasonChart({
           })}
 
         <circle cx={x(last)} cy={y(todayGdd)} r={4.5} fill="var(--color-ink)" />
-          <text x={x(last) + 7} y={y(todayGdd) + 4} fontSize={10} fontWeight={600} fill="var(--color-ink)">
+          <text x={x(last) + 7} y={y(todayGdd) + 4} fontSize={10.5} fontWeight={700} fill="var(--color-ink)"
+            paintOrder="stroke" stroke="var(--color-panel)" strokeWidth={3.5} strokeLinejoin="round">
             today · {Math.round(todayGdd).toLocaleString()}
           </text>
         </g>
 
         {frostDayIndex != null && (
-          <text x={x(frostDayIndex) - 5} y={T + 10} textAnchor="end" fontSize={9.5} fill="var(--color-frost)" fontFamily="var(--font-data)">
+          <text x={x(frostDayIndex) - 5} y={T + 10} textAnchor="end" fontSize={9.5} fontWeight={600}
+            fill="var(--color-frost)" fontFamily="var(--font-data)"
+            paintOrder="stroke" stroke="var(--color-panel)" strokeWidth={3.5} strokeLinejoin="round">
             MEDIAN FIRST FROST
           </text>
         )}
@@ -270,6 +326,19 @@ export default function SeasonChart({
         ))}
         <line x1={L} x2={R} y1={B} y2={B} stroke="var(--color-ink)" strokeWidth={1.5} />
       </svg>
+
+      {overlay && (() => {
+        const vals = overlay.values.filter((v): v is number => typeof v === "number");
+        if (!vals.length) return null;
+        return (
+          <p className="data px-2 pt-1 text-[10.5px]" style={{ color: overlay.colour }}>
+            {overlay.emoji} {overlay.label} behind the curve ·{" "}
+            {Math.min(...vals).toFixed(overlay.unit === "in" ? 2 : 0)}–
+            {Math.max(...vals).toFixed(overlay.unit === "in" ? 2 : 0)} {overlay.unit}
+            <span className="text-ink-soft"> · own scale, no axis</span>
+          </p>
+        );
+      })()}
 
       <ZoomControls
         onZoomX={(f) => { setSpan(null); zoomX(f); }}
