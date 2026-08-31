@@ -5,8 +5,10 @@
 // gates a lot of the grower's own field work. Warm and they fly; cold and the
 // hive is quiet; a live frost watch and it is shut. No words, no chrome.
 //
-// Sits behind the content at low contrast so it can never compete with a frost
-// warning. prefers-reduced-motion parks it with the bees settled on the skep.
+// Lives in the foot of the rail, where the account button used to sit. On that
+// dark ground the skep is drawn in the rail's own light ink at low contrast, so
+// it reads as part of the furniture and can never compete with a frost warning.
+// prefers-reduced-motion parks it with the bees settled on the skep.
 
 export type HiveMood = "flying" | "quiet" | "closed" | "unknown";
 
@@ -34,14 +36,16 @@ export default function Hive({ mood = "unknown" }: { mood?: HiveMood }) {
     <svg
       viewBox="0 0 150 120"
       id="ge-hive"
-      // Lower LEFT, and clear of the rail. Today's marker sits at the right of
-      // every chart, so a hive in that corner competed with the one number the
-      // eye is looking for.
-      className="pointer-events-none fixed bottom-3 left-[calc(200px+1rem)] w-[130px] opacity-25 hidden md:block"
+      // Sized by the rail that holds it, so it narrows with a collapsed rail
+      // instead of overflowing it.
+      className="pointer-events-none mx-auto block h-auto w-full max-w-[112px] opacity-45"
       role="img"
       aria-label={LABEL[mood] || "Beehive"}
     >
-      <g fill="none" stroke="var(--color-ink)" strokeWidth="2.2" strokeLinecap="round">
+      {/* Heavier in viewBox units than a full-page drawing would need: at rail
+          width these lines land under a pixel, and a hairline on dark ground
+          reads as a smudge rather than a skep. */}
+      <g fill="none" stroke="var(--color-rail-ink)" strokeWidth="3.4" strokeLinecap="round">
         <path d="M30 100h90M38 100V108M112 100V108" />
         <path d="M45 100c-4-14-2-34 10-48s26-22 20-52" />
         <path d="M105 100c4-14 2-34-10-48S69-22 75 0" />

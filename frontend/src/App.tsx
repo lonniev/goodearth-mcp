@@ -12,6 +12,7 @@ import Bees from "./components/Bees";
 import NpubGate from "./components/NpubGate";
 import NostrProfilePanel from "./components/NostrProfilePanel";
 import Preferences from "./components/Preferences";
+import AccountSummary from "./components/AccountSummary";
 import { readPrefs, writePrefs, type Prefs } from "./lib/prefs";
 import HeatLedger from "./views/HeatLedger";
 import Crops from "./views/Crops";
@@ -148,6 +149,9 @@ export default function App() {
 
   return (
     <>
+      {/* The skep in the rail's foot reads the same night the frost card does,
+          so the two can never disagree: tonight's low on the coldest ground
+          against the 55°F flight threshold, and shut on a live frost watch. */}
       <AppShell
         view={view}
         onView={setView}
@@ -156,10 +160,8 @@ export default function App() {
         displayName={displayName}
         region={region}
         onRegion={pickRegion}
-        balanceSats={balance}
-        spentToday={spent}
         conditions={conditions(frost)}
-        onSignOut={() => { logOut(); setSignedIn(false); }}
+        hive={prefs.bees ? <Hive mood={hiveMood(todayHigh(frost), frostWatchLive(frost))} /> : undefined}
       >
         {view === "ledger" && (
           <HeatLedger region={region} onMeasured={onMeasured} onCost={onCost} onFrost={setFrost} onView={setView} />
@@ -177,16 +179,14 @@ export default function App() {
         {view === "account" && (
           <>
             <h1 className="figure mb-4 text-[26px] font-bold">Account</h1>
+            <AccountSummary balanceSats={balance} spentToday={spent}
+              onSignOut={() => { logOut(); setSignedIn(false); }} />
             <NostrProfilePanel npub={getStoredNpub()} />
             <Preferences prefs={prefs} onChange={(p) => setPrefs(writePrefs(p))} />
           </>
         )}
       </AppShell>
 
-      {/* The hive reads the same night the frost card does, so the corner can
-          never disagree with the page. Tonight's low on the coldest ground
-          against the 55°F flight threshold; shut on a live frost watch. */}
-      {prefs.bees && <Hive mood={hiveMood(todayHigh(frost), frostWatchLive(frost))} />}
       {/* The foragers work the whole page. pointer-events:none throughout, so
           a bee can never swallow a tap on a frost warning. */}
       <Bees mood={hiveMood(todayHigh(frost), frostWatchLive(frost))}

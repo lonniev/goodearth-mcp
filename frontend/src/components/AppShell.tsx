@@ -64,16 +64,16 @@ interface Props {
   displayName: string;
   region: SavedRegion;
   onRegion: (r: SavedRegion) => void;
-  balanceSats: number | null;
-  spentToday: number | null;
   conditions?: ReactNode;
-  onSignOut: () => void;
+  /// The skep, handed in by the app so the shell does not need to know what a
+  /// bee is. It sits in the foot of the rail.
+  hive?: ReactNode;
   children: ReactNode;
 }
 
 export default function AppShell({
   view, onView, npub, avatar, displayName, region, onRegion,
-  balanceSats, spentToday, conditions, onSignOut, children,
+  conditions, hive, children,
 }: Props) {
   const [order, setOrder] = useState<string[] | null>(() => readOrder());
   const [collapsed, setCollapsed] = useState(() => readCollapsed());
@@ -160,37 +160,32 @@ export default function AppShell({
             {editing ? "✓ Done" : "⇅ Reorder"}
           </button>
         )}
-        <button
-          onClick={() => onView("account")}
-          className={`hidden items-center gap-2.5 border-t border-white/15 px-2 py-2.5 text-left text-[12px] md:flex hover:bg-white/5 ${
-            collapsed ? "justify-center" : ""
-          }`}
-        >
-          <Avatar value={avatar} size={28} />
-          <span className={`min-w-0 ${collapsed ? "hidden" : ""}`}>
-            <span className="block truncate">{displayName || "Your account"}</span>
-            <span className="data block truncate text-[10.5px] opacity-70">
-              {npub ? `${npub.slice(0, 8)}…${npub.slice(-4)}` : ""}
-            </span>
-          </span>
-        </button>
+        {/* The skep. It reads the same night the frost card does, so the foot
+            of the rail can never disagree with the page. */}
+        {hive && <div className="-mx-2 hidden pt-3 md:block">{hive}</div>}
       </nav>
 
       <header className="col-start-1 row-start-1 flex items-center gap-3.5 border-b border-rule bg-paper px-4 md:col-start-2 md:px-5">
         <RegionPicker active={region} onPick={onRegion} />
         <div className="hidden text-[12.5px] text-ink-soft lg:block">{conditions}</div>
 
-        <div
-          className="data ml-auto inline-flex items-center gap-2 whitespace-nowrap rounded-full border-[1.5px] border-ink bg-panel px-3 py-1 text-[12px]"
-          title="Pre-funded balance. Each answer shows what it cost."
+        {/* Balance and sign-out live on the account page now. Two persistent
+            chrome elements for things a grower touches rarely cost more room
+            than they earned, and the rail foot they free is where the skep
+            belongs. */}
+        <button
+          onClick={() => onView("account")}
+          aria-current={view === "account" ? "page" : undefined}
+          title={displayName || "Your account"}
+          className={`ml-auto flex min-h-11 shrink-0 items-center gap-2 rounded-full border-[1.5px] px-2 py-1 text-[12px] ${
+            view === "account" ? "border-ink bg-ink text-paper" : "border-rule text-ink-soft active:bg-band"
+          }`}
         >
-          <span className="text-[13px] text-honey">⚡</span>
-          <b>{balanceSats == null ? "—" : `${balanceSats.toLocaleString()} sats`}</b>
-          {spentToday != null && spentToday > 0 && (
-            <span className="text-ink-soft">· {spentToday} spent today</span>
-          )}
-        </div>
-        <button onClick={onSignOut} className="min-h-11 px-2 text-[12px] text-ink-soft active:text-ink">Sign out</button>
+          <Avatar value={avatar} size={26} />
+          <span className="hidden max-w-[9rem] truncate sm:block">
+            {displayName || (npub ? `${npub.slice(0, 8)}…` : "Account")}
+          </span>
+        </button>
       </header>
 
       <main className="relative col-start-1 row-start-2 overflow-auto px-5 pt-5 pb-16 md:col-start-2 md:px-6">
