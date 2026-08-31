@@ -20,8 +20,7 @@ from tollbooth.credential_validators import validate_btcpay_creds
 from tollbooth.runtime import OperatorRuntime, register_standard_tools
 from tollbooth.tool_identity import STANDARD_IDENTITIES, ToolIdentity
 
-from goodearth_mcp import __version__, feed_store, season, sources
-from goodearth_mcp import calendar_feed as calendar_builder
+from goodearth_mcp import __version__, calendar_feed, feed_store, season, sources
 from goodearth_mcp.almanac_window import AlmanacError
 from goodearth_mcp.almanac_window import region_almanac as almanac_impl
 from goodearth_mcp.calendar_feed import CalendarError
@@ -103,7 +102,7 @@ ALMANAC_UUID               = "ca2ca4ce-69ed-559a-9a7d-12425716dbae"
 WILDLIFE_CALENDAR_UUID     = "b8948acf-27c1-5e72-aeae-b7029567f364"
 CROP_SUITABILITY_UUID      = "bc6ad258-8f9f-5769-a32a-63d817d23ce8"
 CALENDAR_DATASET_UUID      = "3397c55a-8208-503d-a007-aa34975feb44"
-CALENDAR_FEED_UUID         = "1233a410-3e92-5c5f-929c-184f0f324fc0"
+CALENDAR_FETCH_UUID        = "670e4e24-90e1-53a6-a409-10375a0470ac"
 CALENDAR_LIST_UUID         = "5e006f97-eaba-5ba7-a630-f493242b691d"
 CALENDAR_REVOKE_UUID       = "2a8310d1-f65d-56f3-bb99-6b77acd6252a"
 
@@ -169,8 +168,8 @@ _DOMAIN_TOOLS = [
         intent="Compute a block's dated season — crop, pest, wildlife, frost and task events — as a dataset",
     ),
     ToolIdentity(
-        tool_id=CALENDAR_FEED_UUID,
-        capability="calendar_feed",
+        tool_id=CALENDAR_FETCH_UUID,
+        capability="calendar_fetch",
         category="free",
         intent="Read a stored calendar dataset by its feed token, for the site that serves it",
     ),
@@ -820,9 +819,9 @@ async def calendar_dataset(
     except RegionError as exc:
         return {"success": False, "error": str(exc), "error_code": "invalid_region"}
 
-    feed_token = token.strip() or calendar_builder.new_token()
+    feed_token = token.strip() or calendar_feed.new_token()
     try:
-        built = await calendar_builder.build_feed(
+        built = await calendar_feed.build_feed(
             parsed, region_name or "My block", feed_token,
             plantings=plantings, pest_models=pests, wildlife_events=wildlife_events,
             todos=todos, base_temp_f=base_temp,
@@ -864,8 +863,8 @@ async def calendar_dataset(
 
 
 @tool
-@runtime.paid_tool(CALENDAR_FEED_UUID)
-async def calendar_feed(
+@runtime.paid_tool(CALENDAR_FETCH_UUID)
+async def calendar_fetch(
     token: Annotated[str, Field(description="The feed token from calendar_dataset.")],
 ) -> dict[str, Any]:
     """Read a stored calendar dataset by its feed token.

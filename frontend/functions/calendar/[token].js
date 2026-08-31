@@ -53,7 +53,7 @@ export async function onRequestGet(context) {
         jsonrpc: "2.0",
         id: 1,
         method: "tools/call",
-        params: { name: "goodearth_calendar_feed", arguments: { token } },
+        params: { name: "goodearth_calendar_fetch", arguments: { token } },
       }),
     });
     if (!r.ok) throw new Error(`upstream ${r.status}`);
