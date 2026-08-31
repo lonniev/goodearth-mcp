@@ -20,9 +20,10 @@ from tollbooth.credential_validators import validate_btcpay_creds
 from tollbooth.runtime import OperatorRuntime, register_standard_tools
 from tollbooth.tool_identity import STANDARD_IDENTITIES, ToolIdentity
 
-from goodearth_mcp import __version__, season, sources
+from goodearth_mcp import __version__, calendar_feed, feed_store, season, sources
 from goodearth_mcp.almanac_window import AlmanacError
 from goodearth_mcp.almanac_window import region_almanac as almanac_impl
+from goodearth_mcp.calendar_feed import CalendarError
 from goodearth_mcp.calibrate import CalibrateError
 from goodearth_mcp.calibrate import region_calibration as calibration_impl
 from goodearth_mcp.calibration import CalibrationError
@@ -93,6 +94,9 @@ CALIBRATION_UUID           = "2e7c72db-e886-53be-b948-bcc97a57986d"
 ALMANAC_UUID               = "ca2ca4ce-69ed-559a-9a7d-12425716dbae"
 WILDLIFE_CALENDAR_UUID     = "b8948acf-27c1-5e72-aeae-b7029567f364"
 CROP_SUITABILITY_UUID      = "bc6ad258-8f9f-5769-a32a-63d817d23ce8"
+CALENDAR_SUBSCRIBE_UUID    = "31f47d5f-7582-5397-bb20-cba347e4be7a"
+CALENDAR_LIST_UUID         = "5e006f97-eaba-5ba7-a630-f493242b691d"
+CALENDAR_REVOKE_UUID       = "2a8310d1-f65d-56f3-bb99-6b77acd6252a"
 
 _DOMAIN_TOOLS = [
     ToolIdentity(
@@ -148,6 +152,24 @@ _DOMAIN_TOOLS = [
         capability="crop_suitability",
         category="read",
         intent="Which crops finish on this ground, measured against its own frost-free heat budget",
+    ),
+    ToolIdentity(
+        tool_id=CALENDAR_SUBSCRIBE_UUID,
+        capability="calendar_subscribe",
+        category="write",
+        intent="Publish a block's season and to-dos as a calendar any iCal client can subscribe to",
+    ),
+    ToolIdentity(
+        tool_id=CALENDAR_LIST_UUID,
+        capability="calendar_list",
+        category="free",
+        intent="List the calendar feeds this patron has published",
+    ),
+    ToolIdentity(
+        tool_id=CALENDAR_REVOKE_UUID,
+        capability="calendar_revoke",
+        category="free",
+        intent="Stop publishing a calendar feed",
     ),
 ]
 
@@ -709,6 +731,209 @@ async def crop_suitability(
         logger.warning("crop_suitability failed: %s", exc)
         return {"success": False, "error": f"A weather feed did not answer: {exc}",
                 "error_code": "upstream_unavailable"}
+
+
+@tool
+@runtime.paid_tool(CALENDAR_SUBSCRIBE_UUID)
+async def calendar_subscribe(
+    region: Annotated[
+        dict[str, Any],
+        Field(description="GeoJSON Polygon or {lat, lon, radius_m}."),
+    ],
+    region_name: Annotated[str, Field(description="What you call this block.")] = "My block",
+    plantings: Annotated[
+        list[dict[str, Any]] | None,
+        Field(description="Crop plantings, as crop_gdd_status takes them."),
+    ] = None,
+    pests: Annotated[
+        list[dict[str, Any]] | None,
+        Field(description="Pest models, as pest_threshold takes them."),
+    ] = None,
+    wildlife_events: Annotated[
+        list[dict[str, Any]] | None,
+        Field(description="Wildlife and husbandry events, as wildlife_calendar takes them."),
+    ] = None,
+    todos: Annotated[
+        list[dict[str, Any]] | None,
+        Field(
+            description=(
+                'Tasks, published as VTODO so they arrive as reminders: '
+                '{"id": "...", "title": "Cover the east beds", "due": "2026-09-28", '
+                '"note": "...", "priority": 1, "done": false}.'
+            ),
+        ),
+    ] = None,
+    base_temp: Annotated[float, Field(description="Block default base temperature in °F.")] = 50.0,
+    token: Annotated[
+        str,
+        Field(description="Pass an existing feed's token to REFRESH it in place; omit to create one."),
+    ] = "",
+    npub: Annotated[
+        str,
+        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
+    ] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """Publish this block's season as a calendar any client can subscribe to.
+
+    Crop targets, pest stages, wildlife and husbandry dates and the frost
+    record become all-day events; your to-dos become tasks, which Apple
+    Reminders, Google Tasks and Thunderbird surface as reminders rather than as
+    another appointment.
+
+    Returns a subscription URL. Point any iCal or Google Calendar client at it
+    and the season appears alongside the school run and the market stall —
+    which is where a grower will actually see it.
+
+    Recomputing is the paid act and happens when you ask; SERVING the feed is
+    free. A calendar client polls unattended every few hours forever, and
+    charging per poll would drain a balance overnight while its owner slept.
+
+    Pass the same token again to refresh a feed in place. Subscribers keep
+    their subscription and the events update rather than duplicating.
+
+    Args:
+        region: GeoJSON Polygon or {lat, lon, radius_m}.
+        region_name: What you call this block.
+        plantings: Crop plantings.
+        pests: Pest models.
+        wildlife_events: Wildlife and husbandry events.
+        todos: Tasks to publish as reminders.
+        base_temp: Block default base temperature in °F.
+        token: An existing feed token to refresh.
+    """
+    try:
+        parsed = parse_region(region)
+    except RegionError as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+
+    feed_token = token.strip() or calendar_feed.new_token()
+    try:
+        built = await calendar_feed.build_feed(
+            parsed, region_name or "My block", feed_token,
+            plantings=plantings, pest_models=pests, wildlife_events=wildlife_events,
+            todos=todos, base_temp_f=base_temp,
+        )
+    except (CalendarError, CropError, PestError, WildlifeError) as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_request"}
+    except (sources.UpstreamError, OSError) as exc:
+        logger.warning("calendar_subscribe failed: %s", exc)
+        return {"success": False, "error": f"A weather feed did not answer: {exc}",
+                "error_code": "upstream_unavailable"}
+
+    try:
+        await feed_store.save(
+            feed_token, npub, region_name or "My block",
+            built["ics"], built["total"], built["computed_on"],
+        )
+    except Exception as exc:  # noqa: BLE001 — persistence is the operator's
+        logger.error("calendar feed save failed: %s", exc)
+        return {"success": False, "error": "The feed could not be stored.",
+                "error_code": "persistence_unavailable"}
+
+    base = "https://goodearth-mcp.fastmcp.app"
+    return {
+        "success": True,
+        "token": feed_token,
+        "url": f"{base}/calendar/{feed_token}.ics",
+        "webcal_url": f"webcal://goodearth-mcp.fastmcp.app/calendar/{feed_token}.ics",
+        "region_name": region_name or "My block",
+        "entries": built["counts"],
+        "total": built["total"],
+        "computed_on": built["computed_on"],
+        "note": (
+            "Subscribe with the webcal link, or paste the https one into "
+            "Google Calendar's 'From URL'. Serving is free and unmetered; call "
+            "this tool again with the same token to recompute against new "
+            "weather, and subscribers update rather than duplicating."
+        ),
+    }
+
+
+@tool
+@runtime.paid_tool(CALENDAR_LIST_UUID)
+async def calendar_list(
+    npub: Annotated[str, Field(description="Required. Your Nostr public key.")] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """The calendar feeds you have published. Free."""
+    try:
+        rows = await feed_store.list_for(npub)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("calendar list failed: %s", exc)
+        return {"success": False, "error": "Could not read your feeds.",
+                "error_code": "persistence_unavailable"}
+    base = "https://goodearth-mcp.fastmcp.app"
+    return {
+        "success": True,
+        "feeds": [
+            {**r, "url": f"{base}/calendar/{r['token']}.ics"} for r in rows
+        ],
+        "count": len(rows),
+    }
+
+
+@tool
+@runtime.paid_tool(CALENDAR_REVOKE_UUID)
+async def calendar_revoke(
+    token: Annotated[str, Field(description="The feed token to stop publishing.")],
+    npub: Annotated[str, Field(description="Required. Your Nostr public key.")] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """Stop publishing a feed. Subscribers stop receiving updates. Free."""
+    try:
+        gone = await feed_store.revoke(token.strip(), npub)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("calendar revoke failed: %s", exc)
+        return {"success": False, "error": "Could not revoke that feed.",
+                "error_code": "persistence_unavailable"}
+    return {
+        "success": True,
+        "revoked": gone,
+        "note": "Revoked." if gone else "No such feed of yours — nothing changed.",
+    }
+
+
+# ---------------------------------------------------------------------------
+# The plain HTTPS route a calendar client can actually poll
+# ---------------------------------------------------------------------------
+#
+# A calendar client speaks HTTP and knows nothing about MCP, JSON-RPC or npub
+# proofs — there is nowhere in an ICS subscription to put a credential. So the
+# feed is served from a custom route, and the unguessable token in the URL is
+# the credential.
+#
+# Free and unmetered by design: clients poll unattended, forever, and a design
+# that billed per poll would empty a balance overnight.
+
+
+@mcp.custom_route("/calendar/{token}.ics", methods=["GET"])
+async def serve_calendar(request: Any) -> Any:
+    from starlette.responses import PlainTextResponse, Response
+
+    token = str(request.path_params.get("token", "")).strip()
+    if not token or len(token) > 64 or not all(c in "0123456789abcdef" for c in token):
+        return PlainTextResponse("Not found", status_code=404)
+
+    try:
+        row = await feed_store.load(token)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("calendar serve failed: %s", exc)
+        return PlainTextResponse("Temporarily unavailable", status_code=503)
+
+    if not row:
+        return PlainTextResponse("Not found", status_code=404)
+
+    return Response(
+        content=row["ics"],
+        media_type="text/calendar; charset=utf-8",
+        headers={
+            "Content-Disposition": 'inline; filename="goodearth.ics"',
+            # Clients that respect this poll politely; the rest are harmless
+            # because serving costs nothing.
+            "Cache-Control": "public, max-age=3600",
+        },
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -20,6 +20,7 @@ import Almanac from "./views/Almanac";
 import Wildlife from "./views/Wildlife";
 import References from "./views/References";
 import About from "./views/About";
+import TodoView from "./views/Todo";
 import Favorites from "./views/Favorites";
 import { AVATAR_EVENT, avatarFor, hydrateAvatarFromNostr } from "./lib/avatar";
 import { fetchProfile } from "./lib/nostrProfile";
@@ -163,6 +164,7 @@ export default function App() {
         {view === "pests" && <Pests region={region} onCost={onCost} />}
         {view === "reports" && <FieldReports region={region} onCost={onCost} />}
         {view === "favorites" && <Favorites active={region} onPick={pickRegion} />}
+        {view === "todo" && <TodoView region={region} onCost={onCost} />}
         {view === "references" && <References />}
         {view === "about" && <About />}
         {view === "account" && (

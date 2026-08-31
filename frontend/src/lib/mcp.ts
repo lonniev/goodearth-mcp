@@ -1151,3 +1151,61 @@ export async function cropSuitability(
 ): Promise<SuitabilityResult> {
   return callTool<SuitabilityResult>("crop_suitability", { region, crops });
 }
+
+
+// ─── Calendar feeds ──────────────────────────────────────────────────────
+
+export interface CalendarFeedResult {
+  success: boolean;
+  error?: string;
+  token: string;
+  url: string;
+  webcal_url: string;
+  region_name: string;
+  entries: Record<string, number>;
+  total: number;
+  computed_on: string;
+  note: string;
+}
+
+export interface FeedRow {
+  token: string;
+  url: string;
+  region_name: string;
+  entry_count: number;
+  computed_on: string | null;
+  updated_at: string | null;
+}
+
+/// Publish a block's season and tasks as a calendar any iCal client can
+/// subscribe to. Pass an existing token to refresh in place — subscribers keep
+/// their subscription and events update rather than duplicating.
+export async function calendarSubscribe(opts: {
+  region: Region;
+  regionName: string;
+  plantings?: unknown[];
+  pests?: unknown[];
+  wildlifeEvents?: unknown[];
+  todos?: unknown[];
+  baseTemp?: number;
+  token?: string;
+}): Promise<CalendarFeedResult> {
+  return callTool<CalendarFeedResult>("calendar_subscribe", {
+    region: opts.region,
+    region_name: opts.regionName,
+    plantings: opts.plantings ?? [],
+    pests: opts.pests ?? [],
+    wildlife_events: opts.wildlifeEvents ?? [],
+    todos: opts.todos ?? [],
+    base_temp: opts.baseTemp ?? 50,
+    ...(opts.token ? { token: opts.token } : {}),
+  });
+}
+
+export async function calendarList(): Promise<{ success: boolean; feeds: FeedRow[]; count: number; error?: string }> {
+  return callTool("calendar_list", {});
+}
+
+export async function calendarRevoke(token: string): Promise<{ success: boolean; revoked: boolean; note: string }> {
+  return callTool("calendar_revoke", { token });
+}
