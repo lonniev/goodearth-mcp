@@ -90,7 +90,7 @@ export function setActiveRegionId(id: string): void {
 /// A pin region from plain numbers, validated the way the server validates it
 /// so the grower is told in the form rather than by a failed paid call.
 export function pinRegion(name: string, lat: number, lon: number, radiusM: number, baseTempF = 50): SavedRegion | string {
-  if (!name.trim()) return "Give the block a name you'll recognise.";
+  if (!name.trim()) return "Give your ground a name you'll recognise.";
   if (!Number.isFinite(lat) || lat < -90 || lat > 90) return "Latitude must be between -90 and 90.";
   if (!Number.isFinite(lon) || lon < -180 || lon > 180) return "Longitude must be between -180 and 180.";
   if (!Number.isFinite(radiusM) || radiusM <= 0) return "Radius must be a positive number of metres.";
@@ -118,7 +118,7 @@ export function parsePastedGeoJSON(text: string, name: string, baseTempF = 50): 
   if (!Array.isArray(ring) || ring.length < 4) {
     return "A polygon ring needs at least 4 positions, with the first repeated as the last.";
   }
-  if (!name.trim()) return "Give the block a name you'll recognise.";
+  if (!name.trim()) return "Give your ground a name you'll recognise.";
   return {
     id: `poly-${Date.now().toString(36)}`,
     name: name.trim(),

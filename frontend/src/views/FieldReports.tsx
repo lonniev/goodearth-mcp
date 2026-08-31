@@ -133,7 +133,7 @@ export default function FieldReports({
       setInat(rows);
       setPicked(new Set(rows.filter((r) => r.flowering).map((r) => r.id)));
       if (!rows.length) {
-        setMsg(`No observations from ${inatUser} inside ${region.name}. The box is the block — a wider search would bring back the whole world.`);
+        setMsg(`No observations from ${inatUser} inside ${region.name}. The box is your ground — a wider search would bring back the whole world.`);
       }
     } catch (e) { setErr((e as Error).message); }
     finally { setInatBusy(false); }
@@ -175,9 +175,9 @@ export default function FieldReports({
         <span className="text-[13px] text-ink-soft">{region.name}</span>
       </div>
 
-      {/* ── What the block has learned ─────────────────────────────────── */}
+      {/* ── What your ground has learned ─────────────────────────────────── */}
       <h2 className="figure mb-2.5 flex items-baseline gap-2.5 text-[18px] font-semibold">
-        What this block has learned
+        What your ground has learned
         {usable > 0 && <Provenance tool="goodearth_calibration" at={ranAt} onCost={onCost} />}
       </h2>
 
@@ -189,7 +189,7 @@ export default function FieldReports({
           <Bias title="First frost" s={cal.first_frost} unit=" days" />
           {Object.keys(cal.corrections).length > 0 && (
             <p className="sm:col-span-2 rounded-md border border-rule border-l-4 border-l-growth bg-panel px-3.5 py-2.5 text-[13px]">
-              Applied to this block:{" "}
+              Applied to your ground:{" "}
               {cal.corrections.heat_multiplier != null && (
                 <b>heat × {cal.corrections.heat_multiplier}</b>
               )}
@@ -206,7 +206,7 @@ export default function FieldReports({
           Nothing yet. Every other answer here comes from a 9 km grid refined by
           a terrain model — what it cannot know is the hedgerow, the pond, the
           outlet your cold air actually drains through. Frost and stage reports
-          measure exactly that gap, and after a few of them this block gets its
+          measure exactly that gap, and after a few of them your ground gets its
           own calendar instead of the region's.
         </div>
       )}

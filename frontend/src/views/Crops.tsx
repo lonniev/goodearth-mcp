@@ -218,7 +218,7 @@ export default function Crops({
         {!fit && (
           <button onClick={checkFit} disabled={fitBusy}
             className="min-h-11 rounded-full border-[1.5px] border-ink px-4 text-[12.5px] font-semibold active:bg-ink active:text-paper disabled:opacity-40">
-            {fitBusy ? "Measuring…" : "Measure this block"}
+            {fitBusy ? "🧠 Reading…" : "🧠 What?"}
           </button>
         )}
         {fit && <Provenance tool="goodearth_crop_suitability" at={fitAt} onCost={onCost} />}
@@ -236,9 +236,9 @@ export default function Crops({
           <p className="mt-1 text-[12.5px] text-ink-soft">{fit.summary}</p>
         </div>
       ) : (
-        <p className="mb-3 max-w-prose text-[12.5px] leading-relaxed text-ink-soft">
+        <p className="mb-3 text-[12.5px] leading-relaxed text-ink-soft">
           Two farms in the same county — one on a bench, one in a hollow — do not
-          grow the same things. Measuring this block gives its own frost-free
+          grow the same things. Measuring your ground gives its own frost-free
           window and the heat inside it, then rates every crop below against it.
         </p>
       )}
@@ -249,7 +249,7 @@ export default function Crops({
         {!when && (
           <button onClick={checkWhen} disabled={whenBusy}
             className="min-h-11 rounded-full border-[1.5px] border-ink px-4 text-[12.5px] font-semibold active:bg-ink active:text-paper disabled:opacity-40">
-            {whenBusy ? "Reading the frost record…" : "Date this block"}
+            {whenBusy ? "🧠 Reading…" : "🧠 When?"}
           </button>
         )}
         {when && <Provenance tool="goodearth_planting_window" at={whenAt} onCost={onCost} />}
@@ -307,7 +307,7 @@ export default function Crops({
               </tbody>
             </table>
           </div>
-          <p className="mb-4 max-w-prose text-[12px] leading-relaxed text-ink-soft">
+          <p className="mb-4 text-[12px] leading-relaxed text-ink-soft">
             A tender crop's "out" date is the <b>median</b> last frost — half of
             seasons frost later than that, so it is a coin toss rather than a
             green light. The last-sowing date uses the season's average heat
@@ -316,10 +316,10 @@ export default function Crops({
           </p>
         </>
       ) : (
-        <p className="mb-3 max-w-prose text-[12.5px] leading-relaxed text-ink-soft">
+        <p className="mb-3 text-[12.5px] leading-relaxed text-ink-soft">
           Heat requirement says whether a crop <i>can</i> finish here. It says
           nothing about when to start — which is the decision you make with a
-          seed packet in hand in February. Dating this block gives three:
+          seed packet in hand in February. Dating your ground gives three:
           when seed goes in under lights, when the plant can go out, and the
           last day a sowing still beats the frost.
         </p>
@@ -377,11 +377,11 @@ export default function Crops({
         </p>
       )}
 
-      <p className="mt-2 max-w-prose text-[12px] leading-relaxed text-ink-soft">
+      <p className="mt-2 text-[12px] leading-relaxed text-ink-soft">
         Tap any crop to add it to the ledger, set out today. These are starting
         figures, not published agronomy — a corn hybrid is sold by its relative
         maturity precisely because "corn" has no single number. Edit against
-        your own seed packet, and let field reports teach this block its own.
+        your own seed packet, and let field reports teach your ground its own.
       </p>
     </>
   );

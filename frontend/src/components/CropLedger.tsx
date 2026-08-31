@@ -5,6 +5,7 @@
 // rather than left for the reader to compute from two dates.
 
 import type { PlantingStatus } from "../lib/mcp";
+import { emojiFor } from "../lib/plantings";
 import type { Planting } from "../lib/plantings";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
@@ -57,6 +58,9 @@ export default function CropLedger({
             return (
               <tr key={r.crop + r.set_out} className="border-b border-rule last:border-b-0">
                 <td className="px-3 py-2.5 font-semibold">
+                  {/* The same icon the chiclet carried, so a row and the
+                      chiclet that created it read as the one crop. */}
+                  <span className="mr-1.5 text-[15px]" aria-hidden="true">{emojiFor(r.crop)}</span>
                   {r.crop}
                   <small className="block text-[11px] font-normal text-ink-soft">
                     target {r.gdd_target.toLocaleString()} GDD

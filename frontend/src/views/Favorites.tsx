@@ -55,7 +55,7 @@ export default function Favorites({
                     onClick={() => onPick(r)}
                     className="min-h-11 rounded border-[1.5px] border-ink px-4 text-[13px] font-semibold active:bg-ink active:text-paper"
                   >
-                    Work this block
+                    Work this ground
                   </button>
                 )}
                 {r.id !== "example-champlain" && (

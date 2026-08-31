@@ -36,8 +36,8 @@ export default function FrostCard({ data }: { data: FrostWindowResult }) {
 
       {w && w.level !== "clear" ? (
         <p className="mt-1.5 text-[13px] leading-relaxed">
-          Forecast low <b>{Math.round(w.forecast_low_f)}°F</b>, but the coldest ground on this
-          block sits near <b>{Math.round(w.low_ground_f)}°F</b> — {w.reason}.
+          Forecast low <b>{Math.round(w.forecast_low_f)}°F</b>, but the coldest ground on your
+          land sits near <b>{Math.round(w.low_ground_f)}°F</b> — {w.reason}.
           {offset > 0 && (
             <> Low ground runs about {offset.toFixed(1)}°F under the forecast on a night like this.</>
           )}

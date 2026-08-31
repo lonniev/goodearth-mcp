@@ -219,3 +219,39 @@ export function makePlanting(
     ...(baseTempF != null ? { baseTempF } : {}),
   };
 }
+
+
+/// The icon for a crop name, for the ledger rows.
+///
+/// A planting's crop is free text — a grower writes "Zinnia · succession 4",
+/// not a preset key — so an exact lookup alone would leave most real rows
+/// unmarked. Falling back to the longest preset name contained in the string
+/// matches the successions and the notes people actually type, and a seedling
+/// stands in for anything the catalogue has never heard of. Never guesses by
+/// prefix alone: "corn" must not claim "cornflower".
+export function emojiFor(crop: string): string {
+  const name = crop.trim().toLowerCase();
+  if (!name) return SEEDLING;
+
+  for (const p of CROP_PRESETS) {
+    if (p.crop.toLowerCase() === name) return p.emoji;
+  }
+
+  let best: CropPreset | undefined;
+  for (const p of CROP_PRESETS) {
+    // Match on the head term, before any " · " qualifier, and only on a whole
+    // word — otherwise "Hemp · grain" would match against "hemp" inside an
+    // unrelated word and mark the wrong row.
+    const head = p.crop.split("·")[0].trim().toLowerCase();
+    if (!head) continue;
+    if (!new RegExp(`(^|[^a-z])${escapeRe(head)}([^a-z]|$)`).test(name)) continue;
+    if (!best || head.length > best.crop.split("·")[0].trim().length) best = p;
+  }
+  return best?.emoji ?? SEEDLING;
+}
+
+const SEEDLING = "\u{1F331}";
+
+function escapeRe(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}

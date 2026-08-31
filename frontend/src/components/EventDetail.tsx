@@ -206,16 +206,16 @@ export default function EventDetail({
 
         {flag.baseMismatch != null && (
           <Row label="⚠ Different base temperature" tone="text-clay">
-            This threshold counts from {flag.baseMismatch}°F, but this block's curve
+            This threshold counts from {flag.baseMismatch}°F, but your ground's curve
             accumulates from {curve.base_temp_f}°F. The flag is shown dimmed and its
-            position is approximate — the two are not the same axis. Set the block's
+            position is approximate — the two are not the same axis. Set your ground's
             base to match, or read this one on its own view.
           </Row>
         )}
 
         {spreadDays != null && spreadDays >= 1 && (
           <Row label="Across your ground">
-            The warm and cool ends of this block are about {spreadDays} day
+            The warm and cool ends of your ground are about {spreadDays} day
             {spreadDays === 1 ? "" : "s"} apart in timing, so this date is the middle
             of a spread rather than a line across the field. Expect the bench first
             and the hollow last.
@@ -246,7 +246,7 @@ export default function EventDetail({
 
         <Row label="What would sharpen it">
           A field report when you actually see this — the calibration loop turns
-          observations into a correction for this block, and after a few of them
+          observations into a correction for your ground, and after a few of them
           the date stops being the region's and starts being yours.
         </Row>
       </div>

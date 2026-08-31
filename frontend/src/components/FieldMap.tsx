@@ -361,8 +361,8 @@ function MapReadout({ value, onFit }: { value: MapValue; onFit: () => void }) {
     return (
       <div className="absolute bottom-2 left-2 z-[400] rounded-md border border-ink/25 bg-panel/95 px-3 py-1.5 text-[12px] text-ink-soft shadow">
         {value.mode === "polygon"
-          ? "Click each corner of the block. Three corners and it has an area."
-          : "Click the middle of the block, then set the radius."}
+          ? "Click each corner of your field. Three corners and it has an area."
+          : "Click the middle of your field, then set the radius."}
       </div>
     );
   }

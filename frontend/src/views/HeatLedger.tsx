@@ -159,7 +159,7 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost, onView
           emoji="🌡️"
           value={g ? Math.round(g.mean).toLocaleString() : busy ? "…" : "—"}
           unit={data ? `GDD${sub(data.base_temp_f)}` : ""}
-          label="across the block"
+          label="across your ground"
           gauge={heatGauge(data)}
         />
         <Pulse
@@ -230,7 +230,7 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost, onView
           <Provenance tool="goodearth_almanac" at={almanacAt} onCost={onCost} />
         )}
         <button onClick={() => setShowGround((v) => !v)}
-          title="Ghost this block's satellite still behind the curve"
+          title="Ghost your ground's satellite still behind the curve"
           className={`min-h-11 rounded-full border px-3.5 text-[12px] font-medium ${
             showGround ? "border-ink bg-ink text-paper" : "border-rule text-ink-soft active:bg-band"}`}>
           🛰️ Ground
@@ -255,7 +255,7 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost, onView
           <span className="text-frost">● wildlife</span>
           {" — placed where your own thresholds meet this curve."}
           {flags.some((f) => f.baseMismatch) &&
-            " Dimmed flags count from a different base temperature than this block."}
+            " Dimmed flags count from a different base temperature than your ground."}
         </p>
       )}
 
@@ -307,9 +307,9 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost, onView
           { to: "wildlife" as const, emoji: "🦋", title: "Wildlife",
             line: "Robins, woodchucks, geese — the same clocks, other creatures." },
           { to: "reports" as const, emoji: "📓", title: "Field Reports",
-            line: "What you saw. Enough of them and this block gets its own calendar." },
+            line: "What you saw. Enough of them and your ground gets its own calendar." },
           { to: "map" as const, emoji: "🗺️", title: "Map",
-            line: "Draw another block, or check the radar." },
+            line: "Draw another region, or check the radar." },
         ].map((c) => (
           <button key={c.to} onClick={() => onView?.(c.to)}
             className="rounded-md border border-rule bg-panel px-3.5 py-3 text-left active:border-ink">

@@ -205,7 +205,7 @@ export default function MapView({
       <div className="mt-4 rounded-md border border-rule bg-panel p-4">
         <div className="grid gap-3 sm:grid-cols-[2fr_1fr_auto] sm:items-end">
           <label className="block text-[11px] text-ink-soft">
-            Name this block
+            Name this ground
             <input value={name} onChange={(e) => setName(e.target.value)}
               placeholder="East Bench"
               className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" />
@@ -224,7 +224,7 @@ export default function MapView({
 
         {ready && (
           <p className="mt-2 text-[12.5px] text-ink-soft">
-            {formatArea(m2)} — saving switches every view to this block.
+            {formatArea(m2)} — saving switches every view to it.
           </p>
         )}
         {msg && <p className="mt-2 text-[12.5px] text-ink">{msg}</p>}
