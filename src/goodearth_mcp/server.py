@@ -20,7 +20,8 @@ from tollbooth.credential_validators import validate_btcpay_creds
 from tollbooth.runtime import OperatorRuntime, register_standard_tools
 from tollbooth.tool_identity import STANDARD_IDENTITIES, ToolIdentity
 
-from goodearth_mcp import __version__, calendar_feed, feed_store, season, sources
+from goodearth_mcp import __version__, feed_store, season, sources
+from goodearth_mcp import calendar_feed as calendar_builder
 from goodearth_mcp.almanac_window import AlmanacError
 from goodearth_mcp.almanac_window import region_almanac as almanac_impl
 from goodearth_mcp.calendar_feed import CalendarError
@@ -819,9 +820,9 @@ async def calendar_dataset(
     except RegionError as exc:
         return {"success": False, "error": str(exc), "error_code": "invalid_region"}
 
-    feed_token = token.strip() or calendar_feed.new_token()
+    feed_token = token.strip() or calendar_builder.new_token()
     try:
-        built = await calendar_feed.build_feed(
+        built = await calendar_builder.build_feed(
             parsed, region_name or "My block", feed_token,
             plantings=plantings, pest_models=pests, wildlife_events=wildlife_events,
             todos=todos, base_temp_f=base_temp,
@@ -864,7 +865,7 @@ async def calendar_dataset(
 
 @tool
 @runtime.paid_tool(CALENDAR_FEED_UUID)
-async def calendar_feed_by_token(
+async def calendar_feed(
     token: Annotated[str, Field(description="The feed token from calendar_dataset.")],
 ) -> dict[str, Any]:
     """Read a stored calendar dataset by its feed token.
