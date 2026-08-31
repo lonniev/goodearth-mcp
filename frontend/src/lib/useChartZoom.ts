@@ -103,6 +103,7 @@ export function useChartZoom() {
   const reset = useCallback(() => setZoom(FULL), []);
 
   const isZoomed = zoom.x.lo > 0 || zoom.x.hi < 1 || zoom.y.lo > 0 || zoom.y.hi < 1;
+  const isPanned = Math.abs(zoom.x.lo) > 1e-6 || Math.abs(zoom.x.hi - 1) > 1e-6;
 
   // Wheel zooms the axis the modifier selects: plain wheel is X (the common
   // case — narrowing the date range), Shift is Y. Ctrl/Cmd is left alone so
@@ -242,9 +243,11 @@ export function useChartZoom() {
         return;
       }
 
-      if (!isZoomed) return;
+      // Pan horizontally ALWAYS, not only when zoomed. Pushing the chart left
+      // to see further ahead is reading forward, not zooming — and gating it
+      // behind a zoom made the projection unreachable without first pinching.
       panX(-(e.clientX - prev.x) / box.width);
-      panY((e.clientY - prev.y) / box.height);
+      if (isZoomed) panY((e.clientY - prev.y) / box.height);
       e.preventDefault();
     };
 
@@ -267,7 +270,7 @@ export function useChartZoom() {
     };
   }, [isZoomed, panX, panY, zoomX, zoomY]);
 
-  return { zoom, setZoom, zoomX, zoomY, panX, panY, reset, isZoomed, svgRef };
+  return { zoom, setZoom, zoomX, zoomY, panX, panY, reset, isZoomed, isPanned, svgRef };
 }
 
 /// Map a zoom window onto a domain, giving the visible [min,max].

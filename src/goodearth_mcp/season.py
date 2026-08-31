@@ -61,7 +61,7 @@ async def region_season_curve(
     base_f: float,
     today: date | None = None,
     forecast_days: int = 7,
-    projection_days: int = 21,
+    projection_days: int = 75,
 ) -> dict[str, Any]:
     """Season-to-date GDD across ``region``, with band, forecast and projection."""
     base = _validate_base(base_f)
@@ -222,7 +222,12 @@ async def region_season_curve(
             {
                 "days": len(projected),
                 "cumulative": projected,
-                "note": "Straight-line carry at the last 14 days' average rate — not a forecast.",
+                "note": (
+                    "Straight-line carry at the last 14 days' average rate — not a "
+                    "forecast. It answers 'if the season keeps behaving as it has', "
+                    "which is the question behind a target date. The further out you "
+                    "read it, the more it is a sketch."
+                ),
             }
             if projected
             else None

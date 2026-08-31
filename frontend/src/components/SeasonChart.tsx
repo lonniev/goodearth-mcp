@@ -17,6 +17,7 @@
 import { useMemo } from "react";
 import type { SeasonCurveResult } from "../lib/mcp";
 import type { LedgerFlag } from "../lib/ledgerFlags";
+import { regionImageUrl } from "../lib/basemapImage";
 import { useChartZoom, windowToDomain } from "../lib/useChartZoom";
 import ZoomControls from "./ZoomControls";
 
@@ -29,6 +30,10 @@ interface Props {
   /// The grower's own model events, placed on the curve. Derived client-side
   /// from thresholds already on the page, so they cost nothing to show.
   flags?: LedgerFlag[];
+  /// Tapping a flag opens its detail. Without a handler flags stay inert.
+  onFlag?: (f: LedgerFlag) => void;
+  /// Ghost the block's own satellite still behind the plot.
+  showGround?: boolean;
 }
 
 function niceStep(span: number): number {
@@ -37,9 +42,12 @@ function niceStep(span: number): number {
   return [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) ?? mag * 10;
 }
 
-export default function SeasonChart({ data, frostDayIndex = null, flags = [] }: Props) {
+export default function SeasonChart({
+  data, frostDayIndex = null, flags = [], onFlag, showGround = true,
+}: Props) {
   const { zoom, zoomX, zoomY, reset, isZoomed, svgRef } = useChartZoom();
   const clipId = "ge-plot-clip";
+  const ground = showGround && data.region?.bbox ? regionImageUrl(data.region.bbox) : null;
 
   const view = useMemo(() => {
     const mean = data.curve?.cumulative_mean ?? [];
@@ -154,7 +162,23 @@ export default function SeasonChart({ data, frostDayIndex = null, flags = [] }: 
           <clipPath id={clipId}>
             <rect x={L} y={T} width={R - L} height={B - T} />
           </clipPath>
+          {/* Fade the still toward the axis so it never fights the numbers. */}
+          <linearGradient id="ge-ground-fade" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#fff" stopOpacity="0.55" />
+            <stop offset="100%" stopColor="#fff" stopOpacity="0.1" />
+          </linearGradient>
+          <mask id="ge-ground-mask">
+            <rect x={L} y={T} width={R - L} height={B - T} fill="url(#ge-ground-fade)" />
+          </mask>
         </defs>
+
+        {/* The ground this season belongs to, ghosted. On a farm with six
+            saved blocks this is orientation, not decoration. */}
+        {ground && (
+          <image href={ground} x={L} y={T} width={R - L} height={B - T}
+            preserveAspectRatio="xMidYMid slice" opacity={0.22}
+            mask="url(#ge-ground-mask)" aria-hidden="true" />
+        )}
 
         {gridLines.map((g) => (
           <g key={g}>
@@ -192,7 +216,18 @@ export default function SeasonChart({ data, frostDayIndex = null, flags = [] }: 
               : f.kind === "pest" ? "var(--color-honey)"
               : "var(--color-frost)";
             return (
-              <g key={`${f.label}-${f.index}`} opacity={f.baseMismatch ? 0.45 : f.reached ? 1 : 0.75}>
+              <g key={`${f.label}-${f.index}`}
+                opacity={f.baseMismatch ? 0.45 : f.reached ? 1 : 0.75}
+                onPointerUp={onFlag ? (e) => { e.stopPropagation(); onFlag(f); } : undefined}
+                style={onFlag ? { cursor: "pointer" } : undefined}
+                role={onFlag ? "button" : undefined}
+                aria-label={onFlag ? `${f.label} — details` : undefined}>
+                {/* An invisible finger target. The dot is 7 px because a bigger
+                    one would hide the curve it sits on; the tap area is 44. */}
+                {onFlag && (
+                  <rect x={cx - 22} y={cy - stem - 16} width={44} height={stem + 38}
+                    fill="transparent" />
+                )}
                 <line x1={cx} y1={cy} x2={cx} y2={cy - stem} stroke={tone} strokeWidth={1} />
                 <circle cx={cx} cy={cy} r={3.5} fill={tone} stroke="var(--color-panel)" strokeWidth={1.2} />
                 <text x={cx + 4} y={cy - stem - 2} fontSize={9} fill={tone} fontFamily="var(--font-data)">

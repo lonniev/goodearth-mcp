@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState } from "react";
 import SeasonChart from "../components/SeasonChart";
 import FrostCard from "../components/FrostCard";
+import EventDetail from "../components/EventDetail";
 import SoilCard from "../components/SoilCard";
 import Provenance from "../components/Provenance";
 import { buildFlags, type LedgerFlag } from "../lib/ledgerFlags";
@@ -39,6 +40,8 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost, onView
   const [soil, setSoil] = useState<SoilWindowResult | null>(null);
   const [soilAt, setSoilAt] = useState<Date | null>(null);
   const [showFlags, setShowFlags] = useState(true);
+  const [openFlag, setOpenFlag] = useState<LedgerFlag | null>(null);
+  const [showGround, setShowGround] = useState(true);
 
   const run = useCallback(async () => {
     setBusy(true); setError("");
@@ -206,6 +209,12 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost, onView
             {flags.length} of your events
           </button>
         )}
+        <button onClick={() => setShowGround((v) => !v)}
+          title="Ghost this block's satellite still behind the curve"
+          className={`min-h-11 rounded-full border px-3.5 text-[12px] font-medium ${
+            showGround ? "border-ink bg-ink text-paper" : "border-rule text-ink-soft active:bg-band"}`}>
+          🛰️ Ground
+        </button>
         <Provenance tool="goodearth_gdd_season_curve" at={ranAt} onCost={onCost} />
       </h2>
 
@@ -215,7 +224,7 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost, onView
         </div>
       ) : data ? (
         <SeasonChart data={data} frostDayIndex={frostIndex(data, frost)}
-          flags={showFlags ? flags : []} />
+          flags={showFlags ? flags : []} onFlag={setOpenFlag} showGround={showGround} />
       ) : null}
 
       {data && flags.length > 0 && showFlags && (
@@ -261,6 +270,10 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost, onView
       {/* The ledger is the season's spine; these are its ribs. Naming them
           here beats a rail label alone, because the reason to open one is
           usually a question this page just raised. */}
+      {openFlag && data && (
+        <EventDetail flag={openFlag} curve={data} onClose={() => setOpenFlag(null)} />
+      )}
+
       <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold">🧭 From here</h2>
       <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
         {[

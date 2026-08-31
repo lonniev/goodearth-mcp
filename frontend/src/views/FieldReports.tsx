@@ -12,6 +12,8 @@
 import { useCallback, useEffect, useState } from "react";
 import Provenance from "../components/Provenance";
 import { calibration, type CalibrationResult } from "../lib/mcp";
+import { boundsFrom, fetchObservations, type INatObservation } from "../lib/inaturalist";
+import { geoJSONToRing } from "../lib/geo";
 import {
   deleteReport, listReports, makeReport, saveReport, TAGS,
   toObservations, type FieldReport, type ReportTag,
@@ -40,6 +42,12 @@ export default function FieldReports({
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
   const [here, setHere] = useState<{ lat: number; lng: number } | null>(null);
+  const [inatUser, setInatUser] = useState(() => {
+    try { return window.localStorage.getItem("goodearth:inat-user") ?? ""; } catch { return ""; }
+  });
+  const [inat, setInat] = useState<INatObservation[] | null>(null);
+  const [inatBusy, setInatBusy] = useState(false);
+  const [picked, setPicked] = useState<Set<number>>(new Set());
 
   useEffect(() => { setReports(listReports(region.id)); }, [region.id]);
 
@@ -89,6 +97,70 @@ export default function FieldReports({
     setReports(saveReport(made).filter((r) => r.regionId === region.id));
     e.currentTarget.reset();
     setHere(null);
+  }
+
+  // The block's own bounding box, so an import brings back the farm rather
+  // than the grower's holiday photographs.
+  function regionBounds() {
+    if ("lat" in region.region) {
+      const d = region.region.radius_m / 111_320;
+      return {
+        swlat: region.region.lat - d, swlng: region.region.lon - d * 1.4,
+        nelat: region.region.lat + d, nelng: region.region.lon + d * 1.4,
+      };
+    }
+    const ring = geoJSONToRing(region.region);
+    if (!ring.length) return undefined;
+    return boundsFrom({
+      min_lat: Math.min(...ring.map((p) => p.lat)),
+      min_lon: Math.min(...ring.map((p) => p.lng)),
+      max_lat: Math.max(...ring.map((p) => p.lat)),
+      max_lon: Math.max(...ring.map((p) => p.lng)),
+    });
+  }
+
+  async function pullINat() {
+    setInatBusy(true); setErr(""); setMsg("");
+    try {
+      try { window.localStorage.setItem("goodearth:inat-user", inatUser.trim()); } catch { /* noop */ }
+      const rows = await fetchObservations({
+        user: inatUser,
+        bounds: regionBounds(),
+        since: `${new Date().getFullYear() - 1}-01-01`,
+        perPage: 60,
+      });
+      setInat(rows);
+      setPicked(new Set(rows.filter((r) => r.flowering).map((r) => r.id)));
+      if (!rows.length) {
+        setMsg(`No observations from ${inatUser} inside ${region.name}. The box is the block — a wider search would bring back the whole world.`);
+      }
+    } catch (e) { setErr((e as Error).message); }
+    finally { setInatBusy(false); }
+  }
+
+  function importPicked() {
+    if (!inat) return;
+    let added = 0;
+    for (const o of inat) {
+      if (!picked.has(o.id) || !o.observed_on) continue;
+      // A flowering annotation IS a bloom observation and can calibrate.
+      // Anything else is a sighting: real, worth keeping, and not something
+      // the model predicted, so it stays a note.
+      const made = makeReport({
+        regionId: region.id,
+        tag: o.flowering ? "first_bloom" : "note",
+        observedOn: o.observed_on,
+        note: `${o.species}${o.scientificName ? ` (${o.scientificName})` : ""} — iNaturalist #${o.id}`,
+        ...(o.lat != null && o.lng != null ? { lat: o.lat, lng: o.lng } : {}),
+        ...(o.flowering ? { crop: o.species, stage: "flowering" } : {}),
+      });
+      if (typeof made !== "string") { saveReport(made); added++; }
+    }
+    setReports(listReports(region.id));
+    setInat(null);
+    setMsg(added
+      ? `Imported ${added}. Bloom observations need a set-out date and an expected GDD before they can teach the model — add those on the rows that matter.`
+      : "Nothing selected.");
   }
 
   const needsCrop = tag === "first_bloom" || tag === "emergence" || tag === "pest";
@@ -194,6 +266,58 @@ export default function FieldReports({
           {msg && <span className="text-[12.5px] text-ink-soft">{msg}</span>}
         </div>
       </form>
+
+      {/* ── Import ─────────────────────────────────────────────────────── */}
+      <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold">🔭 Import from iNaturalist</h2>
+      <div className="rounded-md border border-rule bg-panel p-4">
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="block flex-1 text-[11px] text-ink-soft" style={{ minWidth: 180 }}>
+            iNaturalist username
+            <input value={inatUser} onChange={(e) => setInatUser(e.target.value)}
+              placeholder="your-login"
+              className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" />
+          </label>
+          <button onClick={pullINat} disabled={inatBusy || !inatUser.trim()}
+            className="min-h-11 rounded border-[1.5px] border-ink px-4 text-[13px] font-semibold active:bg-ink active:text-paper disabled:opacity-40">
+            {inatBusy ? "Fetching…" : "Find observations"}
+          </button>
+        </div>
+        <p className="mt-2 max-w-prose text-[12px] leading-relaxed text-ink-soft">
+          Read-only, and bounded to {region.name} — an unbounded search would
+          bring back your holidays as well as your farm. Observations annotated
+          as flowering come in as bloom reports, which the calibration loop can
+          use; everything else comes in as a sighting, because iNaturalist does
+          not know what you set out or when.
+        </p>
+
+        {inat && inat.length > 0 && (
+          <>
+            <div className="mt-3 max-h-64 overflow-auto overscroll-contain rounded border border-rule">
+              {inat.map((o) => (
+                <label key={o.id}
+                  className="flex min-h-11 items-center gap-3 border-b border-rule px-3 py-2 last:border-b-0">
+                  <input type="checkbox" checked={picked.has(o.id)}
+                    onChange={() => setPicked((s) => {
+                      const n = new Set(s);
+                      if (n.has(o.id)) n.delete(o.id); else n.add(o.id);
+                      return n;
+                    })}
+                    className="h-5 w-5 shrink-0 accent-[color:var(--color-growth)]" />
+                  <span className="min-w-0 flex-1 text-[13px]">
+                    {o.species}
+                    {o.flowering && <span className="ml-1.5 rounded-full bg-growth/12 px-2 py-0.5 text-[10.5px] font-semibold text-growth">flowering</span>}
+                    <span className="data ml-2 text-[11px] text-ink-soft">{o.observed_on}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+            <button onClick={importPicked}
+              className="mt-3 min-h-11 rounded border-[1.5px] border-ink bg-ink px-5 text-[13px] font-semibold text-paper">
+              Import {picked.size} selected
+            </button>
+          </>
+        )}
+      </div>
 
       {/* ── The log ────────────────────────────────────────────────────── */}
       {reports.length > 0 && (

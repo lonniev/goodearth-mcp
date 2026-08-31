@@ -66,7 +66,7 @@ async def test_happy_path_returns_spread_band_and_projection(monkeypatch):
     assert out["across_region"]["terrain_correction"] == "applied"
     assert out["curve"]["cumulative_mean"][-1] > 0
     assert out["forecast"] is not None
-    assert out["projection"]["days"] == 21
+    assert out["projection"]["days"] == 75
     assert {s["name"] for s in out["sources"]}
 
 
