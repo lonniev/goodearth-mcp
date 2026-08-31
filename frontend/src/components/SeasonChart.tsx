@@ -144,7 +144,7 @@ export default function SeasonChart({ data, frostDayIndex = null, flags = [] }: 
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
-        className={`block h-auto w-full min-w-[560px] touch-none select-none ${isZoomed ? "cursor-grab" : ""}`}
+        className={`ge-chart block h-auto w-full min-w-[560px] touch-none select-none ${isZoomed ? "cursor-grab" : ""}`}
         role="img"
         aria-label={`Cumulative growing degree days, base ${data.base_temp_f} degrees Fahrenheit, against the ${data.normals?.span_years ?? 0}-season range`}
       >
@@ -213,6 +213,12 @@ export default function SeasonChart({ data, frostDayIndex = null, flags = [] }: 
             MEDIAN FIRST FROST
           </text>
         )}
+
+        {/* Axis handles. Faint, but present — an invisible affordance is one
+            nobody finds, and these are the gestures that cannot escape to the
+            browser. */}
+        <rect x={0} y={T} width={L - 8} height={B - T} fill="var(--color-band)" opacity={0.35} rx={2} />
+        <rect x={L} y={B + 6} width={R - L} height={H - B - 8} fill="var(--color-band)" opacity={0.35} rx={2} />
 
         {ticks.map((t) => (
           <g key={t.d}>

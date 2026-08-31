@@ -24,9 +24,12 @@ interface Props {
   /// Lifted so the hive in the corner can read the same night the frost card
   /// does — the hive is an instrument, and it must not disagree with the page.
   onFrost?: (f: FrostWindowResult | null) => void;
+  /// The ledger raises questions the other views answer; it should be able to
+  /// hand the reader straight to them.
+  onView?: (v: "map" | "almanac" | "crops" | "pests" | "wildlife" | "reports") => void;
 }
 
-export default function HeatLedger({ region, onMeasured, onCost, onFrost }: Props) {
+export default function HeatLedger({ region, onMeasured, onCost, onFrost, onView }: Props) {
   const [data, setData] = useState<SeasonCurveResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -110,11 +113,14 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost }: Prop
       {/* ── Pulse strip ───────────────────────────────────────────────── */}
       <div className="mb-5 grid grid-cols-2 border-t-2 border-b border-t-ink border-b-rule md:grid-cols-4">
         <Pulse
+          emoji="🌡️"
           value={g ? Math.round(g.mean).toLocaleString() : busy ? "…" : "—"}
           unit={data ? `GDD${sub(data.base_temp_f)}` : ""}
-          label="accumulated across the block (mean)"
+          label="accumulated across the block"
+          gauge={heatGauge(data)}
         />
         <Pulse
+          emoji={ahead == null ? "📊" : ahead >= 0 ? "📈" : "📉"}
           value={ahead == null ? "—" : `${ahead >= 0 ? "+" : ""}${Math.round(ahead)}`}
           tone={ahead == null ? undefined : ahead >= 0 ? "growth" : "frost"}
           label={
@@ -124,6 +130,7 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost }: Prop
           }
         />
         <Pulse
+          emoji="❄️"
           value={frost?.first_frost ? shortDate(frost.first_frost.median) : "—"}
           tone="frost"
           muted={!frost?.first_frost}
@@ -134,6 +141,7 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost }: Prop
           }
         />
         <Pulse
+          emoji={frost?.worst_night && frost.worst_night.level !== "clear" ? "🥶" : "🌙"}
           value={frost?.worst_night ? `${Math.round(frost.worst_night.low_ground_f)}°F` : "—"}
           tone="frost"
           muted={!frost?.worst_night}
@@ -147,27 +155,50 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost }: Prop
 
       {/* ── The spread. This is the product. ──────────────────────────── */}
       {g && (
-        <div className="mb-5 flex flex-wrap items-center gap-3.5 rounded-md border border-rule border-l-4 border-l-growth bg-panel px-3.5 py-2.5 text-[13px]">
-          <span>
-            <b className="figure text-[17px]">{Math.round(g.spread).toLocaleString()} GDD</b>{" "}
-            {g.spread > 0 ? (
-              <>between the coolest and warmest ground on this block ({Math.round(g.min).toLocaleString()}–{Math.round(g.max).toLocaleString()})</>
-            ) : (
-              <>of variation — this ground is flat enough that every sample reads alike</>
+        <div className="mb-5 rounded-md border border-rule border-l-4 border-l-growth bg-panel px-4 py-3.5">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span className="text-[17px] leading-none">⛰️</span>
+            <b className="figure text-[19px]">{Math.round(g.spread).toLocaleString()} GDD</b>
+            <span className="text-[13px]">
+              {g.spread > 0
+                ? "between the coolest and warmest ground on this block"
+                : "of variation — this ground is flat enough that every sample reads alike"}
+            </span>
+            {daysApart(g, data) != null && (
+              <span className="rounded-full bg-growth/12 px-2.5 py-1 text-[11.5px] font-semibold text-growth">
+                ≈ {daysApart(g, data)} days apart
+              </span>
             )}
-          </span>
-          <span className="data ml-auto text-right text-[10px] text-ink-soft">
+          </div>
+
+          {/* The block, drawn. A sentence about min and max is a fact; this is
+              the same fact as a picture of the ground it came from. */}
+          {g.spread > 0 && (
+            <div className="mt-3">
+              <div className="relative h-2 rounded-full bg-gradient-to-r from-frost/35 via-band to-growth/45">
+                <span className="absolute -top-0.5 h-3 w-[3px] rounded bg-ink"
+                  style={{ left: `calc(${((g.mean - g.min) / (g.max - g.min)) * 100}% - 1.5px)` }} />
+              </div>
+              <div className="data mt-1 flex justify-between text-[10px] text-ink-soft">
+                <span>🥶 hollow {Math.round(g.min).toLocaleString()}</span>
+                <span>mean {Math.round(g.mean).toLocaleString()}</span>
+                <span>{Math.round(g.max).toLocaleString()} bench ☀️</span>
+              </div>
+            </div>
+          )}
+
+          <p className="data mt-2.5 text-[10px] leading-relaxed text-ink-soft">
             {data?.sources?.map((s) => `${s.name.replace(/^Open-Meteo /, "")} ${Math.round(s.resolution_m / (s.resolution_m >= 1000 ? 1000 : 1))}${s.resolution_m >= 1000 ? " km" : " m"}`).join(" · ")}
-            <br />
+            {" · "}
             {data?.across_region.terrain_correction === "applied"
               ? "lapse + cold-air drainage"
               : "terrain correction unavailable"}
-          </span>
+          </p>
         </div>
       )}
 
       <h2 className="figure mt-5 mb-2.5 flex flex-wrap items-baseline gap-2.5 text-[18px] font-semibold">
-        Season heat curve
+        <span className="mr-0.5">📈</span>Season heat curve
         {flags.length > 0 && (
           <button onClick={() => setShowFlags((v) => !v)}
             className={`min-h-11 rounded-full border px-3.5 text-[12px] font-medium ${
@@ -210,7 +241,7 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost }: Prop
       {frost && (
         <>
           <h2 className="figure mt-6 mb-2.5 flex items-baseline gap-2.5 text-[18px] font-semibold">
-            React
+            <span className="mr-0.5">🔔</span>React
             <Provenance tool="goodearth_frost_window" at={frostAt} onCost={onCost} />
           </h2>
           <FrostCard data={frost} />
@@ -219,7 +250,7 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost }: Prop
 
       {soil && (
         <>
-          {!frost && <h2 className="figure mt-6 mb-2.5 text-[18px] font-semibold">React</h2>}
+          {!frost && <h2 className="figure mt-6 mb-2.5 text-[18px] font-semibold">🔔 React</h2>}
           <div className="flex items-baseline gap-2.5">
             <Provenance tool="goodearth_soil_temp_projection" at={soilAt} onCost={onCost} />
           </div>
@@ -227,30 +258,67 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost }: Prop
         </>
       )}
 
-      <div className="mt-6 rounded-md border border-dashed border-rule bg-panel/60 p-4 text-[13px] text-ink-soft">
-        <span className="figure text-[15px] text-ink">Still to come on this page</span>
-        <p className="mt-1 leading-relaxed">
-          The map view and field reports are what remain. Field reports are the
-          interesting one: they feed the calibration loop, which is how this
-          block learns its own microclimate rather than borrowing the region's.
-        </p>
+      {/* The ledger is the season's spine; these are its ribs. Naming them
+          here beats a rail label alone, because the reason to open one is
+          usually a question this page just raised. */}
+      <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold">🧭 From here</h2>
+      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+        {[
+          { to: "almanac" as const, emoji: "🌤️", title: "Almanac",
+            line: "Rain, dew point, sun and moon — the rest of what the season is doing." },
+          { to: "crops" as const, emoji: "🌱", title: "Crops",
+            line: "Where each planting stands, and whether it finishes before frost." },
+          { to: "pests" as const, emoji: "🐛", title: "Pests",
+            line: "Which rows are worth walking this week." },
+          { to: "wildlife" as const, emoji: "🦋", title: "Wildlife",
+            line: "Robins, woodchucks, geese — the same clocks, other creatures." },
+          { to: "reports" as const, emoji: "📓", title: "Field Reports",
+            line: "What you saw. Enough of them and this block gets its own calendar." },
+          { to: "map" as const, emoji: "🗺️", title: "Map",
+            line: "Draw another block, or check the radar." },
+        ].map((c) => (
+          <button key={c.to} onClick={() => onView?.(c.to)}
+            className="rounded-md border border-rule bg-panel px-3.5 py-3 text-left active:border-ink">
+            <div className="figure text-[14.5px] font-semibold">
+              <span className="mr-1.5">{c.emoji}</span>{c.title}
+            </div>
+            <p className="mt-0.5 text-[12.5px] leading-snug text-ink-soft">{c.line}</p>
+          </button>
+        ))}
       </div>
     </>
   );
 }
 
-function Pulse({ value, unit, label, tone, muted }: {
+function Pulse({ emoji, value, unit, label, tone, muted, gauge }: {
+  emoji: string;
   value: string; unit?: string; label: string;
   tone?: "growth" | "frost"; muted?: boolean;
+  /// Where this season sits inside the normal range, 0..1. The figure alone
+  /// says how much heat; the gauge says whether that is a lot.
+  gauge?: { pos: number; lo: string; hi: string } | null;
 }) {
   const color = tone === "growth" ? "text-growth" : tone === "frost" ? "text-frost" : "";
+  const bar = tone === "frost" ? "bg-frost" : "bg-growth";
   return (
     <div className={`border-l border-rule px-3.5 pt-3 pb-3.5 first:border-l-0 first:pl-0 md:[&:nth-child(3)]:border-l ${muted ? "opacity-45" : ""}`}>
+      <div className="mb-0.5 text-[15px] leading-none">{emoji}</div>
       <div className={`figure text-[clamp(20px,2.4vw,28px)] leading-tight ${color}`}>
         {value}
         {unit && <small className="ml-1 text-[0.55em] font-normal text-ink-soft">{unit}</small>}
       </div>
-      <div className="mt-0.5 text-[11.5px] text-ink-soft">{label}</div>
+      <div className="mt-0.5 text-[11.5px] leading-snug text-ink-soft">{label}</div>
+      {gauge && (
+        <div className="mt-2">
+          <div className="relative h-[5px] rounded-full bg-band">
+            <span className={`absolute top-1/2 h-[11px] w-[3px] -translate-y-1/2 rounded-full ${bar}`}
+              style={{ left: `calc(${Math.min(Math.max(gauge.pos, 0), 1) * 100}% - 1.5px)` }} />
+          </div>
+          <div className="data mt-0.5 flex justify-between text-[9.5px] text-ink-soft">
+            <span>{gauge.lo}</span><span>{gauge.hi}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -271,6 +339,33 @@ function frostIndex(curve: SeasonCurveResult, frost: FrostWindowResult | null): 
 
 const shortDate = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+/// Where this season sits inside the ten-season range, as a 0..1 position.
+/// The number says how much heat; this says whether that is a lot.
+function heatGauge(data: SeasonCurveResult | null) {
+  const t = data?.normals?.today;
+  const mean = data?.accumulated_gdd?.mean;
+  if (!t || mean == null || t.max <= t.min) return null;
+  return {
+    pos: (mean - t.min) / (t.max - t.min),
+    lo: `coolest ${Math.round(t.min).toLocaleString()}`,
+    hi: `${Math.round(t.max).toLocaleString()} warmest`,
+  };
+}
+
+/// The spread, restated as the thing a grower plans around: how far apart the
+/// two ends of the block are in crop timing.
+function daysApart(
+  g: { spread: number },
+  data: SeasonCurveResult | null,
+): number | null {
+  const mean = data?.curve?.cumulative_mean;
+  if (!mean || mean.length < 15 || g.spread <= 0) return null;
+  const recent = (mean[mean.length - 1] - mean[mean.length - 15]) / 14;
+  if (recent <= 0) return null;
+  const days = Math.round(g.spread / recent);
+  return days >= 1 ? days : null;
+}
 
 const SUBS = "₀₁₂₃₄₅₆₇₈₉";
 const sub = (n: number) => String(Math.round(n)).split("").map((c) => SUBS[+c] ?? c).join("");

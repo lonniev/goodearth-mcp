@@ -46,9 +46,11 @@ export default function ZoomControls({ onZoomX, onZoomY, onReset, isZoomed, rang
 
       {range && <span className="data ml-auto text-[10px]">{range}</span>}
 
-      <span className="data w-full text-[10px] opacity-70">
-        pinch to zoom — sideways for dates, up and down for GDD
-        {isZoomed ? " · drag to pan" : ""}
+      {/* Say the gesture that always works FIRST. A pinch on iPadOS can escape
+          to the browser's own page zoom, so it is offered but never relied on. */}
+      <span className="data w-full text-[10px] leading-relaxed opacity-70">
+        drag the left edge to stretch the scale · drag along the bottom for dates ·
+        double-tap in, two-finger tap out{isZoomed ? " · drag the middle to pan" : ""}
       </span>
     </div>
   );

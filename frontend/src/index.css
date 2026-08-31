@@ -50,6 +50,16 @@
   }
   /* The map owns its gestures; the page must not steal them. */
   .leaflet-container { touch-action: none; }
+
+  /* Charts own theirs too. Note that touch-action alone does NOT stop iPadOS
+     zooming the page — only preventDefault on WebKit's gesturestart does, which
+     useChartZoom handles. This just stops the scroll/pan half. */
+  svg.ge-chart { touch-action: none; }
+
+  /* The axis gutters advertise that they are draggable handles rather than
+     decoration. Cursor is a desktop affordance; on touch the hint line in the
+     zoom controls does that job. */
+  svg.ge-chart { cursor: default; }
   body {
     font-family: var(--font-body);
     color: var(--color-ink);

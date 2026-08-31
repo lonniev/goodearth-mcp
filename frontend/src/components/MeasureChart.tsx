@@ -110,7 +110,7 @@ export default function MeasureChart({
       </div>
 
       <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`}
-        className={`block h-auto w-full min-w-[520px] touch-none select-none ${isZoomed ? "cursor-grab" : ""}`}
+        className={`ge-chart block h-auto w-full min-w-[520px] touch-none select-none ${isZoomed ? "cursor-grab" : ""}`}
         role="img" aria-label={`${label}, this season against the normal range`}>
         <defs>
           <clipPath id={`clip-${label.replace(/\W/g, "")}`}>

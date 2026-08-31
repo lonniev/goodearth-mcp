@@ -10,11 +10,28 @@
 // Deliberately not a charting library: the axes are domain quantities (days
 // and GDD), so zoom state lives as domain windows and the SVG stays plain.
 //
-// Touch is the primary input, not an afterthought: this runs on a tablet in a
-// packing shed. Pinch zooms — spreading mostly sideways zooms the dates,
-// mostly upward zooms the GDD scale, so one gesture covers both axes without a
-// mode switch. One finger pans once zoomed. The buttons remain for anyone on a
-// mouse and for anyone who would rather not gesture at all.
+// Touch is the primary input, not an afterthought: this runs on an iPad in a
+// packing shed.
+//
+// iPadOS fights pinch. `touch-action: none` governs scrolling and panning but
+// does NOT suppress Safari's page zoom, which lives on the visual viewport;
+// and `user-scalable=no` is ignored on iOS by design, for accessibility. The
+// only lever that actually works is WebKit's proprietary `gesturestart` /
+// `gesturechange` pair — preventing those suppresses the page zoom, and
+// `gesturechange` hands over `scale` directly, which is the number we wanted
+// anyway. So on Safari that is the pinch path, with a pointer-based pinch as
+// the fallback everywhere else.
+//
+// But the better answer is not to depend on pinch at all, because a pinch that
+// escapes to the browser is worse than no gesture. Three conflict-free paths
+// do the real work:
+//
+//   * **Drag an axis to scale it.** Dragging in the left gutter scales GDD,
+//     dragging along the bottom scales dates. One finger, unambiguous, and it
+//     names the axis by where you touch instead of by how you spread.
+//   * **Double-tap to zoom in, two-finger tap to zoom out.** Both are standard
+//     iOS idioms and neither collides with the page.
+//   * **The buttons**, which always work and are 44 px.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -59,6 +76,20 @@ function panBy(w: Window1D, delta: number): Window1D {
   return clampWindow({ lo: w.lo + delta * span, hi: w.hi + delta * span });
 }
 
+/// Which gutter a pointer went down in — the axis it will scale.
+type Grab = "plot" | "x-axis" | "y-axis";
+
+/// The plot area as a fraction of the SVG box, matching the charts' L/R/T/B.
+/// Anything left of the plot scales Y; anything below it scales X.
+const PLOT_LEFT = 0.062;
+const PLOT_BOTTOM = 0.87;
+
+function grabZone(fx: number, fy: number): Grab {
+  if (fx < PLOT_LEFT) return "y-axis";
+  if (fy > PLOT_BOTTOM) return "x-axis";
+  return "plot";
+}
+
 export function useChartZoom() {
   const [zoom, setZoom] = useState<ZoomState>(FULL);
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -95,20 +126,69 @@ export function useChartZoom() {
     return () => el.removeEventListener("wheel", onWheel);
   }, [zoomX, zoomY]);
 
+  // WebKit gesture events. Preventing `gesturestart` is the ONLY thing that
+  // stops iPadOS zooming the whole page, and `gesturechange.scale` is the
+  // pinch we wanted — so on Safari this replaces the pointer-pinch entirely.
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    let last = 1;
+
+    const start = (e: Event) => { e.preventDefault(); last = 1; };
+    const change = (e: Event) => {
+      e.preventDefault();
+      const scale = (e as Event & { scale?: number }).scale;
+      if (typeof scale !== "number" || scale <= 0) return;
+      const factor = last / scale;
+      last = scale;
+      // A WebKit pinch reports one scalar, not a direction, so it drives both
+      // axes together — which is what a two-finger spread on a picture means.
+      if (Math.abs(factor - 1) > 0.005) { zoomX(factor); zoomY(factor); }
+    };
+    const end = (e: Event) => e.preventDefault();
+
+    el.addEventListener("gesturestart", start as EventListener, { passive: false });
+    el.addEventListener("gesturechange", change as EventListener, { passive: false });
+    el.addEventListener("gestureend", end as EventListener, { passive: false });
+    return () => {
+      el.removeEventListener("gesturestart", start as EventListener);
+      el.removeEventListener("gesturechange", change as EventListener);
+      el.removeEventListener("gestureend", end as EventListener);
+    };
+  }, [zoomX, zoomY]);
+
+  // Double-tap zooms in; a two-finger tap zooms out. Both are standard iOS
+  // idioms, and neither can escape to the browser the way a pinch can.
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    let lastTap = 0;
+    const tap = (e: PointerEvent) => {
+      if (e.pointerType === "mouse") return;
+      const now = performance.now();
+      if (now - lastTap < 320) { zoomX(1 / 1.5); zoomY(1 / 1.5); lastTap = 0; }
+      else lastTap = now;
+    };
+    const two = (e: TouchEvent) => {
+      if (e.touches.length === 2) { zoomX(1.5); zoomY(1.5); }
+    };
+    el.addEventListener("pointerup", tap);
+    el.addEventListener("touchend", two);
+    return () => { el.removeEventListener("pointerup", tap); el.removeEventListener("touchend", two); };
+  }, [zoomX, zoomY]);
+
   // Pointer handling covers touch, pen and mouse in one path.
-  //   one pointer  → pan (only once zoomed; at full extent there is nowhere
-  //                  to pan, so a stray swipe does nothing)
-  //   two pointers → pinch. The gesture's own direction picks the axis:
-  //                  a mostly-horizontal spread zooms dates, a mostly-vertical
-  //                  one zooms GDD, and a diagonal does both in proportion.
-  //                  That beats a mode toggle, which costs a tap before every
-  //                  adjustment.
+  //   in a gutter  → drag to scale that axis. One finger, and the axis is
+  //                  named by where you touched rather than by how you spread.
+  //   in the plot  → pan, once zoomed.
+  //   two pointers → pinch, for browsers without WebKit gesture events.
   useEffect(() => {
     const el = svgRef.current;
     if (!el) return;
 
     const active = new Map<number, { x: number; y: number }>();
     let pinch: { dx: number; dy: number } | null = null;
+    let grab: Grab = "plot";
 
     const spread = () => {
       const [a, b] = [...active.values()];
@@ -116,6 +196,10 @@ export function useChartZoom() {
     };
 
     const down = (e: PointerEvent) => {
+      const box = el.getBoundingClientRect();
+      if (active.size === 0) {
+        grab = grabZone((e.clientX - box.left) / box.width, (e.clientY - box.top) / box.height);
+      }
       active.set(e.pointerId, { x: e.clientX, y: e.clientY });
       el.setPointerCapture(e.pointerId);
       if (active.size === 2) pinch = spread();
@@ -143,6 +227,21 @@ export function useChartZoom() {
         return;
       }
 
+      // Axis drag: pulling away from the plot expands that axis, pushing
+      // toward it compresses. Reads like stretching the ruler.
+      if (grab === "y-axis") {
+        const dy = (e.clientY - prev.y) / box.height;
+        if (Math.abs(dy) > 0.001) zoomY(1 + dy * 2.2);
+        e.preventDefault();
+        return;
+      }
+      if (grab === "x-axis") {
+        const dx = (e.clientX - prev.x) / box.width;
+        if (Math.abs(dx) > 0.001) zoomX(1 - dx * 2.2);
+        e.preventDefault();
+        return;
+      }
+
       if (!isZoomed) return;
       panX(-(e.clientX - prev.x) / box.width);
       panY((e.clientY - prev.y) / box.height);
@@ -152,6 +251,7 @@ export function useChartZoom() {
     const up = (e: PointerEvent) => {
       active.delete(e.pointerId);
       if (active.size < 2) pinch = null;
+      if (active.size === 0) grab = "plot";
       if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
     };
 

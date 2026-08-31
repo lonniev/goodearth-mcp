@@ -132,7 +132,7 @@ export default function App() {
         onSignOut={() => { logOut(); setSignedIn(false); }}
       >
         {view === "ledger" && (
-          <HeatLedger region={region} onMeasured={onMeasured} onCost={onCost} onFrost={setFrost} />
+          <HeatLedger region={region} onMeasured={onMeasured} onCost={onCost} onFrost={setFrost} onView={setView} />
         )}
         {view === "map" && <MapView active={region} onSaved={(r) => { pickRegion(r); setView("ledger"); }} />}
         {view === "almanac" && <Almanac region={region} onCost={onCost} />}
