@@ -39,6 +39,17 @@ _DDL = (
 )
 
 
+# CREATE TABLE IF NOT EXISTS does NOT add columns to a table that already
+# exists, so every column added after the first deploy needs its own idempotent
+# ALTER. Found the hard way: fetch_count read back as NULL on a live feed
+# because the table predated the column, and a silently absent column looks
+# exactly like a feature nobody used.
+_MIGRATIONS = [
+    f"ALTER TABLE {TABLE} ADD COLUMN IF NOT EXISTS fetch_count BIGINT DEFAULT 0",
+    f"ALTER TABLE {TABLE} ADD COLUMN IF NOT EXISTS last_fetched_at TIMESTAMPTZ",
+]
+
+
 async def _vault_for() -> Any:
     global _vault, _schema_done
     if _vault is None:
@@ -47,6 +58,8 @@ async def _vault_for() -> Any:
     if not _schema_done:
         try:
             await _vault._execute(_qualify(_DDL))
+            for stmt in _MIGRATIONS:
+                await _vault._execute(_qualify(stmt))
             _schema_done = True
         except Exception as exc:  # noqa: BLE001
             # A feed that cannot be stored is a feature that does not work, but
@@ -97,7 +110,8 @@ async def list_for(npub: str) -> list[dict[str, Any]]:
     v = await _vault_for()
     r = await v._execute(
         _qualify(
-            f"SELECT token, region_name, entry_count, computed_on, updated_at "
+            f"SELECT token, region_name, entry_count, computed_on, updated_at, "
+            f"COALESCE(fetch_count, 0) AS fetch_count, last_fetched_at "
             f"FROM {TABLE} WHERE npub = $1 ORDER BY updated_at DESC LIMIT 25"
         ),
         [npub],
