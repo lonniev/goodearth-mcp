@@ -10,6 +10,10 @@ import SeasonChart from "../components/SeasonChart";
 import FrostCard from "../components/FrostCard";
 import SoilCard from "../components/SoilCard";
 import Provenance from "../components/Provenance";
+import { buildFlags, type LedgerFlag } from "../lib/ledgerFlags";
+import { listPlantings } from "../lib/plantings";
+import { listPests } from "../lib/pestModels";
+import { listWildlife } from "../lib/wildlifeModels";
 import { frostWindow, gddSeasonCurve, soilTempProjection, type FrostWindowResult, type SeasonCurveResult, type SoilWindowResult } from "../lib/mcp";
 import type { SavedRegion } from "../lib/regions";
 
@@ -31,6 +35,7 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost }: Prop
   const [frostAt, setFrostAt] = useState<Date | null>(null);
   const [soil, setSoil] = useState<SoilWindowResult | null>(null);
   const [soilAt, setSoilAt] = useState<Date | null>(null);
+  const [showFlags, setShowFlags] = useState(true);
 
   const run = useCallback(async () => {
     setBusy(true); setError("");
@@ -74,6 +79,13 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost }: Prop
 
   // Re-read whenever the active region changes — the whole app is scoped by it.
   useEffect(() => { void run(); void runFrost(); void runSoil(); }, [run, runFrost, runSoil]);
+
+  // Every threshold the grower has entered is a GDD number, and where it meets
+  // this curve is a date. The curve is already paid for, so the whole calendar
+  // comes free — no second call, no second fare.
+  const flags: LedgerFlag[] = data
+    ? buildFlags(data, listPlantings(region.id), listPests(region.id), listWildlife(region.id))
+    : [];
 
   const g = data?.accumulated_gdd;
   const ahead = data?.normals?.ahead_of_normal_gdd ?? null;
@@ -154,8 +166,15 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost }: Prop
         </div>
       )}
 
-      <h2 className="figure mt-5 mb-2.5 flex items-baseline gap-2.5 text-[18px] font-semibold">
+      <h2 className="figure mt-5 mb-2.5 flex flex-wrap items-baseline gap-2.5 text-[18px] font-semibold">
         Season heat curve
+        {flags.length > 0 && (
+          <button onClick={() => setShowFlags((v) => !v)}
+            className={`min-h-11 rounded-full border px-3.5 text-[12px] font-medium ${
+              showFlags ? "border-ink bg-ink text-paper" : "border-rule text-ink-soft active:bg-band"}`}>
+            {flags.length} of your events
+          </button>
+        )}
         <Provenance tool="goodearth_gdd_season_curve" at={ranAt} onCost={onCost} />
       </h2>
 
@@ -164,8 +183,20 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost }: Prop
           Reading the season for {region.name}…
         </div>
       ) : data ? (
-        <SeasonChart data={data} frostDayIndex={frostIndex(data, frost)} />
+        <SeasonChart data={data} frostDayIndex={frostIndex(data, frost)}
+          flags={showFlags ? flags : []} />
       ) : null}
+
+      {data && flags.length > 0 && showFlags && (
+        <p className="data mt-2 text-[10.5px] text-ink-soft">
+          <span className="text-growth">● crops</span>{" · "}
+          <span className="text-honey">● pests</span>{" · "}
+          <span className="text-frost">● wildlife</span>
+          {" — placed where your own thresholds meet this curve, at no extra cost."}
+          {flags.some((f) => f.baseMismatch) &&
+            " Dimmed flags count from a different base temperature than this block."}
+        </p>
+      )}
 
       {data && (
         <p className="data mt-2 text-[10.5px] text-ink-soft">

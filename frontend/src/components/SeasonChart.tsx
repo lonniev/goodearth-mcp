@@ -16,6 +16,7 @@
 
 import { useMemo } from "react";
 import type { SeasonCurveResult } from "../lib/mcp";
+import type { LedgerFlag } from "../lib/ledgerFlags";
 import { useChartZoom, windowToDomain } from "../lib/useChartZoom";
 import ZoomControls from "./ZoomControls";
 
@@ -25,6 +26,9 @@ interface Props {
   data: SeasonCurveResult;
   /// Median first frost as a day-index into the curve, when known (T2).
   frostDayIndex?: number | null;
+  /// The grower's own model events, placed on the curve. Derived client-side
+  /// from thresholds already on the page, so they cost nothing to show.
+  flags?: LedgerFlag[];
 }
 
 function niceStep(span: number): number {
@@ -33,7 +37,7 @@ function niceStep(span: number): number {
   return [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) ?? mag * 10;
 }
 
-export default function SeasonChart({ data, frostDayIndex = null }: Props) {
+export default function SeasonChart({ data, frostDayIndex = null, flags = [] }: Props) {
   const { zoom, zoomX, zoomY, reset, isZoomed, svgRef } = useChartZoom();
   const clipId = "ge-plot-clip";
 
@@ -174,7 +178,31 @@ export default function SeasonChart({ data, frostDayIndex = null }: Props) {
           {frostDayIndex != null && (
             <line x1={x(frostDayIndex)} x2={x(frostDayIndex)} y1={T} y2={B} stroke="var(--color-frost)" strokeWidth={1.6} strokeDasharray="7 4" />
           )}
-          <circle cx={x(last)} cy={y(todayGdd)} r={4.5} fill="var(--color-ink)" />
+            {/* The grower's own calendar, on the curve that produces it.
+              Stems alternate length so neighbouring flags do not collide, and
+              a flag whose threshold is counted from a different base
+              temperature is dimmed rather than quietly misplaced. */}
+          {flags.map((f, i) => {
+            const cx = x(f.index);
+            if (cx < L - 4 || cx > R + 4) return null;
+            const cy = f.gdd != null ? y(f.gdd) : B - 8;
+            const stem = 16 + (i % 3) * 13;
+            const tone =
+              f.kind === "crop" ? "var(--color-growth)"
+              : f.kind === "pest" ? "var(--color-honey)"
+              : "var(--color-frost)";
+            return (
+              <g key={`${f.label}-${f.index}`} opacity={f.baseMismatch ? 0.45 : f.reached ? 1 : 0.75}>
+                <line x1={cx} y1={cy} x2={cx} y2={cy - stem} stroke={tone} strokeWidth={1} />
+                <circle cx={cx} cy={cy} r={3.5} fill={tone} stroke="var(--color-panel)" strokeWidth={1.2} />
+                <text x={cx + 4} y={cy - stem - 2} fontSize={9} fill={tone} fontFamily="var(--font-data)">
+                  {f.emoji} {f.label.length > 22 ? f.label.slice(0, 21) + "…" : f.label}
+                </text>
+              </g>
+            );
+          })}
+
+        <circle cx={x(last)} cy={y(todayGdd)} r={4.5} fill="var(--color-ink)" />
           <text x={x(last) + 7} y={y(todayGdd) + 4} fontSize={10} fontWeight={600} fill="var(--color-ink)">
             today · {Math.round(todayGdd).toLocaleString()}
           </text>

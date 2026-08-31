@@ -27,6 +27,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import L from "leaflet";
+import { coverageHours, fetchRadarIndex, frameLabel, tileUrl, type RadarIndex } from "../lib/radar";
 import {
   areaM2, distanceM, formatArea, isDrawable, type LatLng,
 } from "../lib/geo";
@@ -104,6 +105,12 @@ export default function FieldMap({ value, onChange, others = [], centreOn }: Pro
   const tiles = useRef<L.TileLayer | null>(null);
   const drawn = useRef<L.LayerGroup | null>(null);
   const [layer, setLayer] = useState<keyof typeof BASEMAPS>("satellite");
+  const radarLayer = useRef<L.TileLayer | null>(null);
+  const [radar, setRadar] = useState<RadarIndex | null>(null);
+  const [radarOn, setRadarOn] = useState(false);
+  const [frame, setFrame] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [radarErr, setRadarErr] = useState("");
 
   // The callback the map handlers close over must always be current, or a
   // click three renders later commits to a stale ring.
@@ -152,6 +159,44 @@ export default function FieldMap({ value, onChange, others = [], centreOn }: Pro
   useEffect(() => {
     if (map.current && centreOn) map.current.setView([centreOn.lat, centreOn.lng], 15);
   }, [centreOn]);
+
+  // ── Radar ────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!radarOn || radar) return;
+    const ac = new AbortController();
+    fetchRadarIndex(ac.signal)
+      .then((idx) => { setRadar(idx); setFrame(idx.frames.length - 1); setRadarErr(""); })
+      .catch((e) => { if (e.name !== "AbortError") setRadarErr(e.message); });
+    return () => ac.abort();
+  }, [radarOn, radar]);
+
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+    if (!radarOn || !radar) {
+      if (radarLayer.current) { m.removeLayer(radarLayer.current); radarLayer.current = null; }
+      return;
+    }
+    const f = radar.frames[Math.min(frame, radar.frames.length - 1)];
+    if (!f) return;
+    const next = L.tileLayer(tileUrl(radar, f), { opacity: 0.62, zIndex: 400 });
+    next.addTo(m);
+    // Swap rather than mutate: replacing the URL on a live layer leaves the
+    // old tiles visible until each one is refetched, which reads as a stutter.
+    const prev = radarLayer.current;
+    radarLayer.current = next;
+    if (prev) next.once("load", () => m.removeLayer(prev));
+    return () => { if (radarLayer.current === next) { /* kept for the next frame */ } };
+  }, [radarOn, radar, frame]);
+
+  useEffect(() => {
+    if (!playing || !radar) return;
+    const id = setInterval(
+      () => setFrame((i) => (i + 1) % radar.frames.length),
+      450,
+    );
+    return () => clearInterval(id);
+  }, [playing, radar]);
 
   // ── Redraw ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -247,7 +292,52 @@ export default function FieldMap({ value, onChange, others = [], centreOn }: Pro
         ))}
       </div>
 
-      <MapReadout value={value} onFit={fit} />
+      <button
+        onClick={() => { setRadarOn((v) => !v); setPlaying(false); }}
+        className={`absolute right-2 top-14 z-[400] min-h-11 rounded-md border border-ink/30 px-3 text-[12px] font-medium shadow ${
+          radarOn ? "bg-ink text-paper" : "bg-panel/95 text-ink"
+        }`}
+      >
+        🌧️ Radar
+      </button>
+
+      {radarOn && (
+        <div className="absolute inset-x-2 bottom-2 z-[400] rounded-md border border-ink/25 bg-panel/95 px-3 py-2 shadow sm:left-auto sm:right-2 sm:w-[22rem]">
+          {radarErr ? (
+            <p className="text-[12px] text-clay">{radarErr}</p>
+          ) : !radar ? (
+            <p className="text-[12px] text-ink-soft">Loading radar…</p>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setPlaying((p) => !p)}
+                  aria-label={playing ? "Pause radar" : "Play radar"}
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded border border-rule text-[15px] active:bg-band">
+                  {playing ? "⏸" : "▶"}
+                </button>
+                <input
+                  type="range" min={0} max={radar.frames.length - 1} value={frame}
+                  onChange={(e) => { setPlaying(false); setFrame(Number(e.target.value)); }}
+                  aria-label="Radar time"
+                  className="h-11 flex-1 accent-[color:var(--color-frost)]"
+                />
+                <span className="data w-[68px] shrink-0 text-right text-[11px]">
+                  {frameLabel(radar.frames[frame])}
+                </span>
+              </div>
+              {/* Say what it actually covers. Radar is an observation, so it
+                  cannot reach into tomorrow however the control is drawn. */}
+              <p className="data mt-1 text-[10px] leading-snug text-ink-soft">
+                Last {coverageHours(radar).toFixed(1)} h of observed radar
+                {radar.frames.some((f) => f.kind === "nowcast") && " plus a short nowcast"}.
+                Radar is an echo off real rain — for tomorrow, the Almanac carries the forecast.
+              </p>
+            </>
+          )}
+        </div>
+      )}
+
+      {!radarOn && <MapReadout value={value} onFit={fit} />}
     </div>
   );
 }
