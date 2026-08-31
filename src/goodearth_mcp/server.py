@@ -35,6 +35,9 @@ from goodearth_mcp.frost_window import region_frost_window as frost_window_impl
 from goodearth_mcp.pest_window import PestWindowError
 from goodearth_mcp.pest_window import region_pest_window as pest_window_impl
 from goodearth_mcp.pests import PestError
+from goodearth_mcp.planting import PlantingError
+from goodearth_mcp.planting_window import PlantingWindowError
+from goodearth_mcp.planting_window import region_planting_window as planting_impl
 from goodearth_mcp.region import RegionError, parse_region
 from goodearth_mcp.soil import SoilError
 from goodearth_mcp.soil_window import SoilWindowError
@@ -101,6 +104,7 @@ CALIBRATION_UUID           = "2e7c72db-e886-53be-b948-bcc97a57986d"
 ALMANAC_UUID               = "ca2ca4ce-69ed-559a-9a7d-12425716dbae"
 WILDLIFE_CALENDAR_UUID     = "b8948acf-27c1-5e72-aeae-b7029567f364"
 CROP_SUITABILITY_UUID      = "bc6ad258-8f9f-5769-a32a-63d817d23ce8"
+PLANTING_WINDOW_UUID       = "bf8e80be-1d22-58e9-be2f-5f2f6af8efa3"
 CALENDAR_DATASET_UUID      = "3397c55a-8208-503d-a007-aa34975feb44"
 CALENDAR_FETCH_UUID        = "670e4e24-90e1-53a6-a409-10375a0470ac"
 CALENDAR_LIST_UUID         = "5e006f97-eaba-5ba7-a630-f493242b691d"
@@ -160,6 +164,12 @@ _DOMAIN_TOOLS = [
         capability="crop_suitability",
         category="read",
         intent="Which crops finish on this ground, measured against its own frost-free heat budget",
+    ),
+    ToolIdentity(
+        tool_id=PLANTING_WINDOW_UUID,
+        capability="planting_window",
+        category="read",
+        intent="When to start seed, when to put it out, and the last day a sowing still finishes",
     ),
     ToolIdentity(
         tool_id=CALENDAR_DATASET_UUID,
@@ -947,6 +957,66 @@ async def calendar_revoke(
         "revoked": gone,
         "note": "Revoked." if gone else "No such feed of yours — nothing changed.",
     }
+
+
+@tool
+@runtime.paid_tool(PLANTING_WINDOW_UUID)
+async def planting_window(
+    region: Annotated[
+        dict[str, Any],
+        Field(description="GeoJSON Polygon or {lat, lon, radius_m}."),
+    ],
+    crops: Annotated[
+        list[dict[str, Any]],
+        Field(
+            description=(
+                "The crops to date, with your own requirements. Each is "
+                '{"crop": "Tomato", "gdd_target": 1300, "base_temp": 50} plus '
+                'any of "frost_hardy", "direct_sow", "min_soil_f" (germination '
+                'soil temperature) and "start_indoors_weeks".'
+            ),
+        ),
+    ],
+    npub: Annotated[
+        str,
+        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
+    ] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """When to start seed, when to put it out, and the last day it still finishes.
+
+    Heat requirement answers whether a crop CAN finish here. It says nothing
+    about when to start, which is the decision actually made with a seed packet
+    in hand in February. This answers three separate questions:
+
+    Start seed indoors — counted back from the day it can go out, for a
+    transplanted crop. Out — the earliest the frost record and the soil allow,
+    whichever is later; a tender crop waits for the last spring frost, a hardy
+    one uses the shoulder before it, a direct sowing waits for the soil, which
+    lags the air by weeks. Latest — the last day a sowing still has enough heat
+    left to beat the first fall frost, which is what decides whether an August
+    succession is worth the seed.
+
+    All from this block's own record rather than a zone map. The requirements
+    are yours.
+
+    Args:
+        region: GeoJSON Polygon or {lat, lon, radius_m}.
+        crops: The crops to date.
+    """
+    try:
+        parsed = parse_region(region)
+    except RegionError as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+
+    try:
+        return await planting_impl(parsed, crops)
+    except (PlantingWindowError, PlantingError) as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_request"}
+    except (sources.UpstreamError, OSError) as exc:
+        logger.warning("planting_window failed: %s", exc)
+        return {"success": False, "error": f"A weather feed did not answer: {exc}",
+                "error_code": "upstream_unavailable"}
 
 
 # ---------------------------------------------------------------------------

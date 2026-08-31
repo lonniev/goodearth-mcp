@@ -32,6 +32,11 @@ HARD_FREEZE_F = 28.0
 # snap in May is a late spring frost, a different question entirely.
 FALL_SEARCH_START = (7, 15)  # Jul 15
 
+# A spring frost only counts before midsummer. A freak cold night in August is
+# an early FALL frost, and calling it a late spring one would tell a grower the
+# planting season had not started yet.
+SPRING_SEARCH_END = (6, 30)  # Jun 30
+
 
 def first_fall_frost(dates: list[str], tmin: list[float | None], year: int) -> str | None:
     """The first date on or after Jul 15 of ``year`` with a min at or below freezing."""
@@ -176,3 +181,29 @@ def worst(nights: list[dict[str, Any]]) -> dict[str, Any] | None:
     if not nights:
         return None
     return max(nights, key=lambda n: (LEVEL_RANK.get(n["level"], 0), -n["low_ground_f"]))
+
+
+def last_spring_frost(dates: list[str], tmin: list[float | None], year: int) -> str | None:
+    """The LAST date on or before Jun 30 of ``year`` with a min at or below freezing.
+
+    The date a tender crop can finally go out. Note it is the last, not the
+    first: the season opens when the freezes stop, and a grower who plants
+    after the first thaw rather than the last frost loses the crop.
+    """
+    cutoff = date(year, *SPRING_SEARCH_END)
+    found: str | None = None
+    for d, lo in zip(dates, tmin, strict=False):
+        if lo is None:
+            continue
+        try:
+            day = date.fromisoformat(d)
+        except ValueError:
+            continue
+        if day.year == year and day <= cutoff and lo <= FROST_F:
+            found = d
+    return found
+
+
+def spring_frost_dates(dates: list[str], tmin: list[float | None], years: list[int]) -> list[str]:
+    """Last spring frost for each year that has one on record."""
+    return [d for y in years if (d := last_spring_frost(dates, tmin, y))]

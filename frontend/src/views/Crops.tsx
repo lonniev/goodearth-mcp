@@ -9,12 +9,16 @@ import { useCallback, useEffect, useState } from "react";
 import CropLedger from "../components/CropLedger";
 import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
-import { cropGddStatus, cropSuitability, type CropLedgerResult, type SuitabilityResult, type Verdict } from "../lib/mcp";
+import { cropGddStatus, cropSuitability, plantingWindow, type CropLedgerResult,
+  type PlantingWindowResult, type SuitabilityResult, type Verdict } from "../lib/mcp";
 import {
   CROP_CATEGORIES, CROP_PRESETS, deletePlanting, listPlantings, makePlanting,
   savePlanting, type CropPreset, type Planting,
 } from "../lib/plantings";
 import type { SavedRegion } from "../lib/regions";
+
+const short = (iso: string) =>
+  new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
 export default function Crops({
   region, onCost,
@@ -32,6 +36,9 @@ export default function Crops({
   const [fitAt, setFitAt] = useState<Date | null>(null);
   const [fitBusy, setFitBusy] = useState(false);
   const [cat, setCat] = useState<CropPreset["category"] | "all">("all");
+  const [when, setWhen] = useState<PlantingWindowResult | null>(null);
+  const [whenAt, setWhenAt] = useState<Date | null>(null);
+  const [whenBusy, setWhenBusy] = useState(false);
 
   useEffect(() => { setPlantings(listPlantings(region.id)); }, [region.id]);
 
@@ -85,6 +92,27 @@ export default function Crops({
     setFormErr("");
     setPlantings(savePlanting(made).filter((p) => p.regionId === region.id));
   }
+
+  // "How much heat does it need" and "when does it go in" are different
+  // questions. This is the second one, from the block's own frost and soil.
+  const checkWhen = useCallback(async () => {
+    setWhenBusy(true); setError("");
+    try {
+      const r = await plantingWindow(
+        region.region,
+        CROP_PRESETS.map((c) => ({
+          crop: c.crop, gdd_target: c.gddTarget, base_temp: c.baseTempF,
+          frost_hardy: c.frostHardy ?? false, direct_sow: c.directSow ?? false,
+          emoji: c.emoji,
+          ...(c.minSoilF != null ? { min_soil_f: c.minSoilF } : {}),
+          ...(c.startIndoorsWeeks != null ? { start_indoors_weeks: c.startIndoorsWeeks } : {}),
+        })),
+      );
+      if (!r.success) { setError(r.error || "The planting window could not be read."); return; }
+      setWhen(r); setWhenAt(new Date());
+    } catch (e) { setError((e as Error).message); }
+    finally { setWhenBusy(false); }
+  }, [region]);
 
   const verdictOf = (crop: string): Verdict | null =>
     fit?.crops.find((r) => r.crop === crop)?.verdict ?? null;
@@ -215,6 +243,88 @@ export default function Crops({
         </p>
       )}
 
+      {/* ── When it goes in ─────────────────────────────────────────── */}
+      <h2 className="figure mt-7 mb-2.5 flex flex-wrap items-baseline gap-2.5 text-[18px] font-semibold">
+        🌱 When to sow
+        {!when && (
+          <button onClick={checkWhen} disabled={whenBusy}
+            className="min-h-11 rounded-full border-[1.5px] border-ink px-4 text-[12.5px] font-semibold active:bg-ink active:text-paper disabled:opacity-40">
+            {whenBusy ? "Reading the frost record…" : "Date this block"}
+          </button>
+        )}
+        {when && <Provenance tool="goodearth_planting_window" at={whenAt} onCost={onCost} />}
+      </h2>
+
+      {when ? (
+        <>
+          <div className="mb-2.5 rounded-md border border-rule border-l-4 border-l-frost bg-panel px-4 py-3">
+            <p className="text-[13px]">
+              Last spring frost <b>{when.frost.last_spring_median && short(when.frost.last_spring_median)}</b>
+              {" · "}first fall frost <b>{when.frost.first_fall_median && short(when.frost.first_fall_median)}</b>
+              {" — medians over "}{when.frost.seasons_on_record} seasons.
+            </p>
+            {Object.keys(when.soil_warming).length > 0 && (
+              <p className="mt-1 text-[12.5px] text-ink-soft">
+                Soil reaches{" "}
+                {Object.entries(when.soil_warming)
+                  .sort(([a], [b]) => Number(a) - Number(b))
+                  .map(([t, d]) => `${Math.round(Number(t))}°F on ${short(d)}`)
+                  .join(" · ")}
+              </p>
+            )}
+            {when.sow_now.length > 0 && (
+              <p className="mt-1.5 text-[13px]">
+                <b>In the window now:</b> {when.sow_now.join(", ")}
+              </p>
+            )}
+          </div>
+          <div className="mb-3 overflow-x-auto rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">
+            <table className="w-full text-[13px]">
+              <thead><tr>
+                {["Crop", "Seed indoors", "Out", "Last sowing", "Window"].map((h) => (
+                  <th key={h} className="data border-b-[1.5px] border-ink px-3 py-2.5 text-left text-[10px] font-medium uppercase tracking-[.1em] text-ink-soft">{h}</th>
+                ))}
+              </tr></thead>
+              <tbody>
+                {when.crops.filter((r) => cat === "all" ||
+                  CROP_PRESETS.find((c) => c.crop === r.crop)?.category === cat).map((r) => (
+                  <tr key={r.crop} className={`border-b border-rule last:border-b-0 ${
+                    r.state === "will_not_fit" ? "opacity-50" : ""}`}>
+                    <td className="px-3 py-2.5 font-semibold whitespace-nowrap">{r.emoji} {r.crop}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">{r.start_seed_indoors ? short(r.start_seed_indoors) : <span className="text-ink-soft">direct sow</span>}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">{r.earliest_out ? short(r.earliest_out) : "—"}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">{r.latest_out ? short(r.latest_out) : "—"}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      {r.state === "will_not_fit"
+                        ? <span className="rounded-full bg-clay/15 px-2 py-0.5 text-[11px] font-semibold text-clay">won't fit</span>
+                        : r.state === "narrow"
+                          ? <span className="rounded-full bg-honey/15 px-2 py-0.5 text-[11px] font-semibold text-honey">{r.window_days}d — narrow</span>
+                          : <span className="text-ink-soft">{r.window_days}d</span>}
+                      {r.sow_now && <span className="ml-1.5 rounded-full bg-growth/15 px-2 py-0.5 text-[11px] font-semibold text-growth">now</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mb-4 max-w-prose text-[12px] leading-relaxed text-ink-soft">
+            A tender crop's "out" date is the <b>median</b> last frost — half of
+            seasons frost later than that, so it is a coin toss rather than a
+            green light. The last-sowing date uses the season's average heat
+            rate, so it flatters the very end of the window: heat comes slower
+            in September than in July.
+          </p>
+        </>
+      ) : (
+        <p className="mb-3 max-w-prose text-[12.5px] leading-relaxed text-ink-soft">
+          Heat requirement says whether a crop <i>can</i> finish here. It says
+          nothing about when to start — which is the decision you make with a
+          seed packet in hand in February. Dating this block gives three:
+          when seed goes in under lights, when the plant can go out, and the
+          last day a sowing still beats the frost.
+        </p>
+      )}
+
       {/* ── The library ─────────────────────────────────────────────── */}
       <div className="mb-2.5 flex flex-wrap gap-1.5">
         {([{ key: "all", label: "All" }, ...CROP_CATEGORIES] as const).map((c) => (
@@ -236,9 +346,14 @@ export default function Crops({
             : v === "too_short" ? "border-clay/40 bg-clay/8 opacity-60"
             : "border-rule bg-panel";
           const row = fit?.crops.find((r) => r.crop === c.crop);
+          const w = when?.crops.find((r) => r.crop === c.crop);
           return (
             <button key={c.crop} onClick={() => addPreset(c)}
-              title={row ? row.note : `${c.gddTarget} GDD ${c.note}, base ${c.baseTempF}°F`}
+              title={[
+                row?.note,
+                w && `Seed ${w.start_seed_indoors ? short(w.start_seed_indoors) : "direct"} · out ${w.earliest_out ? short(w.earliest_out) : "—"}`,
+                `${c.gddTarget} GDD ${c.note}, base ${c.baseTempF}°F`,
+              ].filter(Boolean).join(" — ")}
               className={`flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-[12.5px] active:border-ink ${tone}`}>
               <span>{c.emoji}</span>
               <span className="font-medium">{c.crop}</span>
@@ -246,6 +361,9 @@ export default function Crops({
               {v === "comfortable" && <span className="text-[11px] text-growth">✓</span>}
               {(v === "tight" || v === "marginal") && <span className="text-[11px] text-honey">⚠</span>}
               {v === "too_short" && <span className="text-[11px] text-clay">✕</span>}
+              {w?.sow_now && (
+                <span className="rounded-full bg-growth/15 px-1.5 text-[10px] font-semibold text-growth">now</span>
+              )}
             </button>
           );
         })}

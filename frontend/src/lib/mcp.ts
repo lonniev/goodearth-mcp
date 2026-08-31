@@ -1220,3 +1220,50 @@ export async function calendarList(): Promise<{ success: boolean; feeds: FeedRow
 export async function calendarRevoke(token: string): Promise<{ success: boolean; revoked: boolean; note: string }> {
   return callTool("calendar_revoke", { token });
 }
+
+
+// ─── Planting windows ────────────────────────────────────────────────────
+
+export interface PlantingRow {
+  crop: string;
+  emoji: string | null;
+  start_seed_indoors: string | null;
+  earliest_out: string | null;
+  earliest_reason: string;
+  latest_out: string | null;
+  days_to_finish: number | null;
+  window_days: number | null;
+  state: "open" | "narrow" | "will_not_fit" | "unknown";
+  sow_now: boolean;
+  note: string;
+}
+
+export interface PlantingWindowResult {
+  success: boolean;
+  error?: string;
+  frost: {
+    last_spring_median: string | null;
+    last_spring_latest: string | null;
+    first_fall_median: string | null;
+    first_fall_earliest: string | null;
+    seasons_on_record: number;
+  };
+  soil_warming: Record<string, string>;
+  crops: PlantingRow[];
+  sow_now: string[];
+  summary: string;
+  note: string;
+}
+
+/// When to start seed, when to put it out, and the last day a sowing still
+/// finishes — from this block's own frost and soil record.
+export async function plantingWindow(
+  region: Region,
+  crops: {
+    crop: string; gdd_target: number; base_temp: number;
+    frost_hardy?: boolean; direct_sow?: boolean;
+    min_soil_f?: number; start_indoors_weeks?: number; emoji?: string;
+  }[],
+): Promise<PlantingWindowResult> {
+  return callTool<PlantingWindowResult>("planting_window", { region, crops });
+}
