@@ -1155,10 +1155,21 @@ export async function cropSuitability(
 
 // ─── Calendar feeds ──────────────────────────────────────────────────────
 
+export interface CalendarEvent {
+  kind: "crop" | "pest" | "wildlife" | "frost" | "todo";
+  key: string;
+  title: string;
+  date: string;
+  emoji: string | null;
+  detail: string;
+  uid: string;
+}
+
 export interface CalendarFeedResult {
   success: boolean;
   error?: string;
   token: string;
+  events: CalendarEvent[];
   url: string;
   webcal_url: string;
   region_name: string;
@@ -1190,7 +1201,7 @@ export async function calendarSubscribe(opts: {
   baseTemp?: number;
   token?: string;
 }): Promise<CalendarFeedResult> {
-  return callTool<CalendarFeedResult>("calendar_subscribe", {
+  return callTool<CalendarFeedResult>("calendar_dataset", {
     region: opts.region,
     region_name: opts.regionName,
     plantings: opts.plantings ?? [],

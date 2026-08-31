@@ -145,6 +145,22 @@ async def build_feed(
     entries: list[list[str]] = []
     counted = {"crop": 0, "pest": 0, "wildlife": 0, "frost": 0, "todo": 0}
 
+    # The dataset. A calendar is one rendering of these; a caller wanting a
+    # table, a Gantt or a push notification wants the same rows, so they are
+    # returned in their own right rather than only as iCalendar text.
+    structured: list[dict[str, Any]] = []
+
+    def record(kind: str, key: str, title: str, day: date, detail: str, emoji: str = "") -> None:
+        structured.append({
+            "kind": kind,
+            "key": key,
+            "title": title,
+            "date": day.isoformat(),
+            "emoji": emoji or None,
+            "detail": detail,
+            "uid": ical.uid_for(token, kind, key),
+        })
+
     def when(curve: list[float], target: float) -> date | None:
         """The date a cumulative curve reaches a target, projected if needed."""
         for d, g in zip(dates, curve, strict=False):
@@ -168,6 +184,8 @@ async def build_feed(
         d = when(curve, offset + p["gdd_target"])
         if not d:
             continue
+        record("crop", f"{p['crop']}-{p['set_out']}", f"{p['crop']} — target", d,
+               f"{p['gdd_target']:g} GDD from set-out {p['set_out'].isoformat()}", "🌱")
         entries.append(ical.vevent(
             ical.uid_for(token, "crop", f"{p['crop']}-{p['set_out']}"),
             f"🌱 {p['crop']} — target",
@@ -196,6 +214,9 @@ async def build_feed(
             d = when(curve, base_acc + st["gdd"])
             if not d:
                 continue
+            record("pest", f"{m['pest']}-{st['stage']}",
+                   f"{m['pest']} — {st['stage']}", d,
+                   f"{st['gdd']:g} GDD, base {m['base_temp_f']:g}°F", "🐛")
             entries.append(ical.vevent(
                 ical.uid_for(token, "pest", f"{m['pest']}-{st['stage']}"),
                 f"🐛 {m['pest']} — {st['stage']}",
@@ -235,6 +256,8 @@ async def build_feed(
             detail = f"{e['daylight_hours']:g} h and {'lengthening' if e['rising'] else 'shortening'}"
         if not d:
             continue
+        record("wildlife", f"{e['species']}-{e['event']}",
+               f"{e['species']} — {e['event']}", d, detail, e["emoji"] or "🦋")
         entries.append(ical.vevent(
             ical.uid_for(token, "wild", f"{e['species']}-{e['event']}"),
             f"{e['emoji'] or '🦋'} {e['species']} — {e['event']}",
@@ -253,6 +276,8 @@ async def build_feed(
             d = ical.as_date(frost_summary[key])
             if not d:
                 continue
+            record("frost", key, f"{region_name} — {label}", d,
+                   f"from {frost_summary['years_on_record']} seasons", emoji)
             entries.append(ical.vevent(
                 ical.uid_for(token, "frost", key),
                 f"{emoji} {region_name} — {label}",
@@ -267,6 +292,8 @@ async def build_feed(
 
     # ── To-dos ───────────────────────────────────────────────────────────
     for t in parsed_todos:
+        if t["due"]:
+            record("todo", t["id"], t["title"], t["due"], t["note"] or "", "✅")
         entries.append(ical.vtodo(
             ical.uid_for(token, "todo", t["id"]),
             t["title"],
@@ -292,6 +319,7 @@ async def build_feed(
 
     return {
         "ics": ics,
+        "events": structured,
         "counts": counted,
         "total": sum(counted.values()),
         "computed_on": today.isoformat(),

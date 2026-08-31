@@ -48,6 +48,13 @@ from goodearth_mcp.wildlife_window import region_wildlife as wildlife_impl
 
 logger = logging.getLogger(__name__)
 
+# The subscribable calendar lives on the Good Earth site, not here. Serving a
+# calendar is a presentation concern and this is a tool service; the site also
+# gives subscribers a URL with the farm's name on it rather than the
+# infrastructure's.
+SITE_HOST = "goodearth.tollbooth-dpyc.com"
+SITE = f"https://{SITE_HOST}"
+
 mcp = FastMCP(
     "goodearth-mcp",
     instructions=(
@@ -94,7 +101,8 @@ CALIBRATION_UUID           = "2e7c72db-e886-53be-b948-bcc97a57986d"
 ALMANAC_UUID               = "ca2ca4ce-69ed-559a-9a7d-12425716dbae"
 WILDLIFE_CALENDAR_UUID     = "b8948acf-27c1-5e72-aeae-b7029567f364"
 CROP_SUITABILITY_UUID      = "bc6ad258-8f9f-5769-a32a-63d817d23ce8"
-CALENDAR_SUBSCRIBE_UUID    = "31f47d5f-7582-5397-bb20-cba347e4be7a"
+CALENDAR_DATASET_UUID      = "3397c55a-8208-503d-a007-aa34975feb44"
+CALENDAR_FEED_UUID         = "1233a410-3e92-5c5f-929c-184f0f324fc0"
 CALENDAR_LIST_UUID         = "5e006f97-eaba-5ba7-a630-f493242b691d"
 CALENDAR_REVOKE_UUID       = "2a8310d1-f65d-56f3-bb99-6b77acd6252a"
 
@@ -154,10 +162,16 @@ _DOMAIN_TOOLS = [
         intent="Which crops finish on this ground, measured against its own frost-free heat budget",
     ),
     ToolIdentity(
-        tool_id=CALENDAR_SUBSCRIBE_UUID,
-        capability="calendar_subscribe",
-        category="write",
-        intent="Publish a block's season and to-dos as a calendar any iCal client can subscribe to",
+        tool_id=CALENDAR_DATASET_UUID,
+        capability="calendar_dataset",
+        category="heavy",
+        intent="Compute a block's dated season — crop, pest, wildlife, frost and task events — as a dataset",
+    ),
+    ToolIdentity(
+        tool_id=CALENDAR_FEED_UUID,
+        capability="calendar_feed",
+        category="free",
+        intent="Read a stored calendar dataset by its feed token, for the site that serves it",
     ),
     ToolIdentity(
         tool_id=CALENDAR_LIST_UUID,
@@ -734,8 +748,8 @@ async def crop_suitability(
 
 
 @tool
-@runtime.paid_tool(CALENDAR_SUBSCRIBE_UUID)
-async def calendar_subscribe(
+@runtime.paid_tool(CALENDAR_DATASET_UUID)
+async def calendar_dataset(
     region: Annotated[
         dict[str, Any],
         Field(description="GeoJSON Polygon or {lat, lon, radius_m}."),
@@ -774,22 +788,21 @@ async def calendar_subscribe(
     ] = "",
     dpop_token: str = "",
 ) -> dict[str, Any]:
-    """Publish this block's season as a calendar any client can subscribe to.
+    """Compute this block's dated season as a dataset, and store it for publishing.
 
-    Crop targets, pest stages, wildlife and husbandry dates and the frost
-    record become all-day events; your to-dos become tasks, which Apple
-    Reminders, Google Tasks and Thunderbird surface as reminders rather than as
-    another appointment.
+    Every dated thing this block knows about: crop targets, pest stages,
+    wildlife and husbandry dates, the frost record, and your tasks. Returned as
+    structured rows — a calendar is one rendering of them, and a caller wanting
+    a table or a notification wants the same data.
 
-    Returns a subscription URL. Point any iCal or Google Calendar client at it
-    and the season appears alongside the school run and the market stall —
-    which is where a grower will actually see it.
+    An iCalendar rendering is stored alongside under a feed token, which the
+    Good Earth site serves at a subscribable URL. Point any iCal or Google
+    Calendar client at it and the season appears next to the school run and the
+    market stall, which is where a grower will actually see it.
 
-    Recomputing rebuilds the calendar against current weather; serving returns
-    what was last built. The operator prices each independently.
-
-    Pass the same token again to refresh a feed in place. Subscribers keep
-    their subscription and the events update rather than duplicating.
+    This is the computed act: it reads the weather feeds and rebuilds
+    everything. Pass the same token again to recompute in place — subscribers
+    keep their subscription and the events update rather than duplicating.
 
     Args:
         region: GeoJSON Polygon or {lat, lon, radius_m}.
@@ -830,13 +843,13 @@ async def calendar_subscribe(
         return {"success": False, "error": "The feed could not be stored.",
                 "error_code": "persistence_unavailable"}
 
-    base = "https://goodearth-mcp.fastmcp.app"
     return {
         "success": True,
         "token": feed_token,
-        "url": f"{base}/calendar/{feed_token}.ics",
-        "webcal_url": f"webcal://goodearth-mcp.fastmcp.app/calendar/{feed_token}.ics",
+        "url": f"{SITE}/calendar/{feed_token}.ics",
+        "webcal_url": f"webcal://{SITE_HOST}/calendar/{feed_token}.ics",
         "region_name": region_name or "My block",
+        "events": built["events"],
         "entries": built["counts"],
         "total": built["total"],
         "computed_on": built["computed_on"],
@@ -846,6 +859,50 @@ async def calendar_subscribe(
             "token to recompute against current weather; subscribers update "
             "rather than duplicating."
         ),
+    }
+
+
+@tool
+@runtime.paid_tool(CALENDAR_FEED_UUID)
+async def calendar_feed_by_token(
+    token: Annotated[str, Field(description="The feed token from calendar_dataset.")],
+) -> dict[str, Any]:
+    """Read a stored calendar dataset by its feed token.
+
+    This exists for the Good Earth site, which serves the subscribable URL: a
+    calendar client speaks HTTP and knows nothing about MCP, JSON-RPC or npub
+    proofs, so the site fetches through here and renders the response as
+    text/calendar.
+
+    The unguessable token is the credential — there is nowhere in an iCalendar
+    subscription to put a proof. Serving is a separate act from computing, and
+    every read is counted so the operator can see how hard a feed is worked.
+    """
+    t = token.strip()
+    if not t or len(t) > 64 or not all(c in "0123456789abcdef" for c in t):
+        return {"success": False, "error": "Unknown feed.", "error_code": "not_found"}
+    try:
+        row = await feed_store.load(t)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("calendar feed read failed: %s", exc)
+        return {"success": False, "error": "Temporarily unavailable.",
+                "error_code": "persistence_unavailable"}
+    if not row:
+        return {"success": False, "error": "Unknown feed.", "error_code": "not_found"}
+
+    # Count the read. A failure here must never withhold a calendar the
+    # subscriber is entitled to.
+    try:
+        await feed_store.note_fetch(t)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("calendar fetch accounting failed: %s", exc)
+
+    return {
+        "success": True,
+        "ics": row["ics"],
+        "region_name": row.get("region_name"),
+        "entry_count": row.get("entry_count"),
+        "computed_on": str(row.get("computed_on") or ""),
     }
 
 
@@ -862,11 +919,10 @@ async def calendar_list(
         logger.error("calendar list failed: %s", exc)
         return {"success": False, "error": "Could not read your feeds.",
                 "error_code": "persistence_unavailable"}
-    base = "https://goodearth-mcp.fastmcp.app"
     return {
         "success": True,
         "feeds": [
-            {**r, "url": f"{base}/calendar/{r['token']}.ics"} for r in rows
+            {**r, "url": f"{SITE}/calendar/{r['token']}.ics"} for r in rows
         ],
         "count": len(rows),
     }
@@ -891,59 +947,6 @@ async def calendar_revoke(
         "revoked": gone,
         "note": "Revoked." if gone else "No such feed of yours — nothing changed.",
     }
-
-
-# ---------------------------------------------------------------------------
-# The plain HTTPS route a calendar client can actually poll
-# ---------------------------------------------------------------------------
-#
-# A calendar client speaks HTTP and knows nothing about MCP, JSON-RPC or npub
-# proofs — there is nowhere in an ICS subscription to put a credential. So the
-# feed is served from a custom route, and the unguessable token in the URL is
-# the credential.
-#
-# This route serves what `calendar_subscribe` last built; it does not recompute.
-# The two are separable so the operator can price them independently in Pricing
-# Studio — a frequently polled feed is a perfectly reasonable thing to meter,
-# and whether it is metered is not this file's decision. The stored feed carries
-# its owner's npub, so a per-fetch debit has everything it needs if the operator
-# wants one.
-
-
-@mcp.custom_route("/calendar/{token}.ics", methods=["GET"])
-async def serve_calendar(request: Any) -> Any:
-    from starlette.responses import PlainTextResponse, Response
-
-    token = str(request.path_params.get("token", "")).strip()
-    if not token or len(token) > 64 or not all(c in "0123456789abcdef" for c in token):
-        return PlainTextResponse("Not found", status_code=404)
-
-    try:
-        row = await feed_store.load(token)
-    except Exception as exc:  # noqa: BLE001
-        logger.error("calendar serve failed: %s", exc)
-        return PlainTextResponse("Temporarily unavailable", status_code=503)
-
-    if not row:
-        return PlainTextResponse("Not found", status_code=404)
-
-    # Meter the poll. Serving is a distinct act from recomputing and is counted
-    # as one; a failure to record must not withhold a calendar the subscriber
-    # is entitled to.
-    try:
-        await feed_store.note_fetch(token)
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("calendar fetch accounting failed: %s", exc)
-
-    return Response(
-        content=row["ics"],
-        media_type="text/calendar; charset=utf-8",
-        headers={
-            "Content-Disposition": 'inline; filename="goodearth.ics"',
-            # Sets a polite default poll rate for clients that respect it.
-            "Cache-Control": "public, max-age=3600",
-        },
-    )
 
 
 # ---------------------------------------------------------------------------

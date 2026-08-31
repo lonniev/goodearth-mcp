@@ -109,7 +109,7 @@ export default function TodoView({
       {/* ── The calendar ───────────────────────────────────────────────── */}
       <h2 className="figure mb-2.5 flex flex-wrap items-baseline gap-2.5 text-[18px] font-semibold">
         📅 On your calendar
-        {ranAt && <Provenance tool="goodearth_calendar_subscribe" at={ranAt} onCost={onCost} />}
+        {ranAt && <Provenance tool="goodearth_calendar_dataset" at={ranAt} onCost={onCost} />}
       </h2>
 
       {busy ? (
