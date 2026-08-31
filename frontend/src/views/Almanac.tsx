@@ -75,65 +75,62 @@ export default function Almanac({
       {/* ── Today ──────────────────────────────────────────────────────── */}
       {c && (
         <div className="mb-4 rounded-md border border-rule bg-panel px-4 py-3.5">
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-            <span className="text-[34px] leading-none">{c.sky.emoji}</span>
-            <div>
-              <div className="figure text-[20px]">
-                {c.high_f != null && Math.round(c.high_f)}° / {c.low_f != null && Math.round(c.low_f)}°
-              </div>
-              <div className="text-[12.5px] text-ink-soft">{c.sky.label}</div>
-            </div>
+          {/* Eight readings, eight equal cells, one anatomy each. Today's sky
+              is a reading like the rest, so it takes the same cell rather than
+              a wider one — the eye compares them across a single axis. */}
+          <div className="grid grid-cols-2 gap-y-4 sm:grid-cols-4 lg:grid-cols-8">
+            <Stat emoji={c.sky.emoji} label={c.sky.label}
+              value={`${c.high_f != null ? Math.round(c.high_f) : "—"}° / ${c.low_f != null ? Math.round(c.low_f) : "—"}°`} />
             <Stat emoji="💧" label="dew point" value={c.dew_point_f != null ? `${Math.round(c.dew_point_f)}°F` : "—"} />
             <Stat emoji={c.wind.emoji} label="wind"
-              value={c.wind.speed_mph != null
-                ? `${Math.round(c.wind.speed_mph)} mph ${c.wind.arrow ?? ""} ${c.wind.from ?? ""}`
-                : "—"} />
+              value={c.wind.speed_mph != null ? `${Math.round(c.wind.speed_mph)} mph` : "—"}
+              sub={c.wind.from ? `${c.wind.arrow ?? ""} from ${c.wind.from}` : undefined} />
             <Stat emoji="🌧️" label="chance of rain"
               value={c.precip_chance_pct != null ? `${Math.round(c.precip_chance_pct)}%` : "—"} />
             <Stat emoji="🌅" label="sun"
               value={`${time(c.sunrise)}–${time(c.sunset)}`}
-              sub={c.daylight_hours != null ? `${c.daylight_hours.toFixed(1)} h` : undefined} />
+              sub={c.daylight_hours != null ? `${c.daylight_hours.toFixed(1)} h of daylight` : undefined} />
             <Stat emoji="☀️" label="sunshine"
               value={c.sunshine_hours != null ? `${c.sunshine_hours.toFixed(1)} h` : "—"}
               sub={c.sunshine_fraction != null ? `${Math.round(c.sunshine_fraction * 100)}% of daylight` : undefined} />
+            {/* The daily swing in day length was a sentence that ended in a
+                line telling the grower why to care. The figure is the useful
+                half; it reads as a reading like its neighbours. */}
+            <Stat emoji="⏳" label="day length"
+              value={data?.sun.daylight_change_min_per_day != null
+                ? `${data.sun.daylight_change_min_per_day > 0 ? "+" : "−"}${Math.abs(data.sun.daylight_change_min_per_day).toFixed(1)} min`
+                : "—"}
+              sub="a day" />
             {data?.moon && (
               <Stat emoji={data.moon.emoji} label={data.moon.name.toLowerCase()}
                 value={`${Math.round(data.moon.illumination * 100)}% lit`}
                 sub={data.moon.next_full ? `full ${day(data.moon.next_full)}` : undefined} />
             )}
           </div>
-
-          {data?.sun.daylight_change_min_per_day != null && (
-            <p className="mt-2.5 text-[12.5px] text-ink-soft">
-              Day length is{" "}
-              <b className="text-ink">
-                {data.sun.daylight_change_min_per_day > 0 ? "gaining" : "losing"}{" "}
-                {Math.abs(data.sun.daylight_change_min_per_day).toFixed(1)} minutes a day
-              </b>{" "}
-              — the clock a short-day variety actually reads.
-            </p>
-          )}
         </div>
       )}
 
       {/* ── The fortnight ──────────────────────────────────────────────── */}
       {data && data.upcoming.length > 0 && (
-        <div className="mb-5 flex gap-1.5 overflow-x-auto overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch]">
+        /* A fixed-width scroller left the right third of a wide screen empty
+           while hiding days off the edge. A grid spends the whole width and
+           wraps instead of scrolling, so the fortnight is all on screen. */
+        <div className="mb-5 grid grid-cols-4 gap-1.5 sm:grid-cols-7 lg:grid-cols-[repeat(14,minmax(0,1fr))]">
           {data.upcoming.map((u) => (
             <div key={u.date}
-              className="flex w-[74px] shrink-0 flex-col items-center gap-0.5 rounded-md border border-rule bg-panel py-2">
-              <span className="data text-[10px] text-ink-soft">
+              className="flex flex-col items-center gap-0.5 rounded-md border border-rule bg-panel px-1 py-2.5">
+              <span className="data text-[10.5px] text-ink-soft">
                 {new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" })}
               </span>
-              <span className="text-[22px] leading-none">{u.sky.emoji}</span>
-              <span className="figure text-[13px]">
+              <span className="text-[24px] leading-none">{u.sky.emoji}</span>
+              <span className="figure text-[15px]">
                 {u.high_f != null ? Math.round(u.high_f) : "—"}°
                 <span className="text-ink-soft">/{u.low_f != null ? Math.round(u.low_f) : "—"}°</span>
               </span>
               {!!u.precip_chance_pct && (
-                <span className="data text-[10px] text-frost">{Math.round(u.precip_chance_pct)}%</span>
+                <span className="data text-[10.5px] text-frost">{Math.round(u.precip_chance_pct)}%</span>
               )}
-              <span className="data text-[10px] text-ink-soft">{u.wind.emoji}{u.wind.from ?? ""}</span>
+              <span className="data text-[10.5px] text-ink-soft">{u.wind.emoji}{u.wind.from ?? ""}</span>
             </div>
           ))}
         </div>
@@ -180,13 +177,11 @@ function Stat({ emoji, label, value, sub }: {
   emoji: string; label: string; value: string; sub?: string;
 }) {
   return (
-    <div className="min-w-[92px]">
-      <div className="text-[13px]">
-        <span className="mr-1">{emoji}</span>
-        <b className="figure text-[15px]">{value}</b>
-      </div>
-      <div className="text-[11px] text-ink-soft">{label}</div>
-      {sub && <div className="data text-[10px] text-ink-soft">{sub}</div>}
+    <div className="px-1 text-center">
+      <div className="text-[26px] leading-none">{emoji}</div>
+      <b className="figure mt-1.5 block text-[19px] leading-tight">{value}</b>
+      <div className="mt-0.5 text-[12px] leading-snug text-ink-soft">{label}</div>
+      {sub && <div className="data mt-0.5 text-[10.5px] leading-snug text-ink-soft">{sub}</div>}
     </div>
   );
 }
