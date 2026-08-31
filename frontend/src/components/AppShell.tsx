@@ -68,7 +68,7 @@ export default function AppShell({
   return (
     <div className="grid h-full grid-cols-1 grid-rows-[56px_1fr_56px] md:grid-cols-[200px_1fr] md:grid-rows-[56px_1fr]">
       <nav aria-label="Views"
-        className="row-start-3 flex gap-0.5 overflow-x-auto bg-ink p-1.5 text-rail-ink md:row-span-2 md:row-start-1 md:flex-col md:p-4">
+        className="row-start-3 flex gap-0.5 overflow-x-auto overscroll-x-contain bg-ink p-1.5 text-rail-ink [-webkit-overflow-scrolling:touch] md:row-span-2 md:row-start-1 md:flex-col md:p-4">
         <div className="hidden px-2 pt-1 pb-4 md:block">
           <span className="figure text-[21px] font-bold text-paper">Good </span>
           <span className="figure text-[21px] font-normal italic text-honey">Earth</span>
@@ -84,7 +84,7 @@ export default function AppShell({
               title={it.ready ? undefined : it.soon}
               aria-current={active ? "page" : undefined}
               className={[
-                "flex shrink-0 items-center gap-2.5 rounded-md px-2.5 py-2 text-[13.5px] font-medium",
+                "flex min-h-11 shrink-0 items-center gap-2.5 rounded-md px-2.5 py-2 text-[13.5px] font-medium",
                 "flex-col gap-1 text-[10px] md:flex-row md:gap-2.5 md:text-[13.5px]",
                 active ? "bg-paper text-ink" : "text-rail-ink",
                 it.ready ? "hover:bg-white/10" : "cursor-default opacity-40",
@@ -125,7 +125,7 @@ export default function AppShell({
             <span className="text-ink-soft">· {spentToday} spent today</span>
           )}
         </div>
-        <button onClick={onSignOut} className="text-[11.5px] text-ink-soft hover:text-ink">Sign out</button>
+        <button onClick={onSignOut} className="min-h-11 px-2 text-[12px] text-ink-soft active:text-ink">Sign out</button>
       </header>
 
       <main className="relative col-start-1 row-start-2 overflow-auto px-5 pt-5 pb-16 md:col-start-2 md:px-6">

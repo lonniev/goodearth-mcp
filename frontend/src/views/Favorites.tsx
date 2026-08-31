@@ -53,7 +53,7 @@ export default function Favorites({
                 {!isActive && (
                   <button
                     onClick={() => onPick(r)}
-                    className="rounded border-[1.5px] border-ink px-2.5 py-1 text-[12.5px] font-semibold hover:bg-ink hover:text-paper"
+                    className="min-h-11 rounded border-[1.5px] border-ink px-4 text-[13px] font-semibold active:bg-ink active:text-paper"
                   >
                     Work this block
                   </button>
@@ -61,7 +61,7 @@ export default function Favorites({
                 {r.id !== "example-champlain" && (
                   <button
                     onClick={() => setRegions(deleteRegion(r.id))}
-                    className="rounded px-2 py-1 text-[12.5px] text-ink-soft hover:text-clay"
+                    className="min-h-11 rounded px-3 text-[13px] text-ink-soft active:text-clay"
                   >
                     Forget
                   </button>

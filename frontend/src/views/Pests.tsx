@@ -109,18 +109,23 @@ export default function Pests({
                   </span>
                   {id && (
                     <button onClick={() => setModels(deletePest(id).filter((p) => p.regionId === region.id))}
-                      aria-label={`Remove ${a.pest}`} className="ml-auto text-ink-soft hover:text-clay">×</button>
+                      aria-label={`Remove ${a.pest}`} className="ml-auto inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>
                   )}
                 </div>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {(a.stages ?? []).map((s) => (
                     <span key={s.stage}
-                      className={`rounded-full px-2.5 py-1 text-[11.5px] ${
-                        s.reached ? "bg-honey/15 text-honey" : "bg-band text-ink-soft"}`}
-                      title={s.reached ? "Threshold crossed" : `${Math.round(s.gdd_remaining)} GDD to go`}>
+                      className={`inline-flex min-h-11 items-center rounded-full px-3.5 text-[12px] ${
+                        s.reached ? "bg-honey/15 text-honey" : "bg-band text-ink-soft"}`}>
+                      {/* The remaining-GDD figure was in a title attribute,
+                          which is unreachable with a finger — it belongs in
+                          the chip itself. */}
                       {s.stage} {s.gdd.toLocaleString()}
-                      {!s.reached && s.projected_date && ` · ${d(s.projected_date)}`}
-                      {s.reached && " ✓"}
+                      {s.reached
+                        ? " ✓"
+                        : s.projected_date
+                          ? ` · ${d(s.projected_date)}`
+                          : ` · ${Math.round(s.gdd_remaining)} to go`}
                     </span>
                   ))}
                 </div>
@@ -139,19 +144,19 @@ export default function Pests({
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="block text-[11px] text-ink-soft">Pest
             <input name="pest" placeholder="Aster leafhopper"
-              className="mt-0.5 w-full rounded border border-rule bg-white px-2 py-1.5 text-[13px] focus:border-honey focus:outline-none" /></label>
+              className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" /></label>
           <label className="block text-[11px] text-ink-soft">Base °F
             <input name="base" inputMode="numeric" placeholder="50"
-              className="mt-0.5 w-full rounded border border-rule bg-white px-2 py-1.5 text-[13px] focus:border-honey focus:outline-none" /></label>
+              className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" /></label>
           <label className="block text-[11px] text-ink-soft">Biofix <span className="opacity-60">(optional)</span>
             <input name="biofix" type="date"
-              className="mt-0.5 w-full rounded border border-rule bg-white px-2 py-1.5 text-[13px] focus:border-honey focus:outline-none" /></label>
+              className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" /></label>
           <label className="block text-[11px] text-ink-soft lg:col-span-1">Stages
             <input name="stages" placeholder="first flight 375, second flight 1400"
-              className="mt-0.5 w-full rounded border border-rule bg-white px-2 py-1.5 text-[13px] focus:border-honey focus:outline-none" /></label>
+              className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" /></label>
         </div>
         {formErr && <p className="mt-2 text-[12px] text-clay">{formErr}</p>}
-        <button className="mt-3 rounded border-[1.5px] border-ink px-3 py-1.5 text-[12.5px] font-semibold hover:bg-ink hover:text-paper">
+        <button className="mt-3 min-h-11 rounded border-[1.5px] border-ink px-4 text-[13px] font-semibold active:bg-ink active:text-paper">
           Add model
         </button>
       </form>
@@ -161,7 +166,7 @@ export default function Pests({
         <div className="mt-1.5 flex flex-wrap gap-1.5">
           {PEST_STARTERS.map((s) => (
             <button key={s.pest} onClick={() => addStarter(s)}
-              className="data rounded-full border border-rule bg-panel px-2.5 py-1 text-[11px] text-ink-soft hover:border-ink hover:text-ink">
+              className="data min-h-11 rounded-full border border-rule bg-panel px-4 text-[12px] text-ink-soft active:border-ink active:text-ink">
               + {s.pest}
             </button>
           ))}

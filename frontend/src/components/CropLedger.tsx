@@ -34,7 +34,7 @@ export default function CropLedger({
   const idFor = (crop: string) => plantings.find((p) => p.crop === crop)?.id;
 
   return (
-    <div className="overflow-x-auto rounded-md border border-rule bg-panel">
+    <div className="overflow-x-auto overscroll-x-contain rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">
       <table className="w-full border-collapse text-[13px]">
         <thead>
           <tr>
@@ -80,10 +80,18 @@ export default function CropLedger({
                   {r.projected_date ? shortDate(r.projected_date) : "—"}
                 </td>
                 <td className="px-3 py-2.5">
-                  <span className={`whitespace-nowrap rounded-full px-2 py-[3px] text-[11px] font-semibold ${vd.cls}`}
-                        title={r.finish.note}>
+                  <span className={`inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-[11.5px] font-semibold ${vd.cls}`}>
                     {vd.label}
                   </span>
+                  {/* The verdict's reasoning was tooltip-only. On a tablet
+                      that is the same as not shipping it. */}
+                  {r.finish.margin_days != null && r.finish.verdict !== "finished" && (
+                    <span className="data mt-1 block text-[10px] text-ink-soft">
+                      {r.finish.margin_days >= 0
+                        ? `${r.finish.margin_days} days of margin`
+                        : `${Math.abs(r.finish.margin_days)} days late`}
+                    </span>
+                  )}
                   {r.finish.at_risk_of_early_frost && r.finish.verdict === "finishes" && (
                     <span className="data mt-1 block text-[10px] text-frost">
                       past the earliest frost on record
@@ -101,7 +109,7 @@ export default function CropLedger({
                   </span>
                   {id && (
                     <button onClick={() => onDelete(id)} aria-label={`Remove ${r.crop}`}
-                            className="text-ink-soft hover:text-clay">×</button>
+                            className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>
                   )}
                 </td>
               </tr>

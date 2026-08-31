@@ -15,12 +15,14 @@ interface Props {
   range?: string;
 }
 
+// 44 px minimum: this is used with a finger on a tablet, where a 24 px button
+// is a coin toss.
 const btn =
-  "flex h-6 w-6 items-center justify-center rounded border border-rule bg-panel text-[13px] leading-none text-ink hover:bg-band focus-visible:outline-2 focus-visible:outline-honey";
+  "flex h-11 w-11 items-center justify-center rounded border border-rule bg-panel text-[17px] leading-none text-ink active:bg-band focus-visible:outline-2 focus-visible:outline-honey";
 
 export default function ZoomControls({ onZoomX, onZoomY, onReset, isZoomed, range }: Props) {
   return (
-    <div className="flex flex-wrap items-center gap-3 px-2 pt-1 text-[11px] text-ink-soft">
+    <div className="flex flex-wrap items-center gap-3 px-2 pt-2 text-[11px] text-ink-soft">
       <span className="inline-flex items-center gap-1">
         <span className="eyebrow">Dates</span>
         <button className={btn} onClick={() => onZoomX(1 / 1.4)} aria-label="Zoom in on dates" title="Narrow the date range">+</button>
@@ -36,7 +38,7 @@ export default function ZoomControls({ onZoomX, onZoomY, onReset, isZoomed, rang
       {isZoomed && (
         <button
           onClick={onReset}
-          className="rounded border border-rule px-2 py-0.5 text-[11px] hover:bg-band focus-visible:outline-2 focus-visible:outline-honey"
+          className="min-h-11 rounded border border-rule px-3 text-[12px] active:bg-band focus-visible:outline-2 focus-visible:outline-honey"
         >
           Whole season
         </button>
@@ -45,7 +47,8 @@ export default function ZoomControls({ onZoomX, onZoomY, onReset, isZoomed, rang
       {range && <span className="data ml-auto text-[10px]">{range}</span>}
 
       <span className="data w-full text-[10px] opacity-70">
-        scroll to zoom dates · shift-scroll for GDD{isZoomed ? " · drag to pan" : ""}
+        pinch to zoom — sideways for dates, up and down for GDD
+        {isZoomed ? " · drag to pan" : ""}
       </span>
     </div>
   );

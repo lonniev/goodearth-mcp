@@ -5,6 +5,7 @@
 // visible rather than asserted: this is the region abstraction paying off in
 // one sentence.
 
+import { useState } from "react";
 import type { FrostLevel, FrostNight, FrostWindowResult } from "../lib/mcp";
 
 const TONE: Record<FrostLevel, { border: string; chip: string; word: string }> = {
@@ -72,33 +73,56 @@ export default function FrostCard({ data }: { data: FrostWindowResult }) {
 
 /// Ten nights at a glance. The bar is the coldest ground, not the average, so
 /// the reader's eye lands on the bed that is actually at risk.
+///
+/// Tap a night for its detail. A `title` tooltip would have put the reason —
+/// the wind and sky that decide whether frost actually forms — somewhere a
+/// finger can never reach, which on a tablet means nowhere at all.
 function NightStrip({ nights }: { nights: FrostNight[] }) {
+  const [open, setOpen] = useState<string | null>(null);
   const lows = nights.map((n) => n.low_ground_f);
   const min = Math.min(...lows, 28), max = Math.max(...lows, 60);
-  const h = (v: number) => Math.max(6, Math.round(((v - min) / Math.max(max - min, 1)) * 34) + 6);
+  const h = (v: number) => Math.max(10, Math.round(((v - min) / Math.max(max - min, 1)) * 40) + 10);
+  const shown = nights.find((n) => n.date === open);
 
   return (
-    <div className="mt-3 flex items-end gap-1.5 overflow-x-auto pb-1">
-      {nights.map((n) => {
-        const color =
-          n.level === "hard_freeze" ? "bg-clay"
-          : n.level === "frost_likely" ? "bg-frost"
-          : n.level === "frost_watch" ? "bg-frost/50"
-          : "bg-growth/40";
-        return (
-          <div key={n.date} className="flex w-8 shrink-0 flex-col items-center gap-1">
-            <span className="data text-[9px] text-ink-soft">{Math.round(n.low_ground_f)}</span>
-            <div
-              className={`w-4 rounded-sm ${color}`}
-              style={{ height: h(n.low_ground_f) }}
-              title={`${day(n.date)} — coldest ground ${Math.round(n.low_ground_f)}°F (forecast ${Math.round(n.forecast_low_f)}°F). ${n.reason}.`}
-            />
-            <span className="data text-[9px] text-ink-soft">
-              {new Date(n.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "narrow" })}
-            </span>
-          </div>
-        );
-      })}
-    </div>
+    <>
+      <div className="mt-3 flex items-end gap-1 overflow-x-auto overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch]">
+        {nights.map((n) => {
+          const color =
+            n.level === "hard_freeze" ? "bg-clay"
+            : n.level === "frost_likely" ? "bg-frost"
+            : n.level === "frost_watch" ? "bg-frost/50"
+            : "bg-growth/40";
+          const isOpen = open === n.date;
+          return (
+            <button
+              key={n.date}
+              onClick={() => setOpen(isOpen ? null : n.date)}
+              aria-pressed={isOpen}
+              aria-label={`${day(n.date)}, coldest ground ${Math.round(n.low_ground_f)} degrees`}
+              className={`flex min-h-11 w-11 shrink-0 flex-col items-center justify-end gap-1 rounded pb-1 ${
+                isOpen ? "bg-band" : "active:bg-band"
+              }`}
+            >
+              <span className="data text-[10px] text-ink-soft">{Math.round(n.low_ground_f)}</span>
+              <div className={`w-5 rounded-sm ${color}`} style={{ height: h(n.low_ground_f) }} />
+              <span className="data text-[10px] text-ink-soft">
+                {new Date(n.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "narrow" })}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {shown && (
+        <p className="mt-1.5 rounded bg-band/60 px-3 py-2 text-[12.5px] leading-relaxed">
+          <b>{day(shown.date)}</b> — coldest ground {Math.round(shown.low_ground_f)}°F,
+          forecast {Math.round(shown.forecast_low_f)}°F. {shown.reason}.
+          {shown.wind_mph != null && ` Wind ${Math.round(shown.wind_mph)} mph`}
+          {shown.cloud_pct != null && `, ${Math.round(shown.cloud_pct)}% cloud`}
+          {shown.dew_point_f != null && `, dew point ${Math.round(shown.dew_point_f)}°F`}.
+        </p>
+      )}
+    </>
   );
 }

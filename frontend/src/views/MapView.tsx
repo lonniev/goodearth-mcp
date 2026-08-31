@@ -131,14 +131,14 @@ export default function MapView({
           <input
             value={query} onChange={(e) => setQuery(e.target.value)}
             placeholder="Find a town, road or address"
-            className="flex-1 rounded border border-rule bg-white px-3 py-1.5 text-[13px] focus:border-honey focus:outline-none"
+            className="min-h-11 flex-1 rounded border border-rule bg-white px-3 text-[16px] focus:border-honey focus:outline-none"
           />
-          <button className="rounded border-[1.5px] border-ink px-3 py-1.5 text-[12.5px] font-semibold hover:bg-ink hover:text-paper">
+          <button className="min-h-11 rounded border-[1.5px] border-ink px-4 text-[13px] font-semibold active:bg-ink active:text-paper">
             {searching ? "…" : "Search"}
           </button>
         </form>
         <button onClick={locate}
-          className="rounded border-[1.5px] border-ink px-3 py-1.5 text-[12.5px] font-semibold hover:bg-ink hover:text-paper">
+          className="min-h-11 rounded border-[1.5px] border-ink px-4 text-[13px] font-semibold active:bg-ink active:text-paper">
           Use my location
         </button>
 
@@ -146,7 +146,7 @@ export default function MapView({
           {(["polygon", "pin"] as const).map((mo) => (
             <button key={mo}
               onClick={() => setValue({ ...EMPTY, mode: mo, radiusM: value.radiusM })}
-              className={`px-3 py-1.5 ${value.mode === mo ? "bg-ink text-paper" : "hover:bg-band"}`}>
+              className={`min-h-11 px-4 ${value.mode === mo ? "bg-ink text-paper" : "active:bg-band"}`}>
               {mo === "polygon" ? "Trace a block" : "Pin + radius"}
             </button>
           ))}
@@ -158,7 +158,7 @@ export default function MapView({
           {places.map((p) => (
             <li key={`${p.lat},${p.lng}`}>
               <button onClick={() => { setCentreOn({ lat: p.lat, lng: p.lng }); setPlaces([]); }}
-                className="block w-full truncate px-3 py-2 text-left hover:bg-band">
+                className="block min-h-11 w-full truncate px-3 py-2 text-left active:bg-band">
                 {p.name}
               </button>
             </li>
@@ -175,12 +175,12 @@ export default function MapView({
             <button
               onClick={() => setValue({ ...value, ring: value.ring.slice(0, -1) })}
               disabled={!value.ring.length}
-              className="rounded border border-rule px-2.5 py-1 hover:bg-band disabled:opacity-40">
+              className="min-h-11 rounded border border-rule px-3.5 active:bg-band disabled:opacity-40">
               Undo corner
             </button>
             <button onClick={() => setValue({ ...EMPTY, mode: "polygon" })}
               disabled={!value.ring.length}
-              className="rounded border border-rule px-2.5 py-1 hover:bg-band disabled:opacity-40">
+              className="min-h-11 rounded border border-rule px-3.5 active:bg-band disabled:opacity-40">
               Start over
             </button>
             <span className="text-ink-soft">
@@ -192,7 +192,7 @@ export default function MapView({
             <span className="text-ink-soft">Radius</span>
             {RADII.map((r) => (
               <button key={r} onClick={() => setValue({ ...value, radiusM: r })}
-                className={`rounded border px-2.5 py-1 ${
+                className={`min-h-11 rounded border px-3.5 ${
                   value.radiusM === r ? "border-ink bg-ink text-paper" : "border-rule hover:bg-band"}`}>
                 {r < 1000 ? `${r} m` : `${r / 1000} km`}
               </button>
@@ -208,16 +208,16 @@ export default function MapView({
             Name this block
             <input value={name} onChange={(e) => setName(e.target.value)}
               placeholder="East Bench"
-              className="mt-0.5 w-full rounded border border-rule bg-white px-2 py-1.5 text-[13px] focus:border-honey focus:outline-none" />
+              className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" />
           </label>
           <label className="block text-[11px] text-ink-soft">
             Base °F
             <input value={baseTemp} inputMode="numeric"
               onChange={(e) => setBaseTemp(Number(e.target.value) || 50)}
-              className="mt-0.5 w-full rounded border border-rule bg-white px-2 py-1.5 text-[13px] focus:border-honey focus:outline-none" />
+              className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" />
           </label>
           <button onClick={save} disabled={!ready}
-            className="rounded border-[1.5px] border-ink bg-ink px-4 py-2 text-[12.5px] font-semibold text-paper disabled:opacity-40 disabled:bg-transparent disabled:text-ink">
+            className="min-h-11 rounded border-[1.5px] border-ink bg-ink px-5 text-[13px] font-semibold text-paper disabled:opacity-40 disabled:bg-transparent disabled:text-ink">
             Save and work it
           </button>
         </div>

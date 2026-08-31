@@ -26,6 +26,30 @@
 
 @layer base {
   html, body, #root { height: 100%; }
+
+  /* Touch first — this runs on a tablet in a packing shed, not a desk.
+     Tapping must not fire the 300 ms double-tap-zoom delay, a bounce at the
+     end of a scroll must not drag the whole page, and the rail must clear the
+     home indicator on a device that has one. */
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  body {
+    touch-action: manipulation;
+    overscroll-behavior-y: none;
+  }
+  nav, main { padding-bottom: env(safe-area-inset-bottom); }
+
+  /* Leaflet's own controls are 26 px by default — a coin toss with a finger. */
+  .leaflet-touch .leaflet-bar a {
+    width: 44px;
+    height: 44px;
+    line-height: 44px;
+    font-size: 20px;
+  }
+  /* The map owns its gestures; the page must not steal them. */
+  .leaflet-container { touch-action: none; }
   body {
     font-family: var(--font-body);
     color: var(--color-ink);

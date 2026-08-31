@@ -15,6 +15,12 @@
 //    own location. Panning from a world view to a hedgerow is nobody's idea of
 //    an interface.
 //
+// 5. **Touch first.** This is used on a tablet in a field, not a desktop with
+//    a mouse. Corners are draggable Leaflet markers (which handle touch, pen
+//    and mouse natively) rather than hand-rolled mouse handlers, their hit area
+//    is a 44 px finger target around a 12 px dot, and every control on the map
+//    meets the same minimum. Nothing important is behind a hover.
+//
 // Basemap is Leaflet + open tiles: no key, no billing, works tonight. The
 // layer definitions are isolated in BASEMAPS so a Google Maps key delivered
 // via Secure Courier can swap them without touching the drawing logic.
@@ -61,6 +67,37 @@ const GROWTH = "#4C7A3D";
 const HONEY = "#D99A06";
 const INK = "#20301B";
 
+// 44 px is the smallest reliable finger target. The visible dot stays small so
+// it does not hide the field underneath; the hit area around it does the work.
+const TOUCH = 44;
+const DOT = 12;
+
+function cornerIcon(): L.DivIcon {
+  return L.divIcon({
+    className: "",
+    iconSize: [TOUCH, TOUCH],
+    iconAnchor: [TOUCH / 2, TOUCH / 2],
+    html:
+      `<div style="width:${TOUCH}px;height:${TOUCH}px;display:flex;align-items:center;` +
+      `justify-content:center;touch-action:none;cursor:grab;">` +
+      `<div style="width:${DOT}px;height:${DOT}px;border-radius:50%;background:${GROWTH};` +
+      `border:2px solid #FAFAF3;box-shadow:0 1px 3px rgba(0,0,0,.4);"></div></div>`,
+  });
+}
+
+function pinIcon(): L.DivIcon {
+  return L.divIcon({
+    className: "",
+    iconSize: [TOUCH, TOUCH],
+    iconAnchor: [TOUCH / 2, TOUCH / 2],
+    html:
+      `<div style="width:${TOUCH}px;height:${TOUCH}px;display:flex;align-items:center;` +
+      `justify-content:center;touch-action:none;cursor:grab;">` +
+      `<div style="width:14px;height:14px;border-radius:50%;background:${HONEY};` +
+      `border:2px solid #FAFAF3;box-shadow:0 1px 3px rgba(0,0,0,.4);"></div></div>`,
+  });
+}
+
 export default function FieldMap({ value, onChange, others = [], centreOn }: Props) {
   const host = useRef<HTMLDivElement | null>(null);
   const map = useRef<L.Map | null>(null);
@@ -76,8 +113,15 @@ export default function FieldMap({ value, onChange, others = [], centreOn }: Pro
   // ── Map lifecycle ────────────────────────────────────────────────────
   useEffect(() => {
     if (!host.current || map.current) return;
-    const m = L.map(host.current, { zoomControl: true, attributionControl: true })
-      .setView([44.48, -73.21], 13);
+    const m = L.map(host.current, {
+      zoomControl: true,
+      attributionControl: true,
+      // Pinch to zoom, one finger to pan. A generous tap tolerance keeps a
+      // slightly-moving finger from being read as a drag instead of a tap.
+      touchZoom: true,
+      tapTolerance: 15,
+      bounceAtZoomLimits: false,
+    }).setView([44.48, -73.21], 13);
     tiles.current = L.tileLayer(BASEMAPS.satellite.url, {
       attribution: BASEMAPS.satellite.attribution,
       maxZoom: BASEMAPS.satellite.maxZoom,
@@ -130,34 +174,50 @@ export default function FieldMap({ value, onChange, others = [], centreOn }: Pro
       } else if (pts.length === 2) {
         L.polyline(pts, { color: GROWTH, weight: 2.5, dashArray: "5 4" }).addTo(g);
       }
-      // Corners are draggable — fixing a misplaced vertex must never mean
-      // redrawing the whole block.
+      // Corners are draggable Leaflet markers, not hand-rolled mouse
+      // handlers: L.Marker's drag support covers touch, pen and mouse, where
+      // mousedown/mousemove never fire from a finger. The icon carries a 44 px
+      // hit area around a 12 px dot so a corner is grabbable without zooming in.
       value.ring.forEach((p, i) => {
-        const h = L.circleMarker([p.lat, p.lng], {
-          radius: 6, color: "#FAFAF3", weight: 2, fillColor: GROWTH, fillOpacity: 1,
+        const mk = L.marker([p.lat, p.lng], {
+          draggable: true,
+          keyboard: false,
+          icon: cornerIcon(),
+          // Keep the finger's contact point on the corner rather than above it.
+          autoPanOnFocus: false,
         }).addTo(g);
-        h.on("mousedown", () => {
-          const m = map.current!;
-          m.dragging.disable();
-          const move = (ev: L.LeafletMouseEvent) => {
-            const { value: v, onChange: cb } = latest.current;
-            const next = [...v.ring];
-            next[i] = { lat: ev.latlng.lat, lng: ev.latlng.lng };
-            cb({ ...v, ring: next });
-          };
-          const up = () => {
-            m.off("mousemove", move); m.off("mouseup", up); m.dragging.enable();
-          };
-          m.on("mousemove", move); m.on("mouseup", up);
+
+        mk.on("drag", (ev) => {
+          const { value: v, onChange: cb } = latest.current;
+          const ll = (ev.target as L.Marker).getLatLng();
+          const next = [...v.ring];
+          next[i] = { lat: ll.lat, lng: ll.lng };
+          cb({ ...v, ring: next });
+        });
+
+        // Tapping a corner removes it — the touch equivalent of the undo
+        // button, reachable without hunting for the most recent one.
+        mk.on("click", (ev) => {
+          L.DomEvent.stop(ev);
+          const { value: v, onChange: cb } = latest.current;
+          if (v.ring.length <= 1) { cb({ ...v, ring: [] }); return; }
+          cb({ ...v, ring: v.ring.filter((_, j) => j !== i) });
         });
       });
     } else if (value.centre) {
       L.circle([value.centre.lat, value.centre.lng], {
         radius: value.radiusM, color: GROWTH, weight: 2.5, fillOpacity: 0.15,
       }).addTo(g);
-      L.circleMarker([value.centre.lat, value.centre.lng], {
-        radius: 5, color: "#FAFAF3", weight: 2, fillColor: HONEY, fillOpacity: 1,
+      // The pin is draggable too — nudging a centre by a field's width should
+      // not mean tapping again and losing the radius.
+      const pin = L.marker([value.centre.lat, value.centre.lng], {
+        draggable: true, keyboard: false, icon: pinIcon(),
       }).addTo(g);
+      pin.on("drag", (ev) => {
+        const { value: v, onChange: cb } = latest.current;
+        const ll = (ev.target as L.Marker).getLatLng();
+        cb({ ...v, centre: { lat: ll.lat, lng: ll.lng } });
+      });
     }
   }, [value, others]);
 
@@ -181,7 +241,7 @@ export default function FieldMap({ value, onChange, others = [], centreOn }: Pro
       <div className="absolute right-2 top-2 z-[400] flex overflow-hidden rounded-md border border-ink/30 bg-panel/95 text-[11.5px] shadow">
         {(Object.keys(BASEMAPS) as (keyof typeof BASEMAPS)[]).map((k) => (
           <button key={k} onClick={() => setLayer(k)}
-            className={`px-2.5 py-1 font-medium ${layer === k ? "bg-ink text-paper" : "text-ink hover:bg-band"}`}>
+            className={`min-h-11 px-4 font-medium ${layer === k ? "bg-ink text-paper" : "text-ink active:bg-band"}`}>
             {BASEMAPS[k].label}
           </button>
         ))}

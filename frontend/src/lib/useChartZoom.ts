@@ -9,6 +9,12 @@
 //
 // Deliberately not a charting library: the axes are domain quantities (days
 // and GDD), so zoom state lives as domain windows and the SVG stays plain.
+//
+// Touch is the primary input, not an afterthought: this runs on a tablet in a
+// packing shed. Pinch zooms — spreading mostly sideways zooms the dates,
+// mostly upward zooms the GDD scale, so one gesture covers both axes without a
+// mode switch. One finger pans once zoomed. The buttons remain for anyone on a
+// mouse and for anyone who would rather not gesture at all.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -89,29 +95,68 @@ export function useChartZoom() {
     return () => el.removeEventListener("wheel", onWheel);
   }, [zoomX, zoomY]);
 
-  // Drag to pan, once zoomed. At full extent there is nothing to pan to, so
-  // drags do nothing.
+  // Pointer handling covers touch, pen and mouse in one path.
+  //   one pointer  → pan (only once zoomed; at full extent there is nowhere
+  //                  to pan, so a stray swipe does nothing)
+  //   two pointers → pinch. The gesture's own direction picks the axis:
+  //                  a mostly-horizontal spread zooms dates, a mostly-vertical
+  //                  one zooms GDD, and a diagonal does both in proportion.
+  //                  That beats a mode toggle, which costs a tap before every
+  //                  adjustment.
   useEffect(() => {
     const el = svgRef.current;
-    if (!el || !isZoomed) return;
-    let last: { x: number; y: number } | null = null;
+    if (!el) return;
+
+    const active = new Map<number, { x: number; y: number }>();
+    let pinch: { dx: number; dy: number } | null = null;
+
+    const spread = () => {
+      const [a, b] = [...active.values()];
+      return { dx: Math.abs(a.x - b.x), dy: Math.abs(a.y - b.y) };
+    };
+
     const down = (e: PointerEvent) => {
-      last = { x: e.clientX, y: e.clientY };
+      active.set(e.pointerId, { x: e.clientX, y: e.clientY });
       el.setPointerCapture(e.pointerId);
+      if (active.size === 2) pinch = spread();
     };
+
     const move = (e: PointerEvent) => {
-      if (!last) return;
+      const prev = active.get(e.pointerId);
+      if (!prev) return;
       const box = el.getBoundingClientRect();
-      panX(-(e.clientX - last.x) / box.width);
-      panY((e.clientY - last.y) / box.height);
-      last = { x: e.clientX, y: e.clientY };
+      active.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      if (active.size >= 2) {
+        if (!pinch) { pinch = spread(); return; }
+        const now = spread();
+        // Only the axis that actually moved gets zoomed, so a horizontal
+        // pinch does not quietly rescale the vertical too.
+        if (now.dx > 12 && pinch.dx > 12 && Math.abs(now.dx - pinch.dx) > 2) {
+          zoomX(pinch.dx / now.dx);
+        }
+        if (now.dy > 12 && pinch.dy > 12 && Math.abs(now.dy - pinch.dy) > 2) {
+          zoomY(pinch.dy / now.dy);
+        }
+        pinch = now;
+        e.preventDefault();
+        return;
+      }
+
+      if (!isZoomed) return;
+      panX(-(e.clientX - prev.x) / box.width);
+      panY((e.clientY - prev.y) / box.height);
+      e.preventDefault();
     };
+
     const up = (e: PointerEvent) => {
-      last = null;
+      active.delete(e.pointerId);
+      if (active.size < 2) pinch = null;
       if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
     };
+
     el.addEventListener("pointerdown", down);
-    el.addEventListener("pointermove", move);
+    el.addEventListener("pointermove", move, { passive: false });
     el.addEventListener("pointerup", up);
     el.addEventListener("pointercancel", up);
     return () => {
@@ -120,7 +165,7 @@ export function useChartZoom() {
       el.removeEventListener("pointerup", up);
       el.removeEventListener("pointercancel", up);
     };
-  }, [isZoomed, panX, panY]);
+  }, [isZoomed, panX, panY, zoomX, zoomY]);
 
   return { zoom, setZoom, zoomX, zoomY, panX, panY, reset, isZoomed, svgRef };
 }

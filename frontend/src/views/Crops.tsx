@@ -115,22 +115,22 @@ export default function Crops({
           <label className="block text-[11px] text-ink-soft">
             Crop
             <input name="crop" list="ge-crop-presets" placeholder="Zinnia · succession 4"
-              className="mt-0.5 w-full rounded border border-rule bg-white px-2 py-1.5 text-[13px] text-ink focus:border-honey focus:outline-none" />
+              className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] text-ink focus:border-honey focus:outline-none" />
           </label>
           <label className="block text-[11px] text-ink-soft">
             GDD target
             <input name="target" inputMode="numeric" placeholder="780"
-              className="mt-0.5 w-full rounded border border-rule bg-white px-2 py-1.5 text-[13px] text-ink focus:border-honey focus:outline-none" />
+              className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] text-ink focus:border-honey focus:outline-none" />
           </label>
           <label className="block text-[11px] text-ink-soft">
             Set out
             <input name="setout" type="date"
-              className="mt-0.5 w-full rounded border border-rule bg-white px-2 py-1.5 text-[13px] text-ink focus:border-honey focus:outline-none" />
+              className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] text-ink focus:border-honey focus:outline-none" />
           </label>
           <label className="block text-[11px] text-ink-soft">
             Base °F <span className="opacity-60">(optional)</span>
             <input name="base" inputMode="numeric" placeholder={String(region.baseTempF)}
-              className="mt-0.5 w-full rounded border border-rule bg-white px-2 py-1.5 text-[13px] text-ink focus:border-honey focus:outline-none" />
+              className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] text-ink focus:border-honey focus:outline-none" />
           </label>
         </div>
 
@@ -140,7 +140,7 @@ export default function Crops({
 
         {formErr && <p className="mt-2 text-[12px] text-clay">{formErr}</p>}
 
-        <button className="mt-3 rounded border-[1.5px] border-ink px-3 py-1.5 text-[12.5px] font-semibold hover:bg-ink hover:text-paper">
+        <button className="mt-3 min-h-11 rounded border-[1.5px] border-ink px-4 text-[13px] font-semibold active:bg-ink active:text-paper">
           Add to the ledger
         </button>
       </form>

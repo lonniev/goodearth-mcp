@@ -45,7 +45,7 @@ export default function RegionPicker({
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="flex items-center gap-2 rounded-md border-[1.5px] border-ink bg-panel px-3 py-1.5 text-[13.5px] font-semibold"
+        className="flex min-h-11 items-center gap-2 rounded-md border-[1.5px] border-ink bg-panel px-3 text-[13.5px] font-semibold"
       >
         {active.name}
         <small className="data text-[10.5px] font-normal text-ink-soft">{detail}</small>
@@ -53,16 +53,16 @@ export default function RegionPicker({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-20 mt-1.5 w-80 rounded-md border border-rule bg-panel p-2 shadow-lg">
+        <div className="absolute left-0 top-full z-20 mt-1.5 w-[min(22rem,calc(100vw-2rem))] rounded-md border border-rule bg-panel p-2 shadow-lg">
           <div className="eyebrow px-2 pb-1">Your ground</div>
-          <ul role="listbox" className="max-h-56 overflow-auto">
+          <ul role="listbox" className="max-h-64 overflow-auto overscroll-contain">
             {regions.map((r) => (
-              <li key={r.id} className="group flex items-center">
+              <li key={r.id} className="flex items-center">
                 <button
                   role="option"
                   aria-selected={r.id === active.id}
                   onClick={() => { onPick(r); setOpen(false); }}
-                  className={`flex-1 truncate rounded px-2 py-1.5 text-left text-[13px] hover:bg-band ${
+                  className={`min-h-11 flex-1 truncate rounded px-2 text-left text-[13px] active:bg-band ${
                     r.id === active.id ? "font-semibold" : ""
                   }`}
                 >
@@ -75,7 +75,7 @@ export default function RegionPicker({
                   <button
                     onClick={() => setRegions(deleteRegion(r.id))}
                     aria-label={`Forget ${r.name}`}
-                    className="px-2 text-ink-soft opacity-0 group-hover:opacity-100 hover:text-clay"
+                    className="flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-clay"
                   >
                     ×
                   </button>
@@ -86,11 +86,11 @@ export default function RegionPicker({
 
           <div className="mt-2 flex gap-2 border-t border-rule pt-2">
             <button onClick={() => { setAdding("pin"); setErr(""); }}
-              className="rounded border-[1.5px] border-ink px-2 py-1 text-[12px] font-semibold hover:bg-ink hover:text-paper">
+              className="min-h-11 flex-1 rounded border-[1.5px] border-ink px-3 text-[12.5px] font-semibold active:bg-ink active:text-paper">
               Add a pin
             </button>
             <button onClick={() => { setAdding("poly"); setErr(""); }}
-              className="rounded border-[1.5px] border-ink px-2 py-1 text-[12px] font-semibold hover:bg-ink hover:text-paper">
+              className="min-h-11 flex-1 rounded border-[1.5px] border-ink px-3 text-[12.5px] font-semibold active:bg-ink active:text-paper">
               Paste a polygon
             </button>
           </div>
@@ -117,7 +117,7 @@ export default function RegionPicker({
                 <Field name="r" label="Radius (m)" placeholder="800" />
                 <Field name="base" label="Base °F" placeholder="50" />
               </div>
-              <button className="w-full rounded bg-ink py-1.5 text-[12.5px] font-semibold text-paper">Save block</button>
+              <button className="min-h-11 w-full rounded bg-ink text-[13px] font-semibold text-paper">Save block</button>
             </form>
           )}
 
@@ -137,10 +137,10 @@ export default function RegionPicker({
                 GeoJSON Polygon
                 <textarea name="json" rows={4}
                   placeholder='{"type":"Polygon","coordinates":[[[-73.24,44.44], …]]}'
-                  className="data mt-0.5 w-full rounded border border-rule bg-white px-2 py-1 text-[11px] focus:border-honey focus:outline-none" />
+                  className="data mt-0.5 w-full rounded border border-rule bg-white px-2 py-2 text-[16px] focus:border-honey focus:outline-none" />
               </label>
               <Field name="base" label="Base °F" placeholder="50" />
-              <button className="w-full rounded bg-ink py-1.5 text-[12.5px] font-semibold text-paper">Save block</button>
+              <button className="min-h-11 w-full rounded bg-ink text-[13px] font-semibold text-paper">Save block</button>
             </form>
           )}
 
@@ -156,7 +156,7 @@ function Field({ name, label, placeholder }: { name: string; label: string; plac
     <label className="block flex-1 text-[11px] text-ink-soft">
       {label}
       <input name={name} placeholder={placeholder}
-        className="mt-0.5 w-full rounded border border-rule bg-white px-2 py-1 text-[12.5px] text-ink focus:border-honey focus:outline-none" />
+        className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2 text-[16px] text-ink focus:border-honey focus:outline-none" />
     </label>
   );
 }
