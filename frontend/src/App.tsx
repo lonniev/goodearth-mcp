@@ -11,6 +11,8 @@ import Hive, { hiveMood } from "./components/Hive";
 import Bees from "./components/Bees";
 import NpubGate from "./components/NpubGate";
 import NostrProfilePanel from "./components/NostrProfilePanel";
+import Preferences from "./components/Preferences";
+import { readPrefs, writePrefs, type Prefs } from "./lib/prefs";
 import HeatLedger from "./views/HeatLedger";
 import Crops from "./views/Crops";
 import Pests from "./views/Pests";
@@ -86,6 +88,7 @@ export default function App() {
   const [balance, setBalance] = useState<number | null>(null);
   const [spent, setSpent] = useState(0);
   const [frost, setFrost] = useState<FrostWindowResult | null>(null);
+  const [prefs, setPrefs] = useState<Prefs>(() => readPrefs());
 
   const [region, setRegion] = useState<SavedRegion>(() => {
     const all = listRegions();
@@ -175,6 +178,7 @@ export default function App() {
           <>
             <h1 className="figure mb-4 text-[26px] font-bold">Account</h1>
             <NostrProfilePanel npub={getStoredNpub()} />
+            <Preferences prefs={prefs} onChange={(p) => setPrefs(writePrefs(p))} />
           </>
         )}
       </AppShell>
@@ -182,11 +186,11 @@ export default function App() {
       {/* The hive reads the same night the frost card does, so the corner can
           never disagree with the page. Tonight's low on the coldest ground
           against the 55°F flight threshold; shut on a live frost watch. */}
-      <Hive mood={hiveMood(todayHigh(frost), frostWatchLive(frost))} />
+      {prefs.bees && <Hive mood={hiveMood(todayHigh(frost), frostWatchLive(frost))} />}
       {/* The foragers work the whole page. pointer-events:none throughout, so
           a bee can never swallow a tap on a frost warning. */}
       <Bees mood={hiveMood(todayHigh(frost), frostWatchLive(frost))}
-        tempF={todayHigh(frost)} />
+        tempF={todayHigh(frost)} enabled={prefs.bees} />
     </>
   );
 }

@@ -33,7 +33,11 @@ export default function Hive({ mood = "unknown" }: { mood?: HiveMood }) {
   return (
     <svg
       viewBox="0 0 150 120"
-      className="pointer-events-none fixed right-4 bottom-3 w-[150px] opacity-25 hidden md:block"
+      id="ge-hive"
+      // Lower LEFT, and clear of the rail. Today's marker sits at the right of
+      // every chart, so a hive in that corner competed with the one number the
+      // eye is looking for.
+      className="pointer-events-none fixed bottom-3 left-[calc(200px+1rem)] w-[130px] opacity-25 hidden md:block"
       role="img"
       aria-label={LABEL[mood] || "Beehive"}
     >

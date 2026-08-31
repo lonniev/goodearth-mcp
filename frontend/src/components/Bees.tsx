@@ -56,8 +56,22 @@ interface Bee {
   vigour: number;
 }
 
-/// The skep sits bottom-right. Bees come and go from its door.
-const HIVE = { x: 0.945, y: 0.9 };
+/// Where the skep actually is, read from the rendered element rather than
+/// assumed. The rail collapses and expands and the hive moves with it, so a
+/// hardcoded corner would have bees flying home to the wrong place — or, at
+/// lower-left, home to a spot underneath the rail.
+const HIVE_FALLBACK = { x: 0.12, y: 0.9 };
+
+function hivePoint(): { x: number; y: number } {
+  const el = document.getElementById("ge-hive");
+  if (!el) return HIVE_FALLBACK;
+  const r = el.getBoundingClientRect();
+  if (!r.width || !r.height) return HIVE_FALLBACK;   // hidden on small screens
+  return {
+    x: (r.left + r.width * 0.5) / window.innerWidth,
+    y: (r.top + r.height * 0.72) / window.innerHeight,   // the door, not the crown
+  };
+}
 
 /// 0 at the flight threshold, 1 in real working heat.
 function activityOf(tempF: number | null): number {
@@ -76,20 +90,20 @@ const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 
 /// Somewhere worth visiting: anywhere but the very edges, and biased away
 /// from the hive so a trip is actually a trip.
-function patch(): { x: number; y: number } {
+function patch(hive: { x: number; y: number }): { x: number; y: number } {
   for (let i = 0; i < 8; i++) {
     const p = { x: rnd(0.06, 0.94), y: rnd(0.08, 0.9) };
-    if (Math.hypot(p.x - HIVE.x, p.y - HIVE.y) > 0.28) return p;
+    if (Math.hypot(p.x - hive.x, p.y - hive.y) > 0.28) return p;
   }
-  return { x: rnd(0.1, 0.5), y: rnd(0.1, 0.5) };
+  return { x: rnd(0.45, 0.9), y: rnd(0.1, 0.5) };
 }
 
-function spawn(n: number): Bee[] {
+function spawn(n: number, hive: { x: number; y: number }): Bee[] {
   return Array.from({ length: n }, (_, i) => {
-    const t = patch();
+    const t = patch(hive);
     return {
       // Everyone starts at the door and leaves — a trip has a beginning.
-      x: HIVE.x, y: HIVE.y, vx: 0, vy: 0,
+      x: hive.x, y: hive.y, vx: 0, vy: 0,
       phase: "resting" as Phase,
       tx: t.x, ty: t.y,
       timer: rnd(0.1, 2.5) + i * 0.35,   // stagger the departures
@@ -101,11 +115,11 @@ function spawn(n: number): Bee[] {
 }
 
 export default function Bees({
-  mood = "unknown", tempF = null,
-}: { mood?: HiveMood; tempF?: number | null }) {
+  mood = "unknown", tempF = null, enabled = true,
+}: { mood?: HiveMood; tempF?: number | null; enabled?: boolean }) {
   // Respawn only when the NUMBER of bees would change, never merely because
   // the temperature moved a degree.
-  const beeTier = beeCount(mood, activityOf(tempF));
+  const beeTier = enabled ? beeCount(mood, activityOf(tempF)) : 0;
   const layer = useRef<HTMLDivElement | null>(null);
   const raf = useRef<number>(0);
   const pointer = useRef<{ x: number; y: number; until: number } | null>(null);
@@ -146,7 +160,10 @@ export default function Bees({
     host.replaceChildren();
     if (!n) return;
 
-    const bees = spawn(n);
+    // Re-read the hive whenever the flight restarts, so collapsing the rail
+    // moves home rather than stranding it.
+    let hive = hivePoint();
+    const bees = spawn(n, hive);
     const nodes: HTMLDivElement[] = [];
     for (let i = 0; i < n; i++) {
       const el = document.createElement("div");
@@ -188,7 +205,7 @@ export default function Bees({
 
         // ── Phase transitions: the trip ────────────────────────────────
         if (b.phase === "resting" && b.timer <= 0) {
-          const p = patch();
+          const p = patch(hive);
           b.tx = p.x; b.ty = p.y;
           b.phase = "leaving";
         } else if (b.phase === "leaving" && Math.hypot(b.tx - b.x, b.ty - b.y) < 0.05) {
@@ -196,7 +213,8 @@ export default function Bees({
           b.timer = rnd(6, 16);             // stay and work it
         } else if (b.phase === "foraging" && b.timer <= 0) {
           b.phase = "returning";
-          b.tx = HIVE.x; b.ty = HIVE.y;
+          hive = hivePoint();          // it may have moved while they were out
+          b.tx = hive.x; b.ty = hive.y;
         } else if (b.phase === "returning" && Math.hypot(b.tx - b.x, b.ty - b.y) < 0.035) {
           b.phase = "resting";
           b.timer = rnd(1.5, 4.5);          // unload at the door
@@ -234,7 +252,7 @@ export default function Bees({
             const push = FLEE_FORCE * (1 - d / FLEE_RADIUS) ** 2;
             ax += (dx / d) * push;
             ay += (dy / d) * push;
-            if (b.phase === "resting") { b.phase = "leaving"; const p = patch(); b.tx = p.x; b.ty = p.y; }
+            if (b.phase === "resting") { b.phase = "leaving"; const p = patch(hive); b.tx = p.x; b.ty = p.y; }
           }
         }
 
@@ -277,7 +295,7 @@ export default function Bees({
     };
     raf.current = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf.current);
-  }, [mood, beeTier]);
+  }, [mood, beeTier, enabled]);
 
   return (
     <div
