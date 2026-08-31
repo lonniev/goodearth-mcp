@@ -772,3 +772,51 @@ export async function publishNostrProfile(
     signed_event: signedEvent,
   });
 }
+
+
+export type FrostLevel = "clear" | "frost_watch" | "frost_likely" | "hard_freeze";
+
+export interface FrostNight {
+  date: string;
+  level: FrostLevel;
+  forecast_low_f: number;
+  low_ground_f: number;
+  drainage_applied_f: number;
+  wind_mph: number | null;
+  cloud_pct: number | null;
+  dew_point_f: number | null;
+  reason: string;
+}
+
+export interface FrostWindowResult {
+  success: boolean;
+  error?: string;
+  error_code?: string;
+  as_of: string;
+  region: RegionDescription;
+  first_frost: {
+    median: string;
+    earliest: string;
+    latest: string;
+    years_on_record: number;
+    note: string;
+  } | null;
+  days_to_median_first_frost: number | null;
+  across_region: {
+    coldest_ground_offset_f: number;
+    elevation_range_m: number | null;
+    terrain_correction: "applied" | "unavailable";
+    terrain_note?: string;
+    note: string;
+  };
+  nights: FrostNight[];
+  worst_night: FrostNight | null;
+  thresholds_f: { frost: number; watch: number; hard_freeze: number };
+  sources: { name: string; role: string; resolution_m: number }[];
+}
+
+/// When frost normally arrives on this ground, and whether it is coming this
+/// week — assessed for the region's COLDEST ground, not its average.
+export async function frostWindow(region: Region): Promise<FrostWindowResult> {
+  return callTool<FrostWindowResult>("frost_window", { region });
+}

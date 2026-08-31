@@ -33,6 +33,9 @@ ELEVATION_RESOLUTION_M = 90
 
 _US_UNITS = {"temperature_unit": "fahrenheit", "windspeed_unit": "mph"}
 _DAILY = "temperature_2m_max,temperature_2m_min"
+# Frost is a radiative process, so the night's wind and sky decide whether
+# cold air stratifies at all. Without them a forecast low is just a number.
+_DAILY_FROST = "temperature_2m_min,wind_speed_10m_max,cloud_cover_mean,dew_point_2m_min"
 
 
 class UpstreamError(RuntimeError):
@@ -164,3 +167,68 @@ def daily_series(record: dict[str, Any]) -> tuple[list[str], list[float | None],
         [num(v) for v in tmax[:n]],
         [num(v) for v in tmin[:n]],
     )
+
+
+async def fetch_frost_forecast(lat: float, lon: float, days: int = 10) -> dict[str, Any]:
+    """Nightly lows with the wind and sky that decide whether frost forms.
+
+    Centroid only, like the temperature forecast: the forecast grid is coarser
+    than the region, so the terrain spread is applied afterwards rather than
+    pretended to be resolved upstream.
+    """
+    days = max(1, min(days, 16))
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        payload = await _get(
+            client,
+            _FORECAST,
+            {
+                "latitude": lat,
+                "longitude": lon,
+                "daily": _DAILY_FROST,
+                "forecast_days": days,
+                "timezone": "auto",
+                **_US_UNITS,
+            },
+        )
+    results = _as_list(payload)
+    if not results:
+        raise UpstreamError("frost forecast returned no locations")
+    return results[0]
+
+
+def frost_series(record: dict[str, Any]) -> list[dict[str, Any]]:
+    """Flatten a frost-forecast record into one dict per night.
+
+    Nights missing a low are dropped rather than defaulted — a night we cannot
+    assess must not appear as a night that is safe.
+    """
+    daily = record.get("daily")
+    if not isinstance(daily, dict):
+        raise UpstreamError("frost forecast has no daily block")
+
+    dates = daily.get("time") or []
+    lows = daily.get("temperature_2m_min") or []
+    wind = daily.get("wind_speed_10m_max") or []
+    cloud = daily.get("cloud_cover_mean") or []
+    dew = daily.get("dew_point_2m_min") or []
+
+    def num(seq: Any, i: int) -> float | None:
+        if isinstance(seq, list) and i < len(seq) and isinstance(seq[i], (int, float)):
+            return float(seq[i])
+        return None
+
+    out: list[dict[str, Any]] = []
+    for i, d in enumerate(dates):
+        low = num(lows, i)
+        if low is None:
+            continue
+        out.append(
+            {
+                "date": str(d),
+                "low_f": low,
+                "wind_mph": num(wind, i),
+                "cloud_pct": num(cloud, i),
+                "dew_point_f": num(dew, i),
+            }
+        )
+    return out

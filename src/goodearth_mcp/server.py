@@ -21,6 +21,8 @@ from tollbooth.runtime import OperatorRuntime, register_standard_tools
 from tollbooth.tool_identity import STANDARD_IDENTITIES, ToolIdentity
 
 from goodearth_mcp import __version__, season, sources
+from goodearth_mcp.frost_window import FrostError
+from goodearth_mcp.frost_window import region_frost_window as frost_window_impl
 from goodearth_mcp.region import RegionError, parse_region
 
 logger = logging.getLogger(__name__)
@@ -60,7 +62,7 @@ mcp = FastMCP(
 # actually implemented are registered below.
 GDD_SEASON_CURVE_UUID      = "886ebfd6-dde4-5297-9145-2154caefb943"
 REGION_CLIMATE_BUNDLE_UUID = "2a6cda20-40e0-5aea-8b3a-3f8310937f05"  # T2
-FROST_WINDOW_UUID          = "2b611018-f61d-5d72-bc8e-27abb605b669"  # T2
+FROST_WINDOW_UUID          = "2b611018-f61d-5d72-bc8e-27abb605b669"
 DLI_CURVE_UUID             = "b111cfd0-1bef-5cf4-907c-37bbf8d2d96a"  # T3
 WATER_BALANCE_UUID         = "c4ec3643-1e8b-59bc-a239-82353c4a0f52"  # T3
 SOIL_TEMP_PROJECTION_UUID  = "03764cdc-c9d9-5396-9eb1-9b7f56da08f6"  # T4
@@ -75,6 +77,12 @@ _DOMAIN_TOOLS = [
         capability="gdd_season_curve",
         category="read",
         intent="Growing degree day accumulation across a region, against recent seasons",
+    ),
+    ToolIdentity(
+        tool_id=FROST_WINDOW_UUID,
+        capability="frost_window",
+        category="read",
+        intent="First-frost dates for a region, and this week's risk to its coldest ground",
     ),
 ]
 
@@ -183,6 +191,56 @@ async def gdd_season_curve(
         # Upstream feeds are outside our control; everything else is a bug
         # and must surface rather than be swallowed into a tidy error string.
         logger.warning("gdd_season_curve failed: %s", exc)
+        return {
+            "success": False,
+            "error": f"A weather feed did not answer: {exc}",
+            "error_code": "upstream_unavailable",
+        }
+
+
+@tool
+@runtime.paid_tool(FROST_WINDOW_UUID)
+async def frost_window(
+    region: Annotated[
+        dict[str, Any],
+        Field(
+            description=(
+                "The ground to answer for. Either a GeoJSON Polygon (bare "
+                "geometry or a Feature wrapping one) or a pin: "
+                '{"lat": 44.48, "lon": -73.21, "radius_m": 800}.'
+            ),
+        ),
+    ],
+    npub: Annotated[
+        str,
+        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
+    ] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """When frost normally arrives on this ground, and whether it is coming this week.
+
+    Returns first-frost dates from the last ten seasons, how far the region's
+    own terrain spreads that, and a night-by-night assessment of the coming
+    forecast for the *coldest* ground rather than the average.
+
+    The spread is the answer's point. Frost forms on still, clear nights when
+    cold air drains off high ground and pools in low, so a single forecast low
+    is optimistic for a hollow and pessimistic for a bench on the same block.
+
+    Args:
+        region: GeoJSON Polygon or {lat, lon, radius_m}.
+    """
+    try:
+        parsed = parse_region(region)
+    except RegionError as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+
+    try:
+        return await frost_window_impl(parsed)
+    except FrostError as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_request"}
+    except (sources.UpstreamError, OSError) as exc:
+        logger.warning("frost_window failed: %s", exc)
         return {
             "success": False,
             "error": f"A weather feed did not answer: {exc}",

@@ -14,10 +14,35 @@ import HeatLedger from "./views/HeatLedger";
 import Favorites from "./views/Favorites";
 import { AVATAR_EVENT, avatarFor, hydrateAvatarFromNostr } from "./lib/avatar";
 import { fetchProfile } from "./lib/nostrProfile";
-import { checkBalance, getStoredNpub, isLoggedIn, logOut, onProofExpired } from "./lib/mcp";
+import { checkBalance, getStoredNpub, isLoggedIn, logOut, onProofExpired, type FrostWindowResult } from "./lib/mcp";
 import {
   getActiveRegionId, listRegions, saveRegion, setActiveRegionId, type SavedRegion,
 } from "./lib/regions";
+
+/// Tonight's low on the region's coldest ground, when the frost tool has
+/// answered. Null keeps the hive in its unknown state rather than guessing.
+function tonightLow(f: FrostWindowResult | null): number | null {
+  return f?.nights?.[0]?.low_ground_f ?? null;
+}
+
+/// A watch is live if any night in the outlook reaches at least a frost watch.
+function frostWatchLive(f: FrostWindowResult | null): boolean {
+  return !!f?.nights?.some((n) => n.level !== "clear");
+}
+
+/// The top bar's conditions line. Quiet, and only what we actually know.
+function conditions(f: FrostWindowResult | null) {
+  const n = f?.nights?.[0];
+  if (!n) return null;
+  return (
+    <>
+      Tonight <b className="figure text-[15px] text-ink">{Math.round(n.low_ground_f)}°F</b>
+      {" on low ground"}
+      {n.wind_mph != null && <> · wind {Math.round(n.wind_mph)} mph</>}
+      {n.cloud_pct != null && <> · {Math.round(n.cloud_pct)}% cloud</>}
+    </>
+  );
+}
 
 export default function App() {
   const [signedIn, setSignedIn] = useState(isLoggedIn);
@@ -27,6 +52,7 @@ export default function App() {
   const [displayName, setDisplayName] = useState("");
   const [balance, setBalance] = useState<number | null>(null);
   const [spent, setSpent] = useState(0);
+  const [frost, setFrost] = useState<FrostWindowResult | null>(null);
 
   const [region, setRegion] = useState<SavedRegion>(() => {
     const all = listRegions();
@@ -96,10 +122,11 @@ export default function App() {
         onRegion={pickRegion}
         balanceSats={balance}
         spentToday={spent}
+        conditions={conditions(frost)}
         onSignOut={() => { logOut(); setSignedIn(false); }}
       >
         {view === "ledger" && (
-          <HeatLedger region={region} onMeasured={onMeasured} onCost={onCost} />
+          <HeatLedger region={region} onMeasured={onMeasured} onCost={onCost} onFrost={setFrost} />
         )}
         {view === "favorites" && <Favorites active={region} onPick={pickRegion} />}
         {view === "account" && (
@@ -110,9 +137,10 @@ export default function App() {
         )}
       </AppShell>
 
-      {/* Temperature-gated, so it reads the region rather than decorating it.
-          Wired to the frost tools when they ship; unknown until then. */}
-      <Hive mood={hiveMood(null, false)} />
+      {/* The hive reads the same night the frost card does, so the corner can
+          never disagree with the page. Tonight's low on the coldest ground
+          against the 55°F flight threshold; shut on a live frost watch. */}
+      <Hive mood={hiveMood(tonightLow(frost), frostWatchLive(frost))} />
     </>
   );
 }

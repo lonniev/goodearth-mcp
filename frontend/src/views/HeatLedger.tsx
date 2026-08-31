@@ -7,21 +7,27 @@
 
 import { useCallback, useEffect, useState } from "react";
 import SeasonChart from "../components/SeasonChart";
+import FrostCard from "../components/FrostCard";
 import Provenance from "../components/Provenance";
-import { gddSeasonCurve, type SeasonCurveResult } from "../lib/mcp";
+import { frostWindow, gddSeasonCurve, type FrostWindowResult, type SeasonCurveResult } from "../lib/mcp";
 import type { SavedRegion } from "../lib/regions";
 
 interface Props {
   region: SavedRegion;
   onMeasured: (areaHa: number, samples: number) => void;
   onCost: (sats: number) => void;
+  /// Lifted so the hive in the corner can read the same night the frost card
+  /// does — the hive is an instrument, and it must not disagree with the page.
+  onFrost?: (f: FrostWindowResult | null) => void;
 }
 
-export default function HeatLedger({ region, onMeasured, onCost }: Props) {
+export default function HeatLedger({ region, onMeasured, onCost, onFrost }: Props) {
   const [data, setData] = useState<SeasonCurveResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [ranAt, setRanAt] = useState<Date | null>(null);
+  const [frost, setFrost] = useState<FrostWindowResult | null>(null);
+  const [frostAt, setFrostAt] = useState<Date | null>(null);
 
   const run = useCallback(async () => {
     setBusy(true); setError("");
@@ -38,8 +44,23 @@ export default function HeatLedger({ region, onMeasured, onCost }: Props) {
     }
   }, [region, onMeasured]);
 
+  const runFrost = useCallback(async () => {
+    try {
+      const f = await frostWindow(region.region);
+      if (!f.success) { setFrost(null); onFrost?.(null); return; }
+      setFrost(f);
+      setFrostAt(new Date());
+      onFrost?.(f);
+    } catch {
+      // The season still stands without it; the frost tiles just stay empty
+      // rather than showing a date nobody can back up.
+      setFrost(null);
+      onFrost?.(null);
+    }
+  }, [region, onFrost]);
+
   // Re-read whenever the active region changes — the whole app is scoped by it.
-  useEffect(() => { void run(); }, [run]);
+  useEffect(() => { void run(); void runFrost(); }, [run, runFrost]);
 
   const g = data?.accumulated_gdd;
   const ahead = data?.normals?.ahead_of_normal_gdd ?? null;
@@ -77,8 +98,26 @@ export default function HeatLedger({ region, onMeasured, onCost }: Props) {
               : "against recent seasons"
           }
         />
-        <Pulse value="—" tone="frost" label="median first frost · arrives with frost_window" muted />
-        <Pulse value="—" tone="frost" label="forecast overnight low · arrives with frost_window" muted />
+        <Pulse
+          value={frost?.first_frost ? shortDate(frost.first_frost.median) : "—"}
+          tone="frost"
+          muted={!frost?.first_frost}
+          label={
+            frost?.first_frost
+              ? `median first frost · earliest ${shortDate(frost.first_frost.earliest)}`
+              : "median first frost"
+          }
+        />
+        <Pulse
+          value={frost?.worst_night ? `${Math.round(frost.worst_night.low_ground_f)}°F` : "—"}
+          tone="frost"
+          muted={!frost?.worst_night}
+          label={
+            frost?.worst_night
+              ? `coldest ground, ${shortDate(frost.worst_night.date)} — forecast says ${Math.round(frost.worst_night.forecast_low_f)}°F`
+              : "coldest ground in the outlook"
+          }
+        />
       </div>
 
       {/* ── The spread. This is the product. ──────────────────────────── */}
@@ -112,7 +151,7 @@ export default function HeatLedger({ region, onMeasured, onCost }: Props) {
           Reading the season for {region.name}…
         </div>
       ) : data ? (
-        <SeasonChart data={data} />
+        <SeasonChart data={data} frostDayIndex={frostIndex(data, frost)} />
       ) : null}
 
       {data && (
@@ -124,13 +163,22 @@ export default function HeatLedger({ region, onMeasured, onCost }: Props) {
         </p>
       )}
 
+      {frost && (
+        <>
+          <h2 className="figure mt-6 mb-2.5 flex items-baseline gap-2.5 text-[18px] font-semibold">
+            React
+            <Provenance tool="goodearth_frost_window" at={frostAt} onCost={onCost} />
+          </h2>
+          <FrostCard data={frost} />
+        </>
+      )}
+
       <div className="mt-6 rounded-md border border-dashed border-rule bg-panel/60 p-4 text-[13px] text-ink-soft">
         <span className="figure text-[15px] text-ink">Still to come on this page</span>
         <p className="mt-1 leading-relaxed">
-          The crop ledger, frost watch, pest thresholds and the soil-temperature
-          window each need their own tool. They are designed and staged — the
-          page will fill in as those ship, and until then it shows only what it
-          can actually answer.
+          The crop ledger, pest thresholds and the soil-temperature window each
+          need their own tool. They are designed and staged — the page fills in
+          as those ship, and until then it shows only what it can answer.
         </p>
       </div>
     </>
@@ -152,6 +200,23 @@ function Pulse({ value, unit, label, tone, muted }: {
     </div>
   );
 }
+
+/// Where the median first frost falls along the curve's own day axis, so the
+/// chart can draw the line in the same coordinate space as the data. Null when
+/// the date sits outside the plotted range — better no line than one clamped
+/// to an edge, which would read as a frost date that is not real.
+function frostIndex(curve: SeasonCurveResult, frost: FrostWindowResult | null): number | null {
+  const median = frost?.first_frost?.median;
+  const dates = curve.curve?.dates;
+  if (!median || !dates?.length) return null;
+  const start = new Date(dates[0] + "T12:00:00").getTime();
+  const idx = Math.round((new Date(median + "T12:00:00").getTime() - start) / 86_400_000);
+  const total = dates.length + (curve.forecast?.cumulative.length ?? 0) + (curve.projection?.cumulative.length ?? 0);
+  return idx >= 0 && idx < total ? idx : null;
+}
+
+const shortDate = (iso: string) =>
+  new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
 const SUBS = "₀₁₂₃₄₅₆₇₈₉";
 const sub = (n: number) => String(Math.round(n)).split("").map((c) => SUBS[+c] ?? c).join("");
