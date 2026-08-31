@@ -39,6 +39,21 @@ async def test_non_numeric_base_temp_is_rejected():
         await season.region_season_curve(parse_region(PIN), "warm")  # type: ignore[arg-type]
 
 
+@pytest.fixture(autouse=True)
+def _offline_normals(monkeypatch):
+    """Keep the normals feed out of the network for every test here.
+
+    These tests patch the feeds they name. When the normals moved onto their
+    own function every one of them silently started making a real Daymet
+    call — still green, a tenfold slowdown the only tell. An autouse default
+    means a test has to opt IN to the network rather than fall into it.
+    """
+    async def fake_normals(lat, lon, start, end):
+        return [_record(60)], "Daymet v4 (NASA ORNL)", 1_000
+
+    monkeypatch.setattr(sources, "fetch_normals_history", fake_normals)
+
+
 async def test_happy_path_returns_spread_band_and_projection(monkeypatch):
     region = parse_region(PIN)
     n = len(region.points)
@@ -68,6 +83,9 @@ async def test_happy_path_returns_spread_band_and_projection(monkeypatch):
     assert out["forecast"] is not None
     assert out["projection"]["days"] == 75
     assert {s["name"] for s in out["sources"]}
+    # The band must name the feed that actually answered, not a default.
+    assert any(s["name"].startswith("Daymet") and s["resolution_m"] == 1_000
+               for s in out["sources"])
 
 
 async def test_terrain_variation_produces_a_real_spread(monkeypatch):

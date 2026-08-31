@@ -511,3 +511,29 @@ async def fetch_daymet_history(lat: float, lon: float, start: str, end: str) -> 
         "resolution_m": DAYMET_RESOLUTION_M,
         "daily": {"time": dates, "temperature_2m_max": tmax, "temperature_2m_min": tmin},
     }
+
+
+async def fetch_normals_history(
+    lat: float,
+    lon: float,
+    start: str,
+    end: str,
+) -> tuple[list[dict[str, Any]], str, int]:
+    """Multi-season history for one point, preferring the 1 km feed.
+
+    Returns ``(records, source_name, resolution_m)`` so the caller can say
+    which feed actually answered rather than naming a source it did not use.
+
+    Normals are where this choice pays: one point, one span, entirely in the
+    past — the shape Daymet serves best and the number frost dates and the
+    ahead-of-normal comparison are built from. When Daymet cannot answer, and
+    it will not be able to for the current year until ORNL publishes it, the
+    reanalysis archive still can, so the answer degrades in resolution rather
+    than disappearing.
+    """
+    try:
+        record = await fetch_daymet_history(lat, lon, start, end)
+        return [record], "Daymet v4 (NASA ORNL)", DAYMET_RESOLUTION_M
+    except UpstreamError:
+        records = await fetch_daily_history([lat], [lon], start, end)
+        return records, "Open-Meteo archive (ERA5)", ARCHIVE_RESOLUTION_M

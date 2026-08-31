@@ -85,9 +85,12 @@ async def region_season_curve(
     forecast_task = sources.fetch_daily_forecast(
         region.centroid.lat, region.centroid.lon, forecast_days
     )
-    normals_task = sources.fetch_daily_history(
-        [region.centroid.lat],
-        [region.centroid.lon],
+    # Normals take the 1 km feed where the running season cannot: they are one
+    # point over a span that has entirely happened, which is exactly what
+    # Daymet serves and nine times finer than the archive underneath it.
+    normals_task = sources.fetch_normals_history(
+        region.centroid.lat,
+        region.centroid.lon,
         start.replace(year=today.year - NORMALS_SPAN_YEARS).isoformat(),
         start.replace(year=today.year - 1).replace(month=12, day=31).isoformat(),
     )
@@ -151,9 +154,12 @@ async def region_season_curve(
 
     # ── Normals band from the same window in prior seasons ───────────────
     normals_curves: list[list[float]] = []
+    normals_source = "Open-Meteo archive (ERA5)"
+    normals_resolution = sources.ARCHIVE_RESOLUTION_M
     if not isinstance(normals_raw, BaseException) and normals_raw:
+        normals_records, normals_source, normals_resolution = normals_raw
         try:
-            n_dates, n_max, n_min = sources.daily_series(normals_raw[0])
+            n_dates, n_max, n_min = sources.daily_series(normals_records[0])
             normals_curves = gdd.yearly_curves(
                 n_dates, n_max, n_min, today, NORMALS_SPAN_YEARS, base
             )
@@ -236,5 +242,6 @@ async def region_season_curve(
             {"name": "Open-Meteo archive (ERA5)", "role": "observed daily max/min", "resolution_m": sources.ARCHIVE_RESOLUTION_M},
             {"name": "Open-Meteo forecast", "role": "7-day extension", "resolution_m": sources.FORECAST_RESOLUTION_M},
             {"name": "Open-Meteo elevation (SRTM)", "role": "terrain downscaling", "resolution_m": sources.ELEVATION_RESOLUTION_M},
+            {"name": normals_source, "role": "past seasons for the normal band", "resolution_m": normals_resolution},
         ],
     }
