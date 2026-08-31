@@ -234,7 +234,7 @@ export default function Crops({
         </button>
       </form>
 
-      {/* ── What grows here ─────────────────────────────────────────── */}
+      {/* ── Grows here ─────────────────────────────────────────────── */}
       <h2 className="figure mt-7 mb-2.5 flex flex-wrap items-baseline gap-2.5 text-[18px] font-semibold">
         🌾 Grows here
         {!fit && (
@@ -265,7 +265,73 @@ export default function Crops({
         </p>
       )}
 
-      {/* ── When it goes in ─────────────────────────────────────────── */}
+      {/* ── The library ────────────────────────────────────────────────
+          This IS the answer to "what grows here": every chiclet's colour and
+          its ✓/⚠/✕ come from `fit` and nothing else, and the legend below is
+          gated on it. It used to sit under the sowing table, which left the
+          summary above — "34 finish comfortably, 1 tight, 2 will not" — with
+          no referent, and put its own answer two screens away behind a table
+          about a different question. The category filter travels with it and
+          still governs the sowing table below. */}
+      <div className="mb-2.5 flex flex-wrap gap-1.5">
+        {([{ key: "all", label: "All" }, ...CROP_CATEGORIES] as const).map((c) => (
+          <button key={c.key} onClick={() => setCat(c.key as typeof cat)}
+            className={`min-h-11 rounded-full border px-3.5 text-[12.5px] font-medium ${
+              cat === c.key ? "border-ink bg-ink text-paper" : "border-rule active:bg-band"}`}>
+            {c.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        {CROP_PRESETS.filter((c) => cat === "all" || c.category === cat).map((c) => {
+          const v = verdictOf(c.crop);
+          const tone =
+            v === "comfortable" ? "border-growth/50 bg-growth/8"
+            : v === "tight" ? "border-honey/50 bg-honey/8"
+            : v === "marginal" ? "border-honey/60 bg-honey/12"
+            : v === "too_short" ? "border-clay/40 bg-clay/8 opacity-60"
+            : "border-rule bg-panel";
+          const row = fit?.crops.find((r) => r.crop === c.crop);
+          const w = when?.crops.find((r) => r.crop === c.crop);
+          return (
+            <button key={c.crop} onClick={() => addPreset(c)}
+              title={[
+                row?.note,
+                w && `Seed ${w.start_seed_indoors ? short(w.start_seed_indoors) : "direct"} · out ${w.earliest_out ? short(w.earliest_out) : "—"}`,
+                `${c.gddTarget} GDD ${c.note}, base ${c.baseTempF}°F`,
+              ].filter(Boolean).join(" — ")}
+              className={`flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-[12.5px] active:border-ink ${tone}`}>
+              <span>{c.emoji}</span>
+              <span className="font-medium">{c.crop}</span>
+              <span className="data text-[10.5px] text-ink-soft">{c.gddTarget}</span>
+              {v === "comfortable" && <span className="text-[11px] text-growth">✓</span>}
+              {(v === "tight" || v === "marginal") && <span className="text-[11px] text-honey">⚠</span>}
+              {v === "too_short" && <span className="text-[11px] text-clay">✕</span>}
+              {w?.sow_now && (
+                <span className="rounded-full bg-growth/15 px-1.5 text-[10px] font-semibold text-growth">now</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {fit && (
+        <p className="data mt-2 text-[10.5px] text-ink-soft">
+          <span className="text-growth">✓ finishes comfortably</span>{" · "}
+          <span className="text-honey">⚠ tight — a cool year could take it</span>{" · "}
+          <span className="text-clay">✕ will not finish outdoors here</span>
+        </p>
+      )}
+
+      <p className="mt-2 text-[12px] leading-relaxed text-ink-soft">
+        Tap any crop to add it to the ledger, dated today. These are starting
+        figures, not published agronomy — a corn hybrid is sold by its relative
+        maturity precisely because "corn" has no single number. Edit against
+        your own seed packet, and let field reports teach your ground its own.
+      </p>
+
+      {/* ── Sowing ─────────────────────────────────────────────────── */}
       <h2 className="figure mt-7 mb-2.5 flex flex-wrap items-baseline gap-2.5 text-[18px] font-semibold">
         🌱 Sowing
         {!when && (
@@ -358,64 +424,6 @@ export default function Crops({
         </p>
       )}
 
-      {/* ── The library ─────────────────────────────────────────────── */}
-      <div className="mb-2.5 flex flex-wrap gap-1.5">
-        {([{ key: "all", label: "All" }, ...CROP_CATEGORIES] as const).map((c) => (
-          <button key={c.key} onClick={() => setCat(c.key as typeof cat)}
-            className={`min-h-11 rounded-full border px-3.5 text-[12.5px] font-medium ${
-              cat === c.key ? "border-ink bg-ink text-paper" : "border-rule active:bg-band"}`}>
-            {c.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap gap-1.5">
-        {CROP_PRESETS.filter((c) => cat === "all" || c.category === cat).map((c) => {
-          const v = verdictOf(c.crop);
-          const tone =
-            v === "comfortable" ? "border-growth/50 bg-growth/8"
-            : v === "tight" ? "border-honey/50 bg-honey/8"
-            : v === "marginal" ? "border-honey/60 bg-honey/12"
-            : v === "too_short" ? "border-clay/40 bg-clay/8 opacity-60"
-            : "border-rule bg-panel";
-          const row = fit?.crops.find((r) => r.crop === c.crop);
-          const w = when?.crops.find((r) => r.crop === c.crop);
-          return (
-            <button key={c.crop} onClick={() => addPreset(c)}
-              title={[
-                row?.note,
-                w && `Seed ${w.start_seed_indoors ? short(w.start_seed_indoors) : "direct"} · out ${w.earliest_out ? short(w.earliest_out) : "—"}`,
-                `${c.gddTarget} GDD ${c.note}, base ${c.baseTempF}°F`,
-              ].filter(Boolean).join(" — ")}
-              className={`flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-[12.5px] active:border-ink ${tone}`}>
-              <span>{c.emoji}</span>
-              <span className="font-medium">{c.crop}</span>
-              <span className="data text-[10.5px] text-ink-soft">{c.gddTarget}</span>
-              {v === "comfortable" && <span className="text-[11px] text-growth">✓</span>}
-              {(v === "tight" || v === "marginal") && <span className="text-[11px] text-honey">⚠</span>}
-              {v === "too_short" && <span className="text-[11px] text-clay">✕</span>}
-              {w?.sow_now && (
-                <span className="rounded-full bg-growth/15 px-1.5 text-[10px] font-semibold text-growth">now</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {fit && (
-        <p className="data mt-2 text-[10.5px] text-ink-soft">
-          <span className="text-growth">✓ finishes comfortably</span>{" · "}
-          <span className="text-honey">⚠ tight — a cool year could take it</span>{" · "}
-          <span className="text-clay">✕ will not finish outdoors here</span>
-        </p>
-      )}
-
-      <p className="mt-2 text-[12px] leading-relaxed text-ink-soft">
-        Tap any crop to add it to the ledger, set out today. These are starting
-        figures, not published agronomy — a corn hybrid is sold by its relative
-        maturity precisely because "corn" has no single number. Edit against
-        your own seed packet, and let field reports teach your ground its own.
-      </p>
     </>
   );
 }
