@@ -30,7 +30,7 @@ const I = (d: ReactNode) => (
 );
 
 export const RAIL: RailItem[] = [
-  { key: "map", label: "Map", ready: false, soon: "Draw your ground — needs the map key",
+  { key: "map", label: "Map", ready: true,
     icon: I(<><path d="M1 6l7-3 8 3 7-3v15l-7 3-8-3-7 3z" /><path d="M8 3v15M16 6v15" /></>) },
   { key: "ledger", label: "Heat Ledger", ready: true,
     icon: I(<><path d="M3 20h18M4 16c3-7 6-9 8-9s5 2 8 9" /></>) },
