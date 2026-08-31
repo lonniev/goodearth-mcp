@@ -8,13 +8,23 @@ feed supplies the region's signal and the elevation field supplies the
 variation across it — see ``downscale`` in ``gdd.py``.
 
 Sources (all free, no API key):
+  - Daymet v4 (NASA ORNL) — daily observed max/min, **1 km**, North America,
+    history only (it lags the current year)
   - Open-Meteo archive    — daily observed max/min, ~9 km (ERA5)
   - Open-Meteo forecast   — 7-day daily max/min, ~2-11 km by model
   - Open-Meteo elevation  — terrain height, ~90 m (SRTM)
+
+Daymet is nine times finer than the reanalysis archive and it shows: three
+points that ERA5 folds into one cell and returns identically for come back
+distinct from Daymet, ordered by their elevation. It cannot replace the
+archive — it carries no current year and no forecast — so it supplies the
+*history*, where frost dates and normals come from, and Open-Meteo supplies
+the running season.
 """
 
 from __future__ import annotations
 
+from datetime import date, timedelta
 from typing import Any
 
 import httpx
@@ -22,6 +32,7 @@ import httpx
 _ARCHIVE = "https://archive-api.open-meteo.com/v1/archive"
 _FORECAST = "https://api.open-meteo.com/v1/forecast"
 _ELEVATION = "https://api.open-meteo.com/v1/elevation"
+_DAYMET = "https://daymet.ornl.gov/single-pixel/api/data"
 
 _TIMEOUT = 30.0
 
@@ -30,6 +41,7 @@ _TIMEOUT = 30.0
 ARCHIVE_RESOLUTION_M = 9_000
 FORECAST_RESOLUTION_M = 11_000
 ELEVATION_RESOLUTION_M = 90
+DAYMET_RESOLUTION_M = 1_000
 
 _US_UNITS = {"temperature_unit": "fahrenheit", "windspeed_unit": "mph"}
 _DAILY = "temperature_2m_max,temperature_2m_min"
@@ -386,3 +398,116 @@ def daily_block(record: dict[str, Any]) -> dict[str, list[Any]]:
     if not isinstance(daily, dict):
         raise UpstreamError("record has no daily block")
     return {k: (v if isinstance(v, list) else []) for k, v in daily.items()}
+
+
+# ── Daymet (NASA ORNL), 1 km daily history ───────────────────────────────
+#
+# Two properties of this feed will produce confidently wrong numbers if they
+# are not guarded, and neither announces itself as an error.
+
+
+def daymet_date(year: int, yday: int) -> str:
+    """Daymet's ``yday`` as a civil date.
+
+    Every Daymet year is 365 days: it drops **December 31** from leap years
+    rather than carrying a 366th record. February 29 is present and is day
+    60, so ``yday`` is the true civil day-of-year and this is a plain offset
+    from January 1 in every year.
+
+    That is worth stating because the obvious "fix" — special-casing leap
+    years to shift days after February — is wrong, and would silently slide
+    a whole leap season by one day. Verified against the live feed: 2024
+    returns 58,59,60,61 for Feb 27, Feb 28, Feb 29, Mar 1.
+    """
+    return (date(year, 1, 1) + timedelta(days=yday - 1)).isoformat()
+
+
+def parse_daymet_csv(text: str, start: str, end: str) -> tuple[list[str], list[float], list[float]]:
+    """Daymet's CSV as dates and °F, or raise if it is not what we asked for.
+
+    **Daymet fails by over-returning.** A request outside its coverage does
+    not error: it answers 200 with the entire 1980-onward record, roughly
+    16,800 rows. Code that trusted the response would build "this season"
+    out of forty-odd concatenated years and report a plausible number with
+    no sign anything went wrong.
+
+    So the span is checked rather than assumed, and the check is a
+    containment test rather than a row count: it stays correct as Daymet
+    publishes new years, where a hardcoded cutoff would rot.
+    """
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if line.startswith("year,yday"):
+            header, rows = line, lines[i + 1:]
+            break
+    else:
+        raise UpstreamError("Daymet returned no data header")
+
+    cols = [c.strip() for c in header.split(",")]
+    try:
+        i_max = next(i for i, c in enumerate(cols) if c.startswith("tmax"))
+        i_min = next(i for i, c in enumerate(cols) if c.startswith("tmin"))
+    except StopIteration as exc:
+        raise UpstreamError(f"Daymet is missing tmax/tmin: {header}") from exc
+
+    dates: list[str] = []
+    tmax: list[float] = []
+    tmin: list[float] = []
+    for row in rows:
+        parts = row.split(",")
+        if len(parts) <= max(i_max, i_min):
+            continue
+        try:
+            iso = daymet_date(int(float(parts[0])), int(float(parts[1])))
+            hi, lo = float(parts[i_max]), float(parts[i_min])
+        except (ValueError, IndexError):
+            continue
+        dates.append(iso)
+        tmax.append(_c_to_f(hi))
+        tmin.append(_c_to_f(lo))
+
+    if not dates:
+        raise UpstreamError("Daymet returned a header but no rows")
+    if dates[0] < start or dates[-1] > end:
+        raise UpstreamError(
+            f"Daymet answered {dates[0]}..{dates[-1]} for a request of {start}..{end} — "
+            "this is how it reports a span it does not cover, and the extra years "
+            "must not be read as data"
+        )
+    return dates, tmax, tmin
+
+
+def _c_to_f(c: float) -> float:
+    """Daymet publishes Celsius; every other feed here is already °F."""
+    return c * 9.0 / 5.0 + 32.0
+
+
+async def fetch_daymet_history(lat: float, lon: float, start: str, end: str) -> dict[str, Any]:
+    """Observed daily max/min °F for one point at 1 km, ``start``..``end``.
+
+    One point per request — unlike Open-Meteo this feed takes no coordinate
+    list, so a region costs one round trip per sampled cell. Cluster before
+    calling.
+    """
+    params = {
+        "lat": f"{lat:.5f}",
+        "lon": f"{lon:.5f}",
+        "vars": "tmax,tmin",
+        "start": start,
+        "end": end,
+    }
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        try:
+            resp = await client.get(_DAYMET, params=params)
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise UpstreamError(f"Daymet returned HTTP {exc.response.status_code}") from exc
+        except httpx.HTTPError as exc:
+            raise UpstreamError(f"Daymet unreachable: {exc}") from exc
+
+    dates, tmax, tmin = parse_daymet_csv(resp.text, start, end)
+    return {
+        "source": "Daymet v4 (NASA ORNL)",
+        "resolution_m": DAYMET_RESOLUTION_M,
+        "daily": {"time": dates, "temperature_2m_max": tmax, "temperature_2m_min": tmin},
+    }
