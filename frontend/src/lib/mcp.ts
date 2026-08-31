@@ -820,3 +820,53 @@ export interface FrostWindowResult {
 export async function frostWindow(region: Region): Promise<FrostWindowResult> {
   return callTool<FrostWindowResult>("frost_window", { region });
 }
+
+
+export interface PlantingStatus {
+  crop: string;
+  set_out: string;
+  days_since_set_out?: number;
+  gdd_target: number;
+  gdd_accumulated?: number;
+  gdd_remaining?: number;
+  progress?: number;
+  recent_rate_gdd_per_day?: number;
+  projected_date: string | null;
+  state: "past_target" | "on_pace" | "stalled" | "not_yet_planted";
+  base_temp_f?: number;
+  note: string;
+  finish: {
+    verdict: "finished" | "finishes" | "wont_finish" | "unknown";
+    projected_date?: string;
+    median_frost?: string;
+    margin_days?: number;
+    at_risk_of_early_frost?: boolean;
+    gdd_shortfall?: number | null;
+    note: string;
+  };
+}
+
+export interface CropLedgerResult {
+  success: boolean;
+  error?: string;
+  error_code?: string;
+  as_of: string;
+  region: RegionDescription;
+  first_frost: { median: string; earliest: string; latest: string; years_on_record: number } | null;
+  plantings: PlantingStatus[];
+  wont_finish: string[];
+  summary: string;
+  note: string;
+}
+
+/// Where every planting on a block stands. One call answers the whole ledger —
+/// the season curve and frost record are shared across plantings server-side.
+export async function cropGddStatus(
+  region: Region,
+  plantings: { crop: string; gdd_target: number; set_out: string; base_temp?: number }[],
+  baseTemp = 50,
+): Promise<CropLedgerResult> {
+  return callTool<CropLedgerResult>("crop_gdd_status", {
+    region, plantings, base_temp: baseTemp,
+  });
+}

@@ -21,6 +21,9 @@ from tollbooth.runtime import OperatorRuntime, register_standard_tools
 from tollbooth.tool_identity import STANDARD_IDENTITIES, ToolIdentity
 
 from goodearth_mcp import __version__, season, sources
+from goodearth_mcp.crop_status import LedgerError
+from goodearth_mcp.crop_status import region_crop_ledger as crop_ledger_impl
+from goodearth_mcp.crops import CropError
 from goodearth_mcp.frost_window import FrostError
 from goodearth_mcp.frost_window import region_frost_window as frost_window_impl
 from goodearth_mcp.region import RegionError, parse_region
@@ -66,7 +69,7 @@ FROST_WINDOW_UUID          = "2b611018-f61d-5d72-bc8e-27abb605b669"
 DLI_CURVE_UUID             = "b111cfd0-1bef-5cf4-907c-37bbf8d2d96a"  # T3
 WATER_BALANCE_UUID         = "c4ec3643-1e8b-59bc-a239-82353c4a0f52"  # T3
 SOIL_TEMP_PROJECTION_UUID  = "03764cdc-c9d9-5396-9eb1-9b7f56da08f6"  # T4
-CROP_GDD_STATUS_UUID       = "a8f72831-77df-57d4-9e6a-dcf81b06832e"  # T4
+CROP_GDD_STATUS_UUID       = "a8f72831-77df-57d4-9e6a-dcf81b06832e"
 FINISH_BEFORE_FROST_UUID   = "b5f11328-8d8f-58db-ba89-11f8cbcc3314"  # T4
 PEST_THRESHOLD_UUID        = "79463a63-2076-5376-a357-673c4adb33f0"  # T5
 CALIBRATION_UUID           = "2e7c72db-e886-53be-b948-bcc97a57986d"  # T6
@@ -83,6 +86,12 @@ _DOMAIN_TOOLS = [
         capability="frost_window",
         category="read",
         intent="First-frost dates for a region, and this week's risk to its coldest ground",
+    ),
+    ToolIdentity(
+        tool_id=CROP_GDD_STATUS_UUID,
+        capability="crop_gdd_status",
+        category="heavy",
+        intent="Heat to target and projected date for every planting on a block, with a frost verdict",
     ),
 ]
 
@@ -241,6 +250,67 @@ async def frost_window(
         return {"success": False, "error": str(exc), "error_code": "invalid_request"}
     except (sources.UpstreamError, OSError) as exc:
         logger.warning("frost_window failed: %s", exc)
+        return {
+            "success": False,
+            "error": f"A weather feed did not answer: {exc}",
+            "error_code": "upstream_unavailable",
+        }
+
+
+@tool
+@runtime.paid_tool(CROP_GDD_STATUS_UUID)
+async def crop_gdd_status(
+    region: Annotated[
+        dict[str, Any],
+        Field(description="GeoJSON Polygon or {lat, lon, radius_m} — the ground these plantings are on."),
+    ],
+    plantings: Annotated[
+        list[dict[str, Any]],
+        Field(
+            description=(
+                "The block's plantings. Each is "
+                '{"crop": "Lisianthus", "gdd_target": 1050, "set_out": "2026-07-06"} '
+                'with an optional "base_temp" in °F when the crop counts from '
+                "something other than the block default."
+            ),
+        ),
+    ],
+    base_temp: Annotated[
+        float,
+        Field(description="Default base temperature in °F for plantings that do not set their own."),
+    ] = 50.0,
+    npub: Annotated[
+        str,
+        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
+    ] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """Where every planting on a block stands, and whether it finishes before frost.
+
+    Returns, per planting: heat accumulated since set-out against its target,
+    the projected date it reaches that target at the season's recent rate, and
+    a verdict on whether that lands before the median first frost.
+
+    One call answers the whole block. The season curve and the frost record are
+    shared across plantings, so asking about eight beds costs one round trip
+    rather than eight.
+
+    Args:
+        region: GeoJSON Polygon or {lat, lon, radius_m}.
+        plantings: The block's plantings.
+        base_temp: Default base temperature in °F.
+    """
+    try:
+        parsed = parse_region(region)
+    except RegionError as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+
+    try:
+        return await crop_ledger_impl(parsed, plantings, base_temp)
+    except (LedgerError, CropError) as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_request"}
+    except (sources.UpstreamError, OSError) as exc:
+        logger.warning("crop_gdd_status failed: %s", exc)
         return {
             "success": False,
             "error": f"A weather feed did not answer: {exc}",
