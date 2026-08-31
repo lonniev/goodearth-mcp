@@ -184,7 +184,7 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost, onView
           tone={ahead == null ? undefined : ahead >= 0 ? "growth" : "frost"}
           label={
             data?.normals
-              ? `${ahead == null ? "vs" : ahead >= 0 ? "ahead of" : "behind"} ${data.normals.span_years} seasons`
+              ? `${ahead == null ? "vs" : ahead >= 0 ? "ahead of" : "behind"} ${data.normals.span_years} seasons${bandScale(data)}`
               : "vs recent seasons"
           }
         />
@@ -379,6 +379,20 @@ function frostIndex(curve: SeasonCurveResult, frost: FrostWindowResult | null): 
 
 const shortDate = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+/// The grid the normal band was actually read from, as a short suffix.
+///
+/// The band prefers a 1 km feed and falls back to the 9 km reanalysis when
+/// that feed cannot answer, so which one produced this number varies between
+/// calls. References describes both; only the response knows which ran, and a
+/// comparison against a band is worth little without the grid it was measured
+/// on.
+function bandScale(data: SeasonCurveResult | null): string {
+  const band = data?.sources?.find((s) => s.role.includes("normal band"));
+  if (!band) return "";
+  const m = band.resolution_m;
+  return m >= 1000 ? ` · ${Math.round(m / 1000)} km band` : ` · ${m} m band`;
+}
 
 /// Where this season sits inside the ten-season range, as a 0..1 position.
 /// The number says how much heat; this says whether that is a lot.

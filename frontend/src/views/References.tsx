@@ -12,9 +12,16 @@ const SOURCES: {
   name: string; url: string; role: string; resolution: string; note: string;
 }[] = [
   {
+    name: "Daymet v4 — daily surface weather (NASA ORNL)",
+    url: "https://daymet.ornl.gov/",
+    role: "Past seasons for the normal band: the ten-season record every 'ahead of normal' reading is measured against.",
+    resolution: "1 km",
+    note: "Nine times finer than the reanalysis, and it shows — three points that ERA5 returns one number for come back distinct here, ordered by elevation. It carries no forecast and lags the current year (coverage runs 1980 to 2025), so it serves history only and Good Earth falls back to the reanalysis, and says so, when Daymet cannot answer. Two of its habits are guarded rather than trusted: a request outside its coverage answers 200 with the whole 46-year record instead of an error, and every year is 365 days because it drops 31 December from leap years.",
+  },
+  {
     name: "Open-Meteo — historical reanalysis (ERA5)",
     url: "https://open-meteo.com/en/docs/historical-weather-api",
-    role: "Observed daily max/min, dew point, rain, wind, sunshine, soil temperature. Every season curve, frost record and heat budget rests on this.",
+    role: "The running season: observed daily max/min, dew point, rain, wind, sunshine and soil temperature up to today. The normal band it is measured against comes from Daymet.",
     resolution: "≈ 9 km",
     note: "Reanalysis, not a station reading. It is a model's best estimate of what the weather was, which is why two points on one farm return identical numbers.",
   },
@@ -28,9 +35,9 @@ const SOURCES: {
   {
     name: "Open-Meteo — elevation (SRTM)",
     url: "https://open-meteo.com/en/docs/elevation-api",
-    role: "Terrain height at each sample point. This is the ONLY feed that resolves within a single farm, so it carries the whole burden of region spread.",
+    role: "Terrain height at each sample point. A working field sits inside one Daymet pixel, so within a single farm this is still the only feed that resolves anything, and it carries the whole burden of region spread.",
     resolution: "≈ 90 m",
-    note: "Finer than PRISM's 800 m, and a single batched JSON call.",
+    note: "Finer than PRISM's 800 m and than Daymet's 1 km, and a single batched JSON call. Between farms Daymet now resolves real differences; inside one, this is what does.",
   },
   {
     name: "Esri World Imagery",
@@ -92,6 +99,11 @@ const MODELS: { title: string; body: string; assumption: string }[] = [
     title: "Soil crossings",
     body: "The first date the soil holds the new side of a threshold for five consecutive days, searched only within the half of the year the crossing belongs to.",
     assumption: "A one-day dip is weather, not a season turning. Both rules are needed: a five-day cool spell in June is real and is still not the autumn crossing.",
+  },
+  {
+    title: "The normal band",
+    body: "The last ten seasons at the region centroid, accumulated the same way and over the same calendar window as the running season, so 'ahead' and 'behind' compare like with like. It is read from Daymet at 1 km rather than from the 9 km reanalysis the current season uses.",
+    assumption: "The two feeds do not agree, and the finer one is preferred. Over the same decade at one Vermont farm the reanalysis reports mean daily highs of 55.4°F against Daymet's 57.4, and lows of 40.3 against 37.7 — cooler days and warmer nights, which is what a 9 km cell does when it averages terrain and, on a lakeshore, water together. Because degree days are clamped at the base, the warmer nights buy nothing back and the cooler days pass through undiluted: the coarse feed reads about 75 GDD low over a season here. Mixing feeds is a real cost — a season measured on one grid against a band measured on another — and it is accepted because the band is a claim about THIS ground across ten years, where resolution matters most. When Daymet cannot answer, the band falls back to the reanalysis and the page says which feed was used.",
   },
   {
     title: "Projections",
