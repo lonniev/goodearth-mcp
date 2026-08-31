@@ -5,7 +5,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { emojiFor, plantingDateFor } from "./plantings.ts";
+import { CROP_PRESETS, emojiFor, plantingDateFor } from "./plantings.ts";
 
 describe("emojiFor — marks a row without guessing", () => {
   it("matches a preset by name", () => {
@@ -64,5 +64,46 @@ describe("plantingDateFor — never backdates the heat", () => {
 
   it("does not treat today's own date as ahead", () => {
     assert.equal(plantingDateFor(today, today), today);
+  });
+});
+
+describe("CROP_PRESETS — invariants the UI relies on", () => {
+  it("has no duplicate crop name", () => {
+    // The name is the React key AND the join key against the tool's rows.
+    // A duplicate shadows silently: one chiclet renders, the other's verdict
+    // is quietly the first one's.
+    const seen = new Map<string, number>();
+    for (const c of CROP_PRESETS) seen.set(c.crop, (seen.get(c.crop) ?? 0) + 1);
+    const dupes = [...seen].filter(([, n]) => n > 1).map(([k]) => k);
+    assert.deepEqual(dupes, []);
+  });
+
+  it("gives every preset a target, a base and a category", () => {
+    for (const c of CROP_PRESETS) {
+      assert.ok(c.gddTarget > 0, `${c.crop} has no target`);
+      assert.ok(c.baseTempF > 0, `${c.crop} has no base`);
+      assert.ok(c.emoji, `${c.crop} has no icon`);
+      assert.ok(c.note, `${c.crop} has no note`);
+    }
+  });
+
+  it("never marks a crop both frost-hardy and warm-soil", () => {
+    // Contradictory flags would put a crop out before the last frost and then
+    // hold it back for 60°F soil — two rules that cannot both be the answer.
+    for (const c of CROP_PRESETS) {
+      if (c.frostHardy) {
+        assert.ok((c.minSoilF ?? 0) <= 55,
+          `${c.crop} is frost-hardy but waits on ${c.minSoilF}°F soil`);
+      }
+    }
+  });
+
+  it("keeps the flower bench worth calling a bench", () => {
+    // It shipped with six, which said more about who wrote the list than
+    // about what grows in a cold-climate cut garden.
+    const flowers = CROP_PRESETS.filter((c) => c.category === "flower");
+    assert.ok(flowers.length >= 20, `only ${flowers.length} flowers`);
+    assert.ok(flowers.some((c) => c.frostHardy), "no hardy annuals");
+    assert.ok(flowers.some((c) => !c.frostHardy), "no tender annuals");
   });
 });

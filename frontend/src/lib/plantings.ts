@@ -155,6 +155,78 @@ export const CROP_PRESETS: CropPreset[] = [
     category: "flower", note: "to cut stage", frostHardy: true,
     startIndoorsWeeks: 8, minSoilF: 45 },
 
+  // The bench above was six deep because the field list got the attention, not
+  // because six flowers grow here. What follows is the hardy/tender annual
+  // bench a cold-climate cut-flower grower actually plants.
+  //
+  // ANNUALS ONLY, deliberately. This model rates "does it finish before frost",
+  // which is a question only something that must finish in one season can be
+  // asked. A peony blooms in its third year off chill and establishment, and a
+  // tulip is set by what it did in the bulb last summer; giving either a
+  // gddTarget would invent a number the plant does not answer to. They are
+  // absent because the model does not fit them, not because they do not grow.
+
+  // ── Hardy annuals — go out around the last frost, base 40 ──────────────
+  { crop: "Bachelor's button", gddTarget: 700, baseTempF: 40, emoji: "🪻",
+    category: "flower", note: "to cut stage from sow", frostHardy: true,
+    directSow: true, minSoilF: 45 },
+  { crop: "Larkspur", gddTarget: 900, baseTempF: 40, emoji: "🪻",
+    category: "flower", note: "wants a cold start, to cut", frostHardy: true,
+    directSow: true, minSoilF: 40 },
+  { crop: "Nigella", gddTarget: 700, baseTempF: 40, emoji: "🌼",
+    category: "flower", note: "to cut stage from sow", frostHardy: true,
+    directSow: true, minSoilF: 45 },
+  { crop: "Sweet pea", gddTarget: 800, baseTempF: 40, emoji: "🌸",
+    category: "flower", note: "to first cut", frostHardy: true,
+    directSow: true, minSoilF: 45 },
+  { crop: "Bells of Ireland", gddTarget: 950, baseTempF: 40, emoji: "🍃",
+    category: "flower", note: "slow to germinate, to cut", frostHardy: true,
+    startIndoorsWeeks: 8, minSoilF: 45 },
+  { crop: "Stock", gddTarget: 900, baseTempF: 40, emoji: "💐",
+    category: "flower", note: "cool season, to cut", frostHardy: true,
+    startIndoorsWeeks: 8, minSoilF: 45 },
+  { crop: "Scabiosa", gddTarget: 850, baseTempF: 40, emoji: "🌸",
+    category: "flower", note: "to cut stage", frostHardy: true,
+    startIndoorsWeeks: 6, minSoilF: 50 },
+  { crop: "Ammi", gddTarget: 1000, baseTempF: 40, emoji: "🌼",
+    category: "flower", note: "false Queen Anne's lace, to cut", frostHardy: true,
+    startIndoorsWeeks: 8, minSoilF: 45 },
+  { crop: "Rudbeckia", gddTarget: 1000, baseTempF: 40, emoji: "🌻",
+    category: "flower", note: "to cut stage", frostHardy: true,
+    startIndoorsWeeks: 8, minSoilF: 50 },
+  { crop: "Sweet William", gddTarget: 950, baseTempF: 40, emoji: "🌺",
+    category: "flower", note: "annual types, to cut", frostHardy: true,
+    startIndoorsWeeks: 8, minSoilF: 50 },
+  { crop: "Feverfew", gddTarget: 1050, baseTempF: 40, emoji: "🌼",
+    category: "flower", note: "to cut stage", frostHardy: true,
+    startIndoorsWeeks: 8, minSoilF: 50 },
+
+  // ── Tender annuals — wait on frost and on soil, base 50 ────────────────
+  { crop: "Cosmos", gddTarget: 850, baseTempF: 50, emoji: "🌸",
+    category: "flower", note: "to cut stage from sow",
+    directSow: true, minSoilF: 60 },
+  { crop: "Sunflower · cut", gddTarget: 700, baseTempF: 50, emoji: "🌻",
+    category: "flower", note: "single-stem, to cut",
+    directSow: true, minSoilF: 55 },
+  { crop: "Amaranth", gddTarget: 1000, baseTempF: 50, emoji: "🌾",
+    category: "flower", note: "to cut stage",
+    startIndoorsWeeks: 4, minSoilF: 65 },
+  { crop: "Gomphrena", gddTarget: 950, baseTempF: 50, emoji: "🌺",
+    category: "flower", note: "to cut stage",
+    startIndoorsWeeks: 6, minSoilF: 65 },
+  { crop: "Strawflower", gddTarget: 850, baseTempF: 50, emoji: "🌼",
+    category: "flower", note: "to cut stage",
+    startIndoorsWeeks: 5, minSoilF: 60 },
+  { crop: "Marigold", gddTarget: 800, baseTempF: 50, emoji: "🌼",
+    category: "flower", note: "African types, to cut",
+    startIndoorsWeeks: 5, minSoilF: 60 },
+  { crop: "Ageratum", gddTarget: 900, baseTempF: 50, emoji: "🪻",
+    category: "flower", note: "tall types, to cut",
+    startIndoorsWeeks: 6, minSoilF: 60 },
+  { crop: "Statice", gddTarget: 1000, baseTempF: 50, emoji: "🪻",
+    category: "flower", note: "to cut stage",
+    startIndoorsWeeks: 8, minSoilF: 55 },
+
   // ── Cover ──────────────────────────────────────────────────────────────
   { crop: "Winter rye", gddTarget: 900, baseTempF: 38, emoji: "🌾",
     category: "cover", note: "autumn sown, to overwinter", frostHardy: true,
