@@ -255,3 +255,15 @@ const SEEDLING = "\u{1F331}";
 function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+
+
+/// The date a planting added from a sowing row should carry.
+///
+/// The row's whole point is its out date, so that is the date to use — but
+/// only while it is still ahead. A window that opened in April cannot be when
+/// an August tap put the crop in the ground, and dating it there would
+/// backdate the heat the ledger goes on to count against the target. Both
+/// arguments are YYYY-MM-DD, which compares correctly as text.
+export function plantingDateFor(earliestOut: string | null | undefined, today: string): string {
+  return earliestOut && earliestOut > today ? earliestOut : today;
+}

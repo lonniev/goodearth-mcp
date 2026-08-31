@@ -5,7 +5,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { emojiFor } from "./plantings.ts";
+import { emojiFor, plantingDateFor } from "./plantings.ts";
 
 describe("emojiFor — marks a row without guessing", () => {
   it("matches a preset by name", () => {
@@ -39,5 +39,30 @@ describe("emojiFor — marks a row without guessing", () => {
     // "Field corn" and "Silage corn" both end in corn; the row says which.
     assert.equal(emojiFor("Silage corn"), "🌽");
     assert.equal(emojiFor("Field corn · long season"), "🌽");
+  });
+});
+
+describe("plantingDateFor — never backdates the heat", () => {
+  const today = "2026-08-31";
+
+  it("takes the out date while the window is still ahead", () => {
+    assert.equal(plantingDateFor("2026-09-15", today), "2026-09-15");
+  });
+
+  it("falls back to today once the window has passed", () => {
+    // Garlic's window opened in April. An August tap did not plant it then,
+    // and dating it there would hand the ledger five months of heat the crop
+    // was never in the ground for.
+    assert.equal(plantingDateFor("2026-04-06", today), today);
+  });
+
+  it("uses today when the row has no out date", () => {
+    assert.equal(plantingDateFor(null, today), today);
+    assert.equal(plantingDateFor(undefined, today), today);
+    assert.equal(plantingDateFor("", today), today);
+  });
+
+  it("does not treat today's own date as ahead", () => {
+    assert.equal(plantingDateFor(today, today), today);
   });
 });

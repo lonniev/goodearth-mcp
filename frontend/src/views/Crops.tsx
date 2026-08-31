@@ -13,8 +13,7 @@ import { cropGddStatus, cropSuitability, plantingWindow, type CropLedgerResult,
   type PlantingWindowResult, type SuitabilityResult, type Verdict } from "../lib/mcp";
 import {
   CROP_CATEGORIES, CROP_PRESETS, deletePlanting, listPlantings, makePlanting,
-  savePlanting, type CropPreset, type Planting,
-} from "../lib/plantings";
+  savePlanting, type CropPreset, type Planting, plantingDateFor } from "../lib/plantings";
 import type { SavedRegion } from "../lib/regions";
 
 const short = (iso: string) =>
@@ -32,6 +31,8 @@ export default function Crops({
   const [error, setError] = useState("");
   const [ranAt, setRanAt] = useState<Date | null>(null);
   const [formErr, setFormErr] = useState("");
+  /// What the last row-click put on the ledger, so a tap is not silent.
+  const [added, setAdded] = useState("");
   const [fit, setFit] = useState<SuitabilityResult | null>(null);
   const [fitAt, setFitAt] = useState<Date | null>(null);
   const [fitBusy, setFitBusy] = useState(false);
@@ -84,6 +85,18 @@ export default function Crops({
   /// Add straight from a chiclet. The set-out defaults to today, which is
   /// right far more often than an empty field is — a grower tapping a crop is
   /// usually putting it in now.
+  /// Add straight from a sowing row. See plantingDateFor for the date rule.
+  function addFromWindow(row: { crop: string; earliest_out?: string | null }) {
+    const c = CROP_PRESETS.find((x) => x.crop === row.crop);
+    if (!c) return;
+    const on = plantingDateFor(row.earliest_out, new Date().toISOString().slice(0, 10));
+    const made = makePlanting(c.crop, c.gddTarget, on, region.id, c.baseTempF);
+    if (typeof made === "string") { setFormErr(made); return; }
+    setFormErr("");
+    setPlantings(savePlanting(made).filter((p) => p.regionId === region.id));
+    setAdded(`${c.emoji} ${c.crop} — on the ledger, dated ${short(on)}.`);
+  }
+
   function addPreset(c: CropPreset) {
     const made = makePlanting(
       c.crop, c.gddTarget, new Date().toISOString().slice(0, 10), region.id, c.baseTempF,
@@ -117,6 +130,18 @@ export default function Crops({
   const verdictOf = (crop: string): Verdict | null =>
     fit?.crops.find((r) => r.crop === crop)?.verdict ?? null;
 
+  // Four copies of a class string is how the date input ended up a different
+  // height from its neighbours: Safari sizes it from its own shadow content
+  // unless told otherwise, and the copy nobody thought to update was the one
+  // that needed the extra rules. One definition, so they cannot drift again.
+  const FIELD = [
+    "mt-0.5 h-11 w-full appearance-none rounded border border-rule bg-white px-2.5",
+    "text-[16px] text-ink focus:border-honey focus:outline-none",
+    "[&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:h-full",
+    "[&::-webkit-date-and-time-value]:text-left",
+    "[&::-webkit-calendar-picker-indicator]:opacity-50",
+  ].join(" ");
+
   function add(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
@@ -136,10 +161,7 @@ export default function Crops({
 
   return (
     <>
-      <div className="mb-3.5 flex items-baseline gap-3">
-        <h1 className="figure text-[26px] font-bold">Crops</h1>
-        <span className="text-[13px] text-ink-soft">{region.name}</span>
-      </div>
+      <h1 className="figure mb-3.5 text-[22px] font-bold">Crops</h1>
 
       {error && (
         <div className="mb-4 rounded-md border border-clay/30 bg-clay/10 p-3 text-[13px] text-clay">{error}</div>
@@ -182,22 +204,22 @@ export default function Crops({
           <label className="block text-[11px] text-ink-soft">
             Crop
             <input name="crop" list="ge-crop-presets" placeholder="Zinnia · succession 4"
-              className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] text-ink focus:border-honey focus:outline-none" />
+              className={FIELD} />
           </label>
           <label className="block text-[11px] text-ink-soft">
             GDD target
             <input name="target" inputMode="numeric" placeholder="780"
-              className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] text-ink focus:border-honey focus:outline-none" />
+              className={FIELD} />
           </label>
           <label className="block text-[11px] text-ink-soft">
-            Set out
+            Planted <span className="opacity-60">(set out or sown)</span>
             <input name="setout" type="date"
-              className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] text-ink focus:border-honey focus:outline-none" />
+              className={FIELD} />
           </label>
           <label className="block text-[11px] text-ink-soft">
             Base °F <span className="opacity-60">(optional)</span>
             <input name="base" inputMode="numeric" placeholder={String(region.baseTempF)}
-              className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] text-ink focus:border-honey focus:outline-none" />
+              className={FIELD} />
           </label>
         </div>
 
@@ -214,7 +236,7 @@ export default function Crops({
 
       {/* ── What grows here ─────────────────────────────────────────── */}
       <h2 className="figure mt-7 mb-2.5 flex flex-wrap items-baseline gap-2.5 text-[18px] font-semibold">
-        🌾 What grows here
+        🌾 Grows here
         {!fit && (
           <button onClick={checkFit} disabled={fitBusy}
             className="min-h-11 rounded-full border-[1.5px] border-ink px-4 text-[12.5px] font-semibold active:bg-ink active:text-paper disabled:opacity-40">
@@ -245,7 +267,7 @@ export default function Crops({
 
       {/* ── When it goes in ─────────────────────────────────────────── */}
       <h2 className="figure mt-7 mb-2.5 flex flex-wrap items-baseline gap-2.5 text-[18px] font-semibold">
-        🌱 When to sow
+        🌱 Sowing
         {!when && (
           <button onClick={checkWhen} disabled={whenBusy}
             className="min-h-11 rounded-full border-[1.5px] border-ink px-4 text-[12.5px] font-semibold active:bg-ink active:text-paper disabled:opacity-40">
@@ -288,8 +310,16 @@ export default function Crops({
               <tbody>
                 {when.crops.filter((r) => cat === "all" ||
                   CROP_PRESETS.find((c) => c.crop === r.crop)?.category === cat).map((r) => (
-                  <tr key={r.crop} className={`border-b border-rule last:border-b-0 ${
-                    r.state === "will_not_fit" ? "opacity-50" : ""}`}>
+                  <tr key={r.crop}
+                    onClick={() => addFromWindow(r)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); addFromWindow(r); }
+                    }}
+                    tabIndex={0}
+                    role="button"
+                    title={`Add ${r.crop} to the ledger`}
+                    className={`cursor-pointer border-b border-rule last:border-b-0 hover:bg-band/60 focus:bg-band/60 focus:outline-none ${
+                      r.state === "will_not_fit" ? "opacity-50" : ""}`}>
                     <td className="px-3 py-2.5 font-semibold whitespace-nowrap">{r.emoji} {r.crop}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap">{r.start_seed_indoors ? short(r.start_seed_indoors) : <span className="text-ink-soft">direct sow</span>}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap">{r.earliest_out ? short(r.earliest_out) : "—"}</td>
@@ -307,6 +337,9 @@ export default function Crops({
               </tbody>
             </table>
           </div>
+          <p className="mb-2 text-[12px] text-ink-soft">
+            {added || "Tap a row to put that crop on the ledger at its own out date."}
+          </p>
           <p className="mb-4 text-[12px] leading-relaxed text-ink-soft">
             A tender crop's "out" date is the <b>median</b> last frost — half of
             seasons frost later than that, so it is a coin toss rather than a
