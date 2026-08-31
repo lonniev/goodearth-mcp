@@ -38,6 +38,9 @@ from goodearth_mcp.region import RegionError, parse_region
 from goodearth_mcp.soil import SoilError
 from goodearth_mcp.soil_window import SoilWindowError
 from goodearth_mcp.soil_window import region_soil_window as soil_window_impl
+from goodearth_mcp.suitability import SuitabilityError
+from goodearth_mcp.suitability_window import SuitabilityWindowError
+from goodearth_mcp.suitability_window import region_suitability as suitability_impl
 from goodearth_mcp.wildlife import WildlifeError
 from goodearth_mcp.wildlife_window import WildlifeWindowError
 from goodearth_mcp.wildlife_window import region_wildlife as wildlife_impl
@@ -89,6 +92,7 @@ PEST_THRESHOLD_UUID        = "79463a63-2076-5376-a357-673c4adb33f0"
 CALIBRATION_UUID           = "2e7c72db-e886-53be-b948-bcc97a57986d"
 ALMANAC_UUID               = "ca2ca4ce-69ed-559a-9a7d-12425716dbae"
 WILDLIFE_CALENDAR_UUID     = "b8948acf-27c1-5e72-aeae-b7029567f364"
+CROP_SUITABILITY_UUID      = "bc6ad258-8f9f-5769-a32a-63d817d23ce8"
 
 _DOMAIN_TOOLS = [
     ToolIdentity(
@@ -138,6 +142,12 @@ _DOMAIN_TOOLS = [
         capability="wildlife_calendar",
         category="read",
         intent="When a grower's own wildlife events arrive on this ground — heat, daylight or calendar driven",
+    ),
+    ToolIdentity(
+        tool_id=CROP_SUITABILITY_UUID,
+        capability="crop_suitability",
+        category="read",
+        intent="Which crops finish on this ground, measured against its own frost-free heat budget",
     ),
 ]
 
@@ -640,6 +650,63 @@ async def wildlife_calendar(
         return {"success": False, "error": str(exc), "error_code": "invalid_request"}
     except (sources.UpstreamError, OSError) as exc:
         logger.warning("wildlife_calendar failed: %s", exc)
+        return {"success": False, "error": f"A weather feed did not answer: {exc}",
+                "error_code": "upstream_unavailable"}
+
+
+@tool
+@runtime.paid_tool(CROP_SUITABILITY_UUID)
+async def crop_suitability(
+    region: Annotated[
+        dict[str, Any],
+        Field(description="GeoJSON Polygon or {lat, lon, radius_m}."),
+    ],
+    crops: Annotated[
+        list[dict[str, Any]],
+        Field(
+            description=(
+                "The crops to judge, with your own requirements. Each is "
+                '{"crop": "Field corn", "gdd_target": 2600, "base_temp": 50} '
+                'with optional "frost_hardy", "category" and "emoji".'
+            ),
+        ),
+    ],
+    npub: Annotated[
+        str,
+        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
+    ] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """Which crops finish on this ground, and with how much room to spare.
+
+    "What can I grow?" is not a lookup. Two farms in the same county, one on a
+    bench and one in a hollow, have different answers — so this measures the
+    block's own frost-free window and the heat it accumulates inside it, then
+    judges each crop's requirement against that.
+
+    The answer that matters is not yes or no but MARGIN: how much season is
+    left after the crop is done, in the days a grower plans in. A crop that
+    finishes on the last warm day of an average year fails in half of them.
+
+    Requirements are yours. Published degree-day figures vary by cultivar and
+    maturity group; Good Earth computes against your ground rather than
+    publishing agronomy.
+
+    Args:
+        region: GeoJSON Polygon or {lat, lon, radius_m}.
+        crops: The crops to judge.
+    """
+    try:
+        parsed = parse_region(region)
+    except RegionError as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+
+    try:
+        return await suitability_impl(parsed, crops)
+    except (SuitabilityWindowError, SuitabilityError) as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_request"}
+    except (sources.UpstreamError, OSError) as exc:
+        logger.warning("crop_suitability failed: %s", exc)
         return {"success": False, "error": f"A weather feed did not answer: {exc}",
                 "error_code": "upstream_unavailable"}
 

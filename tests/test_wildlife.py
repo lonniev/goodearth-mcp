@@ -170,3 +170,61 @@ def test_events_beyond_the_window_are_not_due_soon():
 def test_already_happened_is_not_due_soon():
     rows = [{"species": "x", "reached_on": "2026-04-01", "projected_date": None}]
     assert w.upcoming(rows, TODAY) == []
+
+
+# ── Interval clock: livestock ────────────────────────────────────────────
+
+
+def test_an_interval_event_validates():
+    e = w.validate_event({"species": "Ewes", "event": "lambing", "driver": "interval",
+                          "from": "2026-10-01", "days": 147})
+    assert e["days"] == 147 and e["from"] == date(2026, 10, 1)
+
+
+@pytest.mark.parametrize("d", [0, -5, 5000, "many", None])
+def test_impossible_intervals_are_rejected(d):
+    with pytest.raises(w.WildlifeError):
+        w.validate_event({"species": "X", "event": "y", "driver": "interval",
+                          "from": "2026-10-01", "days": d})
+
+
+def test_an_interval_without_a_start_date_is_rejected():
+    with pytest.raises(w.WildlifeError):
+        w.validate_event({"species": "X", "event": "y", "driver": "interval", "days": 147})
+
+
+def test_a_bad_start_date_is_rejected():
+    with pytest.raises(w.WildlifeError):
+        w.validate_event({"species": "X", "event": "y", "driver": "interval",
+                          "from": "michaelmas", "days": 147})
+
+
+def test_gestation_counts_forward_from_breeding():
+    """A ewe bred Oct 1 lambs about 147 days later, whatever the winter does."""
+    e = w.validate_event({"species": "Ewes", "event": "lambing", "driver": "interval",
+                          "from": "2026-10-01", "days": 147})
+    got = w.interval_event(e, TODAY)
+    assert got["projected_date"] == "2027-02-25"
+    assert got["reached_on"] is None
+
+
+def test_a_past_interval_reads_as_reached():
+    e = w.validate_event({"species": "Hen eggs", "event": "hatch", "driver": "interval",
+                          "from": "2026-07-01", "days": 21})
+    assert w.interval_event(e, TODAY)["reached_on"] == "2026-07-22"
+
+
+def test_an_interval_reports_a_window_not_a_single_day():
+    """Gestation and incubation both vary by a few days. A date to the hour
+    would be a false precision that gets someone up at 3am for nothing."""
+    e = w.validate_event({"species": "Ewes", "event": "lambing", "driver": "interval",
+                          "from": "2026-10-01", "days": 147})
+    win = w.interval_event(e, TODAY)["window"]
+    assert win["from"] < "2027-02-25" < win["to"]
+
+
+def test_a_short_incubation_gets_a_correspondingly_tight_window():
+    e = w.validate_event({"species": "Hen eggs", "event": "hatch", "driver": "interval",
+                          "from": "2026-08-20", "days": 21})
+    win = w.interval_event(e, TODAY)["window"]
+    assert (date.fromisoformat(win["to"]) - date.fromisoformat(win["from"])).days <= 4

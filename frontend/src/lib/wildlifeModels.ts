@@ -41,8 +41,31 @@ export const WILDLIFE_STARTERS: WildlifeEventInput[] = [
 export const DRIVER_HELP: Record<string, string> = {
   heat: "A degree-day threshold — moves with the season, like a crop.",
   daylight: "A day-length threshold — astronomy, so it barely moves year to year.",
+  interval: "A count of days from a date you set — gestation, incubation, days to lay.",
   calendar: "A date from your own record, for events with no clean driver.",
 };
+
+/// Livestock intervals. A ewe's gestation does not care what the season is
+/// doing — it is a count of days from the day she was bred, so these are
+/// arithmetic rather than weather.
+///
+/// Figures are typical and breed-dependent; edit them to your own stock.
+export const HUSBANDRY_INTERVALS: { species: string; event: string; days: number; emoji: string; from_label: string }[] = [
+  { species: "Ewes", event: "lambing", days: 147, emoji: "🐑", from_label: "bred" },
+  { species: "Does · goat", event: "kidding", days: 150, emoji: "🐐", from_label: "bred" },
+  { species: "Cows", event: "calving", days: 283, emoji: "🐄", from_label: "bred" },
+  { species: "Sows", event: "farrowing", days: 114, emoji: "🐖", from_label: "bred" },
+  { species: "Mares", event: "foaling", days: 340, emoji: "🐴", from_label: "bred" },
+  { species: "Rabbits", event: "kindling", days: 31, emoji: "🐰", from_label: "bred" },
+  { species: "Hen eggs", event: "hatch", days: 21, emoji: "🐣", from_label: "set" },
+  { species: "Duck eggs", event: "hatch", days: 28, emoji: "🦆", from_label: "set" },
+  { species: "Turkey eggs", event: "hatch", days: 28, emoji: "🦃", from_label: "set" },
+  { species: "Goose eggs", event: "hatch", days: 30, emoji: "🪿", from_label: "set" },
+  { species: "Pullets", event: "point of lay", days: 140, emoji: "🐔", from_label: "hatched" },
+  { species: "Broilers", event: "processing weight", days: 56, emoji: "🍗", from_label: "hatched" },
+  { species: "Lambs", event: "weaning", days: 60, emoji: "🐑", from_label: "born" },
+  { species: "Calves", event: "weaning", days: 205, emoji: "🐄", from_label: "born" },
+];
 
 function read(): SavedWildlife[] {
   try {
@@ -83,6 +106,11 @@ export function makeWildlife(
   } else if (input.driver === "daylight") {
     if (!Number.isFinite(input.daylight_hours) || input.daylight_hours! <= 0 || input.daylight_hours! >= 24)
       return "A daylight-driven event needs an hours figure between 0 and 24.";
+  } else if (input.driver === "interval") {
+    if (!Number.isFinite(input.days) || input.days! <= 0 || input.days! > 1000)
+      return "An interval needs a realistic number of days.";
+    if (!input.from || Number.isNaN(Date.parse(input.from)))
+      return "An interval needs the date it counts from.";
   } else {
     if (!/^\d{2}-\d{2}$/.test(input.typical_on ?? ""))
       return "A calendar event needs a typical date as MM-DD.";

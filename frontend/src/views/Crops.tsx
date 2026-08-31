@@ -8,9 +8,10 @@
 import { useCallback, useEffect, useState } from "react";
 import CropLedger from "../components/CropLedger";
 import Provenance from "../components/Provenance";
-import { cropGddStatus, type CropLedgerResult } from "../lib/mcp";
+import { cropGddStatus, cropSuitability, type CropLedgerResult, type SuitabilityResult, type Verdict } from "../lib/mcp";
 import {
-  CROP_PRESETS, deletePlanting, listPlantings, makePlanting, savePlanting, type Planting,
+  CROP_CATEGORIES, CROP_PRESETS, deletePlanting, listPlantings, makePlanting,
+  savePlanting, type CropPreset, type Planting,
 } from "../lib/plantings";
 import type { SavedRegion } from "../lib/regions";
 
@@ -26,6 +27,10 @@ export default function Crops({
   const [error, setError] = useState("");
   const [ranAt, setRanAt] = useState<Date | null>(null);
   const [formErr, setFormErr] = useState("");
+  const [fit, setFit] = useState<SuitabilityResult | null>(null);
+  const [fitAt, setFitAt] = useState<Date | null>(null);
+  const [fitBusy, setFitBusy] = useState(false);
+  const [cat, setCat] = useState<CropPreset["category"] | "all">("all");
 
   useEffect(() => { setPlantings(listPlantings(region.id)); }, [region.id]);
 
@@ -49,6 +54,39 @@ export default function Crops({
   }, [region]);
 
   useEffect(() => { void run(plantings); }, [run, plantings]);
+
+  // "What can I grow here" is not a lookup — it is this block's own frost-free
+  // heat budget against each crop's need. One call rates the whole library.
+  const checkFit = useCallback(async () => {
+    setFitBusy(true); setError("");
+    try {
+      const r = await cropSuitability(
+        region.region,
+        CROP_PRESETS.map((c) => ({
+          crop: c.crop, gdd_target: c.gddTarget, base_temp: c.baseTempF,
+          frost_hardy: c.frostHardy ?? false, category: c.category, emoji: c.emoji,
+        })),
+      );
+      if (!r.success) { setError(r.error || "Suitability could not be read."); return; }
+      setFit(r); setFitAt(new Date());
+    } catch (e) { setError((e as Error).message); }
+    finally { setFitBusy(false); }
+  }, [region]);
+
+  /// Add straight from a chiclet. The set-out defaults to today, which is
+  /// right far more often than an empty field is — a grower tapping a crop is
+  /// usually putting it in now.
+  function addPreset(c: CropPreset) {
+    const made = makePlanting(
+      c.crop, c.gddTarget, new Date().toISOString().slice(0, 10), region.id, c.baseTempF,
+    );
+    if (typeof made === "string") { setFormErr(made); return; }
+    setFormErr("");
+    setPlantings(savePlanting(made).filter((p) => p.regionId === region.id));
+  }
+
+  const verdictOf = (crop: string): Verdict | null =>
+    fit?.crops.find((r) => r.crop === crop)?.verdict ?? null;
 
   function add(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -145,22 +183,87 @@ export default function Crops({
         </button>
       </form>
 
-      <div className="mt-5">
-        <span className="eyebrow">Typical targets to start from</span>
-        <div className="mt-1.5 flex flex-wrap gap-1.5">
-          {CROP_PRESETS.map((c) => (
-            <span key={c.crop}
-              className="data rounded-full border border-rule bg-panel px-2.5 py-1 text-[11px] text-ink-soft"
-              title={`${c.gddTarget} GDD ${c.note}, base ${c.baseTempF}°F`}>
-              {c.crop} {c.gddTarget}
-            </span>
-          ))}
+      {/* ── What grows here ─────────────────────────────────────────── */}
+      <h2 className="figure mt-7 mb-2.5 flex flex-wrap items-baseline gap-2.5 text-[18px] font-semibold">
+        🌾 What grows here
+        {!fit && (
+          <button onClick={checkFit} disabled={fitBusy}
+            className="min-h-11 rounded-full border-[1.5px] border-ink px-4 text-[12.5px] font-semibold active:bg-ink active:text-paper disabled:opacity-40">
+            {fitBusy ? "Measuring…" : "Measure this block"}
+          </button>
+        )}
+        {fit && <Provenance tool="goodearth_crop_suitability" at={fitAt} onCost={onCost} />}
+      </h2>
+
+      {fit ? (
+        <div className="mb-3 rounded-md border border-rule border-l-4 border-l-growth bg-panel px-4 py-3">
+          <p className="text-[13px]">
+            <b className="figure text-[16px]">{fit.budget.frost_free_days} frost-free days</b>
+            {fit.budget.gdd_by_base["50"] != null && (
+              <> · about <b>{Math.round(fit.budget.gdd_by_base["50"]).toLocaleString()} GDD₅₀</b> inside them</>
+            )}
+            , median over {fit.budget.seasons_on_record} seasons.
+          </p>
+          <p className="mt-1 text-[12.5px] text-ink-soft">{fit.summary}</p>
         </div>
-        <p className="mt-2 max-w-prose text-[12px] leading-relaxed text-ink-soft">
-          These are typical extension figures, not promises. Every farm runs a
-          little different — field reports are what teach this block its own.
+      ) : (
+        <p className="mb-3 max-w-prose text-[12.5px] leading-relaxed text-ink-soft">
+          Two farms in the same county — one on a bench, one in a hollow — do not
+          grow the same things. Measuring this block gives its own frost-free
+          window and the heat inside it, then rates every crop below against it.
         </p>
+      )}
+
+      {/* ── The library ─────────────────────────────────────────────── */}
+      <div className="mb-2.5 flex flex-wrap gap-1.5">
+        {([{ key: "all", label: "All" }, ...CROP_CATEGORIES] as const).map((c) => (
+          <button key={c.key} onClick={() => setCat(c.key as typeof cat)}
+            className={`min-h-11 rounded-full border px-3.5 text-[12.5px] font-medium ${
+              cat === c.key ? "border-ink bg-ink text-paper" : "border-rule active:bg-band"}`}>
+            {c.label}
+          </button>
+        ))}
       </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        {CROP_PRESETS.filter((c) => cat === "all" || c.category === cat).map((c) => {
+          const v = verdictOf(c.crop);
+          const tone =
+            v === "comfortable" ? "border-growth/50 bg-growth/8"
+            : v === "tight" ? "border-honey/50 bg-honey/8"
+            : v === "marginal" ? "border-honey/60 bg-honey/12"
+            : v === "too_short" ? "border-clay/40 bg-clay/8 opacity-60"
+            : "border-rule bg-panel";
+          const row = fit?.crops.find((r) => r.crop === c.crop);
+          return (
+            <button key={c.crop} onClick={() => addPreset(c)}
+              title={row ? row.note : `${c.gddTarget} GDD ${c.note}, base ${c.baseTempF}°F`}
+              className={`flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-[12.5px] active:border-ink ${tone}`}>
+              <span>{c.emoji}</span>
+              <span className="font-medium">{c.crop}</span>
+              <span className="data text-[10.5px] text-ink-soft">{c.gddTarget}</span>
+              {v === "comfortable" && <span className="text-[11px] text-growth">✓</span>}
+              {(v === "tight" || v === "marginal") && <span className="text-[11px] text-honey">⚠</span>}
+              {v === "too_short" && <span className="text-[11px] text-clay">✕</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      {fit && (
+        <p className="data mt-2 text-[10.5px] text-ink-soft">
+          <span className="text-growth">✓ finishes comfortably</span>{" · "}
+          <span className="text-honey">⚠ tight — a cool year could take it</span>{" · "}
+          <span className="text-clay">✕ will not finish outdoors here</span>
+        </p>
+      )}
+
+      <p className="mt-2 max-w-prose text-[12px] leading-relaxed text-ink-soft">
+        Tap any crop to add it to the ledger, set out today. These are starting
+        figures, not published agronomy — a corn hybrid is sold by its relative
+        maturity precisely because "corn" has no single number. Edit against
+        your own seed packet, and let field reports teach this block its own.
+      </p>
     </>
   );
 }

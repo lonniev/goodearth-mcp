@@ -12,14 +12,15 @@ import { useCallback, useEffect, useState } from "react";
 import Provenance from "../components/Provenance";
 import { wildlifeCalendar, type WildlifeResult } from "../lib/mcp";
 import {
-  deleteWildlife, DRIVER_HELP, listWildlife, makeWildlife, saveWildlife,
-  WILDLIFE_STARTERS, type SavedWildlife,
+  deleteWildlife, DRIVER_HELP, HUSBANDRY_INTERVALS, listWildlife, makeWildlife,
+  saveWildlife, WILDLIFE_STARTERS, type SavedWildlife,
 } from "../lib/wildlifeModels";
 import type { SavedRegion } from "../lib/regions";
 
 const CLOCK: Record<string, { label: string; cls: string }> = {
   heat:     { label: "heat",     cls: "bg-growth/12 text-growth" },
   daylight: { label: "daylight", cls: "bg-honey/15 text-honey" },
+  interval: { label: "days from", cls: "bg-clay/12 text-clay" },
   calendar: { label: "your record", cls: "bg-band text-ink-soft" },
 };
 
@@ -34,7 +35,8 @@ export default function Wildlife({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [ranAt, setRanAt] = useState<Date | null>(null);
-  const [driver, setDriver] = useState<"heat" | "daylight" | "calendar">("daylight");
+  const [driver, setDriver] = useState<"heat" | "daylight" | "interval" | "calendar">("daylight");
+  const [husbandryFrom, setHusbandryFrom] = useState(() => new Date().toISOString().slice(0, 10));
 
   useEffect(() => { setModels(listWildlife(region.id)); }, [region.id]);
 
@@ -66,7 +68,9 @@ export default function Wildlife({
         ? { gdd: Number(f.get("gdd")), base_temp: Number(f.get("base") || 50) }
         : driver === "daylight"
           ? { daylight_hours: Number(f.get("hours")), rising: f.get("rising") === "up" }
-          : { typical_on: String(f.get("on") ?? "") }),
+          : driver === "interval"
+            ? { days: Number(f.get("days")), from: String(f.get("from") ?? "") }
+            : { typical_on: String(f.get("on") ?? "") }),
     }, region.id);
     if (typeof made === "string") { setError(made); return; }
     setError("");
@@ -126,6 +130,7 @@ export default function Wildlife({
                   <div className="data mt-0.5 text-[11px] text-ink-soft">
                     {e.threshold}
                     {when && ` → ${day(when)}${past ? "" : " expected"}`}
+                    {e.window && !past && ` (${day(e.window.from)}–${day(e.window.to)})`}
                     {!when && " → not this season"}
                   </div>
                   {e.note && <p className="mt-0.5 text-[12px] text-ink-soft">{e.note}</p>}
@@ -155,7 +160,7 @@ export default function Wildlife({
       <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold">Track something</h2>
       <form onSubmit={add} className="rounded-md border border-rule bg-panel p-4">
         <div className="flex flex-wrap gap-1.5">
-          {(["daylight", "heat", "calendar"] as const).map((d) => (
+          {(["daylight", "heat", "interval", "calendar"] as const).map((d) => (
             <button key={d} type="button" onClick={() => setDriver(d)}
               className={`min-h-11 rounded-full border px-4 text-[13px] font-medium ${
                 driver === d ? "border-ink bg-ink text-paper" : "border-rule active:bg-band"}`}>
@@ -188,6 +193,16 @@ export default function Wildlife({
               </label>
             </>
           )}
+          {driver === "interval" && (
+            <>
+              <label className="block text-[11px] text-ink-soft">
+                Counting from
+                <input name="from" type="date"
+                  className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" />
+              </label>
+              <Field name="days" label="Days" placeholder="147" />
+            </>
+          )}
           {driver === "calendar" && <Field name="on" label="Typical (MM-DD)" placeholder="09-15" />}
         </div>
 
@@ -196,8 +211,41 @@ export default function Wildlife({
         </button>
       </form>
 
-      <div className="mt-5">
-        <span className="eyebrow">Start from a shape</span>
+      <div className="mt-6">
+        <span className="eyebrow">Livestock — pick a date and it counts forward</span>
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <label className="text-[11px] text-ink-soft">
+            <input type="date" value={husbandryFrom}
+              onChange={(e) => setHusbandryFrom(e.target.value)}
+              className="min-h-11 rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" />
+          </label>
+          {HUSBANDRY_INTERVALS.map((h) => (
+            <button key={h.species + h.event}
+              onClick={() => {
+                const made = makeWildlife({
+                  species: h.species, event: h.event, driver: "interval",
+                  days: h.days, from: husbandryFrom, emoji: h.emoji,
+                }, region.id);
+                if (typeof made === "string") setError(made);
+                else setModels(saveWildlife(made).filter((m) => m.regionId === region.id));
+              }}
+              title={`${h.days} days from ${h.from_label}`}
+              className="data min-h-11 rounded-full border border-rule bg-panel px-3.5 text-[12px] text-ink-soft active:border-ink active:text-ink">
+              {h.emoji} {h.species} · {h.event}
+              <span className="ml-1.5 opacity-60">{h.days}d</span>
+            </button>
+          ))}
+        </div>
+        <p className="mt-1.5 max-w-prose text-[12px] leading-relaxed text-ink-soft">
+          A ewe's gestation does not care what the season is doing — it is a
+          count of days from the day she was bred, so these are arithmetic
+          rather than weather. Set the date above, then tap. Figures are typical
+          and breed-dependent; edit them to your own stock.
+        </p>
+      </div>
+
+      <div className="mt-6">
+        <span className="eyebrow">Wild — start from a shape</span>
         <div className="mt-1.5 flex flex-wrap gap-1.5">
           {WILDLIFE_STARTERS.map((s) => (
             <button key={s.species + s.event}

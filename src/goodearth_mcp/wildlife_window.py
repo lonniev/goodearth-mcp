@@ -81,6 +81,8 @@ async def region_wildlife(
             detail = wildlife.daylight_event(
                 e, dates, daylight, region.centroid.lat, today
             )
+        elif e["driver"] == "interval":
+            detail = wildlife.interval_event(e, today)
         else:
             detail = wildlife.calendar_event(e, today)
         rows.append({

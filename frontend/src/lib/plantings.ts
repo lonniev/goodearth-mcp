@@ -22,17 +22,112 @@ const KEY = "goodearth:plantings:v1";
 /// Starting points from extension data, so a grower is not staring at an empty
 /// table. These are typical targets, not promises — the whole point of the
 /// calibration loop is that a farm learns its own.
-export const CROP_PRESETS: { crop: string; gddTarget: number; baseTempF: number; note: string }[] = [
-  { crop: "Dahlia", gddTarget: 1200, baseTempF: 50, note: "to first bloom" },
-  { crop: "Lisianthus", gddTarget: 1050, baseTempF: 50, note: "to cut stage from pinch" },
-  { crop: "Celosia", gddTarget: 900, baseTempF: 50, note: "to cut stage" },
-  { crop: "Zinnia", gddTarget: 780, baseTempF: 50, note: "to cut stage from sow" },
-  { crop: "Sunflower", gddTarget: 1000, baseTempF: 44, note: "to cut stage" },
-  { crop: "Tomato", gddTarget: 1300, baseTempF: 50, note: "to first ripe fruit" },
-  { crop: "Hot pepper", gddTarget: 1650, baseTempF: 50, note: "to ripe fruit" },
-  { crop: "Sweet corn", gddTarget: 1400, baseTempF: 50, note: "to harvest" },
-  { crop: "Winter squash", gddTarget: 1600, baseTempF: 50, note: "to maturity" },
-  { crop: "Basil", gddTarget: 600, baseTempF: 50, note: "to first cut" },
+export interface CropPreset {
+  crop: string;
+  gddTarget: number;
+  baseTempF: number;
+  note: string;
+  emoji: string;
+  category: "field" | "flower" | "vegetable" | "cover";
+  /// Survives a light frost, so it can use the shoulders of the season.
+  frostHardy?: boolean;
+}
+
+/// Starting points, not published agronomy.
+///
+/// Degree-day requirements vary by cultivar and maturity group — a corn hybrid
+/// is SOLD by its relative maturity precisely because "corn" has no single
+/// number. These are mid-range figures to edit against your own seed packet and
+/// your own extension bulletin, and the UI says so wherever they appear.
+export const CROP_PRESETS: CropPreset[] = [
+  // ── Field and commodity ────────────────────────────────────────────────
+  { crop: "Field corn · short season", gddTarget: 2200, baseTempF: 50, emoji: "🌽",
+    category: "field", note: "grain, ~85-day hybrid" },
+  { crop: "Field corn · long season", gddTarget: 2800, baseTempF: 50, emoji: "🌽",
+    category: "field", note: "grain, ~110-day hybrid" },
+  { crop: "Silage corn", gddTarget: 2400, baseTempF: 50, emoji: "🌽",
+    category: "field", note: "to dent stage" },
+  { crop: "Soybean", gddTarget: 2500, baseTempF: 50, emoji: "🫘",
+    category: "field", note: "to maturity, mid group" },
+  { crop: "Sunflower", gddTarget: 2200, baseTempF: 44, emoji: "🌻",
+    category: "field", note: "oilseed, to physiological maturity" },
+  { crop: "Hemp · grain", gddTarget: 2000, baseTempF: 50, emoji: "🌿",
+    category: "field", note: "to seed maturity" },
+  { crop: "Hemp · fibre", gddTarget: 1700, baseTempF: 50, emoji: "🌿",
+    category: "field", note: "to technical maturity" },
+  { crop: "Alfalfa", gddTarget: 750, baseTempF: 41, emoji: "🍀",
+    category: "field", note: "per cutting, frost hardy", frostHardy: true },
+  { crop: "Winter wheat", gddTarget: 2100, baseTempF: 32, emoji: "🌾",
+    category: "field", note: "after vernalisation", frostHardy: true },
+  { crop: "Oats", gddTarget: 1700, baseTempF: 40, emoji: "🌾",
+    category: "field", note: "to grain", frostHardy: true },
+  { crop: "Barley", gddTarget: 1600, baseTempF: 40, emoji: "🌾",
+    category: "field", note: "to grain", frostHardy: true },
+  { crop: "Canola", gddTarget: 1900, baseTempF: 41, emoji: "🌼",
+    category: "field", note: "spring type", frostHardy: true },
+  { crop: "Sorghum", gddTarget: 2400, baseTempF: 50, emoji: "🌾",
+    category: "field", note: "to grain" },
+  { crop: "Buckwheat", gddTarget: 1000, baseTempF: 50, emoji: "🥞",
+    category: "cover", note: "to seed, fast smother crop" },
+  { crop: "Field peas", gddTarget: 1400, baseTempF: 40, emoji: "🫛",
+    category: "field", note: "to dry seed", frostHardy: true },
+  { crop: "Dry bean", gddTarget: 1700, baseTempF: 50, emoji: "🫘",
+    category: "field", note: "to dry seed" },
+
+  // ── Vegetable ──────────────────────────────────────────────────────────
+  { crop: "Pumpkin", gddTarget: 1800, baseTempF: 50, emoji: "🎃",
+    category: "vegetable", note: "to orange fruit" },
+  { crop: "Winter squash", gddTarget: 1600, baseTempF: 50, emoji: "🎃",
+    category: "vegetable", note: "to maturity" },
+  { crop: "Sweet corn", gddTarget: 1500, baseTempF: 50, emoji: "🌽",
+    category: "vegetable", note: "to first pick" },
+  { crop: "Tomato", gddTarget: 1300, baseTempF: 50, emoji: "🍅",
+    category: "vegetable", note: "to first ripe fruit" },
+  { crop: "Hot pepper", gddTarget: 1650, baseTempF: 50, emoji: "🌶️",
+    category: "vegetable", note: "to ripe fruit" },
+  { crop: "Potato", gddTarget: 1800, baseTempF: 45, emoji: "🥔",
+    category: "vegetable", note: "to bulking" },
+  { crop: "Garlic", gddTarget: 1900, baseTempF: 40, emoji: "🧄",
+    category: "vegetable", note: "autumn planted, to scape", frostHardy: true },
+  { crop: "Onion", gddTarget: 1900, baseTempF: 45, emoji: "🧅",
+    category: "vegetable", note: "to bulbing", frostHardy: true },
+  { crop: "Carrot", gddTarget: 1300, baseTempF: 40, emoji: "🥕",
+    category: "vegetable", note: "to size", frostHardy: true },
+  { crop: "Brassicas", gddTarget: 1200, baseTempF: 40, emoji: "🥬",
+    category: "vegetable", note: "cabbage, broccoli, to head", frostHardy: true },
+  { crop: "Watermelon", gddTarget: 3200, baseTempF: 55, emoji: "🍉",
+    category: "vegetable", note: "to ripe fruit" },
+  { crop: "Basil", gddTarget: 600, baseTempF: 50, emoji: "🌿",
+    category: "vegetable", note: "to first cut" },
+
+  // ── Cut flower ─────────────────────────────────────────────────────────
+  { crop: "Dahlia", gddTarget: 1200, baseTempF: 50, emoji: "🌸",
+    category: "flower", note: "to first bloom" },
+  { crop: "Lisianthus", gddTarget: 1050, baseTempF: 50, emoji: "💐",
+    category: "flower", note: "to cut stage from pinch" },
+  { crop: "Celosia", gddTarget: 900, baseTempF: 50, emoji: "🌺",
+    category: "flower", note: "to cut stage" },
+  { crop: "Zinnia", gddTarget: 780, baseTempF: 50, emoji: "🌼",
+    category: "flower", note: "to cut stage from sow" },
+  { crop: "Ranunculus", gddTarget: 900, baseTempF: 40, emoji: "🌷",
+    category: "flower", note: "cool season, to cut", frostHardy: true },
+  { crop: "Snapdragon", gddTarget: 850, baseTempF: 40, emoji: "🌷",
+    category: "flower", note: "to cut stage", frostHardy: true },
+
+  // ── Cover ──────────────────────────────────────────────────────────────
+  { crop: "Winter rye", gddTarget: 900, baseTempF: 38, emoji: "🌾",
+    category: "cover", note: "autumn sown, to overwinter", frostHardy: true },
+  { crop: "Crimson clover", gddTarget: 1100, baseTempF: 41, emoji: "🍀",
+    category: "cover", note: "to bloom", frostHardy: true },
+  { crop: "Daikon radish", gddTarget: 900, baseTempF: 45, emoji: "🌱",
+    category: "cover", note: "tillage radish, to size", frostHardy: true },
+];
+
+export const CROP_CATEGORIES: { key: CropPreset["category"]; label: string }[] = [
+  { key: "field", label: "Field" },
+  { key: "vegetable", label: "Vegetable" },
+  { key: "flower", label: "Cut flower" },
+  { key: "cover", label: "Cover" },
 ];
 
 function read(): Planting[] {

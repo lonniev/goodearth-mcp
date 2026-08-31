@@ -1062,7 +1062,7 @@ export async function almanacFor(region: Region): Promise<AlmanacResult> {
 export interface WildlifeEventInput {
   species: string;
   event: string;
-  driver: "heat" | "daylight" | "calendar";
+  driver: "heat" | "daylight" | "interval" | "calendar";
   emoji?: string;
   note?: string;
   gdd?: number;
@@ -1070,14 +1070,20 @@ export interface WildlifeEventInput {
   daylight_hours?: number;
   rising?: boolean;
   typical_on?: string;
+  /// Interval events: a fixed count of days from a date. Every husbandry
+  /// event is this — gestation, incubation, days to point of lay.
+  days?: number;
+  from?: string;
 }
 
 export interface WildlifeRow {
   species: string; event: string; emoji: string | null; note: string | null;
-  driver: "heat" | "daylight" | "calendar";
+  driver: "heat" | "daylight" | "interval" | "calendar";
   threshold: string;
   reached_on: string | null;
   projected_date: string | null;
+  /// Interval events report a window, not a day — gestation varies.
+  window?: { from: string; to: string };
   gdd_accumulated?: number;
   gdd_remaining?: number | null;
   days_away?: number;
@@ -1098,4 +1104,50 @@ export async function wildlifeCalendar(
   region: Region, events: WildlifeEventInput[],
 ): Promise<WildlifeResult> {
   return callTool<WildlifeResult>("wildlife_calendar", { region, events });
+}
+
+
+// ─── Crop suitability ────────────────────────────────────────────────────
+
+export type Verdict = "comfortable" | "tight" | "marginal" | "too_short" | "unknown";
+
+export interface SuitabilityRow {
+  crop: string;
+  emoji: string | null;
+  category: string | null;
+  gdd_target: number;
+  base_temp_f: number;
+  frost_hardy: boolean;
+  season_gdd_available?: number;
+  gdd_needed?: number;
+  surplus_gdd?: number;
+  surplus_days?: number | null;
+  frost_free_days?: number | null;
+  verdict: Verdict;
+  note: string;
+}
+
+export interface SuitabilityResult {
+  success: boolean;
+  error?: string;
+  budget: {
+    frost_free_days: number | null;
+    gdd_by_base: Record<string, number>;
+    seasons_on_record: number;
+    note: string;
+  };
+  crops: SuitabilityRow[];
+  counts: Partial<Record<Verdict, number>>;
+  summary: string;
+  note: string;
+}
+
+/// Which crops finish on this ground, measured against its own frost-free heat
+/// budget rather than looked up from a zone map.
+export async function cropSuitability(
+  region: Region,
+  crops: { crop: string; gdd_target: number; base_temp: number;
+           frost_hardy?: boolean; category?: string; emoji?: string }[],
+): Promise<SuitabilityResult> {
+  return callTool<SuitabilityResult>("crop_suitability", { region, crops });
 }

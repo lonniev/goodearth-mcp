@@ -12,17 +12,26 @@ for a particular valley belongs to a local naturalist, an extension bulletin,
 or the grower's own twenty years of noticing — not to this file. Shipping a
 date as settled fact would be inventing something a grower plans around.
 
-Three ways an event can be timed, because animals do not all run on one clock:
+It also carries the livestock, which run on a clock of their own. A ewe's
+gestation does not care what the season is doing; it is a count of days from
+the day she was bred. Lambing, calving, farrowing, a clutch's hatch date and a
+pullet's point of lay are all intervals, and putting them on the same calendar
+as the robins is how a farm's year actually reads.
+
+Four ways an event can be timed, because animals do not all run on one clock:
 
 * **heat** — a degree-day threshold, like a crop or a pest. Emergence and
   insect-driven events work this way.
 * **daylight** — a photoperiod threshold. Migration is largely triggered by day
   length, which is why it is far steadier year to year than temperature is.
+* **interval** — a fixed count of days from a date the grower supplies. Every
+  husbandry event is this: gestation, incubation, days to point of lay.
 * **calendar** — a date window from the grower's own record, for the ones with
   no clean driver.
 
-The honest part is that the first two are computed exactly from this ground's
-own numbers, and the third is simply what the grower wrote down.
+The honest part is that heat is computed from this ground's own numbers,
+daylight from astronomy, and the other two are arithmetic on what the grower
+told us. None of it is asserted.
 
 Pure domain logic. No billing, no npubs, no MCP.
 """
@@ -35,7 +44,7 @@ from typing import Any
 from goodearth_mcp import almanac
 
 MAX_EVENTS = 24
-DRIVERS = {"heat", "daylight", "calendar"}
+DRIVERS = {"heat", "daylight", "interval", "calendar"}
 
 
 class WildlifeError(ValueError):
@@ -93,6 +102,27 @@ def validate_event(ev: Any) -> dict[str, Any]:
             raise WildlifeError(f"{species}: daylight_hours must be between 0 and 24, got {h:g}")
         rising = ev.get("rising")
         out.update({"daylight_hours": h, "rising": bool(rising) if rising is not None else True})
+
+    elif driver == "interval":
+        try:
+            days = int(ev["days"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise WildlifeError(
+                f"{species}: an interval event needs `days` — the count from the start date"
+            ) from exc
+        if not 0 < days <= 1000:
+            raise WildlifeError(f"{species}: {days} days is outside any plausible interval")
+        raw = ev.get("from") or ev.get("from_date")
+        if not raw:
+            raise WildlifeError(
+                f"{species}: needs `from` — the date it counts from "
+                "(bred, set, hatched)"
+            )
+        try:
+            frm = date.fromisoformat(str(raw))
+        except ValueError as exc:
+            raise WildlifeError(f"{species}: `from` must be YYYY-MM-DD, got {raw!r}") from exc
+        out.update({"days": days, "from": frm})
 
     else:  # calendar
         raw = ev.get("typical_on")
@@ -179,6 +209,33 @@ def daylight_event(
         "reached_on": crossed,
         "projected_date": projected,
         "note": "Day length is astronomy — this date barely moves year to year.",
+    }
+
+
+def interval_event(ev: dict[str, Any], today: date) -> dict[str, Any]:
+    """A fixed count of days from a date the grower supplied.
+
+    Weather-independent by nature: a ewe bred on the first of October lambs
+    about 147 days later whatever the winter does. Reported with a window
+    rather than a single day, because gestation and incubation both vary by a
+    few days and a date presented to the hour would be a false precision that
+    gets someone up at 3am for nothing.
+    """
+    due = ev["from"] + timedelta(days=ev["days"])
+    spread = max(1, round(ev["days"] * 0.02))   # about ±2%, the usual variation
+    return {
+        "driver": "interval",
+        "threshold": f"{ev['days']} days from {ev['from'].isoformat()}",
+        "reached_on": due.isoformat() if due <= today else None,
+        "projected_date": None if due <= today else due.isoformat(),
+        "window": {
+            "from": (due - timedelta(days=spread)).isoformat(),
+            "to": (due + timedelta(days=spread)).isoformat(),
+        },
+        "note": (
+            f"Due about {due.isoformat()}, give or take {spread} day"
+            f"{'s' if spread != 1 else ''} — gestation and incubation both vary."
+        ),
     }
 
 
