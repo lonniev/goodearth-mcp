@@ -785,6 +785,8 @@ export interface FrostNight {
   wind_mph: number | null;
   cloud_pct: number | null;
   dew_point_f: number | null;
+  /// The day's high — the temperature that decides whether anything flies.
+  high_f: number | null;
   reason: string;
 }
 

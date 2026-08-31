@@ -35,7 +35,10 @@ _US_UNITS = {"temperature_unit": "fahrenheit", "windspeed_unit": "mph"}
 _DAILY = "temperature_2m_max,temperature_2m_min"
 # Frost is a radiative process, so the night's wind and sky decide whether
 # cold air stratifies at all. Without them a forecast low is just a number.
-_DAILY_FROST = "temperature_2m_min,wind_speed_10m_max,cloud_cover_mean,dew_point_2m_min"
+_DAILY_FROST = (
+    "temperature_2m_min,temperature_2m_max,wind_speed_10m_max,"
+    "cloud_cover_mean,dew_point_2m_min"
+)
 
 # The almanac's own field set. Sunrise/sunset and the durations are only on the
 # forecast endpoint; the archive carries the measures but not the sun, so the
@@ -222,6 +225,7 @@ def frost_series(record: dict[str, Any]) -> list[dict[str, Any]]:
 
     dates = daily.get("time") or []
     lows = daily.get("temperature_2m_min") or []
+    highs = daily.get("temperature_2m_max") or []
     wind = daily.get("wind_speed_10m_max") or []
     cloud = daily.get("cloud_cover_mean") or []
     dew = daily.get("dew_point_2m_min") or []
@@ -240,6 +244,10 @@ def frost_series(record: dict[str, Any]) -> list[dict[str, Any]]:
             {
                 "date": str(d),
                 "low_f": low,
+                # The day's high, which is the temperature that decides whether
+                # anything is FLYING. A night-time low answers a frost question,
+                # not a foraging one.
+                "high_f": num(highs, i),
                 "wind_mph": num(wind, i),
                 "cloud_pct": num(cloud, i),
                 "dew_point_f": num(dew, i),

@@ -29,11 +29,15 @@ import {
   getActiveRegionId, listRegions, saveRegion, setActiveRegionId, type SavedRegion,
 } from "./lib/regions";
 
-/// Tonight's low on the region's coldest ground, when the frost tool has
-/// answered. Null keeps the hive in its unknown state rather than guessing.
-function tonightLow(f: FrostWindowResult | null): number | null {
-  return f?.nights?.[0]?.low_ground_f ?? null;
+/// The day's high — the temperature that decides whether bees are working.
+///
+/// This used to read tonight's low on the coldest ground, which is a FROST
+/// question, not a foraging one. Bees do not fly at night, so a 78 °F autumn
+/// afternoon with a 55 °F night showed a single bee dozing at the door.
+function todayHigh(f: FrostWindowResult | null): number | null {
+  return f?.nights?.[0]?.high_f ?? null;
 }
+
 
 /// A watch is live if any night in the outlook reaches at least a frost watch.
 function frostWatchLive(f: FrostWindowResult | null): boolean {
@@ -178,11 +182,11 @@ export default function App() {
       {/* The hive reads the same night the frost card does, so the corner can
           never disagree with the page. Tonight's low on the coldest ground
           against the 55°F flight threshold; shut on a live frost watch. */}
-      <Hive mood={hiveMood(tonightLow(frost), frostWatchLive(frost))} />
+      <Hive mood={hiveMood(todayHigh(frost), frostWatchLive(frost))} />
       {/* The foragers work the whole page. pointer-events:none throughout, so
           a bee can never swallow a tap on a frost warning. */}
-      <Bees mood={hiveMood(tonightLow(frost), frostWatchLive(frost))}
-        tempF={tonightLow(frost)} />
+      <Bees mood={hiveMood(todayHigh(frost), frostWatchLive(frost))}
+        tempF={todayHigh(frost)} />
     </>
   );
 }

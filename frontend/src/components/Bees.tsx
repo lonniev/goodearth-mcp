@@ -174,9 +174,12 @@ export default function Bees({
       // Read warmth every frame so a temperature that arrives mid-flight
       // speeds them up rather than restarting them.
       const act = activityRef.current;
-      const CRUISE = (0.15 + act * 0.20) * calm;
-      const ACCEL = (0.9 + act * 1.1) * calm;
-      const DRAG = 2.4;
+      // A foraging bee works a patch; it does not race. These are tuned so a
+      // trip across the screen takes the better part of ten seconds at full
+      // heat rather than three — the earlier numbers read as agitation.
+      const CRUISE = (0.055 + act * 0.075) * calm;
+      const ACCEL = (0.5 + act * 0.5) * calm;
+      const DRAG = 3.0;
       const FLEE_RADIUS = 0.13;
       const FLEE_FORCE = 3.2;
 
@@ -190,13 +193,13 @@ export default function Bees({
           b.phase = "leaving";
         } else if (b.phase === "leaving" && Math.hypot(b.tx - b.x, b.ty - b.y) < 0.05) {
           b.phase = "foraging";
-          b.timer = rnd(2.5, 7);            // work the patch a while
+          b.timer = rnd(6, 16);             // stay and work it
         } else if (b.phase === "foraging" && b.timer <= 0) {
           b.phase = "returning";
           b.tx = HIVE.x; b.ty = HIVE.y;
         } else if (b.phase === "returning" && Math.hypot(b.tx - b.x, b.ty - b.y) < 0.035) {
           b.phase = "resting";
-          b.timer = rnd(0.6, 2.2);          // a beat at the door
+          b.timer = rnd(1.5, 4.5);          // unload at the door
           b.vx *= 0.2; b.vy *= 0.2;
         }
 
@@ -208,15 +211,16 @@ export default function Bees({
           // Re-targeting on arrival is what produces the stop-start rhythm a
           // bee has and a drifting particle does not.
           if (Math.hypot(b.tx - b.x, b.ty - b.y) < 0.02) {
-            b.tx = Math.min(Math.max(b.x + rnd(-0.09, 0.09), 0.04), 0.96);
-            b.ty = Math.min(Math.max(b.y + rnd(-0.07, 0.07), 0.06), 0.94);
+            // Short hops between neighbouring flowers, with a pause at each.
+            b.tx = Math.min(Math.max(b.x + rnd(-0.045, 0.045), 0.04), 0.96);
+            b.ty = Math.min(Math.max(b.y + rnd(-0.035, 0.035), 0.06), 0.94);
           }
         }
 
         if (b.phase !== "resting") {
           const dx = b.tx - b.x, dy = b.ty - b.y;
           const d = Math.hypot(dx, dy) || 1;
-          const eager = b.phase === "foraging" ? 0.75 : 1.25;
+          const eager = b.phase === "foraging" ? 0.45 : 1.15;
           ax += (dx / d) * ACCEL * eager * b.vigour;
           ay += (dy / d) * ACCEL * eager * b.vigour;
         }
@@ -239,7 +243,7 @@ export default function Bees({
 
         // Cap at cruise, except while fleeing — a startled bee is quick.
         const speed = Math.hypot(b.vx, b.vy);
-        const cap = ptr ? CRUISE * 2.6 : CRUISE * (b.phase === "foraging" ? 0.75 : 1.15);
+        const cap = ptr ? CRUISE * 3.4 : CRUISE * (b.phase === "foraging" ? 0.5 : 1.1);
         if (speed > cap) { b.vx = (b.vx / speed) * cap; b.vy = (b.vy / speed) * cap; }
 
         b.x += b.vx * dt; b.y += b.vy * dt;
@@ -254,8 +258,8 @@ export default function Bees({
         // would jitter its way across the screen. Amplitude and rate rise with
         // warmth, which is the second channel of the reading.
         const t = now / 1000;
-        const amp = (0.0011 + act * 0.0032) * calm * (b.phase === "resting" ? 0.35 : 1);
-        const rate = (28 + act * 32) * calm;
+        const amp = (0.0007 + act * 0.0016) * calm * (b.phase === "resting" ? 0.3 : 1);
+        const rate = (22 + act * 26) * calm;
         const jx = amp * Math.sin(t * rate + b.buzz);
         const jy = amp * Math.cos(t * rate * 1.37 + b.buzz);
 

@@ -98,6 +98,7 @@ async def region_frost_window(
                 )
                 assessed["date"] = n["date"]
                 assessed["dew_point_f"] = n["dew_point_f"]
+                assessed["high_f"] = n["high_f"]
                 nights.append(assessed)
         except sources.UpstreamError:
             nights = []
