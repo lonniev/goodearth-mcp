@@ -1,137 +1,160 @@
-// Bees, loose on the page.
+// Bees, loose on the page — and an instrument, not an ornament.
 //
-// The skep stays anchored bottom-right as home; the foragers work the whole
-// screen. That is what they do — a hive's forage radius is measured in miles,
-// not in the corner of a chart — and a farm app that shows bees confined to a
-// decorative vignette has drawn a diagram rather than a farm.
+// ── What they are telling you ─────────────────────────────────────────────
 //
-// Two hard rules:
+// Honeybee flight is temperature-gated: below roughly 55 °F they do not
+// forage. So the corner of the screen answers, without a word of chrome, the
+// question that gates a lot of a grower's own field work — is it warm enough
+// to be out there.
 //
-//   1. **They can never intercept a touch.** The layer and every bee carry
-//      `pointer-events: none`, so a finger passes straight through to whatever
-//      is underneath. A bee that swallows a tap on a frost warning would be an
-//      unforgivable piece of decoration.
-//   2. **They stay an instrument.** Bee count still reads the block's own
-//      temperature against the 55°F flight threshold, and a live frost watch
-//      grounds them entirely. If they are flying, it is warm enough to work.
+//   frost watch live   no bees. The hive is shut.
+//   below 55 °F        one bee at the door, barely moving.
+//   above 55 °F        several, and the warmer it is the more agitated they are.
 //
-// Motion is one requestAnimationFrame loop for the whole flight, not a timer
-// per bee, and it parks completely under prefers-reduced-motion.
+// TWO channels carry it, which is what makes it readable at a glance rather
+// than a thing you decode: HOW MANY, and HOW BUSY. A hive at 58 °F and one at
+// 85 °F both have bees flying; only the second is humming.
+//
+// ── Why the motion is what it is ──────────────────────────────────────────
+//
+// The first version steered each bee toward a target and picked another on
+// arrival, which drew straight lines between waypoints — a bee's path is
+// nothing like that. This one has no waypoints at all. Each bee carries three
+// layered sine terms at incommensurate frequencies, which never repeat and
+// never resolve into a line, plus a fast small-amplitude vibration whose
+// energy IS the temperature signal.
+//
+// They can never intercept a touch: the layer and every bee carry
+// pointer-events:none, so a finger passes straight through. A bee that
+// swallowed a tap on a frost warning would be unforgivable decoration.
 
 import { useEffect, useRef } from "react";
 import type { HiveMood } from "./Hive";
 
 interface Bee {
-  x: number; y: number;      // fraction of viewport, 0..1
-  vx: number; vy: number;
-  /// Where this bee is heading. Reaching it picks another.
-  tx: number; ty: number;
-  phase: number;             // wing-beat offset, so they do not pulse in step
+  /// Home position in viewport fractions — the centre this bee meanders about.
+  hx: number; hy: number;
+  /// Three wander terms: amplitude, frequency, phase, per axis.
+  wx: [number, number, number][];
+  wy: [number, number, number][];
+  vibePhase: number;
   scale: number;
+  /// Slow drift of the home point, so a bee works a patch and then moves on.
+  dx: number; dy: number;
 }
 
-const HOME = { x: 0.94, y: 0.9 };   // the skep, bottom-right
+/// 0 at the flight threshold, 1 in real working heat. This is the second
+/// channel — it drives vibration, not position.
+function activityOf(tempF: number | null): number {
+  if (tempF == null) return 0.35;
+  return Math.max(0, Math.min(1, (tempF - 55) / 30));
+}
+
+function beeCount(mood: HiveMood, activity: number): number {
+  if (mood === "closed") return 0;
+  if (mood === "quiet") return 1;
+  if (mood === "unknown") return 2;
+  return 2 + Math.round(activity * 4);   // 2 at the threshold, 6 in full heat
+}
+
+const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 
 function spawn(n: number): Bee[] {
-  return Array.from({ length: n }, (_, i) => ({
-    x: HOME.x, y: HOME.y,
-    vx: 0, vy: 0,
-    tx: Math.random(), ty: Math.random() * 0.85,
-    phase: (i * 2.4) % 6.28,
-    scale: 0.85 + Math.random() * 0.4,
+  return Array.from({ length: n }, () => ({
+    // Scattered from the start. Spawning them all at the hive made a cluster
+    // that took ten seconds to disperse, which is all anybody watched.
+    hx: rnd(0.08, 0.92),
+    hy: rnd(0.1, 0.88),
+    wx: [
+      [rnd(0.03, 0.09), rnd(0.09, 0.16), rnd(0, 6.28)],
+      [rnd(0.02, 0.05), rnd(0.23, 0.37), rnd(0, 6.28)],
+      [rnd(0.01, 0.02), rnd(0.7, 1.1), rnd(0, 6.28)],
+    ],
+    wy: [
+      [rnd(0.03, 0.08), rnd(0.11, 0.19), rnd(0, 6.28)],
+      [rnd(0.015, 0.04), rnd(0.29, 0.43), rnd(0, 6.28)],
+      [rnd(0.008, 0.018), rnd(0.8, 1.3), rnd(0, 6.28)],
+    ],
+    vibePhase: rnd(0, 6.28),
+    scale: rnd(0.8, 1.35),
+    dx: rnd(-0.012, 0.012),
+    dy: rnd(-0.008, 0.008),
   }));
 }
 
-/// How many foragers are out. The same instrument as before, just at large.
-function beeCount(mood: HiveMood): number {
-  if (mood === "closed") return 0;
-  if (mood === "flying") return 4;
-  if (mood === "quiet") return 1;
-  return 2;
-}
-
-export default function Bees({ mood = "unknown" }: { mood?: HiveMood }) {
+export default function Bees({
+  mood = "unknown", tempF = null,
+}: { mood?: HiveMood; tempF?: number | null }) {
   const layer = useRef<HTMLDivElement | null>(null);
-  const bees = useRef<Bee[]>([]);
-  const nodes = useRef<HTMLDivElement[]>([]);
   const raf = useRef<number>(0);
 
   useEffect(() => {
-    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     const host = layer.current;
     if (!host) return;
+    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-    const n = beeCount(mood);
+    const activity = activityOf(tempF);
+    const n = beeCount(mood, activity);
     host.replaceChildren();
-    nodes.current = [];
-    bees.current = spawn(n);
+    if (!n) return;
 
+    const bees = spawn(n);
+    const nodes: HTMLDivElement[] = [];
     for (let i = 0; i < n; i++) {
       const el = document.createElement("div");
-      // Belt and braces: the layer is already pointer-events:none, and so is
-      // every bee. Nothing here can ever be the target of a touch.
       el.style.cssText =
         "position:absolute;left:0;top:0;pointer-events:none;will-change:transform;" +
-        "font-size:13px;line-height:1;user-select:none;";
+        `font-size:${11 + bees[i].scale * 4}px;line-height:1;user-select:none;opacity:.5;`;
       el.textContent = "🐝";
       el.setAttribute("aria-hidden", "true");
       host.appendChild(el);
-      nodes.current.push(el);
+      nodes.push(el);
     }
 
-    if (!n) return;
-
     if (reduced) {
-      // Parked on the skep, still telling the same story by their number.
-      nodes.current.forEach((el, i) => {
-        el.style.transform =
-          `translate(${(HOME.x - 0.01 * i) * 100}vw, ${(HOME.y - 0.01 * i) * 100}vh)`;
-        el.style.opacity = "0.5";
+      bees.forEach((b, i) => {
+        nodes[i].style.transform = `translate(${b.hx * 100}vw, ${b.hy * 100}vh)`;
       });
       return;
     }
 
-    let last = performance.now();
+    const t0 = performance.now();
     const step = (now: number) => {
-      const dt = Math.min((now - last) / 1000, 0.05);
-      last = now;
+      const t = (now - t0) / 1000;
 
-      bees.current.forEach((b, i) => {
-        // Steer toward the target; pick a new one on arrival. Bees do not fly
-        // in straight lines, so the steering is loose and the drag is high.
-        const dx = b.tx - b.x, dy = b.ty - b.y;
-        const d = Math.hypot(dx, dy);
-        if (d < 0.03) {
-          b.tx = Math.random();
-          b.ty = Math.random() * 0.85;
-        } else {
-          b.vx += (dx / d) * 0.06 * dt;
-          b.vy += (dy / d) * 0.06 * dt;
-        }
-        // A wobble, because a bee's path is not a spline.
-        b.vx += Math.sin(now / 220 + b.phase) * 0.004 * dt;
-        b.vy += Math.cos(now / 190 + b.phase) * 0.004 * dt;
+      bees.forEach((b, i) => {
+        // Home drifts slowly and wraps, so a bee works a patch then moves on
+        // rather than orbiting one spot for ever.
+        let hx = b.hx + b.dx * t;
+        let hy = b.hy + b.dy * t;
+        hx = ((hx % 1) + 1) % 1;
+        hy = 0.08 + (((hy - 0.08) % 0.82) + 0.82) % 0.82;
 
-        b.vx *= 0.97; b.vy *= 0.97;
-        b.x += b.vx; b.y += b.vy;
+        // Three incommensurate sines per axis: never repeats, never a line.
+        let x = hx, y = hy;
+        for (const [amp, freq, ph] of b.wx) x += amp * Math.sin(t * freq + ph);
+        for (const [amp, freq, ph] of b.wy) y += amp * Math.cos(t * freq + ph);
 
-        // Keep them on screen without a hard bounce, which reads as a bug.
-        if (b.x < 0.02 || b.x > 0.98) { b.vx *= -0.6; b.x = Math.min(Math.max(b.x, 0.02), 0.98); }
-        if (b.y < 0.04 || b.y > 0.96) { b.vy *= -0.6; b.y = Math.min(Math.max(b.y, 0.04), 0.96); }
+        // The vibration IS the temperature reading. A hive at 58 °F and one at
+        // 85 °F both have bees up; only the second is humming.
+        const buzz = 0.0012 + activity * 0.0045;
+        const rate = 14 + activity * 26;
+        x += buzz * Math.sin(t * rate + b.vibePhase);
+        y += buzz * Math.cos(t * rate * 1.31 + b.vibePhase);
 
-        const el = nodes.current[i];
-        if (el) {
-          const tilt = Math.max(-25, Math.min(25, b.vx * 900));
-          el.style.transform =
-            `translate(${b.x * 100}vw, ${b.y * 100}vh) rotate(${tilt}deg) scale(${b.scale})`;
-          el.style.opacity = "0.55";
-        }
+        x = Math.min(Math.max(x, 0.02), 0.97);
+        y = Math.min(Math.max(y, 0.05), 0.95);
+
+        // Face the way it is going, so a bee never flies backwards.
+        const tilt = Math.sin(t * b.wx[0][1] + b.wx[0][2]) * 18;
+        nodes[i].style.transform =
+          `translate(${x * 100}vw, ${y * 100}vh) rotate(${tilt}deg) scale(${b.scale})`;
       });
       raf.current = requestAnimationFrame(step);
     };
     raf.current = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf.current);
-  }, [mood]);
+  }, [mood, tempF]);
 
   return (
     <div

@@ -5,14 +5,15 @@
 // able to see where the app is going, and a dimmed row is honest where an
 // enabled row that leads to an empty page is not.
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Avatar from "./Avatar";
 import RegionPicker from "./RegionPicker";
 import type { SavedRegion } from "../lib/regions";
+import { applyOrder, move, readCollapsed, readOrder, writeCollapsed, writeOrder } from "../lib/navOrder";
 
 export type ViewKey =
   | "map" | "ledger" | "almanac" | "crops" | "pests" | "wildlife" | "todo"
-  | "reports" | "favorites" | "account";
+  | "reports" | "favorites" | "references" | "about" | "account";
 
 interface RailItem {
   key: ViewKey;
@@ -31,9 +32,11 @@ const I = (d: ReactNode) => (
 );
 
 export const RAIL: RailItem[] = [
+  { key: "favorites", label: "Favorites", ready: true,
+    icon: I(<><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z" /></>) },
   { key: "map", label: "Map", ready: true,
     icon: I(<><path d="M1 6l7-3 8 3 7-3v15l-7 3-8-3-7 3z" /><path d="M8 3v15M16 6v15" /></>) },
-  { key: "ledger", label: "Heat Ledger", ready: true,
+  { key: "ledger", label: "GDD", ready: true,
     icon: I(<><path d="M3 20h18M4 16c3-7 6-9 8-9s5 2 8 9" /></>) },
   { key: "almanac", label: "Almanac", ready: true,
     icon: I(<><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>) },
@@ -47,8 +50,10 @@ export const RAIL: RailItem[] = [
     icon: I(<><path d="M9 11l2 2 4-4" /><rect x="3" y="4" width="18" height="16" rx="2" /></>) },
   { key: "reports", label: "Field Reports", ready: true,
     icon: I(<><path d="M4 4h12l4 4v12H4z" /><path d="M8 12h8M8 16h8" /></>) },
-  { key: "favorites", label: "Favorites", ready: true,
-    icon: I(<><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z" /></>) },
+  { key: "references", label: "References", ready: true,
+    icon: I(<><path d="M4 5a2 2 0 0 1 2-2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" /><path d="M15 3v5h5M8 13h8M8 17h5" /></>) },
+  { key: "about", label: "About", ready: true,
+    icon: I(<><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></>) },
 ];
 
 interface Props {
@@ -70,44 +75,99 @@ export default function AppShell({
   view, onView, npub, avatar, displayName, region, onRegion,
   balanceSats, spentToday, conditions, onSignOut, children,
 }: Props) {
+  const [order, setOrder] = useState<string[] | null>(() => readOrder());
+  const [collapsed, setCollapsed] = useState(() => readCollapsed());
+  const [editing, setEditing] = useState(false);
+  const items = applyOrder(RAIL, order);
+
+  useEffect(() => { writeCollapsed(collapsed); }, [collapsed]);
+
+  function reorder(from: number, to: number) {
+    const next = move(items, from, to).map((i) => i.key);
+    setOrder(next);
+    writeOrder(next);
+  }
+
   return (
-    <div className="grid h-full grid-cols-1 grid-rows-[56px_1fr_56px] md:grid-cols-[200px_1fr] md:grid-rows-[56px_1fr]">
+    <div className={`grid h-full grid-cols-1 grid-rows-[56px_1fr_56px] md:grid-rows-[56px_1fr] ${
+      collapsed ? "md:grid-cols-[64px_1fr]" : "md:grid-cols-[200px_1fr]"
+    }`}>
       <nav aria-label="Views"
         className="row-start-3 flex gap-0.5 overflow-x-auto overscroll-x-contain bg-ink p-1.5 text-rail-ink [-webkit-overflow-scrolling:touch] md:row-span-2 md:row-start-1 md:flex-col md:p-4">
-        <div className="hidden px-2 pt-1 pb-4 md:block">
-          <span className="figure text-[21px] font-bold text-paper">Good </span>
-          <span className="figure text-[21px] font-normal italic text-honey">Earth</span>
+        <div className="hidden items-center justify-between pl-2 pt-1 pb-4 md:flex">
+          {!collapsed && (
+            <span>
+              <span className="figure text-[21px] font-bold text-paper">Good </span>
+              <span className="figure text-[21px] font-normal italic text-honey">Earth</span>
+            </span>
+          )}
+          <button
+            onClick={() => { setCollapsed((c) => !c); setEditing(false); }}
+            aria-label={collapsed ? "Expand the rail" : "Collapse the rail"}
+            title={collapsed ? "Expand" : "Collapse"}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-[15px] text-rail-ink hover:bg-white/10"
+          >
+            {collapsed ? "»" : "«"}
+          </button>
         </div>
 
-        {RAIL.map((it) => {
+        {items.map((it, i) => {
           const active = it.key === view;
           return (
-            <button
-              key={it.key}
-              onClick={() => it.ready && onView(it.key)}
-              disabled={!it.ready}
-              title={it.ready ? undefined : it.soon}
-              aria-current={active ? "page" : undefined}
-              className={[
-                "flex min-h-11 shrink-0 items-center gap-2.5 rounded-md px-2.5 py-2 text-[13.5px] font-medium",
-                "flex-col gap-1 text-[10px] md:flex-row md:gap-2.5 md:text-[13.5px]",
-                active ? "bg-paper text-ink" : "text-rail-ink",
-                it.ready ? "hover:bg-white/10" : "cursor-default opacity-40",
-              ].join(" ")}
-            >
-              {it.icon}
-              {it.label}
-            </button>
+            <div key={it.key} className="flex shrink-0 items-center gap-0.5">
+              <button
+                onClick={() => it.ready && !editing && onView(it.key)}
+                disabled={!it.ready}
+                title={it.ready ? it.label : it.soon}
+                aria-current={active ? "page" : undefined}
+                className={[
+                  "flex min-h-11 flex-1 shrink-0 items-center gap-2.5 rounded-md px-2.5 py-2 text-[13.5px] font-medium",
+                  "flex-col gap-1 text-[10px] md:flex-row md:gap-2.5 md:text-[13.5px]",
+                  collapsed ? "md:justify-center md:px-0" : "",
+                  active ? "bg-paper text-ink" : "text-rail-ink",
+                  it.ready ? "hover:bg-white/10" : "cursor-default opacity-40",
+                ].join(" ")}
+              >
+                {it.icon}
+                <span className={collapsed ? "md:hidden" : ""}>{it.label}</span>
+              </button>
+
+              {/* Reordering by buttons rather than by drag. A long-press drag
+                  on a touchscreen fights the browser's own text selection and
+                  scroll, and gets it wrong often enough that people stop
+                  trying — two arrows always work. */}
+              {editing && !collapsed && (
+                <span className="hidden shrink-0 flex-col md:flex">
+                  <button onClick={() => reorder(i, i - 1)} disabled={i === 0}
+                    aria-label={`Move ${it.label} up`}
+                    className="flex h-5 w-6 items-center justify-center text-[11px] text-rail-ink hover:bg-white/10 disabled:opacity-25">▲</button>
+                  <button onClick={() => reorder(i, i + 1)} disabled={i === items.length - 1}
+                    aria-label={`Move ${it.label} down`}
+                    className="flex h-5 w-6 items-center justify-center text-[11px] text-rail-ink hover:bg-white/10 disabled:opacity-25">▼</button>
+                </span>
+              )}
+            </div>
           );
         })}
 
         <div className="hidden flex-1 md:block" />
+
+        {!collapsed && (
+          <button
+            onClick={() => setEditing((e) => !e)}
+            className="hidden min-h-11 items-center gap-2 rounded-md px-2.5 text-[12px] text-rail-ink/70 hover:bg-white/10 md:flex"
+          >
+            {editing ? "✓ Done" : "⇅ Reorder"}
+          </button>
+        )}
         <button
           onClick={() => onView("account")}
-          className="hidden items-center gap-2.5 border-t border-white/15 px-2 py-2.5 text-left text-[12px] md:flex hover:bg-white/5"
+          className={`hidden items-center gap-2.5 border-t border-white/15 px-2 py-2.5 text-left text-[12px] md:flex hover:bg-white/5 ${
+            collapsed ? "justify-center" : ""
+          }`}
         >
           <Avatar value={avatar} size={28} />
-          <span className="min-w-0">
+          <span className={`min-w-0 ${collapsed ? "hidden" : ""}`}>
             <span className="block truncate">{displayName || "Your account"}</span>
             <span className="data block truncate text-[10.5px] opacity-70">
               {npub ? `${npub.slice(0, 8)}…${npub.slice(-4)}` : ""}

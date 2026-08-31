@@ -18,6 +18,8 @@ import MapView from "./views/MapView";
 import FieldReports from "./views/FieldReports";
 import Almanac from "./views/Almanac";
 import Wildlife from "./views/Wildlife";
+import References from "./views/References";
+import About from "./views/About";
 import Favorites from "./views/Favorites";
 import { AVATAR_EVENT, avatarFor, hydrateAvatarFromNostr } from "./lib/avatar";
 import { fetchProfile } from "./lib/nostrProfile";
@@ -161,6 +163,8 @@ export default function App() {
         {view === "pests" && <Pests region={region} onCost={onCost} />}
         {view === "reports" && <FieldReports region={region} onCost={onCost} />}
         {view === "favorites" && <Favorites active={region} onPick={pickRegion} />}
+        {view === "references" && <References />}
+        {view === "about" && <About />}
         {view === "account" && (
           <>
             <h1 className="figure mb-4 text-[26px] font-bold">Account</h1>
@@ -175,7 +179,8 @@ export default function App() {
       <Hive mood={hiveMood(tonightLow(frost), frostWatchLive(frost))} />
       {/* The foragers work the whole page. pointer-events:none throughout, so
           a bee can never swallow a tap on a frost warning. */}
-      <Bees mood={hiveMood(tonightLow(frost), frostWatchLive(frost))} />
+      <Bees mood={hiveMood(tonightLow(frost), frostWatchLive(frost))}
+        tempF={tonightLow(frost)} />
     </>
   );
 }
