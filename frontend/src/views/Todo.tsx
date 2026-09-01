@@ -13,10 +13,10 @@
 import { useCallback, useEffect, useState } from "react";
 import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
-import { Empty, ErrorBox, FIELD, Note, PageTitle, Pill, Section } from "../components/ui";
+import { Empty, ErrorBox, Note, PageTitle, Pill, Section } from "../components/ui";
 import {
   taskDelete, taskList, taskSave, taskSetDone,
-  type TaskRow, type TaskSort, type Timeframe,
+  type TaskInput, type TaskRow, type TaskSort, type Timeframe,
 } from "../lib/mcp";
 import { migrateLocalTodos } from "../lib/todos";
 import type { SavedRegion } from "../lib/regions";
@@ -62,7 +62,6 @@ export default function TodoView({
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [pageNo, setPageNo] = useState(0);
   const [search, setSearch] = useState("");
-  const [reminderOnly, setReminderOnly] = useState(true);
 
   const load = useCallback(async () => {
     setBusy(true); setErr("");
@@ -88,24 +87,37 @@ export default function TodoView({
     setPageNo(0);
   }
 
-  async function add(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
-    const title = String(f.get("title") ?? "").trim();
-    if (!title) { setErr("A task needs a title."); return; }
-    setErr("");
-    const r = await taskSave(region.id, {
-      title,
-      note: String(f.get("note") ?? "") || undefined,
-      due: String(f.get("due") ?? "") || undefined,
-      starts_at: reminderOnly ? undefined : String(f.get("starts") ?? "") || undefined,
-      ends_at: reminderOnly ? undefined : String(f.get("ends") ?? "") || undefined,
-      reminder_only: reminderOnly,
-    });
-    if (!r.success) { setErr(r.error || "The task could not be saved."); return; }
-    e.currentTarget.reset();
-    setReminderOnly(true);
-    void load();
+  /// The row being edited. A blank id means a task that does not exist yet,
+  /// which is the whole trick: adding and editing are one interaction, so
+  /// there is one form to get right instead of two that drift apart.
+  const [draft, setDraft] = useState<TaskInput | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const startNew = () => setDraft({
+    task_id: "", title: "", note: "", due: "", starts_at: "", ends_at: "", reminder_only: true,
+  });
+
+  const startEdit = (t: TaskRow) => setDraft({
+    task_id: t.id, title: t.title, note: t.note ?? "", due: t.due ?? "",
+    starts_at: hhmm(t.starts_at), ends_at: hhmm(t.ends_at),
+    reminder_only: t.reminder_only,
+  });
+
+  async function commit() {
+    if (!draft) return;
+    if (!draft.title.trim()) { setErr("A task needs a title."); return; }
+    setSaving(true); setErr("");
+    try {
+      const r = await taskSave(region.id, {
+        ...draft,
+        task_id: draft.task_id || undefined,
+        starts_at: draft.reminder_only ? "" : draft.starts_at,
+        ends_at: draft.reminder_only ? "" : draft.ends_at,
+      });
+      if (!r.success) { setErr(r.error || "The task could not be saved."); return; }
+      setDraft(null);
+      void load();
+    } finally { setSaving(false); }
   }
 
   const arrow = (c: TaskSort) => (c === sortCol ? (sortDir === "asc" ? " ▲" : " ▼") : "");
@@ -114,6 +126,16 @@ export default function TodoView({
     <>
       <div className="mb-3.5 flex items-center justify-between gap-3">
         <PageTitle>To-Do</PageTitle>
+        <div className="ml-auto flex items-center gap-1.5">
+        {/* Adding and editing are the same act now, done in the table, so this
+            just opens a blank row rather than unfolding a form. */}
+        <button onClick={startNew} title="Add a task"
+          className="flex min-h-11 items-center gap-1.5 rounded-full border-[1.5px] border-ink bg-ink px-3.5 text-[12.5px] font-semibold text-paper">
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+          </svg>
+          Task
+        </button>
         {/* The feed setup is a once-per-region job, so it sits on the Account
             page and this is the way in. */}
         <button onClick={() => onView?.("account")} title="Calendar feed settings"
@@ -123,57 +145,13 @@ export default function TodoView({
           </svg>
           iCal
         </button>
+        </div>
       </div>
 
       {err && <ErrorBox>{err}</ErrorBox>}
 
-      {/* ── Write it down ──────────────────────────────────────────────── */}
-      <Section emoji="➕" title="Add a task" first />
-      <form onSubmit={add} className="rounded-md border border-rule bg-panel p-4">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="block text-[11px] text-ink-soft lg:col-span-2">
-            What needs doing
-            <input name="title" placeholder="Cover the east beds" className={FIELD} />
-          </label>
-          <label className="block text-[11px] text-ink-soft">
-            Due
-            <input name="due" type="date" className={FIELD} />
-          </label>
-          <label className="flex min-h-11 items-center gap-2 self-end text-[12.5px]">
-            <input type="checkbox" checked={reminderOnly}
-              onChange={(e) => setReminderOnly(e.target.checked)}
-              className="h-5 w-5 accent-[var(--color-ink)]" />
-            Reminder only?
-          </label>
-        </div>
-
-        {/* Times only mean something for a task that takes a slot. Hiding them
-            for a reminder keeps the form from asking for what it will ignore. */}
-        {!reminderOnly && (
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <label className="block text-[11px] text-ink-soft">
-              From
-              <input name="starts" type="time" className={FIELD} />
-            </label>
-            <label className="block text-[11px] text-ink-soft">
-              To
-              <input name="ends" type="time" className={FIELD} />
-            </label>
-          </div>
-        )}
-
-        <label className="mt-3 block text-[11px] text-ink-soft">
-          Note
-          <input name="note" placeholder="Row cover is in the east barn" className={FIELD} />
-        </label>
-
-        <button className="mt-3 min-h-11 rounded border-[1.5px] border-ink px-4 text-[13px] font-semibold active:bg-ink active:text-paper">
-          Add task
-        </button>
-      </form>
-
       {/* ── What's on the list ─────────────────────────────────────────── */}
-      <Section emoji="✅" title="Tasks">
+      <Section emoji="✅" title="Tasks" first>
         <Provenance tool="goodearth_task_list" at={ranAt} onCost={onCost} />
       </Section>
 
@@ -194,7 +172,10 @@ export default function TodoView({
 
       {busy && !page ? (
         <div className="rounded-md border border-rule bg-panel"><QuoteScroller heading="Reading your list" /></div>
-      ) : page && page.rows.length ? (
+      ) : page && (page.rows.length || draft) ? (
+        // The draft must be able to appear on an EMPTY list too: opening a new
+        // row on a farm with no tasks yet is the first thing anyone does, and
+        // it would have had nowhere to render.
         <>
           <div className="overflow-x-auto rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">
             <table className="w-full text-[13px]">
@@ -209,7 +190,14 @@ export default function TodoView({
                 <th className="border-b-[1.5px] border-ink px-3 py-2.5" />
               </tr></thead>
               <tbody>
-                {page.rows.map((t) => (
+                {draft && !draft.task_id && (
+                  <Editor draft={draft} onChange={setDraft} onCommit={commit}
+                    onCancel={() => setDraft(null)} saving={saving} />
+                )}
+                {page.rows.map((t) => (draft?.task_id === t.id ? (
+                  <Editor key={t.id} draft={draft} onChange={setDraft} onCommit={commit}
+                    onCancel={() => setDraft(null)} saving={saving} />
+                ) : (
                   <tr key={t.id} className="border-b border-rule last:border-b-0">
                     <td className="px-3 py-2.5">
                       <input type="checkbox" checked={t.done}
@@ -217,12 +205,15 @@ export default function TodoView({
                         aria-label={`Mark ${t.title} ${t.done ? "not done" : "done"}`}
                         className="h-5 w-5 accent-[var(--color-ink)]" />
                     </td>
-                    <td className={`px-3 py-2.5 ${t.done ? "text-ink-soft line-through" : "font-medium"}`}>
+                    <td onClick={() => startEdit(t)}
+                      className={`cursor-text px-3 py-2.5 ${t.done ? "text-ink-soft line-through" : "font-medium"}`}>
                       {t.title}
                       {t.note && <small className="block text-[11px] font-normal text-ink-soft">{t.note}</small>}
                     </td>
-                    <td className="data px-3 py-2.5 whitespace-nowrap text-[12px]">{nice(t.due)}</td>
-                    <td className="data px-3 py-2.5 whitespace-nowrap text-[12px] text-ink-soft">
+                    <td onClick={() => startEdit(t)}
+                      className="data cursor-text px-3 py-2.5 whitespace-nowrap text-[12px]">{nice(t.due)}</td>
+                    <td onClick={() => startEdit(t)}
+                      className="data cursor-text px-3 py-2.5 whitespace-nowrap text-[12px] text-ink-soft">
                       {t.reminder_only ? "reminder" : `${hhmm(t.starts_at)}–${hhmm(t.ends_at)}`}
                     </td>
                     <td className="px-3 py-2.5 text-right">
@@ -231,11 +222,12 @@ export default function TodoView({
                         className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>
                     </td>
                   </tr>
-                ))}
+                )))}
               </tbody>
             </table>
           </div>
 
+          {page.total > 0 && (
           <div className="mt-2 flex items-center gap-2">
             <Pill onClick={() => setPageNo((p) => Math.max(0, p - 1))} disabled={page.page <= 0}>← Back</Pill>
             <span className="data text-[11.5px] text-ink-soft">
@@ -243,6 +235,7 @@ export default function TodoView({
             </span>
             <Pill onClick={() => setPageNo((p) => p + 1)} disabled={page.page + 1 >= page.pages}>Next →</Pill>
           </div>
+          )}
         </>
       ) : (
         <Empty>
@@ -258,5 +251,70 @@ export default function TodoView({
         on the next recompute — the gear at the top of this page.
       </Note>
     </>
+  );
+}
+
+
+/// One task, open for editing — a new one or an existing one, the same way.
+///
+/// Editing happens in the row rather than in a form above the table, so the
+/// page does not hold a permanently open form for an act performed a few
+/// times a day, and the thing being changed stays where it was read.
+function Editor({ draft, onChange, onCommit, onCancel, saving }: {
+  draft: TaskInput;
+  onChange: (d: TaskInput) => void;
+  onCommit: () => void;
+  onCancel: () => void;
+  saving: boolean;
+}) {
+  const cell = "w-full rounded border border-rule bg-white px-2 py-1 text-[13px] focus:border-honey focus:outline-none";
+  const set = (patch: Partial<TaskInput>) => onChange({ ...draft, ...patch });
+
+  return (
+    <tr className="border-b border-rule bg-band/40 last:border-b-0">
+      <td className="px-3 py-2.5 align-top" />
+      <td className="px-3 py-2 align-top">
+        <input autoFocus value={draft.title} className={cell}
+          placeholder="Cover the east beds"
+          onChange={(e) => set({ title: e.target.value })}
+          // Enter saves and Escape abandons, because a row editor that can
+          // only be dismissed with the mouse is slower than the form it replaced.
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { e.preventDefault(); onCommit(); }
+            if (e.key === "Escape") onCancel();
+          }} />
+        <input value={draft.note ?? ""} className={`${cell} mt-1 text-[12px]`}
+          placeholder="Row cover is in the east barn"
+          onChange={(e) => set({ note: e.target.value })} />
+      </td>
+      <td className="px-3 py-2 align-top">
+        <input type="date" value={draft.due ?? ""} className={cell}
+          onChange={(e) => set({ due: e.target.value })} />
+      </td>
+      <td className="px-3 py-2 align-top">
+        <label className="flex items-center gap-1.5 text-[12px] whitespace-nowrap">
+          <input type="checkbox" checked={draft.reminder_only ?? true}
+            onChange={(e) => set({ reminder_only: e.target.checked })}
+            className="h-4 w-4 accent-[var(--color-ink)]" />
+          Reminder only
+        </label>
+        {/* Times mean nothing for a reminder, so they are not offered for one. */}
+        {!draft.reminder_only && (
+          <div className="mt-1 flex items-center gap-1">
+            <input type="time" value={draft.starts_at ?? ""} className={cell}
+              onChange={(e) => set({ starts_at: e.target.value })} />
+            <span className="text-ink-soft">–</span>
+            <input type="time" value={draft.ends_at ?? ""} className={cell}
+              onChange={(e) => set({ ends_at: e.target.value })} />
+          </div>
+        )}
+      </td>
+      <td className="px-3 py-2 text-right align-top whitespace-nowrap">
+        <button onClick={onCommit} disabled={saving} aria-label="Save task"
+          className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-growth disabled:opacity-40">✓</button>
+        <button onClick={onCancel} aria-label="Cancel"
+          className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>
+      </td>
+    </tr>
   );
 }
