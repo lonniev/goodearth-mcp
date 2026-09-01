@@ -56,12 +56,26 @@ export async function publishedToken(regionName: string): Promise<string | null>
 /// Only refreshes what the grower already chose to publish — it never starts
 /// publishing on its own, because that would put a link into the world as a
 /// side effect of ticking off a task.
+///
+/// Two speeds, for two kinds of change. Adding or editing a task is a
+/// deliberate act, done once, and is sent straight away: a debounce there can
+/// be outlived by closing the tab, and the recompute that never fires is
+/// exactly the silent miss this is meant to prevent. Ticking boxes off is
+/// rapid, so those coalesce — four ticks are one refresh, not four.
 export function makeFeedRefresher(region: SavedRegion, token: string | null) {
   let timer: ReturnType<typeof setTimeout> | null = null;
-  return () => {
-    if (!token) return;
-    // Debounced: ticking four things off is one refresh, not four.
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => { void publishRegion(region, token); }, 2500);
+
+  const send = () => {
+    if (timer) { clearTimeout(timer); timer = null; }
+    if (token) void publishRegion(region, token);
+  };
+
+  return {
+    now: send,
+    soon: () => {
+      if (!token) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(send, 2500);
+    },
   };
 }

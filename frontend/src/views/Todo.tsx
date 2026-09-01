@@ -104,7 +104,7 @@ export default function TodoView({
       reminder_only: reminderOnly,
     });
     if (!r.success) { setErr(r.error || "The task could not be saved."); return; }
-    refreshFeed();
+    refreshFeed.now();
     e.currentTarget.reset();
     setReminderOnly(true);
     void load();
@@ -142,7 +142,7 @@ export default function TodoView({
       });
       if (!r.success) { setErr(r.error || "The task could not be saved."); return; }
       setDraft(null);
-      refreshFeed();
+      refreshFeed.now();
       void load();
     } finally { setSaving(false); }
   }
@@ -261,7 +261,7 @@ export default function TodoView({
                   <tr key={t.id} className="border-b border-rule last:border-b-0">
                     <td className="px-3 py-2.5">
                       <input type="checkbox" checked={t.done}
-                        onChange={async () => { await taskSetDone(t.id, !t.done); refreshFeed(); void load(); }}
+                        onChange={async () => { await taskSetDone(t.id, !t.done); refreshFeed.soon(); void load(); }}
                         aria-label={`Mark ${t.title} ${t.done ? "not done" : "done"}`}
                         className="h-5 w-5 accent-[var(--color-ink)]" />
                     </td>
@@ -277,7 +277,7 @@ export default function TodoView({
                       {t.reminder_only ? "reminder" : `${hhmm(t.starts_at)}–${hhmm(t.ends_at)}`}
                     </td>
                     <td className="px-3 py-2.5 text-right">
-                      <button onClick={async () => { await taskDelete(t.id); refreshFeed(); void load(); }}
+                      <button onClick={async () => { await taskDelete(t.id); refreshFeed.soon(); void load(); }}
                         aria-label={`Remove ${t.title}`}
                         className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>
                     </td>
