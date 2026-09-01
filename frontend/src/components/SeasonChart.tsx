@@ -17,6 +17,7 @@
 import { useMemo, useState } from "react";
 import type { SeasonCurveResult } from "../lib/mcp";
 import type { LedgerFlag } from "../lib/ledgerFlags";
+import { placeLabels } from "../lib/labelPlacement";
 import { regionImageUrl } from "../lib/basemapImage";
 import { TIMESCALES, useChartZoom, windowToDomain } from "../lib/useChartZoom";
 import ZoomControls from "./ZoomControls";
@@ -28,6 +29,12 @@ const W = 740, H = 268, L = 46, R = 716, T = 16, B = 232;
 // a word longer than the line so nothing can escape.
 const FLAG_CHARS = 17;
 const FLAG_LINES = 2;
+
+/// The label's rendered width, used to decide which side of the stem it sits
+/// on and how big its tap target is. Monospace, so this is exact.
+function w0(f: { label: string }): number {
+  return wrapLabel(f.label).reduce((m, l) => Math.max(m, l.length), 0) * 5.7 + 10;
+}
 
 function wrapLabel(text: string, width = FLAG_CHARS, max = FLAG_LINES): string[] {
   const words = text.split(/\s+/).filter(Boolean);
@@ -116,6 +123,21 @@ export default function SeasonChart({
     const line = (pts: [number, number][]) =>
       pts.map((p, i) => `${i ? "L" : "M"}${x(p[0]).toFixed(1)} ${y(p[1]).toFixed(1)}`).join(" ");
 
+    // Label placement is geometry, so it is resolved here with the scales
+    // rather than inside the render loop, where each flag could only see
+    // itself. Flags outside the zoom window are excluded so an off-screen
+    // label cannot push a visible one around.
+    const flagItems = flags.map((f) => ({
+      cx: x(f.index),
+      cy: f.gdd != null ? y(f.gdd) : B - 8,
+      lines: wrapLabel(f.label),
+    }));
+    // IBM Plex Mono at 9.5px, so a character really is 0.6em wide and the
+    // width estimate is exact rather than a guess.
+    const placement = placeLabels(flagItems, {
+      left: L, right: R, top: T, charW: 9.5 * 0.6, lineH: 10,
+    });
+
     let bandPath = "";
     if (band.length > 1) {
       const n = Math.min(band.length, mean.length);
@@ -178,8 +200,8 @@ export default function SeasonChart({
         } · ${Math.round(gLo).toLocaleString()}–${Math.round(gHi).toLocaleString()} GDD`
       : "";
 
-    return { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, rangeLabel, totalDays };
-  }, [data, zoom]);
+    return { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, rangeLabel, totalDays, placement };
+  }, [data, zoom, flags]);
 
   if (!view) {
     return (
@@ -189,7 +211,7 @@ export default function SeasonChart({
     );
   }
 
-  const { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, rangeLabel, totalDays } = view;
+  const { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, rangeLabel, totalDays, placement } = view;
   const todayIndex = last;
   const todayGdd = mean[last];
 
@@ -290,15 +312,17 @@ export default function SeasonChart({
           {frostDayIndex != null && (
             <line x1={x(frostDayIndex)} x2={x(frostDayIndex)} y1={T} y2={B} stroke="var(--color-frost)" strokeWidth={2.2} strokeDasharray="7 4" />
           )}
-            {/* The grower's own calendar, on the curve that produces it.
-              Stems alternate length so neighbouring flags do not collide, and
-              a flag whose threshold is counted from a different base
-              temperature is dimmed rather than quietly misplaced. */}
+            {/* The grower's own calendar, on the curve that produces it. The
+              dot and stem sit on the day being marked; the label is placed by
+              resolving actual collisions, so a crowded stretch spreads upward
+              into empty plot rather than stacking on the curve. A flag whose
+              threshold is counted from a different base temperature is dimmed
+              rather than quietly misplaced. */}
           {flags.map((f, i) => {
             const cx = x(f.index);
             if (cx < L - 4 || cx > R + 4) return null;
             const cy = f.gdd != null ? y(f.gdd) : B - 8;
-            const stem = 16 + (i % 3) * 13;
+            const { stem, flip } = placement[i] ?? { stem: 14, flip: false };
             const tone =
               f.kind === "crop" ? "var(--color-growth)"
               : f.kind === "pest" ? "var(--color-honey)"
@@ -310,19 +334,27 @@ export default function SeasonChart({
                 style={onFlag ? { cursor: "pointer" } : undefined}
                 role={onFlag ? "button" : undefined}
                 aria-label={onFlag ? `${f.label} — details` : undefined}>
-                {/* An invisible finger target. The dot is 7 px because a bigger
-                    one would hide the curve it sits on; the tap area is 44. */}
-                {onFlag && (
-                  <rect x={cx - 22} y={cy - stem - 26} width={44} height={stem + 48}
-                    fill="transparent" />
-                )}
-                <line x1={cx} y1={cy} x2={cx} y2={cy - stem} stroke={tone} strokeWidth={1} />
+                {/* Two finger targets, not one tall one. The dot is 7px so it
+                    cannot hide the curve, and the tap area is 44 — but a single
+                    rect spanning the whole stem would now be up to 190px tall
+                    and would swallow taps meant for the flags it passes. */}
+                {onFlag && (() => {
+                  const lw = wrapLabel(f.label).reduce((m, l) => Math.max(m, l.length), 0) * 5.7 + 10;
+                  const lh = wrapLabel(f.label).length * 10;
+                  const lx = cx + w0(f) > R ? cx - lw : cx;
+                  return (
+                    <>
+                      <rect x={cx - 22} y={cy - 22} width={44} height={44} fill="transparent" />
+                      <rect x={lx} y={cy - stem - lh - 4} width={lw} height={lh + 8} fill="transparent" />
+                    </>
+                  );
+                })()}
+                {/* The stem can be long now, so it is drawn lighter than the
+                    dot it belongs to — a leader should point, not compete. */}
+                <line x1={cx} y1={cy} x2={cx} y2={cy - stem} stroke={tone} strokeWidth={1} opacity={0.55} />
                 <circle cx={cx} cy={cy} r={3.5} fill={tone} stroke="var(--color-panel)" strokeWidth={1.2} />
                 {(() => {
                   const lines = wrapLabel(f.label);
-                  // Flip the label to the left of its stem when the stem is
-                  // near the right edge, or a wrapped label runs off the plot.
-                  const flip = cx > R - 96;
                   return (
                     <text
                       x={flip ? cx - 4 : cx + 4}
