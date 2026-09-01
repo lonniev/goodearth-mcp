@@ -113,3 +113,42 @@ export function ErrorBox({ children }: { children: ReactNode }) {
     </div>
   );
 }
+
+/// A species chiclet, carrying the animal's own photograph.
+///
+/// One emoji per class made a barred owl and a chickadee the same bird.
+/// iNaturalist ships a photo per taxon, so the picture is sourced rather
+/// than chosen — and the emoji stays as the fallback for a species whose
+/// photo is missing or fails to load.
+export function SpeciesChiclet({
+  photo, emoji, name, figure, marked, title, onClick,
+}: {
+  photo?: string | null; emoji: string; name: string;
+  figure?: ReactNode; marked?: boolean; title?: string; onClick?: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      className={`flex min-h-11 items-center gap-2 rounded-full border py-1 pl-1 pr-3.5 text-[12.5px] active:border-ink ${
+        marked ? "border-growth/45 bg-growth/8" : "border-rule bg-panel"
+      }`}
+    >
+      {photo ? (
+        <img
+          src={photo}
+          alt=""
+          loading="lazy"
+          width={28}
+          height={28}
+          className="h-7 w-7 shrink-0 rounded-full object-cover"
+          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+        />
+      ) : (
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center">{emoji}</span>
+      )}
+      <span className="font-medium">{name}</span>
+      {figure != null && <span className="data text-[10.5px] text-ink-soft">{figure}</span>}
+    </button>
+  );
+}

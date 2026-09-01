@@ -704,6 +704,16 @@ async def wildlife_catalog(
         dict[str, Any],
         Field(description="GeoJSON Polygon or {lat, lon, radius_m}."),
     ],
+    species: Annotated[
+        str,
+        Field(
+            description=(
+                "Optional. A scientific name from a previous catalogue answer, e.g. "
+                "'Strix varia'. Given one, this returns that animal's life-cycle "
+                "phenophases instead of the regional list."
+            ),
+        ),
+    ] = "",
     npub: Annotated[
         str,
         Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
@@ -722,17 +732,29 @@ async def wildlife_catalog(
     the farm would be the dishonest version.
 
     The ranking measures observers as much as animals — a roadside is better
-    recorded than a back field — so the counts travel with the answer. Good
-    Earth times an event you set. It does not publish natural history.
+    recorded than a back field — so the counts travel with the answer.
+
+    Pass a scientific name as `species` and this answers with that animal's
+    life-cycle phenophases instead — nest building, nestlings, fledged young,
+    calls or song, emergence above ground. Those come from USA-NPN, which
+    publishes them; they are not written into this service. Roughly half the
+    species recorded around a farm have them, and one that does not returns an
+    empty list rather than a guess, because "not tracked" and "does nothing"
+    are different claims.
+
+    Good Earth times an event you set. It does not publish natural history.
 
     Args:
         region: GeoJSON Polygon or {lat, lon, radius_m}.
+        species: Optional scientific name, for that animal's habits.
     """
     try:
         parsed = parse_region(region)
     except RegionError as exc:
         return {"success": False, "error": str(exc), "error_code": "invalid_region"}
     try:
+        if species.strip():
+            return await catalog.region_species_habits(species)
         return await catalog.region_wildlife_catalog(parsed)
     except catalog.CatalogError as exc:
         return {"success": False, "error": str(exc), "error_code": "invalid_request"}

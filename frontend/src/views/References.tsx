@@ -40,6 +40,13 @@ const SOURCES: {
     note: "Finer than PRISM's 800 m and than Daymet's 1 km, and a single batched JSON call. Between farms Daymet now resolves real differences; inside one, this is what does.",
   },
   {
+    name: "USA National Phenology Network",
+    url: "https://www.usanpn.org/data/api",
+    role: "Degree-day pest forecasts read at your coordinates, and the life-cycle phenophases a species is tracked through — nest building, nestlings, fledged young, calls or song, emergence above ground.",
+    resolution: "4 km (PRISM) for the forecasts",
+    note: "Their rasters carry three different encodings under one namespace — a day of year, a heat total, or a risk class — and nothing in the service says which is which, so Good Earth measures each layer across latitude and shows only the ones that resolve to a date. Roughly half the species recorded around a farm have phenophases; one that does not is reported as untracked rather than as having none.",
+  },
+  {
     name: "Esri World Imagery",
     url: "https://www.arcgis.com/home/item.html?id=10df2279f9684e4a9f6a7f08febac2a9",
     role: "Satellite basemap for drawing a block, and the ghosted still behind the season curve.",
@@ -63,9 +70,9 @@ const SOURCES: {
   {
     name: "iNaturalist",
     url: "https://api.inaturalist.org/v1/docs/",
-    role: "Species identification in event details, and importing your own observations into Field Reports.",
-    resolution: "—",
-    note: "Read-only. Importing your observations is a courtesy; posting on your behalf is not something this does.",
+    role: "Which species are actually recorded around your ground, ranked by how often each has been seen — the Wildlife and Pests catalogues — plus the photograph shown for each, and importing your own observations into Field Reports.",
+    resolution: "observations, not a grid",
+    note: "Read-only. Importing your observations is a courtesy; posting on your behalf is not something this does. Species photographs are their contributors' work under Creative Commons licences, credited on each image.",
   },
 ];
 

@@ -1304,6 +1304,12 @@ export interface WildlifeSpecies {
   scientific_name?: string;
   observations: number;
   emoji: string;
+  /// The taxon's own photograph from iNaturalist, Creative Commons.
+  photo?: string | null;
+  photo_by?: string | null;
+  photo_licence?: string | null;
+  /// Whether USA-NPN publishes life-cycle phenophases for this animal.
+  has_habits?: boolean;
 }
 
 export interface WildlifeCatalogResult {
@@ -1311,11 +1317,27 @@ export interface WildlifeCatalogResult {
   error?: string;
   groups?: { group: string; taxon: string; emoji: string; species: WildlifeSpecies[] }[];
   species_total?: number;
+  with_habits?: number;
   unavailable?: string[];
   search_span_km?: number;
   note?: string;
 }
 
+export interface SpeciesHabitsResult {
+  success: boolean;
+  error?: string;
+  scientific_name?: string;
+  common_name?: string;
+  habits?: string[];
+  tracked?: boolean;
+  note?: string;
+}
+
 export async function wildlifeCatalog(region: Region): Promise<WildlifeCatalogResult> {
   return callTool<WildlifeCatalogResult>("wildlife_catalog", { region });
+}
+
+/// The same tool, asked about one animal: its life-cycle phenophases.
+export async function speciesHabits(region: Region, species: string): Promise<SpeciesHabitsResult> {
+  return callTool<SpeciesHabitsResult>("wildlife_catalog", { region, species });
 }

@@ -30,6 +30,7 @@ import httpx
 _INAT = "https://api.inaturalist.org/v1/observations/species_counts"
 _GBIF = "https://api.gbif.org/v1/occurrence/search"
 _NPN_WMS = "https://geoserver.usanpn.org/geoserver/wms"
+_NPN_PORTAL = "https://services.usanpn.org/npn_portal"
 
 _TIMEOUT = 45.0
 
@@ -92,12 +93,22 @@ async def fetch_inat_species(
         name = taxon.get("preferred_common_name") or taxon.get("name")
         if not name:
             continue
+        # The taxon's own photograph, rather than one icon standing in for a
+        # whole class. An emoji table would be another hand-written list, and
+        # a barred owl and a chickadee are not the same bird.
+        photo = taxon.get("default_photo") or {}
         out.append({
             "name": str(name),
             "scientific_name": taxon.get("name"),
             "observations": int(row.get("count") or 0),
             "taxon_id": taxon.get("id"),
             "rank": taxon.get("rank"),
+            "photo": photo.get("square_url") or photo.get("url"),
+            # These images are Creative Commons. Carrying the credit is the
+            # condition of using them, so it travels with the photo or the
+            # photo does not go.
+            "photo_by": photo.get("attribution"),
+            "photo_licence": photo.get("license_code"),
             "source": "iNaturalist",
         })
     return out
@@ -277,3 +288,53 @@ async def classify_npn_layer(layer: str) -> str:
     south = await fetch_npn_point(layer, *_REF_SOUTH)
     north = await fetch_npn_point(layer, *_REF_NORTH)
     return classify_values(south, north)
+
+
+# ── Life-cycle habits ────────────────────────────────────────────────────
+#
+# USA-NPN publishes, per species, the phenophases it tracks — the things an
+# animal visibly does in a year: nest building, nestlings, fledged young,
+# calls or song, mating, emergence above ground, young individuals. That is
+# the vocabulary a grower means by "when do the chicks hatch", and it is
+# published rather than invented here.
+#
+# The join to iNaturalist is the scientific name. iNaturalist returns
+# "Strix varia"; NPN stores genus and species apart, so they are rejoined.
+
+
+async def fetch_npn_species_index() -> dict[str, dict[str, Any]]:
+    """Every species USA-NPN tracks, keyed by lowercase scientific name.
+
+    One call for the whole catalogue, which is what makes it affordable to
+    say WHICH species have habits before anyone asks for one in particular.
+    """
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        data = await _json(client, f"{_NPN_PORTAL}/species/getSpecies.json", {})
+    if not isinstance(data, list):
+        raise BiotaError("USA-NPN species list returned an unexpected shape")
+    index: dict[str, dict[str, Any]] = {}
+    for s in data:
+        if not isinstance(s, dict):
+            continue
+        genus = str(s.get("genus") or "").strip()
+        species = str(s.get("species") or "").strip()
+        if not genus or not species:
+            continue
+        index[f"{genus} {species}".lower()] = s
+    return index
+
+
+async def fetch_species_habits(species_id: int, on: str) -> list[str]:
+    """The phenophases USA-NPN tracks for one species, in its own words."""
+    params = {"species_id": str(species_id), "date": on}
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        data = await _json(client, f"{_NPN_PORTAL}/phenophases/getPhenophasesForSpecies.json", params)
+    names: list[str] = []
+    for block in data if isinstance(data, list) else []:
+        if not isinstance(block, dict):
+            continue
+        for ph in block.get("phenophases") or []:
+            name = str(ph.get("phenophase_name") or "").strip()
+            if name and name not in names:
+                names.append(name)
+    return names

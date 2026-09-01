@@ -17,8 +17,8 @@ import {
   saveWildlife, type SavedWildlife,
 } from "../lib/wildlifeModels";
 import type { SavedRegion } from "../lib/regions";
-import { Chiclet, Empty, ErrorBox, FIELD, Note, PageTitle, Pill, Section } from "../components/ui";
-import { wildlifeCatalog, type WildlifeCatalogResult } from "../lib/mcp";
+import { Empty, ErrorBox, FIELD, Note, PageTitle, Pill, Section, SpeciesChiclet } from "../components/ui";
+import { speciesHabits, wildlifeCatalog, type SpeciesHabitsResult, type WildlifeCatalogResult } from "../lib/mcp";
 
 const CLOCK: Record<string, { label: string; cls: string }> = {
   heat:     { label: "heat",     cls: "bg-growth/12 text-growth" },
@@ -46,6 +46,13 @@ export default function Wildlife({
   /// Tapping a species names it and leaves the clock blank. Which animals are
   /// here is a fact about the country; when they arrive on this farm is not.
   const [species, setSpecies] = useState("");
+  /// The animal whose habits are open, and what USA-NPN tracks it doing.
+  const [habitsOf, setHabitsOf] = useState<{ name: string } | null>(null);
+  const [habits, setHabits] = useState<SpeciesHabitsResult | null>(null);
+  const [habitsBusy, setHabitsBusy] = useState(false);
+  /// Tapping a habit names the event; the clock that times it stays the
+  /// grower's, exactly as the species name does.
+  const [eventName, setEventName] = useState("");
 
   useEffect(() => { setModels(listWildlife(region.id)); }, [region.id]);
 
@@ -84,6 +91,9 @@ export default function Wildlife({
     if (typeof made === "string") { setError(made); return; }
     setError("");
     setModels(saveWildlife(made).filter((m) => m.regionId === region.id));
+    // A controlled field is not cleared by form.reset(), so a saved event
+    // would otherwise sit in the box looking unsaved.
+    setSpecies(""); setEventName("");
     e.currentTarget.reset();
   }
 
@@ -94,6 +104,15 @@ export default function Wildlife({
       if (r.success) { setCat(r); setCatAt(new Date()); }
       else setError(r.error || "The wildlife catalogue could not be read.");
     } finally { setCatBusy(false); }
+  }, [region.region]);
+
+  const openHabits = useCallback(async (common: string, sci?: string) => {
+    setSpecies(common);
+    if (!sci) return;
+    setHabitsOf({ name: common }); setHabits(null); setHabitsBusy(true);
+    try {
+      setHabits(await speciesHabits(region.region, sci));
+    } finally { setHabitsBusy(false); }
   }, [region.region]);
 
   return (
@@ -188,7 +207,8 @@ export default function Wildlife({
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Field name="species" label="Creature" placeholder="American robin"
             value={species} onChange={setSpecies} />
-          <Field name="event" label="Event" placeholder="first arrival" />
+          <Field name="event" label="Event" placeholder="first arrival"
+            value={eventName} onChange={setEventName} />
           <Field name="emoji" label="Emoji" placeholder="🐦" />
           {driver === "heat" && (
             <>
@@ -277,16 +297,50 @@ export default function Wildlife({
               <p className="eyebrow">{g.emoji} {g.group}</p>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {g.species.slice(0, 24).map((sp) => (
-                  <Chiclet key={sp.name} emoji={g.emoji} name={sp.name}
-                    figure={sp.observations.toLocaleString()}
-                    title={`${sp.scientific_name ?? sp.name} — ${sp.observations.toLocaleString()} observations near here. Tap to start tracking it.`}
-                    onClick={() => setSpecies(sp.name)} />
+                  <SpeciesChiclet key={sp.name} photo={sp.photo} emoji={g.emoji}
+                    name={sp.name} figure={sp.observations.toLocaleString()}
+                    marked={sp.has_habits}
+                    title={`${sp.scientific_name ?? sp.name} — ${sp.observations.toLocaleString()} sightings near here.${sp.has_habits ? " Tap for what it does through the year." : " Tap to track it."}`}
+                    onClick={() => openHabits(sp.name, sp.scientific_name)} />
                 ))}
               </div>
             </div>
           ))}
+          {habitsOf && (
+            <div className="mb-3 rounded-md border border-rule border-l-4 border-l-growth bg-panel px-4 py-3">
+              <div className="flex flex-wrap items-baseline gap-2">
+                <b className="figure text-[15px]">{habitsOf.name}</b>
+                <span className="data text-[10.5px] text-ink-soft">
+                  {habitsBusy ? "reading…" : habits?.tracked ? "tracked by USA-NPN" : "not tracked"}
+                </span>
+                <button onClick={() => { setHabitsOf(null); setHabits(null); }}
+                  aria-label="Close" className="ml-auto inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-ink">×</button>
+              </div>
+              {habits && (habits.habits ?? []).length > 0 ? (
+                <>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {(habits.habits ?? []).map((h) => (
+                      <button key={h} onClick={() => setEventName(h)}
+                        title={`Track "${h}" for ${habitsOf.name}`}
+                        className="min-h-11 rounded-full border border-rule bg-paper px-3.5 text-[12px] active:border-ink">
+                        {h}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-[11.5px] leading-relaxed text-ink-soft">
+                    What USA-NPN tracks this animal doing in a year. Tap one to name it
+                    above — the clock that says when it happens on your ground is yours.
+                  </p>
+                </>
+              ) : habits && !habitsBusy ? (
+                <p className="mt-1.5 text-[12px] leading-relaxed text-ink-soft">{habits.note}</p>
+              ) : null}
+            </div>
+          )}
+
           <Note>
-            {cat.species_total} species recorded within about {cat.search_span_km} km, ranked
+            {cat.species_total} species recorded within about {cat.search_span_km} km,
+            {" "}{cat.with_habits} of them with life-cycle data. Ranked
             by how often each has been seen — which measures where people walk as much as
             where animals live. Species are a landscape fact and one field holds almost no
             records, which is why this looks wider than your ground.

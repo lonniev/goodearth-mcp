@@ -137,3 +137,40 @@ def test_layer_names_read_as_english():
     assert catalog._humanise("eab_egg_hatch") == "Emerald ash borer egg hatch"
     assert catalog._humanise("slf_adult") == "Spotted lanternfly adult"
     assert catalog._humanise("japanese_beetle_adult") == "Japanese beetle adult"
+
+
+def test_mortality_phenophases_are_left_out():
+    """NPN tracks deaths; a farm calendar is not the place for them.
+
+    A research network needs "Dead nestlings or fledglings". A grower opening
+    a page of things to look forward to does not need an entry offering to
+    time the death of the robins.
+    """
+    kept = catalog.drop_mortality([
+        "Live individuals", "Nest building", "Nestlings", "Fledged young",
+        "Dead individuals", "Dead nestlings or fledglings",
+    ])
+    assert kept == ["Live individuals", "Nest building", "Nestlings", "Fledged young"]
+
+
+def test_dropping_mortality_keeps_everything_else():
+    assert catalog.drop_mortality(["Calls or song"]) == ["Calls or song"]
+    assert catalog.drop_mortality([]) == []
+
+
+@pytest.mark.asyncio
+async def test_untracked_species_says_so_rather_than_returning_nothing(monkeypatch):
+    """"Not tracked" and "does nothing" are different claims.
+
+    Big Brown Bat is recorded around this farm and is absent from USA-NPN.
+    An empty list with no explanation would read as the bat having no habits.
+    """
+    async def index():
+        return {"strix varia": {"species_id": 1122, "common_name": "Barred Owl"}}
+
+    monkeypatch.setattr(biota, "fetch_npn_species_index", index)
+    catalog._npn_index = None
+    out = await catalog.region_species_habits("Eptesicus fuscus")
+    assert out["tracked"] is False
+    assert out["habits"] == []
+    assert "does not track" in out["note"]

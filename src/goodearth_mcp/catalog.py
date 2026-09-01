@@ -81,6 +81,10 @@ def _search_km(box: tuple[float, float, float, float]) -> float:
 _ROSTER_TTL_S = 6 * 60 * 60
 _roster: tuple[float, list[str]] | None = None
 _encoding: dict[tuple[str, int], str] = {}
+# The NPN species list is 1,940 rows and changes between seasons, not between
+# requests. Held so that marking which species have habits costs one call for
+# the whole catalogue rather than one per animal.
+_npn_index: tuple[float, dict[str, Any]] | None = None
 
 
 class CatalogError(ValueError):
@@ -163,6 +167,57 @@ async def region_pest_catalog(region: Region, today: date | None = None) -> dict
     }
 
 
+async def _species_index() -> dict[str, Any]:
+    global _npn_index
+    now = time.monotonic()
+    if _npn_index and now - _npn_index[0] < _ROSTER_TTL_S:
+        return _npn_index[1]
+    try:
+        index = await biota.fetch_npn_species_index()
+    except biota.BiotaError:
+        return {}
+    _npn_index = (now, index)
+    return index
+
+
+async def region_species_habits(scientific_name: str, today: date | None = None) -> dict[str, Any]:
+    """What USA-NPN tracks this animal visibly doing in a year.
+
+    Nest building, nestlings, fledged young, calls or song, emergence above
+    ground — published phenophases, not habits written here. A species NPN
+    does not track returns an empty list and says so, because "we have no
+    data on this bat" and "this bat does nothing" are different claims.
+    """
+    today = today or datetime.now(UTC).date()
+    index = await _species_index()
+    entry = index.get(scientific_name.strip().lower())
+    if not entry:
+        return {
+            "success": True,
+            "scientific_name": scientific_name,
+            "habits": [],
+            "tracked": False,
+            "note": "USA-NPN does not track this species, so Good Earth has nothing to show for it.",
+            "sources": _sources(),
+        }
+    habits = drop_mortality(
+        await biota.fetch_species_habits(int(entry["species_id"]), today.isoformat())
+    )
+    return {
+        "success": True,
+        "scientific_name": scientific_name,
+        "common_name": entry.get("common_name"),
+        "habits": habits,
+        "tracked": True,
+        "mortality_omitted": True,
+        "note": (
+            "Phenophases USA-NPN tracks for this species. They name what to watch for; "
+            "when each arrives on your ground is the threshold you set."
+        ),
+        "sources": _sources(),
+    }
+
+
 async def region_wildlife_catalog(region: Region) -> dict[str, Any]:
     """Which animals are actually recorded on this ground, by group.
 
@@ -177,6 +232,10 @@ async def region_wildlife_catalog(region: Region) -> dict[str, Any]:
         return_exceptions=True,
     )
 
+    # One call marks every species that has life-cycle data, so the page can
+    # show which are worth asking about without asking about all 124.
+    index = await _species_index()
+
     groups: list[dict[str, Any]] = []
     missing: list[str] = []
     for (taxon, label, icon), rows in zip(WILDLIFE_GROUPS, results, strict=True):
@@ -187,7 +246,14 @@ async def region_wildlife_catalog(region: Region) -> dict[str, Any]:
             "group": label,
             "taxon": taxon,
             "emoji": icon,
-            "species": [{**r, "emoji": icon} for r in rows],
+            "species": [
+                {
+                    **r,
+                    "emoji": icon,
+                    "has_habits": (r.get("scientific_name") or "").lower() in index,
+                }
+                for r in rows
+            ],
         })
 
     return {
@@ -195,6 +261,7 @@ async def region_wildlife_catalog(region: Region) -> dict[str, Any]:
         "region": region.describe(),
         "groups": groups,
         "species_total": sum(len(g["species"]) for g in groups),
+        "with_habits": sum(1 for g in groups for s in g["species"] if s["has_habits"]),
         "search_span_km": _search_km(box),
         "unavailable": missing,
         "note": (
@@ -205,6 +272,20 @@ async def region_wildlife_catalog(region: Region) -> dict[str, Any]:
         ),
         "sources": _sources(),
     }
+
+
+def drop_mortality(habits: list[str]) -> list[str]:
+    """Leave out the phenophases that record a death.
+
+    USA-NPN tracks "Dead individuals" and "Dead nestlings or fledglings"
+    because a research network needs mortality. This is a calendar of things
+    to look forward to on a farm, and an entry offering to time the death of
+    the robins is not that.
+
+    Filtered rather than hidden: the count of what was left out travels with
+    the answer, so the list is short for a stated reason.
+    """
+    return [h for h in habits if not h.lower().startswith("dead")]
 
 
 def _humanise(layer: str) -> str:
