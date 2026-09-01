@@ -98,46 +98,56 @@ export default function Pests({
 
       {data?.summary && <p className="mb-2.5 text-[13px] text-ink-soft">{data.summary}</p>}
 
+      {/* Rows shaped like the wildlife calendar's: an icon, the name and its
+          detail on one baseline, the data underneath. These were stacked cards
+          with a heading inside, which is why the page read as a different app
+          from its neighbours. */}
       {busy && !data ? (
         <div className="rounded-md border border-rule bg-panel">
           <QuoteScroller heading="Checking what you're watching" />
         </div>
       ) : data ? (
-        <div className="space-y-2.5">
+        <ul className="space-y-2">
           {data.pests.map((a) => {
             const id = models.find((m) => m.pest === a.pest)?.id;
+            const due = (a.stages ?? []).some((x) => !x.reached);
             return (
-              <div key={a.pest} className="rounded-md border border-rule bg-panel px-4 py-3">
-                <div className="flex items-baseline gap-2">
-                  <h3 className="figure text-[15px] font-semibold">{a.pest}</h3>
-                  <span className="data text-[10.5px] text-ink-soft">
-                    base {a.base_temp_f}°F · {a.gdd_accumulated?.toLocaleString()} GDD
+              <li key={a.pest}
+                className="flex items-start gap-3 rounded-md border border-rule bg-panel px-3.5 py-2.5">
+                <span className="text-[22px] leading-none">{due ? "🥚" : "🐛"}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-baseline gap-2">
+                    <b className="text-[13.5px]">{a.pest}</b>
+                    <span className="text-[13px] text-ink-soft">base {a.base_temp_f}°F</span>
+                  </div>
+                  <div className="data mt-0.5 text-[11px] text-ink-soft">
+                    {a.gdd_accumulated?.toLocaleString()} GDD
                     {a.biofix ? ` since ${d(a.biofix)}` : " this season"}
-                  </span>
-                  {id && (
-                    <button onClick={() => setModels(deletePest(id).filter((p) => p.regionId === region.id))}
-                      aria-label={`Remove ${a.pest}`} className="ml-auto inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>
-                  )}
+                  </div>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {(a.stages ?? []).map((st) => (
+                      <StatusChip key={st.stage} tone={st.reached ? "reached" : "pending"}>
+                        {/* The remaining-GDD figure was in a title attribute,
+                            which is unreachable with a finger. */}
+                        <span>{st.stage} <span className="data text-[10.5px] text-ink-soft">{st.gdd.toLocaleString()}</span></span>
+                        {st.reached
+                          ? <span className="text-honey">✓</span>
+                          : <span className="data text-[10.5px] text-ink-soft">
+                              · {st.projected_date ? d(st.projected_date) : `${Math.round(st.gdd_remaining)} to go`}
+                            </span>}
+                      </StatusChip>
+                    ))}
+                  </div>
                 </div>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {(a.stages ?? []).map((s) => (
-                    <StatusChip key={s.stage} tone={s.reached ? "reached" : "pending"}>
-                      {/* The remaining-GDD figure was in a title attribute,
-                          which is unreachable with a finger — it belongs in
-                          the chip itself. */}
-                      <span>{s.stage} <span className="data text-[11px] text-ink-soft">{s.gdd.toLocaleString()}</span></span>
-                      {s.reached
-                        ? <span className="text-honey">✓</span>
-                        : <span className="data text-[11px] text-ink-soft">
-                            · {s.projected_date ? d(s.projected_date) : `${Math.round(s.gdd_remaining)} to go`}
-                          </span>}
-                    </StatusChip>
-                  ))}
-                </div>
-              </div>
+                {id && (
+                  <button onClick={() => setModels(deletePest(id).filter((p) => p.regionId === region.id))}
+                    aria-label={`Remove ${a.pest}`}
+                    className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>
+                )}
+              </li>
             );
           })}
-        </div>
+        </ul>
       ) : (
         <Empty>
           Nothing being watched on {region.name} yet. Take one from Nearby below, or add your own.

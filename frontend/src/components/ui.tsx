@@ -162,13 +162,16 @@ export function SpeciesChiclet({
 /// lost their borders. This is the second family, minus the tap — same
 /// geometry and the same tone treatment the crop library uses, so a reached
 /// stage and a comfortable crop are recognisably the same kind of mark.
+/// Not min-h-11. That is a TOUCH TARGET, and this cannot be touched — it
+/// inherited the height from Chiclet and made every row it sat in twice as
+/// tall as the equivalent row on the other pages.
 export function StatusChip({ tone, children }: {
   tone?: "reached" | "pending"; children: ReactNode;
 }) {
   return (
     <span
-      className={`inline-flex min-h-11 items-center gap-1 rounded-full border px-3.5 text-[12.5px] ${
-        tone === "reached" ? "border-honey/50 bg-honey/8" : "border-rule bg-panel text-ink-soft"
+      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11.5px] ${
+        tone === "reached" ? "border-honey/50 bg-honey/8" : "border-rule bg-paper text-ink-soft"
       }`}
     >
       {children}
