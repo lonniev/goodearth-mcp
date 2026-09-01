@@ -14,9 +14,11 @@ import QuoteScroller from "../components/QuoteScroller";
 import { wildlifeCalendar, type WildlifeResult } from "../lib/mcp";
 import {
   deleteWildlife, DRIVER_HELP, HUSBANDRY_INTERVALS, listWildlife, makeWildlife,
-  saveWildlife, WILDLIFE_STARTERS, type SavedWildlife,
+  saveWildlife, type SavedWildlife,
 } from "../lib/wildlifeModels";
 import type { SavedRegion } from "../lib/regions";
+import { Chiclet, ErrorBox, FIELD, Note, PageTitle, Pill, Section } from "../components/ui";
+import { wildlifeCatalog, type WildlifeCatalogResult } from "../lib/mcp";
 
 const CLOCK: Record<string, { label: string; cls: string }> = {
   heat:     { label: "heat",     cls: "bg-growth/12 text-growth" },
@@ -38,6 +40,12 @@ export default function Wildlife({
   const [ranAt, setRanAt] = useState<Date | null>(null);
   const [driver, setDriver] = useState<"heat" | "daylight" | "interval" | "calendar">("daylight");
   const [husbandryFrom, setHusbandryFrom] = useState(() => new Date().toISOString().slice(0, 10));
+  const [cat, setCat] = useState<WildlifeCatalogResult | null>(null);
+  const [catBusy, setCatBusy] = useState(false);
+  const [catAt, setCatAt] = useState<Date | null>(null);
+  /// Tapping a species names it and leaves the clock blank. Which animals are
+  /// here is a fact about the country; when they arrive on this farm is not.
+  const [species, setSpecies] = useState("");
 
   useEffect(() => { setModels(listWildlife(region.id)); }, [region.id]);
 
@@ -79,14 +87,20 @@ export default function Wildlife({
     e.currentTarget.reset();
   }
 
+  const loadCatalog = useCallback(async () => {
+    setCatBusy(true);
+    try {
+      const r = await wildlifeCatalog(region.region);
+      if (r.success) { setCat(r); setCatAt(new Date()); }
+      else setError(r.error || "The wildlife catalogue could not be read.");
+    } finally { setCatBusy(false); }
+  }, [region.region]);
+
   return (
     <>
-      <div className="mb-3.5 flex items-baseline gap-3">
-        <h1 className="figure text-[26px] font-bold">Wildlife</h1>
-        <span className="text-[13px] text-ink-soft">{region.name}</span>
-      </div>
+      <PageTitle>Wildlife</PageTitle>
 
-      {error && <div className="mb-4 rounded-md border border-clay/30 bg-clay/10 p-3 text-[13px] text-clay">{error}</div>}
+      {error && <ErrorBox>{error}</ErrorBox>}
 
       {data && data.due_soon.length > 0 && (
         <div className="mb-5 rounded-md border border-rule border-l-4 border-l-honey bg-panel px-4 py-3">
@@ -158,7 +172,7 @@ export default function Wildlife({
       )}
 
       {/* ── Add ────────────────────────────────────────────────────────── */}
-      <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold">Track something</h2>
+      <Section emoji="➕" title="Track something" />
       <form onSubmit={add} className="rounded-md border border-rule bg-panel p-4">
         <div className="flex flex-wrap gap-1.5">
           {(["daylight", "heat", "interval", "calendar"] as const).map((d) => (
@@ -172,7 +186,8 @@ export default function Wildlife({
         <p className="mt-1.5 text-[12px] text-ink-soft">{DRIVER_HELP[driver]}</p>
 
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Field name="species" label="Creature" placeholder="American robin" />
+          <Field name="species" label="Creature" placeholder="American robin"
+            value={species} onChange={setSpecies} />
           <Field name="event" label="Event" placeholder="first arrival" />
           <Field name="emoji" label="Emoji" placeholder="🐦" />
           {driver === "heat" && (
@@ -187,7 +202,7 @@ export default function Wildlife({
               <label className="block text-[11px] text-ink-soft">
                 Direction
                 <select name="rising"
-                  className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2 text-[16px] focus:border-honey focus:outline-none">
+                  className={FIELD}>
                   <option value="up">days lengthening</option>
                   <option value="down">days shortening</option>
                 </select>
@@ -199,7 +214,7 @@ export default function Wildlife({
               <label className="block text-[11px] text-ink-soft">
                 Counting from
                 <input name="from" type="date"
-                  className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" />
+                  className={FIELD} />
               </label>
               <Field name="days" label="Days" placeholder="147" />
             </>
@@ -245,39 +260,61 @@ export default function Wildlife({
         </p>
       </div>
 
-      <div className="mt-6">
-        <span className="eyebrow">Wild — start from a shape</span>
-        <div className="mt-1.5 flex flex-wrap gap-1.5">
-          {WILDLIFE_STARTERS.map((s) => (
-            <button key={s.species + s.event}
-              onClick={() => {
-                const made = makeWildlife(s, region.id);
-                if (typeof made !== "string") {
-                  setModels(saveWildlife(made).filter((m) => m.regionId === region.id));
-                }
-              }}
-              className="data min-h-11 rounded-full border border-rule bg-panel px-4 text-[12px] text-ink-soft active:border-ink active:text-ink">
-              {s.emoji} {s.species}
-            </button>
+      <Section emoji="🔭" title="Recorded around you">
+        {!cat && (
+          <Pill onClick={loadCatalog} disabled={catBusy} active>
+            {catBusy ? "🧠 Reading…" : "🧠 Who's here?"}
+          </Pill>
+        )}
+        {cat && <Provenance tool="goodearth_wildlife_catalog" at={catAt} onCost={onCost} />}
+      </Section>
+
+      {cat ? (
+        <>
+          {(cat.groups ?? []).map((g) => (
+            <div key={g.taxon} className="mb-3">
+              <p className="eyebrow">{g.emoji} {g.group}</p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {g.species.slice(0, 24).map((sp) => (
+                  <Chiclet key={sp.name} emoji={g.emoji} name={sp.name}
+                    figure={sp.observations.toLocaleString()}
+                    title={`${sp.scientific_name ?? sp.name} — ${sp.observations.toLocaleString()} observations near here. Tap to start tracking it.`}
+                    onClick={() => setSpecies(sp.name)} />
+                ))}
+              </div>
+            </div>
           ))}
-        </div>
-        <p className="mt-2 max-w-prose text-[12px] leading-relaxed text-ink-soft">
-          Shapes to edit, not published natural history. What is right for a
-          particular valley belongs to a local naturalist, an extension
-          bulletin, or your own years of noticing — Good Earth only works out
-          when <em>your</em> threshold arrives on <em>your</em> ground.
-        </p>
-      </div>
+          <Note>
+            {cat.species_total} species recorded within about {cat.search_span_km} km, ranked
+            by how often each has been seen — which measures where people walk as much as
+            where animals live. Species are a landscape fact and one field holds almost no
+            records, which is why this looks wider than your ground.
+            {(cat.unavailable ?? []).length > 0 && ` ${(cat.unavailable ?? []).join(" and ")} did not load, so that group is missing rather than empty.`}
+            {" "}Tapping one names the animal and nothing else: when it arrives on your
+            ground is yours to set, and Good Earth does not publish natural history.
+          </Note>
+        </>
+      ) : (
+        <Note>
+          Which animals are actually recorded around here, from iNaturalist — owls, bats,
+          coyotes and the rest of what you hear at dusk, rather than a handful of species
+          written into this app. What comes back is a name and how often it has been seen;
+          the threshold that times it stays yours.
+        </Note>
+      )}
     </>
   );
 }
 
-function Field({ name, label, placeholder }: { name: string; label: string; placeholder: string }) {
+function Field({ name, label, placeholder, value, onChange }: {
+  name: string; label: string; placeholder: string;
+  value?: string; onChange?: (v: string) => void;
+}) {
   return (
     <label className="block text-[11px] text-ink-soft">
       {label}
-      <input name={name} placeholder={placeholder}
-        className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] text-ink focus:border-honey focus:outline-none" />
+      <input name={name} placeholder={placeholder} className={FIELD}
+        {...(onChange ? { value: value ?? "", onChange: (e) => onChange(e.target.value) } : {})} />
     </label>
   );
 }

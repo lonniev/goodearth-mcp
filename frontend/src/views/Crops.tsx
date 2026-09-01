@@ -15,6 +15,7 @@ import {
   CROP_CATEGORIES, CROP_PRESETS, deletePlanting, listPlantings, makePlanting,
   savePlanting, type CropPreset, type Planting, plantingDateFor } from "../lib/plantings";
 import type { SavedRegion } from "../lib/regions";
+import { FIELD } from "../components/ui";
 
 const short = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -130,17 +131,6 @@ export default function Crops({
   const verdictOf = (crop: string): Verdict | null =>
     fit?.crops.find((r) => r.crop === crop)?.verdict ?? null;
 
-  // Four copies of a class string is how the date input ended up a different
-  // height from its neighbours: Safari sizes it from its own shadow content
-  // unless told otherwise, and the copy nobody thought to update was the one
-  // that needed the extra rules. One definition, so they cannot drift again.
-  const FIELD = [
-    "mt-0.5 h-11 w-full appearance-none rounded border border-rule bg-white px-2.5",
-    "text-[16px] text-ink focus:border-honey focus:outline-none",
-    "[&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:h-full",
-    "[&::-webkit-date-and-time-value]:text-left",
-    "[&::-webkit-calendar-picker-indicator]:opacity-50",
-  ].join(" ");
 
   function add(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();

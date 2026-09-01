@@ -21,18 +21,10 @@ const KEY = "goodearth:pests:v1";
 /// Starting shapes only. Every number here must be confirmed against a local
 /// extension bulletin before anyone sprays or skips a scouting round — which
 /// is why the UI says so next to them rather than in a footnote.
-export const PEST_STARTERS: { pest: string; base_temp: number; stages: { stage: string; gdd: number }[] }[] = [
-  { pest: "Codling moth", base_temp: 50, stages: [
-      { stage: "first egg hatch", gdd: 250 }, { stage: "second flight", gdd: 1250 } ] },
-  { pest: "European corn borer", base_temp: 50, stages: [
-      { stage: "first flight", gdd: 375 }, { stage: "second flight", gdd: 1400 } ] },
-  { pest: "Cabbage maggot", base_temp: 40, stages: [
-      { stage: "first flight", gdd: 300 }, { stage: "second flight", gdd: 1500 } ] },
-  { pest: "Squash vine borer", base_temp: 50, stages: [
-      { stage: "peak flight", gdd: 1000 } ] },
-  { pest: "Colorado potato beetle", base_temp: 52, stages: [
-      { stage: "first adults", gdd: 185 }, { stage: "first larvae", gdd: 400 } ] },
-];
+// The starter models that used to live here are gone. Five pests written in
+// this file were one author's guess at what a farm cares about, identical for
+// a Vermont lakeshore and a Georgia orchard. The Pests page now reads USA-NPN's
+// degree-day forecasts for the actual region — see `pestCatalog` in lib/mcp.
 
 function read(): SavedPest[] {
   try {

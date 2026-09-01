@@ -1,14 +1,20 @@
 // Pests — where each model's degree-day stages stand on this ground.
 //
-// The answer a grower acts on is not the whole table, it is which rows are
-// worth walking this week — so that leads, and the detail follows.
+// The answer a grower acts on is not the whole table, it is what to watch
+// for now — so that leads, and the detail follows.
+//
+// The catalogue below is USA-NPN's, read live for this region. It replaced a
+// list of five pests written in this repo, which was one author's guess at
+// what a farm cares about, the same for a Vermont lakeshore and a Georgia
+// orchard.
 
 import { useCallback, useEffect, useState } from "react";
 import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
-import { pestThreshold, type PestWindowResult } from "../lib/mcp";
+import { Chiclet, Empty, ErrorBox, FIELD, Note, PageTitle, Pill, Section } from "../components/ui";
+import { pestCatalog, pestThreshold, type PestCatalogResult, type PestWindowResult } from "../lib/mcp";
 import {
-  deletePest, listPests, makePest, PEST_STARTERS, savePest, type SavedPest,
+  deletePest, listPests, makePest, savePest, type SavedPest,
 } from "../lib/pestModels";
 import type { SavedRegion } from "../lib/regions";
 
@@ -24,6 +30,12 @@ export default function Pests({
   const [error, setError] = useState("");
   const [ranAt, setRanAt] = useState<Date | null>(null);
   const [formErr, setFormErr] = useState("");
+  const [cat, setCat] = useState<PestCatalogResult | null>(null);
+  const [catBusy, setCatBusy] = useState(false);
+  const [catAt, setCatAt] = useState<Date | null>(null);
+  /// Tapping a catalogue entry names the pest and leaves the numbers blank.
+  /// The species is a fact about this country; the threshold is the grower's.
+  const [pestName, setPestName] = useState("");
 
   useEffect(() => { setModels(listPests(region.id)); }, [region.id]);
 
@@ -51,44 +63,38 @@ export default function Pests({
     if (typeof made === "string") { setFormErr(made); return; }
     setFormErr("");
     setModels(savePest(made).filter((p) => p.regionId === region.id));
+    setPestName("");
     e.currentTarget.reset();
   }
 
-  function addStarter(s: (typeof PEST_STARTERS)[number]) {
-    const made = makePest(
-      s.pest, s.base_temp,
-      s.stages.map((x) => `${x.stage} ${x.gdd}`).join(", "),
-      region.id,
-    );
-    if (typeof made !== "string") {
-      setModels(savePest(made).filter((p) => p.regionId === region.id));
-    }
-  }
+
+  const loadCatalog = useCallback(async () => {
+    setCatBusy(true);
+    try {
+      const r = await pestCatalog(region.region);
+      if (r.success) { setCat(r); setCatAt(new Date()); }
+      else setError(r.error || "The pest catalogue could not be read.");
+    } finally { setCatBusy(false); }
+  }, [region.region]);
 
   return (
     <>
-      <div className="mb-3.5 flex items-baseline gap-3">
-        <h1 className="figure text-[26px] font-bold">Pests</h1>
-        <span className="text-[13px] text-ink-soft">{region.name}</span>
-      </div>
+      <PageTitle>Pests</PageTitle>
 
-      {error && (
-        <div className="mb-4 rounded-md border border-clay/30 bg-clay/10 p-3 text-[13px] text-clay">{error}</div>
-      )}
+      {error && <ErrorBox>{error}</ErrorBox>}
 
       {data && data.scout_now.length > 0 && (
         <div className="mb-5 rounded-md border border-rule border-l-4 border-l-honey bg-panel px-4 py-3">
-          <span className="eyebrow">Walk these rows this week</span>
+          <span className="eyebrow">Watch for these now</span>
           <ul className="mt-1.5 space-y-1 text-[13px]">
             {data.scout_now.map((s) => <li key={s}>{s}</li>)}
           </ul>
         </div>
       )}
 
-      <h2 className="figure mb-2.5 flex items-baseline gap-2.5 text-[18px] font-semibold">
-        Thresholds
+      <Section emoji="🎯" title="Your thresholds">
         {models.length > 0 && <Provenance tool="goodearth_pest_threshold" at={ranAt} onCost={onCost} />}
-      </h2>
+      </Section>
 
       {data?.summary && <p className="mb-2.5 text-[13px] text-ink-soft">{data.summary}</p>}
 
@@ -135,26 +141,27 @@ export default function Pests({
           })}
         </div>
       ) : (
-        <div className="rounded-md border border-dashed border-rule bg-panel/60 p-6 text-[13px] text-ink-soft">
-          No pest models on {region.name} yet. Add one below, or start from a shape and edit it.
-        </div>
+        <Empty>
+          No pest models on {region.name} yet. Take one from the catalogue below, or add your own.
+        </Empty>
       )}
 
-      <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold">Add a model</h2>
+      <Section emoji="➕" title="Add a model" />
       <form onSubmit={add} className="rounded-md border border-rule bg-panel p-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="block text-[11px] text-ink-soft">Pest
             <input name="pest" placeholder="Aster leafhopper"
-              className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" /></label>
+              value={pestName} onChange={(e) => setPestName(e.target.value)}
+              className={FIELD} /></label>
           <label className="block text-[11px] text-ink-soft">Base °F
             <input name="base" inputMode="numeric" placeholder="50"
-              className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" /></label>
+              className={FIELD} /></label>
           <label className="block text-[11px] text-ink-soft">Biofix <span className="opacity-60">(optional)</span>
             <input name="biofix" type="date"
-              className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" /></label>
+              className={FIELD} /></label>
           <label className="block text-[11px] text-ink-soft lg:col-span-1">Stages
             <input name="stages" placeholder="first flight 375, second flight 1400"
-              className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" /></label>
+              className={FIELD} /></label>
         </div>
         {formErr && <p className="mt-2 text-[12px] text-clay">{formErr}</p>}
         <button className="mt-3 min-h-11 rounded border-[1.5px] border-ink px-4 text-[13px] font-semibold active:bg-ink active:text-paper">
@@ -162,24 +169,55 @@ export default function Pests({
         </button>
       </form>
 
-      <div className="mt-5">
-        <span className="eyebrow">Start from a shape</span>
-        <div className="mt-1.5 flex flex-wrap gap-1.5">
-          {PEST_STARTERS.map((s) => (
-            <button key={s.pest} onClick={() => addStarter(s)}
-              className="data min-h-11 rounded-full border border-rule bg-panel px-4 text-[12px] text-ink-soft active:border-ink active:text-ink">
-              + {s.pest}
-            </button>
-          ))}
-        </div>
-        <p className="mt-2 max-w-prose text-[12px] leading-relaxed text-ink-soft">
-          These are shapes to edit, not published thresholds. Degree-day models
-          vary by region and biotype — confirm every number against your own
-          extension bulletin before you spray or skip a scouting round. Good
-          Earth computes when <em>your</em> model arrives on <em>your</em>
-          ground; it does not publish entomology.
-        </p>
-      </div>
+      <Section emoji="🔭" title="Modelled for your area">
+        {!cat && (
+          <Pill onClick={loadCatalog} disabled={catBusy} active>
+            {catBusy ? "🧠 Reading…" : "🧠 What's here?"}
+          </Pill>
+        )}
+        {cat && <Provenance tool="goodearth_pest_catalog" at={catAt} onCost={onCost} />}
+      </Section>
+
+      {cat ? (
+        <>
+          <div className="flex flex-wrap gap-1.5">
+            {(cat.events ?? []).map((e) => (
+              <Chiclet key={e.model} emoji={e.passed ? "🐛" : "🥚"} name={e.name}
+                figure={d(e.date)}
+                tone={e.passed ? "border-honey/50 bg-honey/8" : "border-rule bg-panel"}
+                title={`${e.name} — modelled for ${d(e.date)} here. Tap to start a model of your own.`}
+                onClick={() => setPestName(e.name)} />
+            ))}
+          </div>
+          {(cat.insects_recorded ?? []).length > 0 && (
+            <>
+              <p className="eyebrow mt-4">Recorded nearby</p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {(cat.insects_recorded ?? []).slice(0, 18).map((i) => (
+                  <Chiclet key={i.name} emoji="🔍" name={i.name} figure={i.observations.toLocaleString()}
+                    title={`${i.observations.toLocaleString()} observations near here. Tap to start a model of your own.`}
+                    onClick={() => setPestName(i.name)} />
+                ))}
+              </div>
+            </>
+          )}
+          <Note>
+            Dated stages come from USA-NPN's degree-day forecasts for this region, and
+            the sightings from iNaturalist within about {cat.search_span_km} km — species
+            are a landscape fact, and one field holds almost no records.{" "}
+            {cat.models_unreadable ? `${cat.models_unreadable} of ${cat.models_published} published models carry accumulated heat or a risk class rather than a day, and are not shown rather than guessed at. ` : ""}
+            Tapping one names the pest and nothing else: the threshold is yours to set
+            against your own extension bulletin, and Good Earth does not publish
+            entomology or recommend a treatment.
+          </Note>
+        </>
+      ) : (
+        <Note>
+          USA-NPN models a set of pests nationally and Good Earth reads them for this
+          ground, so the answer here is not the answer for an orchard two states south.
+          What comes back is a date, not a threshold — the threshold stays yours.
+        </Note>
+      )}
     </>
   );
 }

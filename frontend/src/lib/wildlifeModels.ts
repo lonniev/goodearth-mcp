@@ -18,25 +18,11 @@ export interface SavedWildlife extends WildlifeEventInput {
 
 const KEY = "goodearth:wildlife:v1";
 
-export const WILDLIFE_STARTERS: WildlifeEventInput[] = [
-  { species: "American robin", event: "first arrival", driver: "daylight",
-    daylight_hours: 11.5, rising: true, emoji: "🐦",
-    note: "Arrival tracks lengthening days and the thaw line — edit to your own record." },
-  { species: "Red-winged blackbird", event: "first song", driver: "daylight",
-    daylight_hours: 11, rising: true, emoji: "🐦‍⬛" },
-  { species: "Canada goose", event: "southbound flights", driver: "daylight",
-    daylight_hours: 12.5, rising: false, emoji: "🪿" },
-  { species: "Woodchuck", event: "emergence", driver: "heat",
-    gdd: 120, base_temp: 43, emoji: "🦫" },
-  { species: "Grey squirrel", event: "nut caching begins", driver: "calendar",
-    typical_on: "09-15", emoji: "🐿️" },
-  { species: "Monarch", event: "southbound passage", driver: "heat",
-    gdd: 2400, base_temp: 50, emoji: "🦋" },
-  { species: "Spring peeper", event: "first chorus", driver: "heat",
-    gdd: 90, base_temp: 43, emoji: "🐸" },
-  { species: "White-tailed deer", event: "rut begins", driver: "daylight",
-    daylight_hours: 10.5, rising: false, emoji: "🦌" },
-];
+// The starter events that used to live here are gone. Twenty-two species
+// chosen to demonstrate three clocks is not the fauna of anyone's farm — the
+// owls, bats and coyotes a grower actually hears were never in it. The
+// Wildlife page now reads what iNaturalist records around the region — see
+// `wildlifeCatalog` in lib/mcp.
 
 export const DRIVER_HELP: Record<string, string> = {
   heat: "A degree-day threshold — moves with the season, like a crop.",

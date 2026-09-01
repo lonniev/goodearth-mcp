@@ -1269,3 +1269,53 @@ export async function plantingWindow(
 ): Promise<PlantingWindowResult> {
   return callTool<PlantingWindowResult>("planting_window", { region, crops });
 }
+
+// ── Regional catalogues ──────────────────────────────────────────────────
+//
+// What lives on this ground, read from the record of the surrounding country
+// rather than from a list in this repo.
+
+export interface PestCatalogEvent {
+  model: string;
+  name: string;
+  date: string;
+  passed: boolean;
+  source: string;
+  resolution_m: number;
+}
+
+export interface PestCatalogResult {
+  success: boolean;
+  error?: string;
+  events?: PestCatalogEvent[];
+  insects_recorded?: { name: string; scientific_name?: string; observations: number }[];
+  models_published?: number;
+  models_unreadable?: number;
+  search_span_km?: number;
+  note?: string;
+}
+
+export async function pestCatalog(region: Region): Promise<PestCatalogResult> {
+  return callTool<PestCatalogResult>("pest_catalog", { region });
+}
+
+export interface WildlifeSpecies {
+  name: string;
+  scientific_name?: string;
+  observations: number;
+  emoji: string;
+}
+
+export interface WildlifeCatalogResult {
+  success: boolean;
+  error?: string;
+  groups?: { group: string; taxon: string; emoji: string; species: WildlifeSpecies[] }[];
+  species_total?: number;
+  unavailable?: string[];
+  search_span_km?: number;
+  note?: string;
+}
+
+export async function wildlifeCatalog(region: Region): Promise<WildlifeCatalogResult> {
+  return callTool<WildlifeCatalogResult>("wildlife_catalog", { region });
+}
