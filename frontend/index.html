@@ -16,9 +16,22 @@
     <meta property="og:title" content="Good Earth" />
     <meta property="og:description" content="Climate analytics for small farms, answered for the ground you actually farm." />
     <meta property="og:url" content="https://goodearth.tollbooth-dpyc.com" />
+    <!--
+      Absolute, not relative: a crawler resolves this without a page context,
+      and a relative path silently yields no preview at all. Served from
+      public/ so Vite copies it through unhashed and the URL survives every
+      deploy — a hashed asset name would break every link already shared.
+    -->
+    <meta property="og:image" content="https://goodearth.tollbooth-dpyc.com/og-image.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:alt" content="Good Earth's heat ledger for a Vermont farm: accumulated growing degree days, the spread across the block, first-frost date, and a season curve flagged with pest stages." />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Good Earth" />
     <meta name="twitter:description" content="Climate analytics for small farms, answered for the ground you actually farm." />
+    <meta name="twitter:image" content="https://goodearth.tollbooth-dpyc.com/og-image.jpg" />
+    <meta name="twitter:image:alt" content="Good Earth's heat ledger for a Vermont farm: accumulated growing degree days, the spread across the block, first-frost date, and a season curve flagged with pest stages." />
   </head>
   <body>
     <div id="root"></div>
