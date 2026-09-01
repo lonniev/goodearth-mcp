@@ -13,7 +13,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
-import { Empty, ErrorBox, Note, PageTitle, Pill, Section } from "../components/ui";
+import { Empty, ErrorBox, FIELD, Note, PageTitle, Pill, Section } from "../components/ui";
 import {
   taskDelete, taskList, taskSave, taskSetDone,
   type TaskInput, type TaskRow, type TaskSort, type Timeframe,
@@ -62,6 +62,7 @@ export default function TodoView({
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [pageNo, setPageNo] = useState(0);
   const [search, setSearch] = useState("");
+  const [reminderOnly, setReminderOnly] = useState(true);
 
   const load = useCallback(async () => {
     setBusy(true); setErr("");
@@ -87,15 +88,31 @@ export default function TodoView({
     setPageNo(0);
   }
 
+  async function add(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    const title = String(f.get("title") ?? "").trim();
+    if (!title) { setErr("A task needs a title."); return; }
+    setErr("");
+    const r = await taskSave(region.id, {
+      title,
+      note: String(f.get("note") ?? "") || undefined,
+      due: String(f.get("due") ?? "") || undefined,
+      starts_at: reminderOnly ? undefined : String(f.get("starts") ?? "") || undefined,
+      ends_at: reminderOnly ? undefined : String(f.get("ends") ?? "") || undefined,
+      reminder_only: reminderOnly,
+    });
+    if (!r.success) { setErr(r.error || "The task could not be saved."); return; }
+    e.currentTarget.reset();
+    setReminderOnly(true);
+    void load();
+  }
+
   /// The row being edited. A blank id means a task that does not exist yet,
   /// which is the whole trick: adding and editing are one interaction, so
   /// there is one form to get right instead of two that drift apart.
   const [draft, setDraft] = useState<TaskInput | null>(null);
   const [saving, setSaving] = useState(false);
-
-  const startNew = () => setDraft({
-    task_id: "", title: "", note: "", due: "", starts_at: "", ends_at: "", reminder_only: true,
-  });
 
   const startEdit = (t: TaskRow) => setDraft({
     task_id: t.id, title: t.title, note: t.note ?? "", due: t.due ?? "",
@@ -126,18 +143,6 @@ export default function TodoView({
     <>
       <div className="mb-3.5 flex items-center justify-between gap-3">
         <PageTitle>To-Do</PageTitle>
-        <div className="ml-auto flex items-center gap-1.5">
-        {/* Adding and editing are the same act now, done in the table, so this
-            just opens a blank row rather than unfolding a form. */}
-        <button onClick={startNew} title="Add a task"
-          className="flex min-h-11 items-center gap-1.5 rounded-full border-[1.5px] border-ink bg-ink px-3.5 text-[12.5px] font-semibold text-paper">
-          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-          </svg>
-          Task
-        </button>
-        {/* The feed setup is a once-per-region job, so it sits on the Account
-            page and this is the way in. */}
         <button onClick={() => onView?.("account")} title="Calendar feed settings"
           className="flex min-h-11 items-center gap-1.5 rounded-full border border-rule px-3.5 text-[12.5px] text-ink-soft active:bg-band">
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
@@ -145,13 +150,65 @@ export default function TodoView({
           </svg>
           iCal
         </button>
-        </div>
       </div>
 
       {err && <ErrorBox>{err}</ErrorBox>}
 
+      {/* ── Write it down ──────────────────────────────────────────────── */}
+      {/* No section heading: the button below names the act, and a heading
+          plus a full-width submit was two rows spent saying "add". */}
+      <form onSubmit={add} className="mb-4 rounded-md border border-rule bg-panel p-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="block text-[11px] text-ink-soft lg:col-span-2">
+            What needs doing
+            <input name="title" placeholder="Cover the east beds" className={FIELD} />
+          </label>
+          <label className="block text-[11px] text-ink-soft">
+            Due
+            <input name="due" type="date" className={FIELD} />
+          </label>
+          <label className="flex min-h-11 items-center gap-2 self-end text-[12.5px]">
+            <input type="checkbox" checked={reminderOnly}
+              onChange={(e) => setReminderOnly(e.target.checked)}
+              className="h-5 w-5 accent-[var(--color-ink)]" />
+            Reminder only?
+          </label>
+        </div>
+
+        {/* Times only mean something for a task that takes a slot. Hiding them
+            for a reminder keeps the form from asking for what it will ignore. */}
+        {!reminderOnly && (
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <label className="block text-[11px] text-ink-soft">
+              From
+              <input name="starts" type="time" className={FIELD} />
+            </label>
+            <label className="block text-[11px] text-ink-soft">
+              To
+              <input name="ends" type="time" className={FIELD} />
+            </label>
+          </div>
+        )}
+
+        <div className="mt-3 flex items-end gap-3">
+          <label className="block flex-1 text-[11px] text-ink-soft">
+            Note
+            <input name="note" placeholder="Row cover is in the east barn" className={FIELD} />
+          </label>
+          {/* On the Note row rather than below it, so adding a task costs no
+              row of its own. */}
+          <button title="Add task"
+            className="flex h-11 shrink-0 items-center gap-1.5 rounded-full border-[1.5px] border-ink bg-ink px-3.5 text-[12.5px] font-semibold text-paper">
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+            </svg>
+            Task
+          </button>
+        </div>
+      </form>
+
       {/* ── What's on the list ─────────────────────────────────────────── */}
-      <Section emoji="✅" title="Tasks" first>
+      <Section emoji="✅" title="Tasks">
         <Provenance tool="goodearth_task_list" at={ranAt} onCost={onCost} />
       </Section>
 
@@ -172,10 +229,7 @@ export default function TodoView({
 
       {busy && !page ? (
         <div className="rounded-md border border-rule bg-panel"><QuoteScroller heading="Reading your list" /></div>
-      ) : page && (page.rows.length || draft) ? (
-        // The draft must be able to appear on an EMPTY list too: opening a new
-        // row on a farm with no tasks yet is the first thing anyone does, and
-        // it would have had nowhere to render.
+      ) : page && page.rows.length ? (
         <>
           <div className="overflow-x-auto rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">
             <table className="w-full text-[13px]">
@@ -190,10 +244,6 @@ export default function TodoView({
                 <th className="border-b-[1.5px] border-ink px-3 py-2.5" />
               </tr></thead>
               <tbody>
-                {draft && !draft.task_id && (
-                  <Editor draft={draft} onChange={setDraft} onCommit={commit}
-                    onCancel={() => setDraft(null)} saving={saving} />
-                )}
                 {page.rows.map((t) => (draft?.task_id === t.id ? (
                   <Editor key={t.id} draft={draft} onChange={setDraft} onCommit={commit}
                     onCancel={() => setDraft(null)} saving={saving} />
