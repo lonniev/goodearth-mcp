@@ -1,4 +1,4 @@
-// Pests — where each model's degree-day stages stand on this ground.
+// Pests — where each pest a grower watches for stands on this ground.
 //
 // The answer a grower acts on is not the whole table, it is what to watch
 // for now — so that leads, and the detail follows.
@@ -44,7 +44,7 @@ export default function Pests({
     setBusy(true); setError("");
     try {
       const r = await pestThreshold(region.region, list.map(({ id: _id, regionId: _r, ...m }) => m));
-      if (!r.success) { setError(r.error || "The pest models could not be read."); return; }
+      if (!r.success) { setError(r.error || "What you are watching could not be read."); return; }
       setData(r); setRanAt(new Date());
     } catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
@@ -92,7 +92,7 @@ export default function Pests({
         </div>
       )}
 
-      <Section emoji="🎯" title="Your thresholds" first>
+      <Section emoji="👀" title="What you're watching" first>
         {models.length > 0 && <Provenance tool="goodearth_pest_threshold" at={ranAt} onCost={onCost} />}
       </Section>
 
@@ -100,7 +100,7 @@ export default function Pests({
 
       {busy && !data ? (
         <div className="rounded-md border border-rule bg-panel">
-          <QuoteScroller heading="Reading thresholds" />
+          <QuoteScroller heading="Checking what you're watching" />
         </div>
       ) : data ? (
         <div className="space-y-2.5">
@@ -142,11 +142,11 @@ export default function Pests({
         </div>
       ) : (
         <Empty>
-          No pest models on {region.name} yet. Take one from the catalogue below, or add your own.
+          Nothing being watched on {region.name} yet. Take one from Nearby below, or add your own.
         </Empty>
       )}
 
-      <Section emoji="➕" title="Add a model" />
+      <Section emoji="➕" title="Watch a pest" />
       <form onSubmit={add} className="rounded-md border border-rule bg-panel p-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="block text-[11px] text-ink-soft">Pest
@@ -165,7 +165,7 @@ export default function Pests({
         </div>
         {formErr && <p className="mt-2 text-[12px] text-clay">{formErr}</p>}
         <button className="mt-3 min-h-11 rounded border-[1.5px] border-ink px-4 text-[13px] font-semibold active:bg-ink active:text-paper">
-          Add model
+          Start watching
         </button>
       </form>
 
@@ -186,7 +186,7 @@ export default function Pests({
               <Chiclet key={e.model} emoji={e.passed ? "🐛" : "🥚"} name={e.name}
                 figure={d(e.date)}
                 tone={e.passed ? "border-honey/50 bg-honey/8" : "border-rule bg-panel"}
-                title={`${e.name} — modelled for ${d(e.date)} here. Tap to start a model of your own.`}
+                title={`${e.name} — due ${d(e.date)} here. Tap to watch it.`}
                 onClick={() => setPestName(e.name)} />
             ))}
           </div>
@@ -196,7 +196,7 @@ export default function Pests({
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {(cat.insects_recorded ?? []).slice(0, 18).map((i) => (
                   <Chiclet key={i.name} emoji="🔍" name={i.name} figure={i.observations.toLocaleString()}
-                    title={`${i.observations.toLocaleString()} observations near here. Tap to start a model of your own.`}
+                    title={`${i.observations.toLocaleString()} sightings near here. Tap to watch it.`}
                     onClick={() => setPestName(i.name)} />
                 ))}
               </div>
@@ -206,17 +206,18 @@ export default function Pests({
             Dated stages come from USA-NPN's degree-day forecasts for this region, and
             the sightings from iNaturalist within about {cat.search_span_km} km — species
             are a landscape fact, and one field holds almost no records.{" "}
-            {cat.models_unreadable ? `${cat.models_unreadable} of ${cat.models_published} published models carry accumulated heat or a risk class rather than a day, and are not shown rather than guessed at. ` : ""}
-            Tapping one names the pest and nothing else: the threshold is yours to set
-            against your own extension bulletin, and Good Earth does not publish
-            entomology or recommend a treatment.
+            {cat.models_unreadable ? `${cat.models_unreadable} of ${cat.models_published} published forecasts give a heat total or a risk level rather than a date, so they are left out rather than guessed at. ` : ""}
+            Tapping one names the pest and nothing else. The heat numbers that say
+            when it arrives are yours to set against your own extension bulletin —
+            Good Earth does not publish entomology or recommend a treatment.
           </Note>
         </>
       ) : (
         <Note>
           USA-NPN models a set of pests nationally and Good Earth reads them for this
           ground, so the answer here is not the answer for an orchard two states south.
-          What comes back is a date, not a threshold — the threshold stays yours.
+          What comes back is a date for the region, not the numbers that time it on
+          your ground. Those stay yours.
         </Note>
       )}
     </>

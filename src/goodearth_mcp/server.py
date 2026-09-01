@@ -517,7 +517,7 @@ async def pest_threshold(
 
     Returns, per model: heat accumulated since its biofix, which stages have
     been crossed, and the projected date of the next one — plus a short list of
-    which pests are worth walking the rows for this week.
+    which pests to go and look for this week.
 
     Good Earth computes when your models arrive on your ground. It does not
     publish entomology: the thresholds are yours, because the authoritative

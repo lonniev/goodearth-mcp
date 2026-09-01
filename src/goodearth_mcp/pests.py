@@ -166,8 +166,8 @@ def scouting_priority(
 ) -> list[str]:
     """Which pests crossed a stage recently or cross one soon.
 
-    This is the answer a grower acts on: not the whole table, but which rows
-    are worth walking this week.
+    This is the answer a grower acts on: not the whole table, but which few
+    to go and look for this week.
     """
     out: list[str] = []
     for a in assessments:

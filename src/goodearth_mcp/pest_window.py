@@ -72,12 +72,15 @@ async def region_pest_window(
         "region": region.describe(),
         "pests": assessments,
         "scout_now": priority,
+        # Said the way a grower would say it. "2 of 2 models worth walking"
+        # is two pieces of jargon and a metaphor: they are not models to the
+        # person reading, they are pests, and what they do is arrive.
         "summary": (
-            f"{len(priority)} of {len(assessments)} model"
-            f"{'s' if len(assessments) != 1 else ''} worth walking this week."
+            f"{len(priority)} of {len(assessments)} pest"
+            f"{'s' if len(assessments) != 1 else ''} to watch this week."
             if priority else
-            f"Nothing crossing a threshold in the next 10 days across "
-            f"{len(assessments)} model{'s' if len(assessments) != 1 else ''}."
+            f"Nothing due in the next 10 days, across "
+            f"{len(assessments)} pest{'s' if len(assessments) != 1 else ''}."
         ),
         "note": (
             "Thresholds are the caller's own models. Good Earth computes when "
