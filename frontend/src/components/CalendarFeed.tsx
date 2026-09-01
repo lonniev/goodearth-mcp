@@ -10,13 +10,8 @@
 // both.
 
 import { useCallback, useEffect, useState } from "react";
-import {
-  calendarList, calendarRevoke, calendarSubscribe, taskList,
-  type CalendarFeedResult, type FeedRow,
-} from "../lib/mcp";
-import { listPlantings } from "../lib/plantings";
-import { listPests } from "../lib/pestModels";
-import { listWildlife } from "../lib/wildlifeModels";
+import { calendarList, calendarRevoke, type CalendarFeedResult, type FeedRow } from "../lib/mcp";
+import { publishRegion } from "../lib/publishFeed";
 import type { SavedRegion } from "../lib/regions";
 import { ErrorBox, Section } from "./ui";
 
@@ -40,27 +35,7 @@ export default function CalendarFeed({ region }: { region: SavedRegion }) {
   const publish = useCallback(async (token?: string) => {
     setBusy(true); setErr(""); setMsg("");
     try {
-      // Tasks live on the server now, so they are fetched rather than read
-      // from this device — which also means a task added on the phone is in
-      // the feed published from the laptop.
-      const t = await taskList(region.id, { timeframe: "all", page_size: 200 });
-      const r = await calendarSubscribe({
-        region: region.region,
-        regionName: region.name,
-        baseTemp: region.baseTempF,
-        token,
-        plantings: listPlantings(region.id).map((p) => ({
-          crop: p.crop, gdd_target: p.gddTarget, set_out: p.setOut,
-          ...(p.baseTempF != null ? { base_temp: p.baseTempF } : {}),
-        })),
-        pests: listPests(region.id).map(({ id: _i, regionId: _r, ...m }) => m),
-        wildlifeEvents: listWildlife(region.id).map(({ id: _i, regionId: _r, ...e }) => e),
-        todos: (t.rows ?? []).map((x) => ({
-          id: x.id, title: x.title, due: x.due ?? undefined, note: x.note ?? undefined,
-          done: x.done, reminder_only: x.reminder_only,
-          starts_at: x.starts_at ?? undefined, ends_at: x.ends_at ?? undefined,
-        })),
-      });
+      const r = await publishRegion(region, token);
       if (!r.success) { setErr(r.error || "The calendar could not be published."); return; }
       setFresh(r);
       setMsg(token ? "Refreshed — subscribers update in place." : "Published.");

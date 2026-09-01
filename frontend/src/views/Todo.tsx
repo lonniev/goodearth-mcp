@@ -10,15 +10,16 @@
 // The list is sorted, filtered, searched and paged by the SERVER. A season's
 // tasks are not a thing to download in full so a browser can slice them.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
-import { Empty, ErrorBox, FIELD, Note, PageTitle, Pill, Section } from "../components/ui";
+import { Empty, ErrorBox, FIELD, PageTitle, Pill, Section } from "../components/ui";
 import {
   taskDelete, taskList, taskSave, taskSetDone,
   type TaskInput, type TaskRow, type TaskSort, type Timeframe,
 } from "../lib/mcp";
 import { migrateLocalTodos } from "../lib/todos";
+import { makeFeedRefresher, publishedToken } from "../lib/publishFeed";
 import type { SavedRegion } from "../lib/regions";
 
 const nice = (iso?: string | null) =>
@@ -103,6 +104,7 @@ export default function TodoView({
       reminder_only: reminderOnly,
     });
     if (!r.success) { setErr(r.error || "The task could not be saved."); return; }
+    refreshFeed();
     e.currentTarget.reset();
     setReminderOnly(true);
     void load();
@@ -113,6 +115,13 @@ export default function TodoView({
   /// there is one form to get right instead of two that drift apart.
   const [draft, setDraft] = useState<TaskInput | null>(null);
   const [saving, setSaving] = useState(false);
+  /// If this region is already published, its feed follows the list without
+  /// anyone being told to go and press a button.
+  const [feedToken, setFeedToken] = useState<string | null>(null);
+  useEffect(() => { void publishedToken(region.name).then(setFeedToken); }, [region.name]);
+  const refreshFeed = useMemo(
+    () => makeFeedRefresher(region, feedToken), [region, feedToken],
+  );
 
   const startEdit = (t: TaskRow) => setDraft({
     task_id: t.id, title: t.title, note: t.note ?? "", due: t.due ?? "",
@@ -133,6 +142,7 @@ export default function TodoView({
       });
       if (!r.success) { setErr(r.error || "The task could not be saved."); return; }
       setDraft(null);
+      refreshFeed();
       void load();
     } finally { setSaving(false); }
   }
@@ -251,7 +261,7 @@ export default function TodoView({
                   <tr key={t.id} className="border-b border-rule last:border-b-0">
                     <td className="px-3 py-2.5">
                       <input type="checkbox" checked={t.done}
-                        onChange={async () => { await taskSetDone(t.id, !t.done); void load(); }}
+                        onChange={async () => { await taskSetDone(t.id, !t.done); refreshFeed(); void load(); }}
                         aria-label={`Mark ${t.title} ${t.done ? "not done" : "done"}`}
                         className="h-5 w-5 accent-[var(--color-ink)]" />
                     </td>
@@ -267,7 +277,7 @@ export default function TodoView({
                       {t.reminder_only ? "reminder" : `${hhmm(t.starts_at)}–${hhmm(t.ends_at)}`}
                     </td>
                     <td className="px-3 py-2.5 text-right">
-                      <button onClick={async () => { await taskDelete(t.id); void load(); }}
+                      <button onClick={async () => { await taskDelete(t.id); refreshFeed(); void load(); }}
                         aria-label={`Remove ${t.title}`}
                         className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>
                     </td>
@@ -295,11 +305,6 @@ export default function TodoView({
         </Empty>
       )}
 
-      <Note>
-        Sorting, filtering and search all happen on the server, so a long list
-        costs one page rather than the whole table. Tasks reach your calendar
-        on the next recompute — the gear at the top of this page.
-      </Note>
     </>
   );
 }
