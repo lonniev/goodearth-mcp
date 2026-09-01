@@ -20,7 +20,7 @@ from tollbooth.credential_validators import validate_btcpay_creds
 from tollbooth.runtime import OperatorRuntime, register_standard_tools
 from tollbooth.tool_identity import STANDARD_IDENTITIES, ToolIdentity
 
-from goodearth_mcp import __version__, calendar_feed, feed_store, season, sources
+from goodearth_mcp import __version__, biota, calendar_feed, catalog, feed_store, season, sources
 from goodearth_mcp.almanac_window import AlmanacError
 from goodearth_mcp.almanac_window import region_almanac as almanac_impl
 from goodearth_mcp.calendar_feed import CalendarError
@@ -109,6 +109,8 @@ CALENDAR_DATASET_UUID      = "3397c55a-8208-503d-a007-aa34975feb44"
 CALENDAR_FETCH_UUID        = "670e4e24-90e1-53a6-a409-10375a0470ac"
 CALENDAR_LIST_UUID         = "5e006f97-eaba-5ba7-a630-f493242b691d"
 CALENDAR_REVOKE_UUID       = "2a8310d1-f65d-56f3-bb99-6b77acd6252a"
+PEST_CATALOG_UUID          = "7101e6e8-40a9-58ef-8a2a-32bd2514ae1e"
+WILDLIFE_CATALOG_UUID      = "d066a193-3592-5fea-bab6-48aa8057e59c"
 
 _DOMAIN_TOOLS = [
     ToolIdentity(
@@ -158,6 +160,18 @@ _DOMAIN_TOOLS = [
         capability="wildlife_calendar",
         category="read",
         intent="When a grower's own wildlife events arrive on this ground — heat, daylight or calendar driven",
+    ),
+    ToolIdentity(
+        tool_id=PEST_CATALOG_UUID,
+        capability="pest_catalog",
+        category="read",
+        intent="Which pest stages are modelled for this ground this season, and the insects recorded near it",
+    ),
+    ToolIdentity(
+        tool_id=WILDLIFE_CATALOG_UUID,
+        capability="wildlife_catalog",
+        category="read",
+        intent="Which animals are actually recorded around this ground, by group and by how often they are seen",
     ),
     ToolIdentity(
         tool_id=CROP_SUITABILITY_UUID,
@@ -639,6 +653,94 @@ async def almanac(
 
 
 @tool
+@runtime.paid_tool(PEST_CATALOG_UUID)
+async def pest_catalog(
+    region: Annotated[
+        dict[str, Any],
+        Field(description="GeoJSON Polygon or {lat, lon, radius_m}."),
+    ],
+    npub: Annotated[
+        str,
+        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
+    ] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """Which pest stages are modelled for this ground this season.
+
+    Read from the USA-NPN degree-day forecasts rather than from a list in
+    this service, so a model they publish next season appears here without
+    anyone editing anything, and a Georgia orchard gets Georgia's dates.
+
+    Only layers measured to encode a day of year become dated events. Some
+    carry accumulated heat instead, and one of those reads 281 in Vermont —
+    a convincing 8 October that is really a heat sum. Those are counted and
+    named as unreadable rather than rendered as dates.
+
+    The insects recorded nearby come from iNaturalist and are a landscape
+    fact: one field holds almost no observations, so the search is widened
+    to the surrounding country and the answer says how far.
+
+    Args:
+        region: GeoJSON Polygon or {lat, lon, radius_m}.
+    """
+    try:
+        parsed = parse_region(region)
+    except RegionError as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+    try:
+        return await catalog.region_pest_catalog(parsed)
+    except catalog.CatalogError as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_request"}
+    except (biota.BiotaError, OSError) as exc:
+        logger.warning("pest_catalog failed: %s", exc)
+        return {"success": False, "error": f"A species feed did not answer: {exc}",
+                "error_code": "upstream_unavailable"}
+
+
+@runtime.paid_tool(WILDLIFE_CATALOG_UUID)
+async def wildlife_catalog(
+    region: Annotated[
+        dict[str, Any],
+        Field(description="GeoJSON Polygon or {lat, lon, radius_m}."),
+    ],
+    npub: Annotated[
+        str,
+        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
+    ] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """Which animals are actually recorded around this ground.
+
+    Birds, mammals, amphibians and reptiles observed near here, ranked by how
+    often each has been seen — so the answer for a Vermont lakeshore is not
+    the answer for a Georgia orchard, and neither is a roster someone typed.
+
+    Species are a landscape fact. A nine-hectare field contains almost no
+    observations of anything, so the search widens to the surrounding country
+    and the response reports how wide it looked; treating that footprint as
+    the farm would be the dishonest version.
+
+    The ranking measures observers as much as animals — a roadside is better
+    recorded than a back field — so the counts travel with the answer. Good
+    Earth times an event you set. It does not publish natural history.
+
+    Args:
+        region: GeoJSON Polygon or {lat, lon, radius_m}.
+    """
+    try:
+        parsed = parse_region(region)
+    except RegionError as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+    try:
+        return await catalog.region_wildlife_catalog(parsed)
+    except catalog.CatalogError as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_request"}
+    except (biota.BiotaError, OSError) as exc:
+        logger.warning("wildlife_catalog failed: %s", exc)
+        return {"success": False, "error": f"A species feed did not answer: {exc}",
+                "error_code": "upstream_unavailable"}
+
+
 @runtime.paid_tool(WILDLIFE_CALENDAR_UUID)
 async def wildlife_calendar(
     region: Annotated[
