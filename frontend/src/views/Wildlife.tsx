@@ -261,7 +261,7 @@ export default function Wildlife({
         </p>
       </div>
 
-      <Section emoji="🔭" title="Recorded around you">
+      <Section emoji="🔭" title="Sightings">
         {!cat && (
           <Pill onClick={loadCatalog} disabled={catBusy} active>
             {catBusy ? "🧠 Reading…" : "🧠 Who's here?"}

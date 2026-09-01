@@ -169,7 +169,7 @@ export default function Pests({
         </button>
       </form>
 
-      <Section emoji="🔭" title="Modelled for your area">
+      <Section emoji="🔭" title="Nearby">
         {!cat && (
           <Pill onClick={loadCatalog} disabled={catBusy} active>
             {catBusy ? "🧠 Reading…" : "🧠 What's here?"}
@@ -180,7 +180,8 @@ export default function Pests({
 
       {cat ? (
         <>
-          <div className="flex flex-wrap gap-1.5">
+          <p className="eyebrow">Modelled stages</p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
             {(cat.events ?? []).map((e) => (
               <Chiclet key={e.model} emoji={e.passed ? "🐛" : "🥚"} name={e.name}
                 figure={d(e.date)}
@@ -191,7 +192,7 @@ export default function Pests({
           </div>
           {(cat.insects_recorded ?? []).length > 0 && (
             <>
-              <p className="eyebrow mt-4">Recorded nearby</p>
+              <p className="eyebrow mt-4">Sightings</p>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {(cat.insects_recorded ?? []).slice(0, 18).map((i) => (
                   <Chiclet key={i.name} emoji="🔍" name={i.name} figure={i.observations.toLocaleString()}
