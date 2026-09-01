@@ -8,7 +8,6 @@ import pytest
 
 from goodearth_mcp import task_store as ts
 
-
 # ── Sorting is a whitelist, not a string ─────────────────────────────────
 
 
