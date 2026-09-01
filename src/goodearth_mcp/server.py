@@ -697,6 +697,7 @@ async def pest_catalog(
                 "error_code": "upstream_unavailable"}
 
 
+@tool
 @runtime.paid_tool(WILDLIFE_CATALOG_UUID)
 async def wildlife_catalog(
     region: Annotated[
@@ -741,6 +742,7 @@ async def wildlife_catalog(
                 "error_code": "upstream_unavailable"}
 
 
+@tool
 @runtime.paid_tool(WILDLIFE_CALENDAR_UUID)
 async def wildlife_calendar(
     region: Annotated[
