@@ -1,6 +1,6 @@
 // The calendar feed: publish once, then live in the calendar you already use.
 //
-// This was the first thing on the To-Do page, which put a once-per-region
+// This was the first thing on the Tasks page, which put a once-per-region
 // setup step in front of the two things done daily. It belongs with the other
 // settings.
 //

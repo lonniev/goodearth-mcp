@@ -1,5 +1,10 @@
-// To-Do — the work. The calendar that carries it off this screen lives on the
-// Account page now, behind the gear at the top of this one.
+// Tasks — the work. The calendar that carries it off this screen lives on the
+// Account page, behind the gear at the top of this one.
+//
+// One word for one thing. This page had three — a "To-Do" title, a "+ Task"
+// button and a "Tasks" heading — for the single idea it holds. The title went,
+// since the rail already names the view, and the row it occupied is where the
+// add button lives now.
 //
 // A grower does not live in this app. They live in whatever calendar tells
 // them about the school run and the market stall, so publishing is a setup
@@ -13,7 +18,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
-import { Empty, ErrorBox, FIELD, PageTitle, Pill, Section } from "../components/ui";
+import { Empty, ErrorBox, FIELD, Pill, Section } from "../components/ui";
 import {
   taskDelete, taskList, taskSave, taskSetDone,
   type TaskInput, type TaskRow, type TaskSort, type Timeframe,
@@ -151,8 +156,16 @@ export default function TodoView({
 
   return (
     <>
-      <div className="mb-3.5 flex items-center justify-between gap-3">
-        <PageTitle>To-Do</PageTitle>
+      <div className="mb-3 flex items-center justify-end gap-1.5">
+        {/* Submits the form below by id, so the control can sit up here in the
+            row the title used to hold without the form losing its button. */}
+        <button type="submit" form="new-task" title="Add task"
+          className="flex min-h-11 items-center gap-1.5 rounded-full border-[1.5px] border-ink bg-ink px-3.5 text-[12.5px] font-semibold text-paper">
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+          </svg>
+          Task
+        </button>
         <button onClick={() => onView?.("account")} title="Calendar feed settings"
           className="flex min-h-11 items-center gap-1.5 rounded-full border border-rule px-3.5 text-[12.5px] text-ink-soft active:bg-band">
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
@@ -167,7 +180,7 @@ export default function TodoView({
       {/* ── Write it down ──────────────────────────────────────────────── */}
       {/* No section heading: the button below names the act, and a heading
           plus a full-width submit was two rows spent saying "add". */}
-      <form onSubmit={add} className="mb-4 rounded-md border border-rule bg-panel p-4">
+      <form id="new-task" onSubmit={add} className="mb-4 rounded-md border border-rule bg-panel p-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="block text-[11px] text-ink-soft lg:col-span-2">
             What needs doing
@@ -200,21 +213,10 @@ export default function TodoView({
           </div>
         )}
 
-        <div className="mt-3 flex items-end gap-3">
-          <label className="block flex-1 text-[11px] text-ink-soft">
-            Note
-            <input name="note" placeholder="Row cover is in the east barn" className={FIELD} />
-          </label>
-          {/* On the Note row rather than below it, so adding a task costs no
-              row of its own. */}
-          <button title="Add task"
-            className="flex h-11 shrink-0 items-center gap-1.5 rounded-full border-[1.5px] border-ink bg-ink px-3.5 text-[12.5px] font-semibold text-paper">
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-            </svg>
-            Task
-          </button>
-        </div>
+        <label className="mt-3 block text-[11px] text-ink-soft">
+          Note
+          <input name="note" placeholder="Row cover is in the east barn" className={FIELD} />
+        </label>
       </form>
 
       {/* ── What's on the list ─────────────────────────────────────────── */}
