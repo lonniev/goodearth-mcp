@@ -152,3 +152,26 @@ export function SpeciesChiclet({
     </button>
   );
 }
+
+/// A standalone chip that reports a state rather than inviting a tap.
+///
+/// The site has two pill families: small borderless badges that annotate
+/// something else ("now", "won't fit"), and chiclet-sized bordered pills that
+/// are objects in their own right. A pest's stage chips had the SIZE of the
+/// second and the STYLING of the first, so they read as chiclets that had
+/// lost their borders. This is the second family, minus the tap — same
+/// geometry and the same tone treatment the crop library uses, so a reached
+/// stage and a comfortable crop are recognisably the same kind of mark.
+export function StatusChip({ tone, children }: {
+  tone?: "reached" | "pending"; children: ReactNode;
+}) {
+  return (
+    <span
+      className={`inline-flex min-h-11 items-center gap-1 rounded-full border px-3.5 text-[12.5px] ${
+        tone === "reached" ? "border-honey/50 bg-honey/8" : "border-rule bg-panel text-ink-soft"
+      }`}
+    >
+      {children}
+    </span>
+  );
+}

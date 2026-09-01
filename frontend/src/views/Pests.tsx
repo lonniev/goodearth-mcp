@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
-import { Chiclet, Empty, ErrorBox, FIELD, Note, PageTitle, Pill, Section } from "../components/ui";
+import { Chiclet, Empty, ErrorBox, FIELD, Note, PageTitle, Pill, Section, StatusChip } from "../components/ui";
 import { pestCatalog, pestThreshold, type PestCatalogResult, type PestWindowResult } from "../lib/mcp";
 import {
   deletePest, listPests, makePest, savePest, type SavedPest,
@@ -121,19 +121,17 @@ export default function Pests({
                 </div>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {(a.stages ?? []).map((s) => (
-                    <span key={s.stage}
-                      className={`inline-flex min-h-11 items-center rounded-full px-3.5 text-[12px] ${
-                        s.reached ? "bg-honey/15 text-honey" : "bg-band text-ink-soft"}`}>
+                    <StatusChip key={s.stage} tone={s.reached ? "reached" : "pending"}>
                       {/* The remaining-GDD figure was in a title attribute,
                           which is unreachable with a finger — it belongs in
                           the chip itself. */}
-                      {s.stage} {s.gdd.toLocaleString()}
+                      <span>{s.stage} <span className="data text-[11px] text-ink-soft">{s.gdd.toLocaleString()}</span></span>
                       {s.reached
-                        ? " ✓"
-                        : s.projected_date
-                          ? ` · ${d(s.projected_date)}`
-                          : ` · ${Math.round(s.gdd_remaining)} to go`}
-                    </span>
+                        ? <span className="text-honey">✓</span>
+                        : <span className="data text-[11px] text-ink-soft">
+                            · {s.projected_date ? d(s.projected_date) : `${Math.round(s.gdd_remaining)} to go`}
+                          </span>}
+                    </StatusChip>
                   ))}
                 </div>
               </div>
