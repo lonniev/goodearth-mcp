@@ -15,7 +15,7 @@ import {
   CROP_CATEGORIES, CROP_PRESETS, deletePlanting, listPlantings, makePlanting,
   savePlanting, type CropPreset, type Planting, plantingDateFor } from "../lib/plantings";
 import type { SavedRegion } from "../lib/regions";
-import { FIELD } from "../components/ui";
+import { Empty, ErrorBox, FIELD, Note, PageTitle, Section } from "../components/ui";
 
 const short = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -151,18 +151,17 @@ export default function Crops({
 
   return (
     <>
-      <h1 className="figure mb-3.5 text-[22px] font-bold">Crops</h1>
+      <PageTitle>Crops</PageTitle>
 
       {error && (
-        <div className="mb-4 rounded-md border border-clay/30 bg-clay/10 p-3 text-[13px] text-clay">{error}</div>
+        <ErrorBox>{error}</ErrorBox>
       )}
 
-      <h2 className="figure mb-2.5 flex items-baseline gap-2.5 text-[18px] font-semibold">
-        Crop ledger
+      <Section emoji="📒" title="Crop ledger" first>
         {plantings.length > 0 && (
           <Provenance tool="goodearth_crop_gdd_status" at={ranAt} onCost={onCost} />
         )}
-      </h2>
+      </Section>
 
       {ledger?.summary && (
         <p className="mb-2.5 text-[13px] text-ink-soft">
@@ -181,14 +180,14 @@ export default function Crops({
       ) : ledger ? (
         <CropLedger rows={ledger.plantings} plantings={plantings} onDelete={remove} />
       ) : (
-        <div className="rounded-md border border-dashed border-rule bg-panel/60 p-6 text-[13px] text-ink-soft">
+        <Empty>
           No plantings on {region.name} yet. Add one below and the ledger will
           tell you where it stands and whether it finishes before frost.
-        </div>
+        </Empty>
       )}
 
       {/* ── Add a planting ─────────────────────────────────────────────── */}
-      <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold">Add a planting</h2>
+      <Section emoji="➕" title="Add a planting" />
       <form onSubmit={add} className="rounded-md border border-rule bg-panel p-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="block text-[11px] text-ink-soft">
@@ -225,8 +224,7 @@ export default function Crops({
       </form>
 
       {/* ── Grows here ─────────────────────────────────────────────── */}
-      <h2 className="figure mt-7 mb-2.5 flex flex-wrap items-baseline gap-2.5 text-[18px] font-semibold">
-        🌾 Grows here
+      <Section emoji="🌾" title="Grows here">
         {!fit && (
           <button onClick={checkFit} disabled={fitBusy}
             className="min-h-11 rounded-full border-[1.5px] border-ink px-4 text-[12.5px] font-semibold active:bg-ink active:text-paper disabled:opacity-40">
@@ -234,7 +232,7 @@ export default function Crops({
           </button>
         )}
         {fit && <Provenance tool="goodearth_crop_suitability" at={fitAt} onCost={onCost} />}
-      </h2>
+      </Section>
 
       {fit ? (
         <div className="mb-3 rounded-md border border-rule border-l-4 border-l-growth bg-panel px-4 py-3">
@@ -314,16 +312,15 @@ export default function Crops({
         </p>
       )}
 
-      <p className="mt-2 text-[12px] leading-relaxed text-ink-soft">
+      <Note>
         Tap any crop to add it to the ledger, dated today. These are starting
         figures, not published agronomy — a corn hybrid is sold by its relative
         maturity precisely because "corn" has no single number. Edit against
         your own seed packet, and let field reports teach your ground its own.
-      </p>
+      </Note>
 
       {/* ── Sowing ─────────────────────────────────────────────────── */}
-      <h2 className="figure mt-7 mb-2.5 flex flex-wrap items-baseline gap-2.5 text-[18px] font-semibold">
-        🌱 Sowing
+      <Section emoji="🌱" title="Sowing">
         {!when && (
           <button onClick={checkWhen} disabled={whenBusy}
             className="min-h-11 rounded-full border-[1.5px] border-ink px-4 text-[12.5px] font-semibold active:bg-ink active:text-paper disabled:opacity-40">
@@ -331,7 +328,7 @@ export default function Crops({
           </button>
         )}
         {when && <Provenance tool="goodearth_planting_window" at={whenAt} onCost={onCost} />}
-      </h2>
+      </Section>
 
       {when ? (
         <>

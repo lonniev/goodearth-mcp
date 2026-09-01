@@ -186,10 +186,13 @@ export default function References() {
       <div className="rounded-md border border-rule border-l-4 border-l-clay bg-panel px-4 py-3.5 text-[13px] leading-relaxed">
         <p>
           <b>It does not publish agronomy, entomology or natural history.</b>{" "}
-          Crop targets, pest thresholds and wildlife triggers are yours — the
-          starter lists are shapes to edit. A corn hybrid is sold by its
-          relative maturity precisely because "corn" has no single number, and
-          a degree-day threshold right for one valley is wrong in the next.
+          Crop targets, pest thresholds and wildlife triggers are yours. The
+          catalogues name what is modelled or recorded around your ground —
+          from USA-NPN and iNaturalist, not from a list written into this app —
+          and they stop at the name. A corn hybrid is sold by its relative
+          maturity precisely because "corn" has no single number, and a
+          degree-day threshold right for one valley is wrong in the next, so
+          the number stays yours to set and to correct.
         </p>
         <p className="mt-2">
           <b>It never recommends a treatment.</b> Pesticide registration is

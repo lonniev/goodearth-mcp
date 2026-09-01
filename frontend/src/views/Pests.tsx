@@ -92,7 +92,7 @@ export default function Pests({
         </div>
       )}
 
-      <Section emoji="🎯" title="Your thresholds">
+      <Section emoji="🎯" title="Your thresholds" first>
         {models.length > 0 && <Provenance tool="goodearth_pest_threshold" at={ranAt} onCost={onCost} />}
       </Section>
 

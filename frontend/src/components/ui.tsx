@@ -35,11 +35,13 @@ export function PageTitle({ children }: { children: ReactNode }) {
 
 /// A section heading, with room for the action that fills it and the
 /// provenance of the answer it produced.
-export function Section({ emoji, title, children }: {
-  emoji: string; title: string; children?: ReactNode;
+export function Section({ emoji, title, first, children }: {
+  emoji: string; title: string; first?: boolean; children?: ReactNode;
 }) {
   return (
-    <h2 className="figure mt-7 mb-2.5 flex flex-wrap items-baseline gap-2.5 text-[18px] font-semibold">
+    <h2 className={`figure mb-2.5 flex flex-wrap items-baseline gap-2.5 text-[18px] font-semibold ${
+      first ? "" : "mt-7"
+    }`}>
       <span className="mr-0.5">{emoji}</span>{title}
       {children}
     </h2>

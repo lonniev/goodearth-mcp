@@ -17,7 +17,7 @@ import {
   saveWildlife, type SavedWildlife,
 } from "../lib/wildlifeModels";
 import type { SavedRegion } from "../lib/regions";
-import { Chiclet, ErrorBox, FIELD, Note, PageTitle, Pill, Section } from "../components/ui";
+import { Chiclet, Empty, ErrorBox, FIELD, Note, PageTitle, Pill, Section } from "../components/ui";
 import { wildlifeCatalog, type WildlifeCatalogResult } from "../lib/mcp";
 
 const CLOCK: Record<string, { label: string; cls: string }> = {
@@ -115,10 +115,9 @@ export default function Wildlife({
         </div>
       )}
 
-      <h2 className="figure mb-2.5 flex items-baseline gap-2.5 text-[18px] font-semibold">
-        The year
+      <Section emoji="📅" title="The year" first>
         {models.length > 0 && <Provenance tool="goodearth_wildlife_calendar" at={ranAt} onCost={onCost} />}
-      </h2>
+      </Section>
       {data?.summary && <p className="mb-2.5 text-[13px] text-ink-soft">{data.summary}</p>}
 
       {busy && !data ? (
@@ -164,11 +163,12 @@ export default function Wildlife({
           })}
         </ul>
       ) : (
-        <div className="rounded-md border border-dashed border-rule bg-panel/60 p-6 text-[13px] leading-relaxed text-ink-soft">
-          Nothing tracked on {region.name} yet. Start from a shape below — when
-          do your robins arrive, when do the squirrels start caching — and the
-          calendar works out when it happens on this ground.
-        </div>
+        <Empty>
+          Nothing tracked on {region.name} yet. Take a creature from what is
+          recorded around you below — when do your robins arrive, when do the
+          squirrels start caching — and the calendar works out when it happens
+          on this ground.
+        </Empty>
       )}
 
       {/* ── Add ────────────────────────────────────────────────────────── */}
@@ -227,8 +227,9 @@ export default function Wildlife({
         </button>
       </form>
 
-      <div className="mt-6">
-        <span className="eyebrow">Livestock — pick a date and it counts forward</span>
+      <Section emoji="🐄" title="Livestock" />
+      <div>
+        <span className="eyebrow">Pick a date and it counts forward</span>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           <label className="text-[11px] text-ink-soft">
             <input type="date" value={husbandryFrom}
