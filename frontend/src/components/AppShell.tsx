@@ -11,9 +11,12 @@ import RegionPicker from "./RegionPicker";
 import type { SavedRegion } from "../lib/regions";
 import { applyOrder, move, readCollapsed, readOrder, writeCollapsed, writeOrder } from "../lib/navOrder";
 
-export type ViewKey =
-  | "map" | "ledger" | "almanac" | "crops" | "pests" | "wildlife" | "todo"
-  | "reports" | "favorites" | "references" | "about" | "account";
+// The view set lives in lib/views so the router can import it without
+// reaching into a component. Re-exported here because every view already
+// imports ViewKey from the shell.
+import type { ViewKey } from "../lib/views";
+
+export { VIEW_KEYS, type ViewKey } from "../lib/views";
 
 interface RailItem {
   key: ViewKey;

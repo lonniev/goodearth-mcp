@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import AppShell, { type ViewKey } from "./components/AppShell";
+import { onRouteChange, readView, writeView } from "./lib/route";
 import Hive, { hiveMood } from "./components/Hive";
 import Bees from "./components/Bees";
 import NpubGate from "./components/NpubGate";
@@ -83,7 +84,8 @@ function conditions(f: FrostWindowResult | null) {
 export default function App() {
   const [signedIn, setSignedIn] = useState(isLoggedIn);
   const [notice, setNotice] = useState<string | undefined>();
-  const [view, setView] = useState<ViewKey>("ledger");
+  // The URL owns the view, so a refresh keeps the tab the reader was on.
+  const [view, setView] = useState<ViewKey>(() => readView());
   const [avatar, setAvatar] = useState(() => avatarFor(getStoredNpub()));
   const [displayName, setDisplayName] = useState("");
   const [balance, setBalance] = useState<number | null>(null);
@@ -96,6 +98,12 @@ export default function App() {
     const id = getActiveRegionId();
     return all.find((r) => r.id === id) ?? all[0];
   });
+
+  // Keep the URL and the state pointing at each other: this writes the hash
+  // when a tab is picked, and follows it when the reader uses back, forward,
+  // or opens a link.
+  useEffect(() => { writeView(view); }, [view]);
+  useEffect(() => onRouteChange(setView), []);
 
   // A paid call can bounce for an expired proof from anywhere; the gate
   // re-arms rather than stranding the grower on a page that will not load.
