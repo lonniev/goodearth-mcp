@@ -27,7 +27,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import L from "leaflet";
-import { coverageHours, fetchRadarIndex, frameLabel, tileUrl, type RadarIndex } from "../lib/radar";
+import { coverageHours, fetchRadarIndex, frameLabel, RADAR_MAX_NATIVE_ZOOM, tileUrl, type RadarIndex } from "../lib/radar";
 import {
   areaM2, distanceM, formatArea, isDrawable, type LatLng,
 } from "../lib/geo";
@@ -179,7 +179,13 @@ export default function FieldMap({ value, onChange, others = [], centreOn }: Pro
     }
     const f = radar.frames[Math.min(frame, radar.frames.length - 1)];
     if (!f) return;
-    const next = L.tileLayer(tileUrl(radar, f), { opacity: 0.62, zIndex: 400 });
+    const next = L.tileLayer(tileUrl(radar, f), {
+      opacity: 0.62,
+      zIndex: 400,
+      // Without this the layer asks for tiles above what RainViewer serves and
+      // gets a "Zoom level not supported" placeholder back with a 200.
+      maxNativeZoom: RADAR_MAX_NATIVE_ZOOM,
+    });
     next.addTo(m);
     // Swap rather than mutate: replacing the URL on a live layer leaves the
     // old tiles visible until each one is refetched, which reads as a stutter.
@@ -328,7 +334,7 @@ export default function FieldMap({ value, onChange, others = [], centreOn }: Pro
               {/* Say what it actually covers. Radar is an observation, so it
                   cannot reach into tomorrow however the control is drawn. */}
               <p className="data mt-1 text-[10px] leading-snug text-ink-soft">
-                Last {coverageHours(radar).toFixed(1)} h of observed radar
+                Last {coverageHours(radar).toFixed(1)} h of observed radar · about 1 km per pixel
                 {radar.frames.some((f) => f.kind === "nowcast") && " plus a short nowcast"}.
                 Radar is an echo off real rain — for tomorrow, the Almanac carries the forecast.
               </p>

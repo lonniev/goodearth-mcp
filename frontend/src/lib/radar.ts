@@ -42,6 +42,21 @@ export async function fetchRadarIndex(signal?: AbortSignal): Promise<RadarIndex>
   return { host: d.host, frames, generated: d.generated };
 }
 
+/// The deepest zoom RainViewer actually renders radar at.
+///
+/// Above this it answers HTTP 200 with a 1,370-byte placeholder reading
+/// "Zoom level not supported" — the same bytes at every zoom and every
+/// location, so status code and content-type both look healthy and the
+/// overlay silently becomes that graphic. Measured, not read off a doc page:
+/// z7 returns a real 13 KB tile and z8 the placeholder, at 256 and 512 alike.
+///
+/// Leaflet needs this as maxNativeZoom so it upscales the last real tile
+/// instead of requesting one that does not exist. That upscaling is honest
+/// here — radar resolves about a kilometre, so beyond this a single radar
+/// pixel already covers a whole farm, and sharpening it would be drawing
+/// detail the instrument never had.
+export const RADAR_MAX_NATIVE_ZOOM = 7;
+
 /// Tile URL for one frame.
 ///   colour 2  — the universal blue/green/red scheme growers recognise
 ///   smooth 1  — interpolated rather than blocky
