@@ -103,10 +103,47 @@ def test_a_done_todo_is_completed_and_full():
     assert "STATUS:COMPLETED" in out and "PERCENT-COMPLETE:100" in out
 
 
-@pytest.mark.parametrize(("given", "want"), [(0, 1), (5, 5), (99, 9)])
-def test_priority_is_clamped_to_the_spec_range(given, want):
-    out = "\n".join(ical.vtodo("u@x", "T", None, stamp=STAMP, priority=given))
-    assert f"PRIORITY:{want}" in out
+def test_a_todo_no_longer_carries_a_priority():
+    """PRIORITY went with the field. RFC 5545's 1-9 scale was never something
+    a grower set meaningfully, and the checkbox that fed it is gone."""
+    assert "PRIORITY" not in "\n".join(ical.vtodo("u@x", "T", None, stamp=STAMP))
+
+
+# ── A task that takes a slot ─────────────────────────────────────────────
+
+
+def test_a_timed_event_carries_both_ends_on_the_due_day():
+    out = "\n".join(ical.timed_event(
+        "u@x", "Chip branches", date(2026, 9, 5), "09:00", "11:30", stamp=STAMP))
+    assert "DTSTART:20260905T090000" in out
+    assert "DTEND:20260905T113000" in out
+
+
+def test_a_timed_event_is_floating_local_time():
+    """No Z and no TZID on purpose.
+
+    The hours a grower types are the hours on their own farm. Stamping them
+    UTC would slide every task by the offset — five hours in Vermont, which
+    is enough to move a morning job into the previous evening.
+    """
+    out = "\n".join(ical.timed_event(
+        "u@x", "T", date(2026, 9, 5), "09:00", "10:00", stamp=STAMP))
+    assert "DTSTART:20260905T090000" in out and "DTSTART;TZID" not in out
+    assert not any(l.startswith("DTSTART") and l.endswith("Z") for l in out.split("\n"))
+
+
+@pytest.mark.parametrize(("given", "want"), [
+    ("09:00", "090000"), ("9:5", "090500"), ("23:59", "235900"),
+    ("25:00", "230000"), ("", "000000"), ("nonsense", "000000"),
+])
+def test_clock_parsing_never_produces_an_invalid_time(given, want):
+    """A malformed time must not emit an unparseable calendar.
+
+    One bad DTSTART can make a client reject the WHOLE feed, so the fallback
+    is midnight rather than an exception or a blank.
+    """
+    out = "\n".join(ical.timed_event("u@x", "T", date(2026, 9, 5), given, "12:00", stamp=STAMP))
+    assert f"DTSTART:20260905T{want}" in out
 
 
 # ── The calendar wrapper ─────────────────────────────────────────────────

@@ -122,7 +122,6 @@ def vtodo(
     *,
     description: str = "",
     stamp: datetime,
-    priority: int | None = None,
     completed: bool = False,
     categories: str | None = None,
 ) -> list[str]:
@@ -137,8 +136,6 @@ def vtodo(
         lines.append(f"DUE;VALUE=DATE:{_day(due)}")
     if description:
         lines.append(f"DESCRIPTION:{escape(description)}")
-    if priority is not None:
-        lines.append(f"PRIORITY:{max(1, min(9, priority))}")
     if categories:
         lines.append(f"CATEGORIES:{escape(categories)}")
     lines.append(f"STATUS:{'COMPLETED' if completed else 'NEEDS-ACTION'}")
@@ -210,3 +207,49 @@ def as_date(v: Any) -> date | None:
         except ValueError:
             return None
     return None
+
+
+def timed_event(
+    uid: str,
+    summary: str,
+    day: date,
+    start: str,
+    end: str,
+    *,
+    description: str = "",
+    stamp: datetime,
+    categories: str | None = None,
+) -> list[str]:
+    """One event that takes a slot on a day, rather than a whole day.
+
+    A task the grower did NOT mark "reminder only" is something they intend
+    to be doing at a particular hour, so it is published as a timed VEVENT
+    and shows up as a block in the day rather than as a banner across it.
+
+    Written as LOCAL time with no Z and no TZID: the hours a grower types are
+    the hours on their own farm, and stamping them UTC would move every task
+    by the offset. A floating time is what RFC 5545 has for exactly this.
+    """
+    d = _day(day)
+    return [
+        "BEGIN:VEVENT",
+        f"UID:{uid}",
+        f"DTSTAMP:{_stamp(stamp)}",
+        f"DTSTART:{d}T{_clock(start)}",
+        f"DTEND:{d}T{_clock(end)}",
+        f"SUMMARY:{escape(summary)}",
+        *([f"DESCRIPTION:{escape(description)}"] if description else []),
+        *([f"CATEGORIES:{escape(categories)}"] if categories else []),
+        "END:VEVENT",
+    ]
+
+
+def _clock(hhmm: str) -> str:
+    """"09:00" as iCalendar's HHMMSS. Anything unparseable becomes midnight."""
+    parts = (hhmm or "").split(":")
+    try:
+        h = max(0, min(23, int(parts[0])))
+        m = max(0, min(59, int(parts[1]))) if len(parts) > 1 else 0
+    except (ValueError, IndexError):
+        return "000000"
+    return f"{h:02d}{m:02d}00"

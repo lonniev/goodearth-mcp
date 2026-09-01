@@ -71,7 +71,13 @@ def validate_todos(raw: Any) -> list[dict[str, Any]]:
             "due": due,
             "note": str(t.get("note") or "")[:500],
             "done": bool(t.get("done")),
-            "priority": int(t["priority"]) if isinstance(t.get("priority"), int) else None,
+            # A task the grower did not mark "reminder only" is something they
+            # mean to be doing at an hour, so it publishes as a timed entry.
+            # Defaulting to True keeps every task that predates these fields a
+            # reminder, which is what it already was.
+            "reminder_only": bool(t.get("reminder_only", True)),
+            "starts_at": str(t.get("starts_at") or "")[:5],
+            "ends_at": str(t.get("ends_at") or "")[:5],
             "id": str(t.get("id") or title)[:80],
         })
     return out
@@ -294,16 +300,22 @@ async def build_feed(
     for t in parsed_todos:
         if t["due"]:
             record("todo", t["id"], t["title"], t["due"], t["note"] or "", "✅")
-        entries.append(ical.vtodo(
-            ical.uid_for(token, "todo", t["id"]),
-            t["title"],
-            t["due"],
-            description=t["note"],
-            stamp=stamp,
-            priority=t["priority"],
-            completed=t["done"],
-            categories="Good Earth,To-Do",
-        ))
+        if not t["reminder_only"] and t["due"] and t["starts_at"] and t["ends_at"]:
+            entries.append(ical.timed_event(
+                ical.uid_for(token, "todo", t["id"]),
+                t["title"], t["due"], t["starts_at"], t["ends_at"],
+                description=t["note"], stamp=stamp, categories="Good Earth,To-Do",
+            ))
+        else:
+            entries.append(ical.vtodo(
+                ical.uid_for(token, "todo", t["id"]),
+                t["title"],
+                t["due"],
+                description=t["note"],
+                stamp=stamp,
+                completed=t["done"],
+                categories="Good Earth,To-Do",
+            ))
         counted["todo"] += 1
 
     ics = ical.calendar(

@@ -11,6 +11,7 @@ Run locally:
 from __future__ import annotations
 
 import logging
+from datetime import date
 from typing import Annotated, Any
 
 from fastmcp import FastMCP
@@ -20,7 +21,7 @@ from tollbooth.credential_validators import validate_btcpay_creds
 from tollbooth.runtime import OperatorRuntime, register_standard_tools
 from tollbooth.tool_identity import STANDARD_IDENTITIES, ToolIdentity
 
-from goodearth_mcp import __version__, biota, calendar_feed, catalog, feed_store, season, sources
+from goodearth_mcp import __version__, biota, calendar_feed, catalog, feed_store, season, sources, task_store
 from goodearth_mcp.almanac_window import AlmanacError
 from goodearth_mcp.almanac_window import region_almanac as almanac_impl
 from goodearth_mcp.calendar_feed import CalendarError
@@ -111,6 +112,10 @@ CALENDAR_LIST_UUID         = "5e006f97-eaba-5ba7-a630-f493242b691d"
 CALENDAR_REVOKE_UUID       = "2a8310d1-f65d-56f3-bb99-6b77acd6252a"
 PEST_CATALOG_UUID          = "7101e6e8-40a9-58ef-8a2a-32bd2514ae1e"
 WILDLIFE_CATALOG_UUID      = "d066a193-3592-5fea-bab6-48aa8057e59c"
+TASK_SAVE_UUID             = "4c814e90-07c7-5944-b8cb-f05b619e6d2f"
+TASK_LIST_UUID             = "1be9b304-d895-5e80-995f-29838befc305"
+TASK_DELETE_UUID           = "87d174df-5cc7-5943-911f-cd41f7d2a000"
+TASK_SET_DONE_UUID         = "33e668c1-5609-5bfa-8ba0-a00b882969e5"
 
 _DOMAIN_TOOLS = [
     ToolIdentity(
@@ -160,6 +165,30 @@ _DOMAIN_TOOLS = [
         capability="wildlife_calendar",
         category="read",
         intent="When a grower's own wildlife events arrive on this ground — heat, daylight or calendar driven",
+    ),
+    ToolIdentity(
+        tool_id=TASK_SAVE_UUID,
+        capability="task_save",
+        category="write",
+        intent="Create or update one task on a region's list",
+    ),
+    ToolIdentity(
+        tool_id=TASK_LIST_UUID,
+        capability="task_list",
+        category="read",
+        intent="One page of a region's tasks, filtered by timeframe and search, ordered by the database",
+    ),
+    ToolIdentity(
+        tool_id=TASK_DELETE_UUID,
+        capability="task_delete",
+        category="write",
+        intent="Remove one task from a region's list",
+    ),
+    ToolIdentity(
+        tool_id=TASK_SET_DONE_UUID,
+        capability="task_set_done",
+        category="write",
+        intent="Mark one task done or not done",
     ),
     ToolIdentity(
         tool_id=PEST_CATALOG_UUID,
@@ -649,6 +678,144 @@ async def almanac(
     except (sources.UpstreamError, OSError) as exc:
         logger.warning("almanac failed: %s", exc)
         return {"success": False, "error": f"A weather feed did not answer: {exc}",
+                "error_code": "upstream_unavailable"}
+
+
+@tool
+@runtime.paid_tool(TASK_SAVE_UUID)
+async def task_save(
+    region_id: Annotated[str, Field(description="The saved region this task belongs to.")],
+    title: Annotated[str, Field(description="What needs doing.")],
+    task_id: Annotated[str, Field(description="Omit to create; pass an existing id to update.")] = "",
+    note: Annotated[str, Field(description="Optional detail.")] = "",
+    due: Annotated[str, Field(description="YYYY-MM-DD. The day it is for.")] = "",
+    starts_at: Annotated[str, Field(description="Optional HH:MM on the due date.")] = "",
+    ends_at: Annotated[str, Field(description="Optional HH:MM on the due date.")] = "",
+    reminder_only: Annotated[
+        bool,
+        Field(description="True publishes a reminder; false publishes an entry that takes the slot."),
+    ] = True,
+    done: bool = False,
+    npub: Annotated[str, Field(description="Required. Your Nostr public key (npub1...).")] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """Create or update one task.
+
+    Single-day by design: one date and optional clock times on it. No
+    recurrence and no multi-day spans — a farm list is a list of days.
+
+    Args:
+        region_id: Which saved region the task belongs to.
+        title: What needs doing.
+    """
+    try:
+        tid = await task_store.save(
+            npub, region_id, title, task_id=task_id, note=note,
+            due=due or None, starts_at=starts_at or None, ends_at=ends_at or None,
+            reminder_only=reminder_only, done=done,
+        )
+        return {"success": True, "id": tid}
+    except task_store.TaskError as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_request"}
+    except OSError as exc:
+        logger.warning("task_save failed: %s", exc)
+        return {"success": False, "error": f"The task could not be stored: {exc}",
+                "error_code": "upstream_unavailable"}
+
+
+@tool
+@runtime.paid_tool(TASK_LIST_UUID)
+async def task_list(
+    region_id: Annotated[str, Field(description="The saved region whose tasks to list.")],
+    timeframe: Annotated[
+        str, Field(description="day, week, month, season or all. 'season' means this farm's season."),
+    ] = "all",
+    search: Annotated[
+        str, Field(description="Optional POSIX regular expression, matched against title and note."),
+    ] = "",
+    sort_col: Annotated[
+        str, Field(description="due, title, done, starts, created or updated."),
+    ] = "due",
+    sort_dir: Annotated[str, Field(description="asc or desc.")] = "asc",
+    page: Annotated[int, Field(description="Zero-based page number.")] = 0,
+    page_size: Annotated[int, Field(description="Rows per page, capped at 200.")] = 20,
+    season_start: Annotated[
+        str, Field(description="Optional YYYY-MM-DD, so 'season' means the grower's season."),
+    ] = "",
+    npub: Annotated[str, Field(description="Required. Your Nostr public key (npub1...).")] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """One page of a region's tasks, ordered and filtered by the database.
+
+    The sorting, the timeframe filter and the search all happen in SQL, so a
+    long list costs one page rather than the whole table.
+
+    ``sort_col`` names a column rather than supplying one: it indexes a fixed
+    map and falls back to the due date, so an unrecognised value gives the
+    default order rather than an error — and can never reach the query.
+
+    Args:
+        region_id: The saved region whose tasks to list.
+        timeframe: day, week, month, season or all.
+        search: Optional POSIX regular expression.
+    """
+    try:
+        start = date.fromisoformat(season_start) if season_start else None
+        return {"success": True, **await task_store.listing(
+            npub, region_id, timeframe=timeframe, search=search,
+            sort_col=sort_col, sort_dir=sort_dir, page=page, page_size=page_size,
+            season_start=start,
+        )}
+    except (task_store.TaskError, ValueError) as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_request"}
+    except OSError as exc:
+        logger.warning("task_list failed: %s", exc)
+        return {"success": False, "error": f"The task list could not be read: {exc}",
+                "error_code": "upstream_unavailable"}
+
+
+@tool
+@runtime.paid_tool(TASK_DELETE_UUID)
+async def task_delete(
+    task_id: Annotated[str, Field(description="The task's id.")],
+    npub: Annotated[str, Field(description="Required. Your Nostr public key (npub1...).")] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """Remove one task.
+
+    Scoped to the caller's npub in the WHERE clause, so a known id is not on
+    its own enough to delete somebody else's task.
+
+    Args:
+        task_id: The task's id.
+    """
+    try:
+        return {"success": True, "removed": await task_store.delete(npub, task_id)}
+    except OSError as exc:
+        logger.warning("task_delete failed: %s", exc)
+        return {"success": False, "error": f"The task could not be removed: {exc}",
+                "error_code": "upstream_unavailable"}
+
+
+@tool
+@runtime.paid_tool(TASK_SET_DONE_UUID)
+async def task_set_done(
+    task_id: Annotated[str, Field(description="The task's id.")],
+    done: Annotated[bool, Field(description="True to tick it off.")] = True,
+    npub: Annotated[str, Field(description="Required. Your Nostr public key (npub1...).")] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """Mark one task done, or put it back.
+
+    Args:
+        task_id: The task's id.
+        done: True to tick it off.
+    """
+    try:
+        return {"success": True, "changed": await task_store.set_done(npub, task_id, done)}
+    except OSError as exc:
+        logger.warning("task_set_done failed: %s", exc)
+        return {"success": False, "error": f"The task could not be updated: {exc}",
                 "error_code": "upstream_unavailable"}
 
 
