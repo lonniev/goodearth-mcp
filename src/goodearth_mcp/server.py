@@ -1074,9 +1074,11 @@ async def calendar_dataset(
         list[dict[str, Any]] | None,
         Field(
             description=(
-                'Tasks, published as VTODO so they arrive as reminders: '
-                '{"id": "...", "title": "Cover the east beds", "due": "2026-09-28", '
-                '"note": "...", "priority": 1, "done": false}.'
+                'Tasks. A reminder publishes as VTODO, which clients surface as a '
+                'reminder rather than an appointment; one with times publishes as an '
+                'entry that takes the slot: {"id": "...", "title": "Cover the east beds", '
+                '"due": "2026-09-28", "note": "...", "done": false, '
+                '"reminder_only": true, "starts_at": "09:00", "ends_at": "11:00"}.'
             ),
         ),
     ] = None,

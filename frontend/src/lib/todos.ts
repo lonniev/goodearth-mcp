@@ -1,73 +1,71 @@
-// To-dos.
+// To-dos — now the server's, with a one-time lift from localStorage.
 //
-// Tasks born from the analytics — cover beds ahead of a frost watch, scout
-// after a threshold crossing, sow when a window opens — plus whatever else the
-// grower writes down. They are published to the calendar as VTODO, which is
-// what makes them arrive as reminders rather than as another appointment on an
-// already full day.
+// These lived in localStorage until the list needed sorting, filtering and
+// paging by something that can do it in SQL. What is left here is the
+// migration: anyone who wrote tasks on this device before the move would
+// otherwise open the page to an empty list and reasonably conclude the app
+// had eaten them.
 //
-// localStorage first, like every other patron collection here; NIP-78
-// `goodearth/todos` is where they belong once the write-through lands.
+// It runs once, keyed so a second device does not re-upload what the first
+// already sent, and it does not clear the local copy until every task has
+// been acknowledged by the server.
 
-export interface Todo {
+import { taskSave } from "./mcp";
+
+const KEY = "goodearth:todos:v1";
+const DONE_KEY = "goodearth:todos:migrated:v1";
+
+interface LegacyTodo {
   id: string;
   regionId: string;
   title: string;
   due?: string;
   note?: string;
   done: boolean;
-  /// 1 is highest. RFC 5545 priority, clamped server-side.
-  priority?: number;
-  createdAt: string;
+  createdAt?: string;
 }
 
-const KEY = "goodearth:todos:v1";
-
-function read(): Todo[] {
+function readLegacy(): LegacyTodo[] {
   try {
     const raw = window.localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as Todo[]) : [];
+    return raw ? (JSON.parse(raw) as LegacyTodo[]) : [];
   } catch { return []; }
 }
 
-function write(all: Todo[]): Todo[] {
-  try { window.localStorage.setItem(KEY, JSON.stringify(all)); } catch { /* noop */ }
-  return all;
-}
+/// Push any device-local tasks up, once. Returns how many moved.
+export async function migrateLocalTodos(regionId: string): Promise<number> {
+  try {
+    if (window.localStorage.getItem(DONE_KEY)) return 0;
+  } catch { return 0; }
 
-export function listTodos(regionId?: string): Todo[] {
-  const all = read().sort((a, b) => {
-    if (a.done !== b.done) return a.done ? 1 : -1;      // open work first
-    return (a.due ?? "9999").localeCompare(b.due ?? "9999");
-  });
-  return regionId ? all.filter((t) => t.regionId === regionId) : all;
-}
+  const mine = readLegacy().filter((t) => t.regionId === regionId);
+  if (!mine.length) {
+    try { window.localStorage.setItem(DONE_KEY, "1"); } catch { /* noop */ }
+    return 0;
+  }
 
-export function saveTodo(t: Todo): Todo[] {
-  return write([...read().filter((x) => x.id !== t.id), t]);
-}
+  let moved = 0;
+  for (const t of mine) {
+    // Priority is deliberately dropped rather than mapped: the field is gone
+    // from the model, and inventing a substitute would be worse than losing a
+    // flag the owner asked to remove.
+    const r = await taskSave(regionId, {
+      title: t.title,
+      note: t.note,
+      due: t.due,
+      done: t.done,
+      reminder_only: true,
+    });
+    if (r.success) moved += 1;
+  }
 
-export function deleteTodo(id: string): Todo[] {
-  return write(read().filter((x) => x.id !== id));
-}
-
-export function toggleTodo(id: string): Todo[] {
-  return write(read().map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
-}
-
-export function makeTodo(
-  title: string, regionId: string, due?: string, note?: string, priority?: number,
-): Todo | string {
-  if (!title.trim()) return "What needs doing?";
-  if (due && Number.isNaN(Date.parse(due))) return "Due date must be a real date.";
-  return {
-    id: `td-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`,
-    regionId,
-    title: title.trim().slice(0, 200),
-    ...(due ? { due } : {}),
-    ...(note?.trim() ? { note: note.trim().slice(0, 500) } : {}),
-    ...(priority ? { priority } : {}),
-    done: false,
-    createdAt: new Date().toISOString(),
-  };
+  // Only once everything landed. A partial upload that cleared the local copy
+  // would lose exactly the tasks that failed.
+  if (moved === mine.length) {
+    try {
+      window.localStorage.setItem(DONE_KEY, "1");
+      window.localStorage.removeItem(KEY);
+    } catch { /* noop */ }
+  }
+  return moved;
 }

@@ -1,240 +1,262 @@
-// To-Do — the work, and the calendar that carries it off this screen.
+// To-Do — the work. The calendar that carries it off this screen lives on the
+// Account page now, behind the gear at the top of this one.
 //
 // A grower does not live in this app. They live in whatever calendar tells
-// them about the school run and the market stall, so the point of this page is
-// not to be visited: it is to publish, once, and then be right in the place
-// they already look.
+// them about the school run and the market stall, so publishing is a setup
+// step you do once — which is a poor thing to lead a working page with. This
+// page leads with the two things used daily: writing a task down, and seeing
+// what is due.
 //
-// Tasks go out as VTODO, which Apple Reminders, Google Tasks and Thunderbird
-// surface as reminders. Season events go out as all-day entries. One
-// subscription carries both.
+// The list is sorted, filtered, searched and paged by the SERVER. A season's
+// tasks are not a thing to download in full so a browser can slice them.
 
 import { useCallback, useEffect, useState } from "react";
 import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
+import { Empty, ErrorBox, FIELD, Note, PageTitle, Pill, Section } from "../components/ui";
 import {
-  calendarList, calendarRevoke, calendarSubscribe,
-  type CalendarFeedResult, type FeedRow,
+  taskDelete, taskList, taskSave, taskSetDone,
+  type TaskRow, type TaskSort, type Timeframe,
 } from "../lib/mcp";
-import { deleteTodo, listTodos, makeTodo, saveTodo, toggleTodo, type Todo } from "../lib/todos";
-import { listPlantings } from "../lib/plantings";
-import { listPests } from "../lib/pestModels";
-import { listWildlife } from "../lib/wildlifeModels";
+import { migrateLocalTodos } from "../lib/todos";
 import type { SavedRegion } from "../lib/regions";
 
-const nice = (iso: string) =>
-  new Date(iso.length > 10 ? iso : iso + "T12:00:00")
-    .toLocaleDateString("en-US", { month: "short", day: "numeric" });
+const nice = (iso?: string | null) =>
+  iso ? new Date(iso.length > 10 ? iso : iso + "T12:00:00")
+    .toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—";
+
+const hhmm = (t?: string | null) => (t ? t.slice(0, 5) : "");
+
+const FRAMES: { key: Timeframe; label: string }[] = [
+  { key: "day", label: "Day" },
+  { key: "week", label: "Week" },
+  { key: "month", label: "Month" },
+  { key: "season", label: "Season" },
+  { key: "all", label: "All" },
+];
+
+/// Column header text and the sort key it asks the server for. A header that
+/// is not in this list cannot be sorted by, which mirrors the server's own
+/// whitelist rather than hoping the two agree.
+const COLS: { key: TaskSort; label: string }[] = [
+  { key: "done", label: "" },
+  { key: "title", label: "Task" },
+  { key: "due", label: "Due" },
+  { key: "starts", label: "Time" },
+];
 
 export default function TodoView({
-  region, onCost,
-}: { region: SavedRegion; onCost: (sats: number) => void }) {
-  const [todos, setTodos] = useState<Todo[]>(() => listTodos(region.id));
-  const [feeds, setFeeds] = useState<FeedRow[]>([]);
-  const [fresh, setFresh] = useState<CalendarFeedResult | null>(null);
+  region, onCost, onView,
+}: {
+  region: SavedRegion;
+  onCost: (sats: number) => void;
+  onView?: (v: "account") => void;
+}) {
+  const [page, setPage] = useState<{ rows: TaskRow[]; total: number; page: number; pages: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [msg, setMsg] = useState("");
   const [ranAt, setRanAt] = useState<Date | null>(null);
 
-  useEffect(() => { setTodos(listTodos(region.id)); }, [region.id]);
+  const [frame, setFrame] = useState<Timeframe>("all");
+  const [sortCol, setSortCol] = useState<TaskSort>("due");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [pageNo, setPageNo] = useState(0);
+  const [search, setSearch] = useState("");
+  const [reminderOnly, setReminderOnly] = useState(true);
 
-  const refreshFeeds = useCallback(async () => {
+  const load = useCallback(async () => {
+    setBusy(true); setErr("");
     try {
-      const r = await calendarList();
-      if (r.success) setFeeds(r.feeds);
-    } catch { /* the list is a convenience; publishing still works without it */ }
-  }, []);
-  useEffect(() => { void refreshFeeds(); }, [refreshFeeds]);
-
-  const mine = feeds.find((f) => f.region_name === region.name);
-
-  const publish = useCallback(async (token?: string) => {
-    setBusy(true); setErr(""); setMsg("");
-    try {
-      const r = await calendarSubscribe({
-        region: region.region,
-        regionName: region.name,
-        baseTemp: region.baseTempF,
-        token,
-        plantings: listPlantings(region.id).map((p) => ({
-          crop: p.crop, gdd_target: p.gddTarget, set_out: p.setOut,
-          ...(p.baseTempF != null ? { base_temp: p.baseTempF } : {}),
-        })),
-        pests: listPests(region.id).map(({ id: _i, regionId: _r, ...m }) => m),
-        wildlifeEvents: listWildlife(region.id).map(({ id: _i, regionId: _r, ...e }) => e),
-        todos: listTodos(region.id).map((t) => ({
-          id: t.id, title: t.title, due: t.due, note: t.note,
-          done: t.done, priority: t.priority,
-        })),
+      const r = await taskList(region.id, {
+        timeframe: frame, search, sort_col: sortCol, sort_dir: sortDir,
+        page: pageNo, page_size: 20,
       });
-      if (!r.success) { setErr(r.error || "The calendar could not be published."); return; }
-      setFresh(r); setRanAt(new Date());
-      setMsg(token ? "Refreshed — subscribers update in place." : "Published.");
-      void refreshFeeds();
+      if (!r.success) { setErr(r.error || "The task list could not be read."); return; }
+      setPage({ rows: r.rows ?? [], total: r.total ?? 0, page: r.page ?? 0, pages: r.pages ?? 1 });
+      setRanAt(new Date());
     } catch (e) { setErr((e as Error).message); }
     finally { setBusy(false); }
-  }, [region, refreshFeeds]);
+  }, [region.id, frame, search, sortCol, sortDir, pageNo]);
 
-  function add(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
-    const made = makeTodo(
-      String(f.get("title") ?? ""), region.id,
-      String(f.get("due") ?? "") || undefined,
-      String(f.get("note") ?? "") || undefined,
-      f.get("high") ? 1 : undefined,
-    );
-    if (typeof made === "string") { setErr(made); return; }
-    setErr("");
-    setTodos(saveTodo(made).filter((t) => t.regionId === region.id));
-    e.currentTarget.reset();
+  // Lift any device-local tasks before the first read, so the page never shows
+  // an empty list to someone who had tasks a moment ago.
+  useEffect(() => { void migrateLocalTodos(region.id).then(() => load()); }, [region.id, load]);
+
+  function sortBy(col: TaskSort) {
+    if (col === sortCol) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortCol(col); setSortDir("asc"); }
+    setPageNo(0);
   }
 
-  const url = fresh?.url ?? mine?.url;
-  const webcal = fresh?.webcal_url ?? (mine ? mine.url.replace(/^https:/, "webcal:") : undefined);
-  const open = todos.filter((t) => !t.done).length;
+  async function add(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    const title = String(f.get("title") ?? "").trim();
+    if (!title) { setErr("A task needs a title."); return; }
+    setErr("");
+    const r = await taskSave(region.id, {
+      title,
+      note: String(f.get("note") ?? "") || undefined,
+      due: String(f.get("due") ?? "") || undefined,
+      starts_at: reminderOnly ? undefined : String(f.get("starts") ?? "") || undefined,
+      ends_at: reminderOnly ? undefined : String(f.get("ends") ?? "") || undefined,
+      reminder_only: reminderOnly,
+    });
+    if (!r.success) { setErr(r.error || "The task could not be saved."); return; }
+    e.currentTarget.reset();
+    setReminderOnly(true);
+    void load();
+  }
+
+  const arrow = (c: TaskSort) => (c === sortCol ? (sortDir === "asc" ? " ▲" : " ▼") : "");
 
   return (
     <>
-      <div className="mb-3.5 flex items-baseline gap-3">
-        <h1 className="figure text-[26px] font-bold">To-Do</h1>
-        <span className="text-[13px] text-ink-soft">
-          {region.name} · {open} open
-        </span>
+      <div className="mb-3.5 flex items-center justify-between gap-3">
+        <PageTitle>To-Do</PageTitle>
+        {/* The feed setup is a once-per-region job, so it sits on the Account
+            page and this is the way in. */}
+        <button onClick={() => onView?.("account")} title="Calendar feed settings"
+          className="flex min-h-11 items-center gap-1.5 rounded-full border border-rule px-3.5 text-[12.5px] text-ink-soft active:bg-band">
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+            <path d="M19.14 12.94a7.07 7.07 0 0 0 0-1.88l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7 7 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.58.24-1.13.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.65 8.84a.5.5 0 0 0 .12.64l2.03 1.58a7.07 7.07 0 0 0 0 1.88l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.4.31.6.22l2.39-.96c.5.39 1.05.7 1.63.94l.36 2.54c.04.24.25.42.5.42h3.84c.25 0 .46-.18.5-.42l.36-2.54c.58-.24 1.13-.55 1.63-.94l2.39.96c.22.09.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z" />
+          </svg>
+          iCal
+        </button>
       </div>
 
-      {err && <div className="mb-4 rounded-md border border-clay/30 bg-clay/10 p-3 text-[13px] text-clay">{err}</div>}
+      {err && <ErrorBox>{err}</ErrorBox>}
 
-      {/* ── The calendar ───────────────────────────────────────────────── */}
-      <h2 className="figure mb-2.5 flex flex-wrap items-baseline gap-2.5 text-[18px] font-semibold">
-        📅 On your calendar
-        {ranAt && <Provenance tool="goodearth_calendar_dataset" at={ranAt} onCost={onCost} />}
-      </h2>
-
-      {busy ? (
-        <div className="rounded-md border border-rule bg-panel">
-          <QuoteScroller heading="Composing the season" />
-        </div>
-      ) : url ? (
-        <div className="rounded-md border border-rule border-l-4 border-l-growth bg-panel px-4 py-3.5">
-          <p className="text-[13px] leading-relaxed">
-            {region.name} is published.{" "}
-            {fresh && (
-              <>
-                {fresh.total} entries — {Object.entries(fresh.entries)
-                  .filter(([, n]) => n > 0)
-                  .map(([k, n]) => `${n} ${k}`)
-                  .join(", ")}.
-              </>
-            )}
-          </p>
-
-          <div className="mt-2.5 flex flex-wrap gap-2">
-            <a href={webcal}
-              className="min-h-11 rounded border-[1.5px] border-ink bg-ink px-4 text-[13px] font-semibold text-paper inline-flex items-center">
-              Subscribe on this device
-            </a>
-            <button
-              onClick={() => { void navigator.clipboard?.writeText(url); setMsg("Link copied."); }}
-              className="min-h-11 rounded border-[1.5px] border-ink px-4 text-[13px] font-semibold active:bg-ink active:text-paper">
-              Copy link for Google Calendar
-            </button>
-            <button onClick={() => publish(fresh?.token ?? mine?.token)} disabled={busy}
-              className="min-h-11 rounded border border-rule px-4 text-[13px] active:bg-band">
-              Recompute
-            </button>
-            {(fresh?.token ?? mine?.token) && (
-              <button
-                onClick={async () => {
-                  const t = fresh?.token ?? mine!.token;
-                  await calendarRevoke(t);
-                  setFresh(null); setMsg("Stopped publishing."); void refreshFeeds();
-                }}
-                className="min-h-11 rounded px-3 text-[13px] text-ink-soft active:text-clay">
-                Stop publishing
-              </button>
-            )}
-          </div>
-
-          <p className="data mt-2.5 break-all text-[10.5px] text-ink-soft">{url}</p>
-          <p className="mt-2 max-w-prose text-[12px] leading-relaxed text-ink-soft">
-            Your client re-reads this on its own schedule. <b>Recompute</b>
-            rebuilds it against current weather and rewrites the same feed in
-            place, so subscribers update rather than ending up with two of
-            everything.
-          </p>
-        </div>
-      ) : (
-        <div className="rounded-md border border-dashed border-rule bg-panel/60 p-5">
-          <p className="max-w-prose text-[13px] leading-relaxed text-ink-soft">
-            You do not live in this app. You live in whatever calendar tells you
-            about the school run and the market stall — so publish {region.name}{" "}
-            there instead. Crop targets, pest stages, wildlife and husbandry
-            dates and the frost record arrive as all-day entries; the tasks
-            below arrive as reminders.
-          </p>
-          <button onClick={() => publish()} disabled={busy}
-            className="mt-3 min-h-11 rounded border-[1.5px] border-ink bg-ink px-5 text-[13px] font-semibold text-paper disabled:opacity-40">
-            Publish {region.name}
-          </button>
-        </div>
-      )}
-      {msg && <p className="mt-2 text-[12.5px] text-ink-soft">{msg}</p>}
-
-      {/* ── The tasks ──────────────────────────────────────────────────── */}
-      <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold">✅ Tasks</h2>
-      {todos.length === 0 ? (
-        <p className="rounded-md border border-dashed border-rule bg-panel/60 p-5 text-[13px] text-ink-soft">
-          Nothing on the list for {region.name}.
-        </p>
-      ) : (
-        <ul className="space-y-2">
-          {todos.map((t) => (
-            <li key={t.id}
-              className={`flex items-start gap-3 rounded-md border border-rule bg-panel px-3.5 py-2.5 ${
-                t.done ? "opacity-55" : ""}`}>
-              <button onClick={() => setTodos(toggleTodo(t.id).filter((x) => x.regionId === region.id))}
-                aria-label={t.done ? "Mark not done" : "Mark done"}
-                className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded border border-rule text-[14px]">
-                {t.done ? "✓" : ""}
-              </button>
-              <div className="min-w-0 flex-1">
-                <span className={`text-[13.5px] ${t.done ? "line-through" : ""}`}>{t.title}</span>
-                {t.priority === 1 && <span className="ml-2 rounded-full bg-clay/12 px-2 py-0.5 text-[10.5px] font-semibold text-clay">high</span>}
-                {t.due && <span className="data ml-2 text-[11px] text-ink-soft">due {nice(t.due)}</span>}
-                {t.note && <p className="mt-0.5 text-[12.5px] text-ink-soft">{t.note}</p>}
-              </div>
-              <button onClick={() => setTodos(deleteTodo(t.id).filter((x) => x.regionId === region.id))}
-                aria-label="Delete" className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <form onSubmit={add} className="mt-4 rounded-md border border-rule bg-panel p-4">
+      {/* ── Write it down ──────────────────────────────────────────────── */}
+      <Section emoji="➕" title="Add a task" first />
+      <form onSubmit={add} className="rounded-md border border-rule bg-panel p-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="block text-[11px] text-ink-soft lg:col-span-2">What needs doing
-            <input name="title" placeholder="Cover the east beds"
-              className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" /></label>
-          <label className="block text-[11px] text-ink-soft">Due
-            <input name="due" type="date"
-              className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" /></label>
+          <label className="block text-[11px] text-ink-soft lg:col-span-2">
+            What needs doing
+            <input name="title" placeholder="Cover the east beds" className={FIELD} />
+          </label>
+          <label className="block text-[11px] text-ink-soft">
+            Due
+            <input name="due" type="date" className={FIELD} />
+          </label>
           <label className="flex min-h-11 items-center gap-2 self-end text-[12.5px]">
-            <input name="high" type="checkbox" className="h-5 w-5 accent-[color:var(--color-clay)]" />
-            High priority
+            <input type="checkbox" checked={reminderOnly}
+              onChange={(e) => setReminderOnly(e.target.checked)}
+              className="h-5 w-5 accent-[var(--color-ink)]" />
+            Reminder only?
           </label>
         </div>
-        <label className="mt-3 block text-[11px] text-ink-soft">Note
-          <input name="note" placeholder="Row cover is in the east barn"
-            className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" /></label>
+
+        {/* Times only mean something for a task that takes a slot. Hiding them
+            for a reminder keeps the form from asking for what it will ignore. */}
+        {!reminderOnly && (
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <label className="block text-[11px] text-ink-soft">
+              From
+              <input name="starts" type="time" className={FIELD} />
+            </label>
+            <label className="block text-[11px] text-ink-soft">
+              To
+              <input name="ends" type="time" className={FIELD} />
+            </label>
+          </div>
+        )}
+
+        <label className="mt-3 block text-[11px] text-ink-soft">
+          Note
+          <input name="note" placeholder="Row cover is in the east barn" className={FIELD} />
+        </label>
+
         <button className="mt-3 min-h-11 rounded border-[1.5px] border-ink px-4 text-[13px] font-semibold active:bg-ink active:text-paper">
           Add task
         </button>
-        <p className="mt-2 text-[12px] text-ink-soft">
-          Added tasks reach your calendar on the next <b>Recompute</b>.
-        </p>
       </form>
+
+      {/* ── What's on the list ─────────────────────────────────────────── */}
+      <Section emoji="✅" title="Tasks">
+        <Provenance tool="goodearth_task_list" at={ranAt} onCost={onCost} />
+      </Section>
+
+      <div className="mb-2.5 flex flex-wrap items-center gap-1.5">
+        {FRAMES.map((f) => (
+          <Pill key={f.key} active={frame === f.key}
+            onClick={() => { setFrame(f.key); setPageNo(0); }}>
+            {f.label}
+          </Pill>
+        ))}
+        <input
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPageNo(0); }}
+          placeholder="search — regex ok, e.g. mulch|cover"
+          className="ml-auto h-11 w-full max-w-[16rem] rounded border border-rule bg-white px-2.5 text-[13px] focus:border-honey focus:outline-none"
+        />
+      </div>
+
+      {busy && !page ? (
+        <div className="rounded-md border border-rule bg-panel"><QuoteScroller heading="Reading your list" /></div>
+      ) : page && page.rows.length ? (
+        <>
+          <div className="overflow-x-auto rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">
+            <table className="w-full text-[13px]">
+              <thead><tr>
+                {COLS.map((c) => (
+                  <th key={c.key}
+                    onClick={() => sortBy(c.key)}
+                    className="data cursor-pointer border-b-[1.5px] border-ink px-3 py-2.5 text-left text-[10px] font-medium uppercase tracking-[.1em] text-ink-soft select-none">
+                    {c.label}{arrow(c.key)}
+                  </th>
+                ))}
+                <th className="border-b-[1.5px] border-ink px-3 py-2.5" />
+              </tr></thead>
+              <tbody>
+                {page.rows.map((t) => (
+                  <tr key={t.id} className="border-b border-rule last:border-b-0">
+                    <td className="px-3 py-2.5">
+                      <input type="checkbox" checked={t.done}
+                        onChange={async () => { await taskSetDone(t.id, !t.done); void load(); }}
+                        aria-label={`Mark ${t.title} ${t.done ? "not done" : "done"}`}
+                        className="h-5 w-5 accent-[var(--color-ink)]" />
+                    </td>
+                    <td className={`px-3 py-2.5 ${t.done ? "text-ink-soft line-through" : "font-medium"}`}>
+                      {t.title}
+                      {t.note && <small className="block text-[11px] font-normal text-ink-soft">{t.note}</small>}
+                    </td>
+                    <td className="data px-3 py-2.5 whitespace-nowrap text-[12px]">{nice(t.due)}</td>
+                    <td className="data px-3 py-2.5 whitespace-nowrap text-[12px] text-ink-soft">
+                      {t.reminder_only ? "reminder" : `${hhmm(t.starts_at)}–${hhmm(t.ends_at)}`}
+                    </td>
+                    <td className="px-3 py-2.5 text-right">
+                      <button onClick={async () => { await taskDelete(t.id); void load(); }}
+                        aria-label={`Remove ${t.title}`}
+                        className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-2 flex items-center gap-2">
+            <Pill onClick={() => setPageNo((p) => Math.max(0, p - 1))} disabled={page.page <= 0}>← Back</Pill>
+            <span className="data text-[11.5px] text-ink-soft">
+              page {page.page + 1} of {page.pages} · {page.total} task{page.total === 1 ? "" : "s"}
+            </span>
+            <Pill onClick={() => setPageNo((p) => p + 1)} disabled={page.page + 1 >= page.pages}>Next →</Pill>
+          </div>
+        </>
+      ) : (
+        <Empty>
+          {search || frame !== "all"
+            ? "Nothing matches that. Widen the timeframe, or clear the search."
+            : `Nothing on the list for ${region.name} yet. Add one above.`}
+        </Empty>
+      )}
+
+      <Note>
+        Sorting, filtering and search all happen on the server, so a long list
+        costs one page rather than the whole table. Tasks reach your calendar
+        on the next recompute — the gear at the top of this page.
+      </Note>
     </>
   );
 }

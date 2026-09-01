@@ -1341,3 +1341,68 @@ export async function wildlifeCatalog(region: Region): Promise<WildlifeCatalogRe
 export async function speciesHabits(region: Region, species: string): Promise<SpeciesHabitsResult> {
   return callTool<SpeciesHabitsResult>("wildlife_catalog", { region, species });
 }
+
+// ── Tasks ────────────────────────────────────────────────────────────────
+//
+// Server-held now, so the list can be filtered, sorted and paged in SQL. The
+// parameter names follow taxsort's convention — sort_col, sort_dir, page,
+// page_size — because three repos in this fleet already speak it.
+
+export type Timeframe = "day" | "week" | "month" | "season" | "all";
+export type TaskSort = "due" | "title" | "done" | "starts" | "created" | "updated";
+
+export interface TaskRow {
+  id: string;
+  title: string;
+  note?: string | null;
+  due?: string | null;
+  starts_at?: string | null;
+  ends_at?: string | null;
+  reminder_only: boolean;
+  done: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface TaskPage {
+  success: boolean;
+  error?: string;
+  rows?: TaskRow[];
+  total?: number;
+  page?: number;
+  pages?: number;
+  page_size?: number;
+  sort_col?: string;
+  sort_dir?: string;
+  timeframe?: string;
+}
+
+export interface TaskInput {
+  task_id?: string;
+  title: string;
+  note?: string;
+  due?: string;
+  starts_at?: string;
+  ends_at?: string;
+  reminder_only?: boolean;
+  done?: boolean;
+}
+
+export async function taskList(regionId: string, q: {
+  timeframe?: Timeframe; search?: string; sort_col?: TaskSort;
+  sort_dir?: "asc" | "desc"; page?: number; page_size?: number; season_start?: string;
+} = {}): Promise<TaskPage> {
+  return callTool<TaskPage>("task_list", { region_id: regionId, ...q });
+}
+
+export async function taskSave(regionId: string, t: TaskInput): Promise<{ success: boolean; id?: string; error?: string }> {
+  return callTool("task_save", { region_id: regionId, ...t });
+}
+
+export async function taskDelete(taskId: string): Promise<{ success: boolean; error?: string }> {
+  return callTool("task_delete", { task_id: taskId });
+}
+
+export async function taskSetDone(taskId: string, done: boolean): Promise<{ success: boolean; error?: string }> {
+  return callTool("task_set_done", { task_id: taskId, done });
+}

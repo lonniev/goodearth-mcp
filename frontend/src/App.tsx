@@ -14,6 +14,7 @@ import NpubGate from "./components/NpubGate";
 import NostrProfilePanel from "./components/NostrProfilePanel";
 import Preferences from "./components/Preferences";
 import AccountSummary from "./components/AccountSummary";
+import CalendarFeed from "./components/CalendarFeed";
 import { readPrefs, writePrefs, type Prefs } from "./lib/prefs";
 import HeatLedger from "./views/HeatLedger";
 import Crops from "./views/Crops";
@@ -181,7 +182,7 @@ export default function App() {
         {view === "pests" && <Pests region={region} onCost={onCost} />}
         {view === "reports" && <FieldReports region={region} onCost={onCost} />}
         {view === "favorites" && <Favorites active={region} onPick={pickRegion} />}
-        {view === "todo" && <TodoView region={region} onCost={onCost} />}
+        {view === "todo" && <TodoView region={region} onCost={onCost} onView={setView} />}
         {view === "references" && <References />}
         {view === "about" && <About />}
         {view === "account" && (
@@ -190,6 +191,9 @@ export default function App() {
             <AccountSummary balanceSats={balance} spentToday={spent}
               onSignOut={() => { logOut(); setSignedIn(false); }} />
             <NostrProfilePanel npub={getStoredNpub()} />
+            {/* Publishing is a once-per-region setup step, so it sits with the
+                other settings rather than at the top of the working page. */}
+            <CalendarFeed region={region} />
             <Preferences prefs={prefs} onChange={(p) => setPrefs(writePrefs(p))} />
           </>
         )}
