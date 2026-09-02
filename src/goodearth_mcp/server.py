@@ -10,8 +10,9 @@ Run locally:
 
 from __future__ import annotations
 
+import asyncio
 import logging
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Annotated, Any
 
 from fastmcp import FastMCP
@@ -21,7 +22,17 @@ from tollbooth.credential_validators import validate_btcpay_creds
 from tollbooth.runtime import OperatorRuntime, register_standard_tools
 from tollbooth.tool_identity import STANDARD_IDENTITIES, ToolIdentity
 
-from goodearth_mcp import __version__, biota, calendar_feed, catalog, feed_store, season, sources, task_store
+from goodearth_mcp import (
+    __version__,
+    biota,
+    calendar_feed,
+    catalog,
+    feed_store,
+    roster,
+    season,
+    sources,
+    task_store,
+)
 from goodearth_mcp.almanac_window import AlmanacError
 from goodearth_mcp.almanac_window import region_almanac as almanac_impl
 from goodearth_mcp.calendar_feed import CalendarError
@@ -116,6 +127,7 @@ TASK_SAVE_UUID             = "4c814e90-07c7-5944-b8cb-f05b619e6d2f"
 TASK_LIST_UUID             = "1be9b304-d895-5e80-995f-29838befc305"
 TASK_DELETE_UUID           = "87d174df-5cc7-5943-911f-cd41f7d2a000"
 TASK_SET_DONE_UUID         = "33e668c1-5609-5bfa-8ba0-a00b882969e5"
+REVIEW_ROSTER_UUID         = "bd7b7dfc-2463-5e50-9c12-fa6933cd440a"
 
 _DOMAIN_TOOLS = [
     ToolIdentity(
@@ -165,6 +177,12 @@ _DOMAIN_TOOLS = [
         capability="wildlife_calendar",
         category="read",
         intent="When a grower's own wildlife events arrive on this ground — heat, daylight or calendar driven",
+    ),
+    ToolIdentity(
+        tool_id=REVIEW_ROSTER_UUID,
+        capability="review_roster",
+        category="heavy",
+        intent="Audit a grower's pests, wildlife and observations against what this ground's record actually knows",
     ),
     ToolIdentity(
         tool_id=TASK_SAVE_UUID,
@@ -288,6 +306,65 @@ tool = register_standard_tools(
 # Domain tools
 # ---------------------------------------------------------------------------
 
+
+
+# ── The season-planning interview ────────────────────────────────────────
+#
+# A prompt is how MCP ships a workflow: a client surfaces it as a command and
+# the agent inherits the sequence without anyone having explained it. Good
+# Earth had the tools for season planning and no shipped order to use them in,
+# so every agent invented one — and most reach for data entry rather than
+# advice.
+#
+# The ordering below moves from the grower's decision to its consequences,
+# rather than from the available data to a report. That is the whole point of
+# it, and it came from a patron who runs a real block.
+
+
+@mcp.prompt(name="plan_the_season")
+def plan_the_season() -> str:
+    """Walk a grower through planning a season on their own ground."""
+    return """You are helping a grower plan a season on one piece of ground, the way a
+knowledgeable neighbour would — not the way a form would. Ask one question at a
+time and wait for the answer. Their decisions come first; the data serves them.
+
+1. Which plot, farm or field are we working on? Resolve it against their saved
+   regions, or help them draw a new one.
+
+2. What are they already growing, or planning to grow?
+
+3. Only if they want suggestions: call `goodearth_crop_suitability` and say what
+   this ground's own frost-free window and heat budget will carry. Those are
+   starting figures to edit against their seed packet, not agronomy.
+
+4. For each crop, establish the sowing window — no earlier than, no later than —
+   and the harvest timeframe. `goodearth_planting_window` answers this for their
+   coordinates.
+
+5. Add them with `goodearth_crop_gdd_status` so they sit on the same timeline.
+
+6. Pests and creatures to guard against. **Call `goodearth_review_roster`
+   before you say anything about which pests belong here.** Left to itself an
+   agent recites range knowledge from its training data, which is unverifiable
+   and confidently wrong exactly at the margins. The tool answers from what
+   USA-NPN models for these coordinates and what iNaturalist has recorded
+   nearby, and it returns three things: entries the record does not know,
+   entries the record knows well that are missing, and observations that cannot
+   be right. Propose; never remove anything on the grower's behalf.
+
+7. The welcome arrivals — pollinators, butterflies, and yes, skunks.
+   `goodearth_wildlife_catalog` says what is actually recorded around them, and
+   passing a species name returns the life-cycle phenophases USA-NPN tracks it
+   through. When they arrive on THIS ground is a threshold the grower sets.
+
+8. Which of these chores go on their task list? Add them with
+   `goodearth_task_save`.
+
+Throughout: this service computes against their ground. It does not publish
+agronomy, entomology or natural history, and it never recommends a treatment —
+pesticide registration is jurisdiction-specific and a label rate is law. Route
+them to their extension service for that, and say plainly that its word counts
+and yours does not."""
 
 @tool
 @runtime.paid_tool(GDD_SEASON_CURVE_UUID)
@@ -678,6 +755,102 @@ async def almanac(
     except (sources.UpstreamError, OSError) as exc:
         logger.warning("almanac failed: %s", exc)
         return {"success": False, "error": f"A weather feed did not answer: {exc}",
+                "error_code": "upstream_unavailable"}
+
+
+@tool
+@runtime.paid_tool(REVIEW_ROSTER_UUID)
+async def review_roster(
+    region: Annotated[
+        dict[str, Any],
+        Field(description="GeoJSON Polygon or {lat, lon, radius_m}."),
+    ],
+    pests: Annotated[
+        list[dict[str, Any]] | None,
+        Field(description='The pests being watched: [{"pest": "Codling moth"}, ...].'),
+    ] = None,
+    wildlife: Annotated[
+        list[dict[str, Any]] | None,
+        Field(description='The creatures being tracked: [{"species": "American robin"}, ...].'),
+    ] = None,
+    observations: Annotated[
+        list[dict[str, Any]] | None,
+        Field(
+            description=(
+                'Field reports to sanity-check: [{"kind": "frost", "observed_on": '
+                '"2026-07-04"}, {"kind": "pest", "species": "Walrus", "observed_on": '
+                '"2026-06-03"}].'
+            ),
+        ),
+    ] = None,
+    npub: Annotated[
+        str,
+        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
+    ] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """Audit a roster against what this ground's record actually knows.
+
+    Asked "are these the right pests to watch?", an agent will answer from its
+    own training data — unverifiable, different per model, and confidently
+    wrong exactly at the margins where a review matters. This answers from the
+    record instead: the degree-day models USA-NPN publishes for these
+    coordinates, and what iNaturalist has recorded nearby.
+
+    Three findings:
+
+    - **out_of_range** — listed, and this ground's record does not know it.
+    - **absent** — the record knows it well and the roster does not list it.
+    - **implausible** — an observation that cannot be right, with what makes it
+      wrong. This is the one that matters: observations feed
+      ``goodearth_calibration``, which shifts the heat and frost bias for the
+      whole block, so a junk entry degrades every later answer rather than
+      merely showing a wrong row.
+
+    **Every reason is about the RECORD, never about the animal.** "Not recorded
+    within 16 km" is a fact; "does not live here" is natural history, which
+    Good Earth does not publish. Nothing is removed — the grower who genuinely
+    saw the odd thing is precisely the case worth learning from, so findings are
+    proposed and the patron decides.
+
+    Args:
+        region: GeoJSON Polygon or {lat, lon, radius_m}.
+        pests: The pests being watched.
+        wildlife: The creatures being tracked.
+        observations: Field reports to sanity-check.
+    """
+    try:
+        parsed = parse_region(region)
+    except RegionError as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+
+    try:
+        pest_cat, wild_cat, frost_res = await asyncio.gather(
+            catalog.region_pest_catalog(parsed),
+            catalog.region_wildlife_catalog(parsed),
+            frost_window_impl(parsed),
+            return_exceptions=True,
+        )
+        if isinstance(pest_cat, BaseException):
+            pest_cat = {"events": [], "insects_recorded": []}
+        if isinstance(wild_cat, BaseException):
+            wild_cat = {"groups": []}
+        frost = None
+        if not isinstance(frost_res, BaseException) and isinstance(frost_res, dict):
+            f = frost_res.get("first_frost") or {}
+            frost = {
+                "last_spring_median": (frost_res.get("last_spring") or {}).get("median"),
+                "first_fall_median": f.get("median"),
+            }
+        return {"success": True, **roster.review(
+            region_label=parsed.describe().get("kind", "this ground"),
+            pests=pests or [], wildlife=wildlife or [], observations=observations or [],
+            pest_catalog=pest_cat, wildlife_catalog=wild_cat, frost=frost,
+            today=datetime.now(UTC).date(),
+        )}
+    except (biota.BiotaError, OSError) as exc:
+        logger.warning("review_roster failed: %s", exc)
+        return {"success": False, "error": f"The record could not be read: {exc}",
                 "error_code": "upstream_unavailable"}
 
 
