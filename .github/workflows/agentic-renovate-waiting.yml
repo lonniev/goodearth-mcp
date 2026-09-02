@@ -1,0 +1,22 @@
+# Thin caller: tell the fleet board when a Renovate PR here goes green.
+#
+# check_suite fires in the repo whose CI ran, which is why this has to live in
+# each repo rather than only in dpyc-community. The board itself is rebuilt
+# fleet-wide, so any repo's event refreshes the whole picture.
+name: Agentic Renovate Waiting
+
+on:
+  check_suite:
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  board:
+    # Only bother when the suite belongs to at least one open PR. A push to a
+    # branch with no PR raises this event too.
+    if: github.event.check_suite.pull_requests[0] != null
+    uses: lonniev/dpyc-community/.github/workflows/renovate-waiting.yml@main
+    secrets: inherit
