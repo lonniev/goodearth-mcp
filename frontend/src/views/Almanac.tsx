@@ -43,7 +43,7 @@ export default function Almanac({
   const run = useCallback(async () => {
     setBusy(true); setError("");
     try {
-      const r = await almanacFor(region.region);
+      const r = await almanacFor(region.id);
       if (!r.success) { setError(r.error || "The almanac could not be read."); return; }
       setData(r); setRanAt(new Date());
     } catch (e) { setError((e as Error).message); }

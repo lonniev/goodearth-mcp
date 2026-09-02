@@ -61,7 +61,7 @@ export default function Wildlife({
     setBusy(true); setError("");
     try {
       const r = await wildlifeCalendar(
-        region.region,
+        region.id,
         list.map(({ id: _i, regionId: _r, ...e }) => e),
       );
       if (!r.success) { setError(r.error || "The calendar could not be read."); return; }
@@ -100,20 +100,20 @@ export default function Wildlife({
   const loadCatalog = useCallback(async () => {
     setCatBusy(true);
     try {
-      const r = await wildlifeCatalog(region.region);
+      const r = await wildlifeCatalog(region.id);
       if (r.success) { setCat(r); setCatAt(new Date()); }
       else setError(r.error || "The wildlife catalogue could not be read.");
     } finally { setCatBusy(false); }
-  }, [region.region]);
+  }, [region.id]);
 
   const openHabits = useCallback(async (common: string, sci?: string) => {
     setSpecies(common);
     if (!sci) return;
     setHabitsOf({ name: common }); setHabits(null); setHabitsBusy(true);
     try {
-      setHabits(await speciesHabits(region.region, sci));
+      setHabits(await speciesHabits(region.id, sci));
     } finally { setHabitsBusy(false); }
-  }, [region.region]);
+  }, [region.id]);
 
   return (
     <>

@@ -78,3 +78,62 @@ def test_every_paid_tool_decorator_still_has_its_tool_above_it():
         f"@runtime.paid_tool without @tool directly above it at line(s) {orphans} — "
         "the tool above has lost its registration"
     )
+
+
+# ── The tool CONTRACT, not just its registration ─────────────────────────
+#
+# Every test above this line reads the registry or the source. None of them
+# calls a tool, and none reads a tool's schema — which is how fourteen
+# signatures could be rewritten with the whole suite staying green. These
+# assert what a CALLER sees.
+
+GROUND_TOOLS = (
+    "gdd_season_curve", "frost_window", "crop_gdd_status", "soil_temp_projection",
+    "pest_threshold", "calibration", "almanac", "review_roster", "pest_catalog",
+    "wildlife_catalog", "wildlife_calendar", "crop_suitability", "planting_window",
+    "calendar_dataset",
+)
+
+
+async def _schemas():
+    from goodearth_mcp.server import mcp
+
+    return {t.name: (t.parameters or {}).get("properties", {}) for t in await mcp.list_tools()}
+
+
+@pytest.mark.asyncio
+async def test_ground_tools_take_a_block_and_not_a_geometry():
+    """Geometry travels once, when a block is saved — never on every call.
+
+    A tool still accepting `region` means a caller can work ground the record
+    does not know about, which is the whole thing blocks exist to stop.
+    """
+    props = await _schemas()
+    for cap in GROUND_TOOLS:
+        name = f"goodearth_{cap}"
+        assert name in props, f"{name} is not served"
+        assert "block" in props[name], f"{name} does not take a block"
+        assert "region" not in props[name], f"{name} still takes a raw region"
+
+
+@pytest.mark.asyncio
+async def test_the_block_is_a_string_not_an_object():
+    """A block reference is an id, a name or an alias — never a payload."""
+    props = await _schemas()
+    for cap in GROUND_TOOLS:
+        spec = props[f"goodearth_{cap}"]["block"]
+        types = {spec.get("type"), *(a.get("type") for a in spec.get("anyOf", []))}
+        assert "string" in types, f"goodearth_{cap}.block is {types}, not a string"
+
+
+@pytest.mark.asyncio
+async def test_calendar_dataset_no_longer_takes_its_collections_inline():
+    """The feed recomputes from the record, which is what makes refresh safe.
+
+    While the plantings and pests behind a feed travelled as arguments, nobody
+    — not even the operator — could refresh one in place without knowing what
+    had been passed the first time.
+    """
+    props = (await _schemas())["goodearth_calendar_dataset"]
+    for gone in ("plantings", "pests", "wildlife_events", "todos", "region_name"):
+        assert gone not in props, f"calendar_dataset still takes {gone} inline"
