@@ -55,3 +55,26 @@ async def test_the_prompt_carries_the_service_doctrine():
     assert "never recommends a treatment" in t
     assert "does not publish" in t
     assert "Propose; never remove" in t
+
+
+@pytest.mark.asyncio
+async def test_the_interview_is_reachable_as_a_tool_too():
+    """Prompt support is uneven across MCP clients.
+
+    claude.ai does not surface prompts for remote connectors, so a prompt
+    alone makes the workflow unreachable there. The same text ships as a
+    tool, which every client can call.
+    """
+    from goodearth_mcp.server import mcp as m
+    assert "goodearth_plan_the_season" in [t.name for t in await m.list_tools()]
+
+
+@pytest.mark.asyncio
+async def test_both_surfaces_read_the_same_text():
+    """One constant, two surfaces — they cannot drift into two interviews.
+
+    Two copies would diverge on the first edit, and the symptom would be an
+    agent following an older sequence depending on which client it ran in.
+    """
+    from goodearth_mcp.server import SEASON_INTERVIEW
+    assert await _text() == SEASON_INTERVIEW

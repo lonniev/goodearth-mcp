@@ -128,6 +128,7 @@ TASK_LIST_UUID             = "1be9b304-d895-5e80-995f-29838befc305"
 TASK_DELETE_UUID           = "87d174df-5cc7-5943-911f-cd41f7d2a000"
 TASK_SET_DONE_UUID         = "33e668c1-5609-5bfa-8ba0-a00b882969e5"
 REVIEW_ROSTER_UUID         = "bd7b7dfc-2463-5e50-9c12-fa6933cd440a"
+PLAN_THE_SEASON_UUID       = "de100c1b-0087-5696-9131-93d02332e5ab"
 
 _DOMAIN_TOOLS = [
     ToolIdentity(
@@ -177,6 +178,12 @@ _DOMAIN_TOOLS = [
         capability="wildlife_calendar",
         category="read",
         intent="When a grower's own wildlife events arrive on this ground — heat, daylight or calendar driven",
+    ),
+    ToolIdentity(
+        tool_id=PLAN_THE_SEASON_UUID,
+        capability="plan_the_season",
+        category="read",
+        intent="The season-planning interview, for clients that do not surface MCP prompts",
     ),
     ToolIdentity(
         tool_id=REVIEW_ROSTER_UUID,
@@ -321,10 +328,7 @@ tool = register_standard_tools(
 # it, and it came from a patron who runs a real block.
 
 
-@mcp.prompt(name="plan_the_season")
-def plan_the_season() -> str:
-    """Walk a grower through planning a season on their own ground."""
-    return """You are helping a grower plan a season on one piece of ground, the way a
+SEASON_INTERVIEW = """You are helping a grower plan a season on one piece of ground, the way a
 knowledgeable neighbour would — not the way a form would. Ask one question at a
 time and wait for the answer. Their decisions come first; the data serves them.
 
@@ -365,6 +369,12 @@ agronomy, entomology or natural history, and it never recommends a treatment —
 pesticide registration is jurisdiction-specific and a label rate is law. Route
 them to their extension service for that, and say plainly that its word counts
 and yours does not."""
+
+
+@mcp.prompt(name="plan_the_season")
+def season_interview_prompt() -> str:
+    """Walk a grower through planning a season on their own ground."""
+    return SEASON_INTERVIEW
 
 @tool
 @runtime.paid_tool(GDD_SEASON_CURVE_UUID)
@@ -756,6 +766,30 @@ async def almanac(
         logger.warning("almanac failed: %s", exc)
         return {"success": False, "error": f"A weather feed did not answer: {exc}",
                 "error_code": "upstream_unavailable"}
+
+
+@tool
+@runtime.paid_tool(PLAN_THE_SEASON_UUID)
+async def plan_the_season(
+    npub: Annotated[
+        str,
+        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
+    ] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """The season-planning interview, as a workflow to follow.
+
+    The same text the `plan_the_season` MCP prompt carries. It exists twice
+    because prompt support is uneven: a client that surfaces prompts offers
+    this as a command, and one that does not can still reach it by calling a
+    tool. Both read one constant, so they cannot drift into two different
+    interviews.
+
+    Follow the returned steps in order, asking one question at a time. The
+    ordering is the point — it moves from the grower's decision to its
+    consequences rather than from the available data to a report.
+    """
+    return {"success": True, "interview": SEASON_INTERVIEW}
 
 
 @tool
