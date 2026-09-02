@@ -29,10 +29,14 @@ import TodoView from "./views/Todo";
 import Favorites from "./views/Favorites";
 import { AVATAR_EVENT, avatarFor, hydrateAvatarFromNostr } from "./lib/avatar";
 import { fetchProfile } from "./lib/nostrProfile";
-import { checkBalance, getStoredNpub, isLoggedIn, logOut, onProofExpired, type FrostWindowResult } from "./lib/mcp";
 import {
-  getActiveRegionId, listRegions, saveRegion, setActiveRegionId, type SavedRegion,
+  blockList, checkBalance, getStoredNpub, isLoggedIn, logOut, onProofExpired,
+  type BlockRow, type FrostWindowResult,
+} from "./lib/mcp";
+import {
+  getActiveRegionId, hydrate, listRegions, setActiveRegionId, type SavedRegion,
 } from "./lib/regions";
+import { migrateToBlocks } from "./lib/migrateBlocks";
 
 /// The day's high — the temperature that decides whether bees are working.
 ///
@@ -93,6 +97,10 @@ export default function App() {
   const [spent, setSpent] = useState(0);
   const [frost, setFrost] = useState<FrostWindowResult | null>(null);
   const [prefs, setPrefs] = useState<Prefs>(() => readPrefs());
+  /// Whether the server's blocks have arrived. Used in exactly two places —
+  /// the Favorites empty state and MapView's save button — and threaded no
+  /// further, because everything else reads the cache and does not care.
+  const [blocksSynced, setBlocksSynced] = useState(false);
 
   const [region, setRegion] = useState<SavedRegion>(() => {
     const all = listRegions();
@@ -132,20 +140,38 @@ export default function App() {
 
   useEffect(() => { if (signedIn) void refreshBalance(); }, [signedIn, refreshBalance]);
 
+  // The blocks the server holds become the truth behind the cache. The grower
+  // sees their ground immediately from localStorage and it is confirmed a
+  // moment later, so this is a content update rather than a loading gate —
+  // no spinner, and no route that waits.
+  useEffect(() => {
+    if (!signedIn) return;
+    let live = true;
+    void (async () => {
+      await migrateToBlocks();
+      const res = await blockList().catch(() => null);
+      if (!live || !res?.success) return;
+      // Seeded means the grower has saved nothing yet; the worked example is
+      // already what the cache shows, so there is nothing to overwrite.
+      if (res.seeded) { setBlocksSynced(true); return; }
+      const rows: SavedRegion[] = res.blocks.map((b: BlockRow) => ({
+        id: b.block_id,
+        name: b.name,
+        region: b.geometry,
+        baseTempF: b.base_temp_f ?? 50,
+        areaHa: b.area_ha ?? undefined,
+        sampleCount: b.sample_count ?? undefined,
+      }));
+      hydrate(rows);
+      setRegion((cur) => rows.find((r) => r.id === cur.id) ?? rows[0] ?? cur);
+      setBlocksSynced(true);
+    })();
+    return () => { live = false; };
+  }, [signedIn]);
+
   const pickRegion = useCallback((r: SavedRegion) => {
     setActiveRegionId(r.id);
     setRegion(r);
-  }, []);
-
-  // The server measures the ground; cache what it reports so the picker can
-  // show area and sample count without paying for a second call.
-  const onMeasured = useCallback((areaHa: number, samples: number) => {
-    setRegion((cur) => {
-      if (cur.areaHa === areaHa && cur.sampleCount === samples) return cur;
-      const next = { ...cur, areaHa, sampleCount: samples };
-      if (next.id !== "example-champlain") saveRegion(next);
-      return next;
-    });
   }, []);
 
   const onCost = useCallback((sats: number) => {
@@ -173,7 +199,7 @@ export default function App() {
         hive={prefs.bees ? <Hive mood={hiveMood(todayHigh(frost), frostWatchLive(frost))} /> : undefined}
       >
         {view === "ledger" && (
-          <HeatLedger region={region} onMeasured={onMeasured} onCost={onCost} onFrost={setFrost} onView={setView} />
+          <HeatLedger region={region} onCost={onCost} onFrost={setFrost} onView={setView} />
         )}
         {view === "map" && <MapView active={region} onSaved={(r) => { pickRegion(r); setView("ledger"); }} />}
         {view === "almanac" && <Almanac region={region} onCost={onCost} />}
@@ -181,7 +207,7 @@ export default function App() {
         {view === "wildlife" && <Wildlife region={region} onCost={onCost} />}
         {view === "pests" && <Pests region={region} onCost={onCost} />}
         {view === "reports" && <FieldReports region={region} onCost={onCost} />}
-        {view === "favorites" && <Favorites active={region} onPick={pickRegion} />}
+        {view === "favorites" && <Favorites active={region} onPick={pickRegion} synced={blocksSynced} />}
         {view === "todo" && <TodoView region={region} onCost={onCost} onView={setView} />}
         {view === "references" && <References />}
         {view === "about" && <About />}

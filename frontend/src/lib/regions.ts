@@ -1,19 +1,37 @@
-// Saved regions (Favorites).
+// Saved regions (Favorites) — a cache in front of the server's blocks.
 //
 // The region is the app's unifying abstraction: switching the active region
-// re-scopes every view. Per the charter these belong on Nostr as NIP-44
-// encrypted NIP-78 events under `goodearth/regions`, so the farm's data
-// survives any one device and never lives on the operator's server.
+// re-scopes every view. The record itself lives in the operator's database,
+// npub-scoped and encrypted at rest, so a farm survives a lost laptop and
+// reads the same on a phone.
 //
-// localStorage is the offline cache in that design, and it is what ships
-// first — the Nostr write-through lands with the rest of the patron
-// collections. Keeping the store behind this module means that change is
-// one file, not a sweep through the views.
+// localStorage stays, demoted to a first-paint cache. That is deliberate:
+// `listRegions()` is called synchronously before the first render and every
+// view assumes a region exists, so making it async would push a null check
+// into eleven components and put a loading flash on every route. Instead the
+// server becomes the WRITER of this key — `hydrate()` below — and the reader
+// never learns the difference.
+//
+// (An earlier version of this comment claimed a charter placing these on Nostr
+// as NIP-44 events that "never live on the operator's server". There is no such
+// charter. It was an aspiration written in the voice of doctrine, and it misled
+// at least one reader before being corrected.)
 
 import type { Region } from "./mcp";
 
 const KEY = "goodearth:regions:v1";
-const ACTIVE_KEY = "goodearth:active-region:v1";
+const ACTIVE_KEY_BASE = "goodearth:active-region:v1";
+
+/// Scoped to the patron, because two npubs in one browser sharing one active
+/// id means the second signs in pointing at ground the server will not resolve
+/// for them.
+function activeKey(): string {
+  try {
+    return `${ACTIVE_KEY_BASE}:${window.localStorage.getItem("goodearth:patron_npub:v1") ?? ""}`;
+  } catch {
+    return ACTIVE_KEY_BASE;
+  }
+}
 
 export interface SavedRegion {
   id: string;
@@ -60,6 +78,18 @@ export function listRegions(): SavedRegion[] {
   return saved.length ? saved : [EXAMPLE_REGION];
 }
 
+/// Replace the cache with what the server holds.
+///
+/// Called once after sign-in. The server is authoritative, so this overwrites
+/// rather than merges — anything the device still held that the server does not
+/// know about has either been migrated already or was never saved.
+export function hydrate(rows: SavedRegion[]): SavedRegion[] {
+  try {
+    window.localStorage.setItem(KEY, JSON.stringify(rows));
+  } catch { /* private window / quota — this session still works from memory */ }
+  return rows;
+}
+
 export function saveRegion(r: SavedRegion): SavedRegion[] {
   const all = read<SavedRegion[]>(KEY, []).filter((x) => x.id !== r.id);
   const next = [...all, r];
@@ -80,11 +110,11 @@ export function deleteRegion(id: string): SavedRegion[] {
 }
 
 export function getActiveRegionId(): string | null {
-  try { return window.localStorage.getItem(ACTIVE_KEY); } catch { return null; }
+  try { return window.localStorage.getItem(activeKey()); } catch { return null; }
 }
 
 export function setActiveRegionId(id: string): void {
-  try { window.localStorage.setItem(ACTIVE_KEY, id); } catch { /* noop */ }
+  try { window.localStorage.setItem(activeKey(), id); } catch { /* noop */ }
 }
 
 /// A pin region from plain numbers, validated the way the server validates it

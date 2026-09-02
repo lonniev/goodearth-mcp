@@ -1406,3 +1406,105 @@ export async function taskDelete(taskId: string): Promise<{ success: boolean; er
 export async function taskSetDone(taskId: string, done: boolean): Promise<{ success: boolean; error?: string }> {
   return callTool("task_set_done", { task_id: taskId, done });
 }
+
+
+// ── Blocks ───────────────────────────────────────────────────────────────
+//
+// A block is a plot of land, saved on the server. The geometry travels once,
+// when the block is saved; after that every tool refers to the block and the
+// server resolves the ground. Everything the grower curates on it — plantings,
+// pests, wildlife, observations — is an item of one `kind`, written a row at a
+// time rather than as a document, so two tabs cannot overwrite each other.
+
+export interface BlockRow {
+  block_id: string;
+  name: string;
+  aliases: string[];
+  geometry: Region;
+  base_temp_f: number;
+  area_ha?: number | null;
+  sample_count?: number | null;
+  retired?: boolean;
+  /// True on the worked example, which has no row and is never persisted.
+  seeded?: boolean;
+}
+
+export interface BlockListResult {
+  success: boolean;
+  blocks: BlockRow[];
+  count: number;
+  /// The grower has saved nothing, so `blocks` is the worked example.
+  seeded: boolean;
+  note?: string;
+  error?: string;
+  error_code?: string;
+}
+
+export type ItemKind = "planting" | "pest" | "wildlife" | "observation";
+
+export interface ItemRow {
+  item_id: string;
+  kind: ItemKind;
+  season_year?: number | null;
+  observed_on?: string | null;
+  source?: string | null;
+  retired?: boolean;
+  [field: string]: unknown;
+}
+
+export interface ItemPage {
+  success: boolean;
+  block_id: string;
+  block_name: string;
+  items: ItemRow[];
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+  kind: ItemKind;
+  error?: string;
+  error_code?: string;
+}
+
+export async function blockList(includeRetired = false): Promise<BlockListResult> {
+  return callTool<BlockListResult>("block_list", { include_retired: includeRetired });
+}
+
+export async function blockSave(b: {
+  name: string; geometry: Region; block?: string; aliases?: string[];
+  base_temp?: number; retired?: boolean;
+}): Promise<{ success: boolean; block?: BlockRow; error?: string; error_code?: string }> {
+  return callTool("block_save", b);
+}
+
+export async function blockItemSave(
+  block: string, kind: ItemKind,
+  q: { items?: Record<string, unknown>[]; retire_ids?: string[]; season?: number } = {},
+): Promise<{ success: boolean; saved?: string[]; saved_count?: number; retired_count?: number; error?: string; error_code?: string }> {
+  return callTool("block_item_save", { block, kind, ...q });
+}
+
+export async function blockItemList(
+  block: string, kind: ItemKind,
+  q: {
+    season?: number; since?: string; until?: string; as_of?: string;
+    include_retired?: boolean; page?: number; page_size?: number;
+  } = {},
+): Promise<ItemPage> {
+  return callTool<ItemPage>("block_item_list", { block, kind, ...q });
+}
+
+/// Is the server's block record available to this patron?
+///
+/// `check_price` is free and answers the same gate the paid tools do, so this
+/// asks whether blocks are live without spending anything and without a write.
+/// Until the operator has priced them the app stays wholly on device storage,
+/// which is why this returns a plain boolean rather than throwing.
+export async function blocksAvailable(): Promise<boolean> {
+  try {
+    const r = await blockList();
+    return r?.success === true;
+  } catch {
+    return false;
+  }
+}

@@ -22,7 +22,6 @@ import type { SavedRegion } from "../lib/regions";
 
 interface Props {
   region: SavedRegion;
-  onMeasured: (areaHa: number, samples: number) => void;
   onCost: (sats: number) => void;
   /// Lifted so the hive in the corner can read the same night the frost card
   /// does — the hive is an instrument, and it must not disagree with the page.
@@ -32,7 +31,7 @@ interface Props {
   onView?: (v: "map" | "almanac" | "crops" | "pests" | "wildlife" | "reports" | "references") => void;
 }
 
-export default function HeatLedger({ region, onMeasured, onCost, onFrost, onView }: Props) {
+export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
   const [data, setData] = useState<SeasonCurveResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -56,13 +55,12 @@ export default function HeatLedger({ region, onMeasured, onCost, onFrost, onView
       if (!r.success) { setError(r.error || "The service could not answer for this ground."); return; }
       setData(r);
       setRanAt(new Date());
-      if (r.region) onMeasured(r.region.area_km2 * 100, r.region.sample_count);
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setBusy(false);
     }
-  }, [region, onMeasured]);
+  }, [region]);
 
   const runFrost = useCallback(async () => {
     try {
