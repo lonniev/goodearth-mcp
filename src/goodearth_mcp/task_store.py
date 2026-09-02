@@ -17,6 +17,7 @@ No recurrence and no multi-day spans.
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
@@ -52,6 +53,10 @@ _MIGRATIONS: list[str] = [
     f"ALTER TABLE {TABLE} ADD COLUMN IF NOT EXISTS starts_at TIME",
     f"ALTER TABLE {TABLE} ADD COLUMN IF NOT EXISTS ends_at TIME",
     f"ALTER TABLE {TABLE} ADD COLUMN IF NOT EXISTS reminder_only BOOLEAN DEFAULT TRUE",
+    # The index NAME must stay unqualified — Postgres' CREATE INDEX grammar
+    # takes a bare identifier, so `myschema.goodearth_tasks_owner_idx` is a
+    # syntax error, not a no-op. _qualify() matches on word boundaries for
+    # exactly this reason; see the note there.
     f"CREATE INDEX IF NOT EXISTS {TABLE}_owner_idx ON {TABLE} (npub, region_id, due)",
 ]
 
@@ -78,7 +83,6 @@ TIMEFRAMES = ("day", "week", "month", "season", "all")
 # not backtrack the way PCRE does, so this is not a ReDoS in the usual sense,
 # but an elaborate pattern over a large table still holds a connection open.
 MAX_SEARCH_LEN = 200
-STATEMENT_TIMEOUT_MS = 3_000
 
 MAX_PAGE_SIZE = 200
 
@@ -104,8 +108,22 @@ async def _vault_for() -> Any:
 
 
 def _qualify(sql: str) -> str:
+    """Point the table name at the operator's schema, and NOTHING else.
+
+    The match is on word boundaries because a plain ``str.replace`` also hits
+    the table name where it is a PREFIX of another identifier — most notably
+    ``goodearth_tasks_owner_idx``, which would become
+    ``myschema.goodearth_tasks_owner_idx``. Postgres' CREATE INDEX grammar
+    takes a bare identifier, so that is a syntax error, not a harmless
+    mismatch: it raises, aborts the whole _MIGRATIONS loop, leaves
+    ``_schema_done`` False so the DDL re-runs on every subsequent request, and
+    the index is never created. ``\\b`` will not match inside
+    ``goodearth_tasks_owner_idx`` because ``_`` is a word character.
+    """
     prefix = getattr(_vault, "_schema_prefix", "") if _vault else ""
-    return sql.replace(TABLE, f"{prefix}{TABLE}") if prefix else sql
+    if not prefix:
+        return sql
+    return re.sub(rf"\b{re.escape(TABLE)}\b", f"{prefix}{TABLE}", sql)
 
 
 def window_for(timeframe: str, today: date, season_start: date | None = None) -> tuple[date, date] | None:
@@ -162,7 +180,13 @@ async def save(
             "reminder_only, done) VALUES ($1,$2,$3,$4,$5,$6::date,$7::time,$8::time,$9,$10) "
             "ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, note = EXCLUDED.note, "
             "due = EXCLUDED.due, starts_at = EXCLUDED.starts_at, ends_at = EXCLUDED.ends_at, "
-            "reminder_only = EXCLUDED.reminder_only, done = EXCLUDED.done, updated_at = NOW()"
+            "reminder_only = EXCLUDED.reminder_only, done = EXCLUDED.done, updated_at = NOW() "
+            # Without this the UPDATE path is unscoped: ids are minted
+            # client-side from Date.now(), so they are guessable, and a
+            # caller supplying somebody else's task_id would overwrite
+            # their row. Every other mutation here is npub-scoped; this
+            # one was not.
+            f"WHERE {TABLE}.npub = EXCLUDED.npub"
         ),
         [tid, npub, region_id, title.strip(), note or None, due or None,
          starts_at or None, ends_at or None, reminder_only, done],
@@ -199,7 +223,11 @@ async def listing(
     direction = "DESC" if str(sort_dir).lower() == "desc" else "ASC"
 
     v = await _vault_for()
-    await v._execute(f"SET LOCAL statement_timeout = {STATEMENT_TIMEOUT_MS}")
+    # NOT a statement timeout. The Neon HTTP driver sends one statement per
+    # request, so there is no open transaction for SET LOCAL to be local TO —
+    # it applies to its own request and is gone. Left as a separate call would
+    # read like protection that is not there. The real bounds on this query are
+    # the vault's httpx timeout, MAX_SEARCH_LEN and MAX_PAGE_SIZE.
     total_r = await v._execute(
         _qualify(f"SELECT COUNT(*) AS n FROM {TABLE} WHERE {clause}"), args
     )
