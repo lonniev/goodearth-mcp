@@ -49,18 +49,26 @@ def validate_planting(planting: Any) -> dict[str, Any]:
     if not 1 <= target <= 20_000:
         raise CropError(f"{name}: gdd_target of {target:g} is outside any real crop's range")
 
-    set_out_raw = planting.get("set_out") or planting.get("set_out_date")
-    if not set_out_raw:
-        raise CropError(f"{name}: needs a set_out date (YYYY-MM-DD)")
-    try:
-        set_out = date.fromisoformat(str(set_out_raw))
-    except ValueError as exc:
-        raise CropError(f"{name}: set_out must be YYYY-MM-DD, got {set_out_raw!r}") from exc
-
     base = planting.get("base_temp")
     base_f = float(base) if isinstance(base, (int, float)) else None
     if base_f is not None and not 20.0 <= base_f <= 80.0:
         raise CropError(f"{name}: base_temp must be between 20 and 80 °F — Good Earth works in Fahrenheit")
+
+    set_out_raw = planting.get("set_out") or planting.get("set_out_date")
+
+    # A planting without a set-out date is still a planting. "Potatoes grow
+    # here, and I do not remember when they went in" is a true statement about
+    # the ground, and the record should be able to hold it — the alternative is
+    # a placeholder date, which is a lie that then propagates into every GDD
+    # answer and every calibration drawn from it. Such a row carries no dates,
+    # so nothing downstream can count from it; it is presence, not progress.
+    if not set_out_raw:
+        return {"crop": name, "gdd_target": target, "set_out": None,
+                "base_temp_f": base_f, "presence_only": True}
+    try:
+        set_out = date.fromisoformat(str(set_out_raw))
+    except ValueError as exc:
+        raise CropError(f"{name}: set_out must be YYYY-MM-DD, got {set_out_raw!r}") from exc
 
     return {"crop": name, "gdd_target": target, "set_out": set_out, "base_temp_f": base_f}
 

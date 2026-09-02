@@ -46,10 +46,25 @@ def test_absurd_targets_are_rejected(target):
         crops.validate_planting({"crop": "X", "gdd_target": target, "set_out": "2026-08-02"})
 
 
-@pytest.mark.parametrize("d", ["", "yesterday", "2026-13-01", None])
+@pytest.mark.parametrize("d", ["yesterday", "2026-13-01"])
 def test_bad_set_out_dates_are_rejected(d):
+    """A date that is not a date is still a refusal — that is a typo, not a gap."""
     with pytest.raises(crops.CropError):
         crops.validate_planting({"crop": "X", "gdd_target": 780, "set_out": d})
+
+
+@pytest.mark.parametrize("d", ["", None])
+def test_a_planting_with_no_set_out_is_a_presence_record(d):
+    """"Potatoes grow here; I do not recall when they went in" is a true thing.
+
+    It used to be unsayable, and the only way to record the crop was to invent
+    a date — which then propagated into every GDD answer and every calibration
+    drawn from it. A presence row carries no date, so nothing can count from it.
+    """
+    row = crops.validate_planting({"crop": "Potato", "gdd_target": 1800, "set_out": d})
+    assert row["set_out"] is None
+    assert row["presence_only"] is True
+    assert row["crop"] == "Potato"
 
 
 def test_celsius_base_temp_is_rejected():

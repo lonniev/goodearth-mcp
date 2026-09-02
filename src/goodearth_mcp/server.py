@@ -1405,6 +1405,11 @@ async def calendar_dataset(
         "events": built["events"],
         "entries": built["counts"],
         "total": built["total"],
+        # What could not be dated, and why. A grower with forty good rows and
+        # one incomplete pest entry gets forty rows published and the one
+        # named — rather than a refusal that makes a partially-known season
+        # unpublishable, which is most seasons.
+        "skipped": built.get("skipped") or [],
         "computed_on": built["computed_on"],
         "note": (
             "Subscribe with the webcal link, or paste the https one into "
