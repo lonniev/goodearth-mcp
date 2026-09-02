@@ -49,7 +49,7 @@ export default function Crops({
     setBusy(true); setError("");
     try {
       const r = await cropGddStatus(
-        region.region,
+        region.id,
         list.map((p) => ({
           crop: p.crop, gdd_target: p.gddTarget, set_out: p.setOut,
           ...(p.baseTempF != null ? { base_temp: p.baseTempF } : {}),
@@ -71,7 +71,7 @@ export default function Crops({
     setFitBusy(true); setError("");
     try {
       const r = await cropSuitability(
-        region.region,
+        region.id,
         CROP_PRESETS.map((c) => ({
           crop: c.crop, gdd_target: c.gddTarget, base_temp: c.baseTempF,
           frost_hardy: c.frostHardy ?? false, category: c.category, emoji: c.emoji,
@@ -113,7 +113,7 @@ export default function Crops({
     setWhenBusy(true); setError("");
     try {
       const r = await plantingWindow(
-        region.region,
+        region.id,
         CROP_PRESETS.map((c) => ({
           crop: c.crop, gdd_target: c.gddTarget, base_temp: c.baseTempF,
           frost_hardy: c.frostHardy ?? false, direct_sow: c.directSow ?? false,

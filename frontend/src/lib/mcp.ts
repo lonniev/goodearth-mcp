@@ -719,12 +719,10 @@ export interface SeasonCurveResult {
 /// Season-to-date growing degree days across a region, with the spread that
 /// distinguishes a bench from a hollow on the same block.
 export async function gddSeasonCurve(
-  region: Region,
+  block: string,
   baseTemp = 50,
 ): Promise<SeasonCurveResult> {
-  return callTool<SeasonCurveResult>("gdd_season_curve", {
-    region,
-    base_temp: baseTemp,
+  return callTool<SeasonCurveResult>("gdd_season_curve", { block, base_temp: baseTemp,
   });
 }
 
@@ -819,8 +817,8 @@ export interface FrostWindowResult {
 
 /// When frost normally arrives on this ground, and whether it is coming this
 /// week — assessed for the region's COLDEST ground, not its average.
-export async function frostWindow(region: Region): Promise<FrostWindowResult> {
-  return callTool<FrostWindowResult>("frost_window", { region });
+export async function frostWindow(block: string): Promise<FrostWindowResult> {
+  return callTool<FrostWindowResult>("frost_window", { block });
 }
 
 
@@ -864,12 +862,11 @@ export interface CropLedgerResult {
 /// Where every planting on a block stands. One call answers the whole ledger —
 /// the season curve and frost record are shared across plantings server-side.
 export async function cropGddStatus(
-  region: Region,
+  block: string,
   plantings: { crop: string; gdd_target: number; set_out: string; base_temp?: number }[],
   baseTemp = 50,
 ): Promise<CropLedgerResult> {
-  return callTool<CropLedgerResult>("crop_gdd_status", {
-    region, plantings, base_temp: baseTemp,
+  return callTool<CropLedgerResult>("crop_gdd_status", { block, plantings, base_temp: baseTemp,
   });
 }
 
@@ -896,10 +893,10 @@ export interface SoilWindowResult {
 
 /// When soil at planting depth crosses a threshold on this ground.
 export async function soilTempProjection(
-  region: Region, threshold = 60, direction: "cooling" | "warming" = "cooling",
+  block: string, threshold = 60, direction: "cooling" | "warming" = "cooling",
   band: "planting" | "shallow" = "planting",
 ): Promise<SoilWindowResult> {
-  return callTool<SoilWindowResult>("soil_temp_projection", { region, threshold, direction, band });
+  return callTool<SoilWindowResult>("soil_temp_projection", { block, threshold, direction, band });
 }
 
 // ─── Pest thresholds ─────────────────────────────────────────────────────
@@ -946,9 +943,9 @@ export interface PestModel {
 /// thresholds are the caller's — Good Earth computes, it does not publish
 /// entomology.
 export async function pestThreshold(
-  region: Region, models: PestModel[],
+  block: string, models: PestModel[],
 ): Promise<PestWindowResult> {
-  return callTool<PestWindowResult>("pest_threshold", { region, pests: models });
+  return callTool<PestWindowResult>("pest_threshold", { block, pests: models });
 }
 
 
@@ -993,10 +990,9 @@ export interface CalibrationResult {
 /// Turn a block's own field reports into a correction on the model. This is
 /// the loop that makes Good Earth better the longer a farm uses it.
 export async function calibration(
-  region: Region, observations: FieldObservation[], baseTemp = 50,
+  block: string, observations: FieldObservation[], baseTemp = 50,
 ): Promise<CalibrationResult> {
-  return callTool<CalibrationResult>("calibration", {
-    region, observations, base_temp: baseTemp,
+  return callTool<CalibrationResult>("calibration", { block, observations, base_temp: baseTemp,
   });
 }
 
@@ -1055,8 +1051,8 @@ export interface AlmanacResult {
 }
 
 /// Temperature, dew point, rain, wind, sun and moon — normal, actual, forecast.
-export async function almanacFor(region: Region): Promise<AlmanacResult> {
-  return callTool<AlmanacResult>("almanac", { region });
+export async function almanacFor(block: string): Promise<AlmanacResult> {
+  return callTool<AlmanacResult>("almanac", { block });
 }
 
 // ─── Wildlife calendar ───────────────────────────────────────────────────
@@ -1103,9 +1099,9 @@ export interface WildlifeResult {
 
 /// When the grower's own wildlife events arrive on this ground.
 export async function wildlifeCalendar(
-  region: Region, events: WildlifeEventInput[],
+  block: string, events: WildlifeEventInput[],
 ): Promise<WildlifeResult> {
-  return callTool<WildlifeResult>("wildlife_calendar", { region, events });
+  return callTool<WildlifeResult>("wildlife_calendar", { block, events });
 }
 
 
@@ -1147,11 +1143,11 @@ export interface SuitabilityResult {
 /// Which crops finish on this ground, measured against its own frost-free heat
 /// budget rather than looked up from a zone map.
 export async function cropSuitability(
-  region: Region,
+  block: string,
   crops: { crop: string; gdd_target: number; base_temp: number;
            frost_hardy?: boolean; category?: string; emoji?: string }[],
 ): Promise<SuitabilityResult> {
-  return callTool<SuitabilityResult>("crop_suitability", { region, crops });
+  return callTool<SuitabilityResult>("crop_suitability", { block, crops });
 }
 
 
@@ -1194,23 +1190,17 @@ export interface FeedRow {
 /// subscribe to. Pass an existing token to refresh in place — subscribers keep
 /// their subscription and events update rather than duplicating.
 export async function calendarSubscribe(opts: {
-  region: Region;
-  regionName: string;
-  plantings?: unknown[];
-  pests?: unknown[];
-  wildlifeEvents?: unknown[];
-  todos?: unknown[];
-  baseTemp?: number;
+  block: string;
+  season?: number;
   token?: string;
 }): Promise<CalendarFeedResult> {
+  // Nothing but the block: the server reads what it grows, watches for and has
+  // due from the record. That is what makes a refresh safe — while these
+  // travelled as arguments, a caller who did not know what was passed the
+  // first time would silently republish a smaller season.
   return callTool<CalendarFeedResult>("calendar_dataset", {
-    region: opts.region,
-    region_name: opts.regionName,
-    plantings: opts.plantings ?? [],
-    pests: opts.pests ?? [],
-    wildlife_events: opts.wildlifeEvents ?? [],
-    todos: opts.todos ?? [],
-    base_temp: opts.baseTemp ?? 50,
+    block: opts.block,
+    ...(opts.season ? { season: opts.season } : {}),
     ...(opts.token ? { token: opts.token } : {}),
   });
 }
@@ -1260,14 +1250,14 @@ export interface PlantingWindowResult {
 /// When to start seed, when to put it out, and the last day a sowing still
 /// finishes — from this block's own frost and soil record.
 export async function plantingWindow(
-  region: Region,
+  block: string,
   crops: {
     crop: string; gdd_target: number; base_temp: number;
     frost_hardy?: boolean; direct_sow?: boolean;
     min_soil_f?: number; start_indoors_weeks?: number; emoji?: string;
   }[],
 ): Promise<PlantingWindowResult> {
-  return callTool<PlantingWindowResult>("planting_window", { region, crops });
+  return callTool<PlantingWindowResult>("planting_window", { block, crops });
 }
 
 // ── Regional catalogues ──────────────────────────────────────────────────
@@ -1295,8 +1285,8 @@ export interface PestCatalogResult {
   note?: string;
 }
 
-export async function pestCatalog(region: Region): Promise<PestCatalogResult> {
-  return callTool<PestCatalogResult>("pest_catalog", { region });
+export async function pestCatalog(block: string): Promise<PestCatalogResult> {
+  return callTool<PestCatalogResult>("pest_catalog", { block });
 }
 
 export interface WildlifeSpecies {
@@ -1333,13 +1323,13 @@ export interface SpeciesHabitsResult {
   note?: string;
 }
 
-export async function wildlifeCatalog(region: Region): Promise<WildlifeCatalogResult> {
-  return callTool<WildlifeCatalogResult>("wildlife_catalog", { region });
+export async function wildlifeCatalog(block: string): Promise<WildlifeCatalogResult> {
+  return callTool<WildlifeCatalogResult>("wildlife_catalog", { block });
 }
 
 /// The same tool, asked about one animal: its life-cycle phenophases.
-export async function speciesHabits(region: Region, species: string): Promise<SpeciesHabitsResult> {
-  return callTool<SpeciesHabitsResult>("wildlife_catalog", { region, species });
+export async function speciesHabits(block: string, species: string): Promise<SpeciesHabitsResult> {
+  return callTool<SpeciesHabitsResult>("wildlife_catalog", { block, species });
 }
 
 // ── Tasks ────────────────────────────────────────────────────────────────

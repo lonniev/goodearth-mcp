@@ -51,7 +51,7 @@ from goodearth_mcp.pests import PestError
 from goodearth_mcp.planting import PlantingError
 from goodearth_mcp.planting_window import PlantingWindowError
 from goodearth_mcp.planting_window import region_planting_window as planting_impl
-from goodearth_mcp.region import RegionError, parse_region
+from goodearth_mcp.region import Region, RegionError, parse_region
 from goodearth_mcp.soil import SoilError
 from goodearth_mcp.soil_window import SoilWindowError
 from goodearth_mcp.soil_window import region_soil_window as soil_window_impl
@@ -77,11 +77,19 @@ mcp = FastMCP(
         "Good Earth — region-scoped climate analytics for small specialty-crop "
         "and flower farms, monetized via Tollbooth DPYC Bitcoin Lightning "
         "micropayments.\n\n"
-        "## The region is the point\n"
-        "A farm is not a pin. Every tool takes a GeoJSON polygon or "
-        "{lat, lon, radius_m}, samples the terrain inside it, and reports an "
-        "aggregate PLUS the spread across it — because a bench and a hollow on "
-        "the same acreage do not share a frost date.\n\n"
+        "## The block is the point\n"
+        "A farm is not a pin. Ground is saved once as a BLOCK — a polygon or a "
+        "pin, with a name — and every tool then takes that block by its id, its "
+        "name or an alias. Geometry travels once, not on every call. Each tool "
+        "samples the terrain inside the block and reports an aggregate PLUS the "
+        "spread across it, because a bench and a hollow on the same acreage do "
+        "not share a frost date.\n\n"
+        "Start with goodearth_block_list. If the grower has saved nothing it "
+        "answers with a worked example, so there is always ground to stand on; "
+        "save theirs with goodearth_block_save and it takes over. What they "
+        "grow, watch for and have seen is recorded per block with "
+        "goodearth_block_item_save, which is why the season tools need no "
+        "collections passed to them.\n\n"
         "## Onboarding\n"
         "Call goodearth_get_operator_onboarding_status to check readiness.\n"
         "1. Register with an Authority (provides a Neon database automatically)\n"
@@ -341,6 +349,55 @@ tool = register_standard_tools(
 )
 
 
+
+BLOCK_FIELD = Field(
+    description=(
+        "The ground to answer for: a block you have saved. Its id, its name, "
+        'or one of its aliases — e.g. "Frogdale Farm". Save one with '
+        "block_save first; geometry travels once, not on every call."
+    ),
+)
+
+
+async def _stored_items(npub: str, block_id: str, kind: str, *, season: int | None = None) -> list[dict[str, Any]]:
+    """One kind of the block's curated items, shaped as the impls expect them.
+
+    The bookkeeping columns come off here rather than in each caller: an impl
+    validating a planting should not have to know that the record also tracks
+    which row it came from.
+    """
+    page = await block_store.list_items(
+        npub, block_id, kind, season_year=season, page_size=block_store.MAX_PAGE_SIZE,
+    )
+    return [
+        {k: v for k, v in row.items() if k not in ("item_id", "kind", "retired", "source")}
+        for row in page["items"]
+    ]
+
+
+async def _block_region(npub: str, block: str) -> tuple[Region, dict[str, Any]]:
+    """Resolve a block reference to the ground it names.
+
+    Raises rather than returning a failure dict, and that is a billing
+    decision as much as a style one: ``paid_tool`` debits before it calls the
+    body and rolls back only on an exception, so a returned failure would
+    charge a fare for a call that did nothing. An unknown block is the ordinary
+    first-run, new-device and post-retire path — it must be free. ``BlockError``
+    is a ``ValueError``, which the runtime surfaces with its message intact, so
+    the grower still reads exactly what went wrong.
+    """
+    found = await block_store.resolve(npub, block)
+    geometry = found.get("geometry") or {}
+    try:
+        return parse_region(geometry), found
+    except RegionError as exc:
+        # Stored geometry that will not parse — written by an older client, or
+        # saved before a validation rule tightened. Say which block, or the
+        # grower has no way to know which one to redraw.
+        raise block_store.BlockError(
+            f"the bounds saved for {found.get('name') or block!r} cannot be read: {exc}"
+        ) from exc
+
 # ---------------------------------------------------------------------------
 # Domain tools
 # ---------------------------------------------------------------------------
@@ -364,7 +421,9 @@ SEASON_INTERVIEW = """You are helping a grower plan a season on one piece of gro
 knowledgeable neighbour would — not the way a form would. Ask one question at a
 time and wait for the answer. Their decisions come first; the data serves them.
 
-1. Which plot, farm or field are we working on? Resolve it against their saved
+1. Which plot, farm or field are we working on? Resolve it with block_list and
+   name the block in every later call; if they have not saved it yet, draw it
+   with block_save first. Match it against their saved
    regions, or help them draw a new one.
 
 2. What are they already growing, or planning to grow?
@@ -411,16 +470,7 @@ def season_interview_prompt() -> str:
 @tool
 @runtime.paid_tool(GDD_SEASON_CURVE_UUID)
 async def gdd_season_curve(
-    region: Annotated[
-        dict[str, Any],
-        Field(
-            description=(
-                "The ground to answer for. Either a GeoJSON Polygon (bare "
-                "geometry or a Feature wrapping one) or a pin: "
-                '{"lat": 44.48, "lon": -73.21, "radius_m": 800}.'
-            ),
-        ),
-    ],
+    block: Annotated[str, BLOCK_FIELD],
     base_temp: Annotated[
         float,
         Field(
@@ -448,13 +498,10 @@ async def gdd_season_curve(
     serves the whole block.
 
     Args:
-        region: GeoJSON Polygon or {lat, lon, radius_m}.
+        block: The ground to answer for — its id, its name, or an alias.
         base_temp: Crop base temperature in °F (20-80).
     """
-    try:
-        parsed = parse_region(region)
-    except RegionError as exc:
-        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+    parsed, _found = await _block_region(npub, block)
 
     try:
         return await season.region_season_curve(parsed, base_temp)
@@ -474,16 +521,7 @@ async def gdd_season_curve(
 @tool
 @runtime.paid_tool(FROST_WINDOW_UUID)
 async def frost_window(
-    region: Annotated[
-        dict[str, Any],
-        Field(
-            description=(
-                "The ground to answer for. Either a GeoJSON Polygon (bare "
-                "geometry or a Feature wrapping one) or a pin: "
-                '{"lat": 44.48, "lon": -73.21, "radius_m": 800}.'
-            ),
-        ),
-    ],
+    block: Annotated[str, BLOCK_FIELD],
     npub: Annotated[
         str,
         Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
@@ -501,12 +539,9 @@ async def frost_window(
     is optimistic for a hollow and pessimistic for a bench on the same block.
 
     Args:
-        region: GeoJSON Polygon or {lat, lon, radius_m}.
+        block: The ground to answer for — its id, its name, or an alias.
     """
-    try:
-        parsed = parse_region(region)
-    except RegionError as exc:
-        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+    parsed, _found = await _block_region(npub, block)
 
     try:
         return await frost_window_impl(parsed)
@@ -524,10 +559,7 @@ async def frost_window(
 @tool
 @runtime.paid_tool(CROP_GDD_STATUS_UUID)
 async def crop_gdd_status(
-    region: Annotated[
-        dict[str, Any],
-        Field(description="GeoJSON Polygon or {lat, lon, radius_m} — the ground these plantings are on."),
-    ],
+    block: Annotated[str, BLOCK_FIELD],
     plantings: Annotated[
         list[dict[str, Any]],
         Field(
@@ -560,14 +592,11 @@ async def crop_gdd_status(
     rather than eight.
 
     Args:
-        region: GeoJSON Polygon or {lat, lon, radius_m}.
+        block: The ground to answer for — its id, its name, or an alias.
         plantings: The block's plantings.
         base_temp: Default base temperature in °F.
     """
-    try:
-        parsed = parse_region(region)
-    except RegionError as exc:
-        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+    parsed, _found = await _block_region(npub, block)
 
     try:
         return await crop_ledger_impl(parsed, plantings, base_temp)
@@ -585,10 +614,7 @@ async def crop_gdd_status(
 @tool
 @runtime.paid_tool(SOIL_TEMP_PROJECTION_UUID)
 async def soil_temp_projection(
-    region: Annotated[
-        dict[str, Any],
-        Field(description="GeoJSON Polygon or {lat, lon, radius_m}."),
-    ],
+    block: Annotated[str, BLOCK_FIELD],
     threshold: Annotated[
         float,
         Field(description="The soil temperature in °F that opens or closes the window. Garlic goes in below about 60."),
@@ -617,15 +643,12 @@ async def soil_temp_projection(
     whether a clove or a seed should go in, not one warm afternoon.
 
     Args:
-        region: GeoJSON Polygon or {lat, lon, radius_m}.
+        block: The ground to answer for — its id, its name, or an alias.
         threshold: Soil temperature in °F.
         direction: 'cooling' (autumn) or 'warming' (spring).
         band: Soil depth band.
     """
-    try:
-        parsed = parse_region(region)
-    except RegionError as exc:
-        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+    parsed, _found = await _block_region(npub, block)
 
     try:
         return await soil_window_impl(parsed, threshold, direction, band)
@@ -640,10 +663,7 @@ async def soil_temp_projection(
 @tool
 @runtime.paid_tool(PEST_THRESHOLD_UUID)
 async def pest_threshold(
-    region: Annotated[
-        dict[str, Any],
-        Field(description="GeoJSON Polygon or {lat, lon, radius_m}."),
-    ],
+    block: Annotated[str, BLOCK_FIELD],
     pests: Annotated[
         list[dict[str, Any]],
         Field(
@@ -672,13 +692,10 @@ async def pest_threshold(
     numbers belong to your extension service and vary by region and biotype.
 
     Args:
-        region: GeoJSON Polygon or {lat, lon, radius_m}.
+        block: The ground to answer for — its id, its name, or an alias.
         pests: Your pest models.
     """
-    try:
-        parsed = parse_region(region)
-    except RegionError as exc:
-        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+    parsed, _found = await _block_region(npub, block)
 
     try:
         return await pest_window_impl(parsed, pests)
@@ -693,22 +710,25 @@ async def pest_threshold(
 @tool
 @runtime.paid_tool(CALIBRATION_UUID)
 async def calibration(
-    region: Annotated[
-        dict[str, Any],
-        Field(description="GeoJSON Polygon or {lat, lon, radius_m} — the block these reports are from."),
-    ],
+    block: Annotated[str, BLOCK_FIELD],
+    season: Annotated[
+        int | None,
+        Field(description="Which season's reports to calibrate against. Defaults to this one."),
+    ] = None,
     observations: Annotated[
-        list[dict[str, Any]],
+        list[dict[str, Any]] | None,
         Field(
             description=(
-                "The block's field reports. A frost report is "
-                '{"kind": "frost", "observed_on": "2026-10-02"}. A crop stage is '
+                "Optional. Omit and this reads the field reports already recorded "
+                "for the block. Pass a list to calibrate against those instead, "
+                "without recording them: a frost report is "
+                '{"kind": "frost", "observed_on": "2026-10-02"}; a crop stage is '
                 '{"kind": "stage", "observed_on": "2026-07-31", "crop": "Dahlia", '
                 '"stage": "first bloom", "gdd_target": 1200, "set_out": "2026-05-24"}. '
                 "Both accept an optional note."
             ),
         ),
-    ],
+    ] = None,
     base_temp: Annotated[
         float,
         Field(description="Base temperature in °F the stage targets are counted at."),
@@ -736,17 +756,27 @@ async def calibration(
     in, and the reports behind every figure come back with it.
 
     Args:
-        region: GeoJSON Polygon or {lat, lon, radius_m}.
+        block: The ground to answer for — its id, its name, or an alias.
         observations: The block's field reports.
         base_temp: Base temperature in °F.
     """
-    try:
-        parsed = parse_region(region)
-    except RegionError as exc:
-        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+    parsed, _found = await _block_region(npub, block)
 
     try:
-        return await calibration_impl(parsed, observations, base_temp)
+        year = season if season is not None else datetime.now(UTC).year
+        seen = observations
+        if seen is None:
+            # Bounded by the season on purpose: unbounded, this would quietly
+            # calibrate this year's ground against every observation ever
+            # recorded, and a correction drawn from six seasons of weather is
+            # not a correction for this one.
+            seen = await _stored_items(npub, _found["block_id"], "observation")
+            seen = [o for o in seen if str(o.get("observed_on", "")).startswith(str(year))]
+        if not seen:
+            return {"success": False, "error_code": "no_observations",
+                    "error": (f"No field reports recorded for {year} on this ground — "
+                              "file some observations first, and they will sharpen the model.")}
+        return await calibration_impl(parsed, seen, float(base_temp))
     except (CalibrateError, CalibrationError) as exc:
         return {"success": False, "error": str(exc), "error_code": "invalid_request"}
     except (sources.UpstreamError, OSError) as exc:
@@ -758,10 +788,7 @@ async def calibration(
 @tool
 @runtime.paid_tool(ALMANAC_UUID)
 async def almanac(
-    region: Annotated[
-        dict[str, Any],
-        Field(description="GeoJSON Polygon or {lat, lon, radius_m}."),
-    ],
+    block: Annotated[str, BLOCK_FIELD],
     npub: Annotated[
         str,
         Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
@@ -783,12 +810,9 @@ async def almanac(
     One call covers every measure — three upstream requests regardless.
 
     Args:
-        region: GeoJSON Polygon or {lat, lon, radius_m}.
+        block: The ground to answer for — its id, its name, or an alias.
     """
-    try:
-        parsed = parse_region(region)
-    except RegionError as exc:
-        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+    parsed, _found = await _block_region(npub, block)
 
     try:
         return await almanac_impl(parsed)
@@ -827,10 +851,7 @@ async def plan_the_season(
 @tool
 @runtime.paid_tool(REVIEW_ROSTER_UUID)
 async def review_roster(
-    region: Annotated[
-        dict[str, Any],
-        Field(description="GeoJSON Polygon or {lat, lon, radius_m}."),
-    ],
+    block: Annotated[str, BLOCK_FIELD],
     pests: Annotated[
         list[dict[str, Any]] | None,
         Field(description='The pests being watched: [{"pest": "Codling moth"}, ...].'),
@@ -848,6 +869,10 @@ async def review_roster(
                 '"2026-06-03"}].'
             ),
         ),
+    ] = None,
+    season: Annotated[
+        int | None,
+        Field(description="Which season's roster to audit. Defaults to this one."),
     ] = None,
     npub: Annotated[
         str,
@@ -880,15 +905,12 @@ async def review_roster(
     proposed and the patron decides.
 
     Args:
-        region: GeoJSON Polygon or {lat, lon, radius_m}.
+        block: The ground to answer for — its id, its name, or an alias.
         pests: The pests being watched.
         wildlife: The creatures being tracked.
         observations: Field reports to sanity-check.
     """
-    try:
-        parsed = parse_region(region)
-    except RegionError as exc:
-        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+    parsed, _found = await _block_region(npub, block)
 
     try:
         pest_cat, wild_cat, frost_res = await asyncio.gather(
@@ -908,12 +930,22 @@ async def review_roster(
                 "last_spring_median": (frost_res.get("last_spring") or {}).get("median"),
                 "first_fall_median": f.get("median"),
             }
-        return {"success": True, **roster.review(
-            region_label=parsed.describe().get("kind", "this ground"),
-            pests=pests or [], wildlife=wildlife or [], observations=observations or [],
-            pest_catalog=pest_cat, wildlife_catalog=wild_cat, frost=frost,
-            today=datetime.now(UTC).date(),
-        )}
+        # The roster is read from the record rather than assembled by the
+        # caller. That is what lets an agent audit a season it did not set up —
+        # and what makes accepting a finding an ordinary item write rather than
+        # a separate tool.
+        block_id = _found["block_id"]
+        year = season if season is not None else datetime.now(UTC).year
+        stored_pests = pests if pests is not None else await _stored_items(npub, block_id, "pest", season=year)
+        stored_wild = wildlife if wildlife is not None else await _stored_items(npub, block_id, "wildlife", season=year)
+        stored_obs = observations if observations is not None else await _stored_items(npub, block_id, "observation")
+        return {"success": True, "block_id": block_id, "block_name": _found.get("name", ""),
+                **roster.review(
+                    region_label=_found.get("name") or parsed.describe().get("kind", "this ground"),
+                    pests=stored_pests, wildlife=stored_wild, observations=stored_obs,
+                    pest_catalog=pest_cat, wildlife_catalog=wild_cat, frost=frost,
+                    today=datetime.now(UTC).date(),
+                )}
     except (biota.BiotaError, OSError) as exc:
         logger.warning("review_roster failed: %s", exc)
         return {"success": False, "error": f"The record could not be read: {exc}",
@@ -1061,10 +1093,7 @@ async def task_set_done(
 @tool
 @runtime.paid_tool(PEST_CATALOG_UUID)
 async def pest_catalog(
-    region: Annotated[
-        dict[str, Any],
-        Field(description="GeoJSON Polygon or {lat, lon, radius_m}."),
-    ],
+    block: Annotated[str, BLOCK_FIELD],
     npub: Annotated[
         str,
         Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
@@ -1087,12 +1116,9 @@ async def pest_catalog(
     to the surrounding country and the answer says how far.
 
     Args:
-        region: GeoJSON Polygon or {lat, lon, radius_m}.
+        block: The ground to answer for — its id, its name, or an alias.
     """
-    try:
-        parsed = parse_region(region)
-    except RegionError as exc:
-        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+    parsed, _found = await _block_region(npub, block)
     try:
         return await catalog.region_pest_catalog(parsed)
     except catalog.CatalogError as exc:
@@ -1106,10 +1132,7 @@ async def pest_catalog(
 @tool
 @runtime.paid_tool(WILDLIFE_CATALOG_UUID)
 async def wildlife_catalog(
-    region: Annotated[
-        dict[str, Any],
-        Field(description="GeoJSON Polygon or {lat, lon, radius_m}."),
-    ],
+    block: Annotated[str, BLOCK_FIELD],
     species: Annotated[
         str,
         Field(
@@ -1151,13 +1174,10 @@ async def wildlife_catalog(
     Good Earth times an event you set. It does not publish natural history.
 
     Args:
-        region: GeoJSON Polygon or {lat, lon, radius_m}.
+        block: The ground to answer for — its id, its name, or an alias.
         species: Optional scientific name, for that animal's habits.
     """
-    try:
-        parsed = parse_region(region)
-    except RegionError as exc:
-        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+    parsed, _found = await _block_region(npub, block)
     try:
         if species.strip():
             return await catalog.region_species_habits(species)
@@ -1173,10 +1193,7 @@ async def wildlife_catalog(
 @tool
 @runtime.paid_tool(WILDLIFE_CALENDAR_UUID)
 async def wildlife_calendar(
-    region: Annotated[
-        dict[str, Any],
-        Field(description="GeoJSON Polygon or {lat, lon, radius_m}."),
-    ],
+    block: Annotated[str, BLOCK_FIELD],
     events: Annotated[
         list[dict[str, Any]],
         Field(
@@ -1214,13 +1231,10 @@ async def wildlife_calendar(
     does not publish natural history.
 
     Args:
-        region: GeoJSON Polygon or {lat, lon, radius_m}.
+        block: The ground to answer for — its id, its name, or an alias.
         events: Your wildlife events.
     """
-    try:
-        parsed = parse_region(region)
-    except RegionError as exc:
-        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+    parsed, _found = await _block_region(npub, block)
 
     try:
         return await wildlife_impl(parsed, events)
@@ -1235,10 +1249,7 @@ async def wildlife_calendar(
 @tool
 @runtime.paid_tool(CROP_SUITABILITY_UUID)
 async def crop_suitability(
-    region: Annotated[
-        dict[str, Any],
-        Field(description="GeoJSON Polygon or {lat, lon, radius_m}."),
-    ],
+    block: Annotated[str, BLOCK_FIELD],
     crops: Annotated[
         list[dict[str, Any]],
         Field(
@@ -1271,13 +1282,10 @@ async def crop_suitability(
     publishing agronomy.
 
     Args:
-        region: GeoJSON Polygon or {lat, lon, radius_m}.
+        block: The ground to answer for — its id, its name, or an alias.
         crops: The crops to judge.
     """
-    try:
-        parsed = parse_region(region)
-    except RegionError as exc:
-        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+    parsed, _found = await _block_region(npub, block)
 
     try:
         return await suitability_impl(parsed, crops)
@@ -1292,40 +1300,15 @@ async def crop_suitability(
 @tool
 @runtime.paid_tool(CALENDAR_DATASET_UUID)
 async def calendar_dataset(
-    region: Annotated[
-        dict[str, Any],
-        Field(description="GeoJSON Polygon or {lat, lon, radius_m}."),
-    ],
-    region_name: Annotated[str, Field(description="What you call this block.")] = "My block",
-    plantings: Annotated[
-        list[dict[str, Any]] | None,
-        Field(description="Crop plantings, as crop_gdd_status takes them."),
-    ] = None,
-    pests: Annotated[
-        list[dict[str, Any]] | None,
-        Field(description="Pest models, as pest_threshold takes them."),
-    ] = None,
-    wildlife_events: Annotated[
-        list[dict[str, Any]] | None,
-        Field(description="Wildlife and husbandry events, as wildlife_calendar takes them."),
-    ] = None,
-    todos: Annotated[
-        list[dict[str, Any]] | None,
-        Field(
-            description=(
-                'Tasks. A reminder publishes as VTODO, which clients surface as a '
-                'reminder rather than an appointment; one with times publishes as an '
-                'entry that takes the slot: {"id": "...", "title": "Cover the east beds", '
-                '"due": "2026-09-28", "note": "...", "done": false, '
-                '"reminder_only": true, "starts_at": "09:00", "ends_at": "11:00"}.'
-            ),
-        ),
-    ] = None,
-    base_temp: Annotated[float, Field(description="Block default base temperature in °F.")] = 50.0,
+    block: Annotated[str, BLOCK_FIELD],
     token: Annotated[
         str,
         Field(description="Pass an existing feed's token to REFRESH it in place; omit to create one."),
     ] = "",
+    season: Annotated[
+        int | None,
+        Field(description="Which season to publish. Defaults to this one."),
+    ] = None,
     npub: Annotated[
         str,
         Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
@@ -1348,25 +1331,51 @@ async def calendar_dataset(
     everything. Pass the same token again to recompute in place — subscribers
     keep their subscription and the events update rather than duplicating.
 
+    Nothing is passed in but the block: what it grows, what it watches for and
+    what is due are read from the record. That is what makes a refresh safe —
+    while those collections travelled as arguments, nobody could recompute an
+    existing feed without knowing what had been handed to it the first time,
+    so a refresh silently published a smaller season than the one it replaced.
+
     Args:
-        region: GeoJSON Polygon or {lat, lon, radius_m}.
-        region_name: What you call this block.
-        plantings: Crop plantings.
-        pests: Pest models.
-        wildlife_events: Wildlife and husbandry events.
-        todos: Tasks to publish as reminders.
-        base_temp: Block default base temperature in °F.
-        token: An existing feed token to refresh.
+        block: The ground to publish — its id, its name, or an alias.
+        token: An existing feed token to refresh in place.
+        season: Which season to publish. Defaults to this one.
     """
+    parsed, found = await _block_region(npub, block)
+    block_id = found["block_id"]
+    year = season if season is not None else datetime.now(UTC).year
+    base_temp = float(found.get("base_temp_f") or 50.0)
+    region_name = found.get("name") or "My block"
+
+    async def _items(kind: str) -> list[dict[str, Any]]:
+        page = await block_store.list_items(
+            npub, block_id, kind, season_year=year, page_size=block_store.MAX_PAGE_SIZE,
+        )
+        return [
+            {k: v for k, v in row.items() if k not in ("item_id", "kind", "retired", "source")}
+            for row in page["items"]
+        ]
+
     try:
-        parsed = parse_region(region)
-    except RegionError as exc:
-        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+        plantings = await _items("planting")
+        pests = await _items("pest")
+        wildlife_events = await _items("wildlife")
+        tasks = await task_store.listing(
+            npub, block_id, timeframe="season", page_size=task_store.MAX_PAGE_SIZE,
+        )
+        todos = tasks.get("rows") or []
+    except (block_store.BlockError, task_store.TaskError) as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_request"}
+    except OSError as exc:
+        logger.error("calendar_dataset could not read the record: %s", exc)
+        return {"success": False, "error": "The record is unreachable right now.",
+                "error_code": "persistence_unavailable"}
 
     feed_token = token.strip() or calendar_feed.new_token()
     try:
         built = await calendar_feed.build_feed(
-            parsed, region_name or "My block", feed_token,
+            parsed, region_name, feed_token,
             plantings=plantings, pest_models=pests, wildlife_events=wildlife_events,
             todos=todos, base_temp_f=base_temp,
         )
@@ -1379,7 +1388,7 @@ async def calendar_dataset(
 
     try:
         await feed_store.save(
-            feed_token, npub, region_name or "My block",
+            feed_token, npub, region_name,
             built["ics"], built["total"], built["computed_on"],
         )
     except Exception as exc:  # noqa: BLE001 — persistence is the operator's
@@ -1496,10 +1505,7 @@ async def calendar_revoke(
 @tool
 @runtime.paid_tool(PLANTING_WINDOW_UUID)
 async def planting_window(
-    region: Annotated[
-        dict[str, Any],
-        Field(description="GeoJSON Polygon or {lat, lon, radius_m}."),
-    ],
+    block: Annotated[str, BLOCK_FIELD],
     crops: Annotated[
         list[dict[str, Any]],
         Field(
@@ -1535,13 +1541,10 @@ async def planting_window(
     are yours.
 
     Args:
-        region: GeoJSON Polygon or {lat, lon, radius_m}.
+        block: The ground to answer for — its id, its name, or an alias.
         crops: The crops to date.
     """
-    try:
-        parsed = parse_region(region)
-    except RegionError as exc:
-        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+    parsed, _found = await _block_region(npub, block)
 
     try:
         return await planting_impl(parsed, crops)
@@ -1561,19 +1564,6 @@ async def planting_window(
 # existing `@tool` and its `@runtime.paid_tool` re-binds the orphaned `@tool` to
 # the new function and silently unregisters the old one — this repo lost two
 # shipped tools that way. New tools go here, at the bottom, always.
-
-
-def _block_failure(exc: block_store.BlockError) -> dict[str, Any]:
-    """Shape a block refusal. Only ever called for a refusal we chose to catch."""
-    out: dict[str, Any] = {"success": False, "error": str(exc)}
-    if isinstance(exc, block_store.AmbiguousBlock):
-        out["error_code"] = "ambiguous_block"
-        out["candidates"] = exc.candidates
-    elif isinstance(exc, block_store.UnknownBlock):
-        out["error_code"] = "no_such_block"
-    else:
-        out["error_code"] = "invalid_request"
-    return out
 
 
 @tool
@@ -1629,8 +1619,6 @@ async def block_save(
             sample_count=parsed.sample_count,
             retired=retired,
         )
-    except block_store.BlockError as exc:
-        return _block_failure(exc)
     except OSError as exc:
         logger.error("block_save persistence failed: %s", exc)
         return {
@@ -1736,8 +1724,6 @@ async def block_item_save(
             npub, found["block_id"], kind, list(items or []), season_year=season,
         )
         retired = await block_store.retire_items(npub, list(retire_ids or []))
-    except block_store.BlockError as exc:
-        return _block_failure(exc)
     except OSError as exc:
         logger.error("block_item_save persistence failed: %s", exc)
         return {
@@ -1813,8 +1799,6 @@ async def block_item_list(
             season_year=season, since=since, until=until, as_of=as_of,
             include_retired=include_retired, page=page, page_size=page_size,
         )
-    except block_store.BlockError as exc:
-        return _block_failure(exc)
     except OSError as exc:
         logger.error("block_item_list persistence failed: %s", exc)
         return {

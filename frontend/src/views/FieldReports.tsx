@@ -58,7 +58,7 @@ export default function FieldReports({
     if (!obs.length) { setCal(null); return; }
     setBusy(true); setErr("");
     try {
-      const r = await calibration(region.region, obs, region.baseTempF);
+      const r = await calibration(region.id, obs, region.baseTempF);
       if (!r.success) { setErr(r.error || "Calibration could not be read."); return; }
       setCal(r); setRanAt(new Date());
     } catch (e) { setErr((e as Error).message); }

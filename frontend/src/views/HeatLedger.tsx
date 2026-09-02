@@ -51,7 +51,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
   const run = useCallback(async () => {
     setBusy(true); setError("");
     try {
-      const r = await gddSeasonCurve(region.region, region.baseTempF);
+      const r = await gddSeasonCurve(region.id, region.baseTempF);
       if (!r.success) { setError(r.error || "The service could not answer for this ground."); return; }
       setData(r);
       setRanAt(new Date());
@@ -64,7 +64,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
 
   const runFrost = useCallback(async () => {
     try {
-      const f = await frostWindow(region.region);
+      const f = await frostWindow(region.id);
       if (!f.success) { setFrost(null); onFrost?.(null); return; }
       setFrost(f);
       setFrostAt(new Date());
@@ -81,7 +81,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
     try {
       // Autumn window at planting depth — the garlic question. A spring
       // warming window is the same call with direction flipped.
-      const s = await soilTempProjection(region.region, 60, "cooling");
+      const s = await soilTempProjection(region.id, 60, "cooling");
       if (!s.success) { setSoil(null); return; }
       setSoil(s); setSoilAt(new Date());
     } catch { setSoil(null); }
@@ -107,7 +107,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
     if (next === 0 || almanac) return;
     setWxBusy(true);
     try {
-      const a = await almanacFor(region.region);
+      const a = await almanacFor(region.id);
       if (a.success) { setAlmanac(a); setAlmanacAt(new Date()); }
       else setError(a.error || "The weather could not be read.");
     } catch (e) { setError((e as Error).message); }

@@ -10,36 +10,19 @@
 // once and then live in the calendar you already read.
 
 import {
-  calendarList, calendarSubscribe, taskList, type CalendarFeedResult,
+  calendarList, calendarSubscribe, type CalendarFeedResult,
 } from "./mcp";
-import { listPlantings } from "./plantings";
-import { listPests } from "./pestModels";
-import { listWildlife } from "./wildlifeModels";
 import type { SavedRegion } from "./regions";
 
 export async function publishRegion(
   region: SavedRegion, token?: string,
 ): Promise<CalendarFeedResult> {
-  // Tasks come from the server, so a task added on the phone is in the feed
-  // published from the laptop.
-  const t = await taskList(region.id, { timeframe: "all", page_size: 200 });
-  return calendarSubscribe({
-    region: region.region,
-    regionName: region.name,
-    baseTemp: region.baseTempF,
-    token,
-    plantings: listPlantings(region.id).map((p) => ({
-      crop: p.crop, gdd_target: p.gddTarget, set_out: p.setOut,
-      ...(p.baseTempF != null ? { base_temp: p.baseTempF } : {}),
-    })),
-    pests: listPests(region.id).map(({ id: _i, regionId: _r, ...m }) => m),
-    wildlifeEvents: listWildlife(region.id).map(({ id: _i, regionId: _r, ...e }) => e),
-    todos: (t.rows ?? []).map((x) => ({
-      id: x.id, title: x.title, due: x.due ?? undefined, note: x.note ?? undefined,
-      done: x.done, reminder_only: x.reminder_only,
-      starts_at: x.starts_at ?? undefined, ends_at: x.ends_at ?? undefined,
-    })),
-  });
+  // One argument. This function used to fan in four stores — plantings, pests
+  // and wildlife from the device, tasks from the server — and hand them all to
+  // the feed. They live on the block now, so the server reads them itself, and
+  // a refresh can no longer publish a smaller season than the one it replaced
+  // just because the caller did not know what the first call had passed.
+  return calendarSubscribe({ block: region.id, token });
 }
 
 /// The token this region is published under, or null if it is not published.

@@ -43,7 +43,7 @@ export default function Pests({
     if (!list.length) { setData(null); return; }
     setBusy(true); setError("");
     try {
-      const r = await pestThreshold(region.region, list.map(({ id: _id, regionId: _r, ...m }) => m));
+      const r = await pestThreshold(region.id, list.map(({ id: _id, regionId: _r, ...m }) => m));
       if (!r.success) { setError(r.error || "What you are watching could not be read."); return; }
       setData(r); setRanAt(new Date());
     } catch (e) { setError((e as Error).message); }
@@ -71,11 +71,11 @@ export default function Pests({
   const loadCatalog = useCallback(async () => {
     setCatBusy(true);
     try {
-      const r = await pestCatalog(region.region);
+      const r = await pestCatalog(region.id);
       if (r.success) { setCat(r); setCatAt(new Date()); }
       else setError(r.error || "The pest catalogue could not be read.");
     } finally { setCatBusy(false); }
-  }, [region.region]);
+  }, [region.id]);
 
   return (
     <>
