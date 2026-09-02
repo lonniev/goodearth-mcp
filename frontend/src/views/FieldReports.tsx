@@ -171,10 +171,7 @@ export default function FieldReports({
 
   return (
     <>
-      <div className="mb-3.5 flex items-baseline gap-3">
-        <h1 className="figure text-[22px] font-bold">Field Reports</h1>
-        <span className="text-[13px] text-ink-soft">{region.name}</span>
-      </div>
+      <h1 className="figure mb-3.5 text-[22px] font-bold">Field Reports</h1>
 
       {/* ── Your observations ────────────────────────────────────────── */}
       <h2 className="figure mb-2.5 flex items-baseline gap-2.5 text-[18px] font-semibold">
@@ -204,11 +201,7 @@ export default function FieldReports({
         </div>
       ) : (
         <div className="rounded-md border border-dashed border-rule bg-panel/60 p-5 text-[13px] leading-relaxed text-ink-soft">
-          Nothing yet. Every other answer here comes from a 9 km grid refined by
-          a terrain model — what it cannot know is the hedgerow, the pond, the
-          outlet your cold air actually drains through. Frost and stage reports
-          measure exactly that gap, and after a few of them your ground gets its
-          own calendar instead of the region's.
+          Nothing yet.
         </div>
       )}
 
@@ -237,7 +230,8 @@ export default function FieldReports({
           />
         </div>
 
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-3 flex flex-wrap items-end gap-3">
+          <div className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="block text-[11px] text-ink-soft">Seen on
             <input name="on" type="date" defaultValue={today()}
               className={FIELD} /></label>
@@ -257,32 +251,30 @@ export default function FieldReports({
                   className={FIELD} /></label>
             </>
           )}
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button title="Add observation"
+              className="flex min-h-11 items-center gap-1.5 rounded-full border-[1.5px] border-ink bg-ink px-3.5 text-[12.5px] font-semibold text-paper">
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+              </svg>
+              Observation
+            </button>
+            <button type="button" onClick={pin} title="Use my location"
+              className={`flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-[12.5px] ${
+                here ? "border-growth/50 bg-growth/8" : "border-rule text-ink-soft active:bg-band"}`}>
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                <path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z" />
+              </svg>
+              {here ? `${here.lat.toFixed(5)}, ${here.lng.toFixed(5)}` : "Here"}
+            </button>
+          </div>
         </div>
 
         <label className="mt-3 block text-[11px] text-ink-soft">Note
           <textarea name="note" rows={2} placeholder="Patchy in the hollow, bench untouched"
             className="mt-0.5 w-full rounded border border-rule bg-white px-2.5 py-2 text-[16px] focus:border-honey focus:outline-none" /></label>
 
-        <div className="mt-3 flex flex-wrap items-center gap-1.5">
-          <button title="Add observation"
-            className="flex min-h-11 items-center gap-1.5 rounded-full border-[1.5px] border-ink bg-ink px-3.5 text-[12.5px] font-semibold text-paper">
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-            </svg>
-            Observation
-          </button>
-          {/* The pin shows the fix in the form rather than announcing it in
-              prose. A coordinate is the confirmation; "Pinned where you are"
-              was the app telling you what you just watched it do. */}
-          <button type="button" onClick={pin} title="Use my location"
-            className={`flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-[12.5px] ${
-              here ? "border-growth/50 bg-growth/8" : "border-rule text-ink-soft active:bg-band"}`}>
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-              <path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z" />
-            </svg>
-            {here ? `${here.lat.toFixed(5)}, ${here.lng.toFixed(5)}` : "Here"}
-          </button>
-        </div>
         {msg && <p className="mt-2 text-[12.5px] text-ink-soft">{msg}</p>}
       </form>
 
