@@ -50,3 +50,31 @@ async def test_every_declared_tool_is_actually_registered():
     declared = {f"goodearth_{i.capability}" for i in TOOL_REGISTRY.values()}
     missing = sorted(declared - served)
     assert not missing, f"declared but never registered with FastMCP: {missing}"
+
+
+def test_every_paid_tool_decorator_still_has_its_tool_above_it():
+    """The cause, not the symptom.
+
+    Pasting a new tool between an existing ``@tool`` and its
+    ``@runtime.paid_tool`` re-binds the orphaned ``@tool`` to the NEW function.
+    The old one loses its FastMCP registration while TOOL_REGISTRY — built from
+    a literal list, not from introspection — still claims it. Nothing raises.
+
+    ``test_every_declared_tool_is_actually_registered`` catches this only when
+    the stolen tool is itself declared. This catches it always, and it is why
+    new tools are appended at the END of server.py rather than inserted.
+    """
+    import pathlib
+
+    src = pathlib.Path(__file__).parent.parent / "src" / "goodearth_mcp" / "server.py"
+    lines = src.read_text().splitlines()
+    orphans = [
+        i + 1
+        for i, line in enumerate(lines)
+        if line.strip().startswith("@runtime.paid_tool")
+        and (i == 0 or lines[i - 1].strip() != "@tool")
+    ]
+    assert not orphans, (
+        f"@runtime.paid_tool without @tool directly above it at line(s) {orphans} — "
+        "the tool above has lost its registration"
+    )

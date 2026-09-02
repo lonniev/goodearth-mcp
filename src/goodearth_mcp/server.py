@@ -25,6 +25,7 @@ from tollbooth.tool_identity import STANDARD_IDENTITIES, ToolIdentity
 from goodearth_mcp import (
     __version__,
     biota,
+    block_store,
     calendar_feed,
     catalog,
     feed_store,
@@ -129,6 +130,10 @@ TASK_DELETE_UUID           = "87d174df-5cc7-5943-911f-cd41f7d2a000"
 TASK_SET_DONE_UUID         = "33e668c1-5609-5bfa-8ba0-a00b882969e5"
 REVIEW_ROSTER_UUID         = "bd7b7dfc-2463-5e50-9c12-fa6933cd440a"
 PLAN_THE_SEASON_UUID       = "de100c1b-0087-5696-9131-93d02332e5ab"
+BLOCK_SAVE_UUID            = "f398ade0-3264-5c55-acf0-cac2ea69be53"
+BLOCK_LIST_UUID            = "00680666-0289-548b-b297-3700dfa4e885"
+BLOCK_ITEM_SAVE_UUID       = "af45380a-1bcb-54a8-9b81-3569f785c33f"
+BLOCK_ITEM_LIST_UUID       = "587e418b-59f5-5400-bc9b-98db6929fec1"
 
 _DOMAIN_TOOLS = [
     ToolIdentity(
@@ -262,6 +267,33 @@ _DOMAIN_TOOLS = [
         capability="calendar_revoke",
         category="free",
         intent="Stop publishing a calendar feed",
+    ),
+    ToolIdentity(
+        tool_id=BLOCK_SAVE_UUID,
+        capability="block_save",
+        category="write",
+        intent="Save a plot of land — its name, the names you also call it, and its bounds",
+    ),
+    ToolIdentity(
+        tool_id=BLOCK_LIST_UUID,
+        capability="block_list",
+        # Free on purpose: this is the front door. Every session opens by asking
+        # which ground it is working, and an app that cannot answer that without
+        # a fare is one that fails for anyone whose balance has run out.
+        category="free",
+        intent="The plots you have saved, with their bounds",
+    ),
+    ToolIdentity(
+        tool_id=BLOCK_ITEM_SAVE_UUID,
+        capability="block_item_save",
+        category="write",
+        intent="Record what you grow, watch for, or saw on a plot",
+    ),
+    ToolIdentity(
+        tool_id=BLOCK_ITEM_LIST_UUID,
+        capability="block_item_list",
+        category="read",
+        intent="What you grow, watch for, or saw on a plot — including as it stood on a past day",
     ),
 ]
 
@@ -1519,6 +1551,284 @@ async def planting_window(
         logger.warning("planting_window failed: %s", exc)
         return {"success": False, "error": f"A weather feed did not answer: {exc}",
                 "error_code": "upstream_unavailable"}
+
+
+# ---------------------------------------------------------------------------
+# Blocks — the grower's saved ground, and what is curated on it
+# ---------------------------------------------------------------------------
+#
+# Appended at the end of the module ON PURPOSE. Inserting a tool between an
+# existing `@tool` and its `@runtime.paid_tool` re-binds the orphaned `@tool` to
+# the new function and silently unregisters the old one — this repo lost two
+# shipped tools that way. New tools go here, at the bottom, always.
+
+
+def _block_failure(exc: block_store.BlockError) -> dict[str, Any]:
+    """Shape a block refusal. Only ever called for a refusal we chose to catch."""
+    out: dict[str, Any] = {"success": False, "error": str(exc)}
+    if isinstance(exc, block_store.AmbiguousBlock):
+        out["error_code"] = "ambiguous_block"
+        out["candidates"] = exc.candidates
+    elif isinstance(exc, block_store.UnknownBlock):
+        out["error_code"] = "no_such_block"
+    else:
+        out["error_code"] = "invalid_request"
+    return out
+
+
+@tool
+@runtime.paid_tool(BLOCK_SAVE_UUID)
+async def block_save(
+    name: Annotated[
+        str,
+        Field(description="What you call this ground, e.g. 'Frogdale Farm'."),
+    ],
+    geometry: Annotated[
+        dict[str, Any],
+        Field(description="Its bounds: a GeoJSON Polygon, or {lat, lon, radius_m}."),
+    ],
+    block: Annotated[
+        str,
+        Field(description="Omit to create. Pass an existing block's id to update it."),
+    ] = "",
+    aliases: Annotated[
+        list[str] | None,
+        Field(description="Other names you call it, so you can ask for it either way."),
+    ] = None,
+    base_temp: Annotated[
+        float,
+        Field(description="The base temperature this ground's growing degree days count from."),
+    ] = 50.0,
+    retired: Annotated[
+        bool,
+        Field(description="True to retire it. Nothing is deleted — its record stays readable."),
+    ] = False,
+    npub: Annotated[
+        str,
+        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
+    ] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """Save a plot of land, so every other tool can work it by name.
+
+    Its area and sample count are measured here from the bounds you give, and
+    returned — they are facts about the geometry, so there is nothing for you to
+    keep in step.
+    """
+    try:
+        parsed = parse_region(geometry)
+    except RegionError as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_region"}
+
+    described = parsed.describe()
+    try:
+        stored = await block_store.save_block(
+            npub, name=name, geometry=geometry, block_id=block,
+            aliases=aliases, base_temp_f=base_temp,
+            area_ha=round(described.get("area_km2", 0.0) * 100.0, 4),
+            sample_count=parsed.sample_count,
+            retired=retired,
+        )
+    except block_store.BlockError as exc:
+        return _block_failure(exc)
+    except OSError as exc:
+        logger.error("block_save persistence failed: %s", exc)
+        return {
+            "success": False,
+            "error": "The record is unreachable right now — try again shortly.",
+            "error_code": "persistence_unavailable",
+        }
+
+    return {"success": True, "block": stored, "region": described}
+
+
+@tool
+@runtime.paid_tool(BLOCK_LIST_UUID)
+async def block_list(
+    include_retired: Annotated[
+        bool,
+        Field(description="Include ground you have retired."),
+    ] = False,
+    npub: Annotated[
+        str,
+        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
+    ] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """The ground you have saved, with its bounds.
+
+    The blocks themselves and nothing else — what grows on them, what you watch
+    for, and what you have seen are their own listing, so this answer stays the
+    same size whether you farm one plot or forty.
+
+    A grower who has saved nothing gets the worked example, marked as such, so
+    there is always somewhere to stand.
+    """
+    try:
+        blocks = await block_store.list_blocks(npub, include_retired=include_retired)
+    except OSError as exc:
+        logger.error("block_list persistence failed: %s", exc)
+        return {
+            "success": False,
+            "error": "The record is unreachable right now — try again shortly.",
+            "error_code": "persistence_unavailable",
+        }
+
+    seeded = not blocks
+    if seeded:
+        blocks = [dict(block_store.EXAMPLE_BLOCK)]
+    return {
+        "success": True,
+        "blocks": blocks,
+        "count": len(blocks),
+        "seeded": seeded,
+        "note": (
+            "This is the worked example — save your own ground and it replaces it."
+            if seeded else ""
+        ),
+    }
+
+
+@tool
+@runtime.paid_tool(BLOCK_ITEM_SAVE_UUID)
+async def block_item_save(
+    block: Annotated[
+        str,
+        Field(description="The ground this belongs to — its id, its name, or an alias."),
+    ],
+    kind: Annotated[
+        str,
+        Field(description="One of: planting, pest, wildlife, observation."),
+    ],
+    items: Annotated[
+        list[dict[str, Any]] | None,
+        Field(
+            description=(
+                "What to record, as a list. A planting is {crop, gdd_target, set_out}; "
+                "a pest is a model as pest_threshold takes it; wildlife is an event as "
+                "wildlife_calendar takes it; an observation is {observed_on, tag, note} "
+                "plus whatever you saw. Pass item_id to amend something already recorded."
+            )
+        ),
+    ] = None,
+    retire_ids: Annotated[
+        list[str] | None,
+        Field(description="Ids to retire. They stay readable as history; nothing is deleted."),
+    ] = None,
+    season: Annotated[
+        int | None,
+        Field(description="The season year these belong to. Defaults to this one."),
+    ] = None,
+    npub: Annotated[
+        str,
+        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
+    ] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """Record what you grow, watch for, or saw on a plot.
+
+    A whole batch in one call, because an afternoon in the field produces
+    several notes at once and each one should not be its own fare.
+    """
+    try:
+        found = await block_store.resolve(npub, block)
+        saved = await block_store.save_items(
+            npub, found["block_id"], kind, list(items or []), season_year=season,
+        )
+        retired = await block_store.retire_items(npub, list(retire_ids or []))
+    except block_store.BlockError as exc:
+        return _block_failure(exc)
+    except OSError as exc:
+        logger.error("block_item_save persistence failed: %s", exc)
+        return {
+            "success": False,
+            "error": "The record is unreachable right now — try again shortly.",
+            "error_code": "persistence_unavailable",
+        }
+
+    return {
+        "success": True,
+        "block_id": found["block_id"],
+        "block_name": found.get("name", ""),
+        "kind": kind.strip().lower(),
+        "saved": saved,
+        "saved_count": len(saved),
+        "retired_count": retired,
+    }
+
+
+@tool
+@runtime.paid_tool(BLOCK_ITEM_LIST_UUID)
+async def block_item_list(
+    block: Annotated[
+        str,
+        Field(description="The ground to read — its id, its name, or an alias."),
+    ],
+    kind: Annotated[
+        str,
+        Field(description="One of: planting, pest, wildlife, observation."),
+    ],
+    season: Annotated[
+        int | None,
+        Field(description="Limit to one season year. Ignored for observations."),
+    ] = None,
+    since: Annotated[
+        str,
+        Field(description="Only observations on or after this date (YYYY-MM-DD)."),
+    ] = "",
+    until: Annotated[
+        str,
+        Field(description="Only observations on or before this date (YYYY-MM-DD)."),
+    ] = "",
+    as_of: Annotated[
+        str,
+        Field(
+            description=(
+                "Read the record as it STOOD on this date (YYYY-MM-DD) — what was "
+                "live then, including anything you have retired since."
+            )
+        ),
+    ] = "",
+    include_retired: Annotated[
+        bool,
+        Field(description="Include what you have retired."),
+    ] = False,
+    page: Annotated[int, Field(description="Zero-based page number.")] = 0,
+    page_size: Annotated[int, Field(description="Rows per page, up to 200.")] = 50,
+    npub: Annotated[
+        str,
+        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
+    ] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """What you grow, watch for, or saw on a plot — a page at a time.
+
+    `as_of` is how a past season answers: the record as it stood that day,
+    rather than as it stands now.
+    """
+    try:
+        found = await block_store.resolve(npub, block)
+        result = await block_store.list_items(
+            npub, found["block_id"], kind,
+            season_year=season, since=since, until=until, as_of=as_of,
+            include_retired=include_retired, page=page, page_size=page_size,
+        )
+    except block_store.BlockError as exc:
+        return _block_failure(exc)
+    except OSError as exc:
+        logger.error("block_item_list persistence failed: %s", exc)
+        return {
+            "success": False,
+            "error": "The record is unreachable right now — try again shortly.",
+            "error_code": "persistence_unavailable",
+        }
+
+    return {
+        "success": True,
+        "block_id": found["block_id"],
+        "block_name": found.get("name", ""),
+        **result,
+    }
 
 
 # ---------------------------------------------------------------------------
