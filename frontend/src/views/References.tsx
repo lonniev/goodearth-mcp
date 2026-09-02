@@ -1,4 +1,4 @@
-// References — where every number on this site comes from.
+// References — the feeds and the models, as a list you can scan.
 //
 // Good Earth sells answers about ground a grower will plant. That obliges it
 // to be checkable: not "trust us", but here is the feed, here is what it
@@ -16,35 +16,35 @@ const SOURCES: {
     url: "https://daymet.ornl.gov/",
     role: "Past seasons for the normal band: the ten-season record every 'ahead of normal' reading is measured against.",
     resolution: "1 km",
-    note: "Nine times finer than the reanalysis, and it shows — three points that ERA5 returns one number for come back distinct here, ordered by elevation. It carries no forecast and lags the current year (coverage runs 1980 to 2025), so it serves history only and Good Earth falls back to the reanalysis, and says so, when Daymet cannot answer. Two of its habits are guarded rather than trusted: a request outside its coverage answers 200 with the whole 46-year record instead of an error, and every year is 365 days because it drops 31 December from leap years.",
+    note: "History only, 1980–2025, no forecast. Good Earth falls back to the reanalysis when Daymet cannot answer, and names which one it used.",
   },
   {
     name: "Open-Meteo — historical reanalysis (ERA5)",
     url: "https://open-meteo.com/en/docs/historical-weather-api",
     role: "The running season: observed daily max/min, dew point, rain, wind, sunshine and soil temperature up to today. The normal band it is measured against comes from Daymet.",
     resolution: "≈ 9 km",
-    note: "Reanalysis, not a station reading. It is a model's best estimate of what the weather was, which is why two points on one farm return identical numbers.",
+    note: "A model's estimate of past weather, not a station reading — which is why two points on one farm return identical numbers.",
   },
   {
     name: "Open-Meteo — forecast",
     url: "https://open-meteo.com/en/docs",
     role: "The 7–16 day outlook: nightly lows, wind, cloud, precipitation chance, hourly soil temperature, sunrise and sunset.",
     resolution: "≈ 2–11 km by model",
-    note: "The daily soil aggregates come back empty from this endpoint; only the hourly series is populated, so Good Earth asks hourly and averages.",
+    note: "Daily soil aggregates come back empty from this endpoint, so Good Earth asks hourly and averages.",
   },
   {
     name: "Open-Meteo — elevation (SRTM)",
     url: "https://open-meteo.com/en/docs/elevation-api",
     role: "Terrain height at each sample point. A working field sits inside one Daymet pixel, so within a single farm this is still the only feed that resolves anything, and it carries the whole burden of region spread.",
     resolution: "≈ 90 m",
-    note: "Finer than PRISM's 800 m and than Daymet's 1 km, and a single batched JSON call. Between farms Daymet now resolves real differences; inside one, this is what does.",
+    note: "The only feed that resolves inside a single farm, so it carries the whole burden of region spread.",
   },
   {
     name: "USA National Phenology Network",
     url: "https://www.usanpn.org/data/api",
     role: "Degree-day pest forecasts read at your coordinates, and the life-cycle phenophases a species is tracked through — nest building, nestlings, fledged young, calls or song, emergence above ground.",
     resolution: "4 km (PRISM) for the forecasts",
-    note: "Their rasters carry three different encodings under one namespace — a day of year, a heat total, or a risk class — and nothing in the service says which is which, so Good Earth measures each layer across latitude and shows only the ones that resolve to a date. Roughly half the species recorded around a farm have phenophases; one that does not is reported as untracked rather than as having none.",
+    note: "Its rasters carry three different encodings under one namespace; only layers measured to resolve to a date are shown as dates.",
   },
   {
     name: "Esri World Imagery",
@@ -65,14 +65,14 @@ const SOURCES: {
     url: "https://www.rainviewer.com/api.html",
     role: "Weather radar frames on the map.",
     resolution: "≈ 2 hours of past frames",
-    note: "Radar is an echo off real rain, so it cannot reach into tomorrow however a control is drawn. For the day ahead, the Almanac's forecast is the honest instrument.",
+    note: "About 1 km per pixel and roughly two hours of frames — a regional instrument, not a field one.",
   },
   {
     name: "iNaturalist",
     url: "https://api.inaturalist.org/v1/docs/",
     role: "Which species are actually recorded around your ground, ranked by how often each has been seen — the Wildlife and Pests catalogues — plus the photograph shown for each, and importing your own observations into Field Reports.",
     resolution: "observations, not a grid",
-    note: "Read-only. Importing your observations is a courtesy; posting on your behalf is not something this does. Species photographs are their contributors' work under Creative Commons licences, credited on each image.",
+    note: "Read-only. Species photographs are contributors' work under Creative Commons, credited on each image.",
   },
 ];
 
@@ -80,7 +80,7 @@ const MODELS: { title: string; body: string; assumption: string }[] = [
   {
     title: "Growing degree days",
     body: "Daily mean above a base temperature, by the standard averaging method: both bounds are clamped to the base before averaging, and to an upper threshold when a crop has one.",
-    assumption: "A night twenty degrees below base does not un-grow the plant, so the negative half must not cancel a warm afternoon. Days missing a bound contribute nothing and the total carries forward flat — a gap reads as a pause, not a dip.",
+    assumption: "A cold night does not un-grow a plant, so the negative half never cancels a warm afternoon. A day missing a bound contributes nothing and the total carries forward flat.",
   },
   {
     title: "Region spread — the lapse rate",
@@ -90,7 +90,7 @@ const MODELS: { title: string; body: string; assumption: string }[] = [
   {
     title: "Region spread — cold-air drainage",
     body: "On still, clear nights dense cold air slides downhill and pools in low ground. Applied to the daily MINIMUM only, scaled by how far a point sits below the region's high ground, and capped.",
-    assumption: "A calm, clear night INVERTS the profile — the hollow is colder than the bench, not warmer. The daytime lapse rate has no business opposing this term. The coefficient is conservative and first-principles; your farm's real inversion depends on its shape and its outlet, which is exactly what field reports calibrate.",
+    assumption: "A calm, clear night inverts the profile — the hollow is colder than the bench. The coefficient is conservative; field reports calibrate it to your ground.",
   },
   {
     title: "Frost risk",
@@ -110,7 +110,7 @@ const MODELS: { title: string; body: string; assumption: string }[] = [
   {
     title: "The normal band",
     body: "The last ten seasons at the region centroid, accumulated the same way and over the same calendar window as the running season, so 'ahead' and 'behind' compare like with like. It is read from Daymet at 1 km rather than from the 9 km reanalysis the current season uses.",
-    assumption: "The two feeds do not agree, and the finer one is preferred. Over the same decade at one Vermont farm the reanalysis reports mean daily highs of 55.4°F against Daymet's 57.4, and lows of 40.3 against 37.7 — cooler days and warmer nights, which is what a 9 km cell does when it averages terrain and, on a lakeshore, water together. Because degree days are clamped at the base, the warmer nights buy nothing back and the cooler days pass through undiluted: the coarse feed reads about 75 GDD low over a season here. Mixing feeds is a real cost — a season measured on one grid against a band measured on another — and it is accepted because the band is a claim about THIS ground across ten years, where resolution matters most. When Daymet cannot answer, the band falls back to the reanalysis and the page says which feed was used.",
+    assumption: "Read at 1 km where the running season is 9 km. The two disagree — the coarse feed runs about 75 GDD low over a season here — so 'ahead of normal' is measured against the finer record.",
   },
   {
     title: "Projections",
@@ -120,12 +120,12 @@ const MODELS: { title: string; body: string; assumption: string }[] = [
   {
     title: "Heat budget for suitability",
     body: "Heat accumulated between last spring frost and first fall frost, median across the last eight seasons, at each crop's own base temperature.",
-    assumption: "Counting from 1 January would credit ground with heat arriving before anything can be planted into it. And a crop that finishes on the last warm day of an average year fails in half of them, so exactly-enough is reported as marginal rather than as a pass.",
+    assumption: "Counted from the last frost, not 1 January, and a crop that finishes on the last warm day of an average year is reported as marginal rather than as a pass.",
   },
   {
     title: "Calibration",
     body: "Your field reports against what the model predicted. Crop stages give a bias in heat; observed frost gives a bias in days. Median, never mean.",
-    assumption: "Nothing is applied below three agreeing observations, and implausible values are set aside rather than averaged in. One observation is an anecdote, and a mis-entered date must not be able to rewrite a block's calendar.",
+    assumption: "Nothing is applied below three agreeing observations, and implausible values are set aside rather than averaged in.",
   },
   {
     title: "Sun and moon",
@@ -137,23 +137,9 @@ const MODELS: { title: string; body: string; assumption: string }[] = [
 export default function References() {
   return (
     <>
-      <div className="mb-3.5 flex items-baseline gap-3">
-        <h1 className="figure text-[26px] font-bold">References</h1>
-        <span className="text-[13px] text-ink-soft">where every number comes from</span>
-      </div>
+      <h1 className="figure mb-3.5 text-[22px] font-bold">References</h1>
 
-      <p className="mb-6 max-w-prose text-[13px] leading-relaxed">
-        Good Earth sells answers about ground you are going to plant. That
-        obliges it to be checkable — not "trust us", but here is the feed, here
-        is what it resolves to, and here is the model applied on top with the
-        assumption inside it. A grower who cannot audit an answer has to either
-        believe it or ignore it, and neither is what you are paying for.
-      </p>
-
-      <h2 className="figure mb-2.5 text-[18px] font-semibold">🛰️ Data sources</h2>
-      <p className="mb-3 text-[12.5px] text-ink-soft">
-        All public, and none requires an API key.
-      </p>
+      <h2 className="figure mb-2.5 text-[18px] font-semibold">🛰️ Sources</h2>
       <div className="space-y-2.5">
         {SOURCES.map((s) => (
           <div key={s.name} className="rounded-md border border-rule bg-panel px-4 py-3">
@@ -172,11 +158,7 @@ export default function References() {
         ))}
       </div>
 
-      <h2 className="figure mt-8 mb-2.5 text-[18px] font-semibold">📐 Models and their assumptions</h2>
-      <p className="mb-3 max-w-prose text-[12.5px] text-ink-soft">
-        Every prediction here is a feed plus a model. The model is where the
-        error lives, so it is stated rather than hidden.
-      </p>
+      <h2 className="figure mt-8 mb-2.5 text-[18px] font-semibold">📐 Models</h2>
       <div className="space-y-2.5">
         {MODELS.map((m) => (
           <div key={m.title} className="rounded-md border border-rule border-l-4 border-l-growth bg-panel px-4 py-3">
@@ -189,37 +171,21 @@ export default function References() {
         ))}
       </div>
 
-      <h2 className="figure mt-8 mb-2.5 text-[18px] font-semibold">🚫 What Good Earth will not tell you</h2>
+      <h2 className="figure mt-8 mb-2.5 text-[18px] font-semibold">🚫 Limits</h2>
       <div className="rounded-md border border-rule border-l-4 border-l-clay bg-panel px-4 py-3.5 text-[13px] leading-relaxed">
-        <p>
-          <b>It does not publish agronomy, entomology or natural history.</b>{" "}
-          Crop targets, pest thresholds and wildlife triggers are yours. The
-          catalogues name what is modelled or recorded around your ground —
-          from USA-NPN and iNaturalist, not from a list written into this app —
-          and they stop at the name. A corn hybrid is sold by its relative
-          maturity precisely because "corn" has no single number, and a
-          degree-day threshold right for one valley is wrong in the next, so
-          the number stays yours to set and to correct.
-        </p>
-        <p className="mt-2">
-          <b>It never recommends a treatment.</b> Pesticide registration is
-          state-specific and changes annually; a label rate is law rather than
-          guidance. Event details route you to the extension service and IPM
-          center whose bulletin is authoritative where you farm, and say plainly
-          that their word counts and this screen's does not.
-        </p>
-        <p className="mt-2">
-          <b>It does not hide a projection behind a date.</b> Anything past the
-          forecast horizon is labelled as carried forward at the recent rate,
-          everywhere it appears.
-        </p>
+        <p><b>No agronomy, entomology or natural history.</b> The catalogues name
+          what is modelled or recorded around your ground; the numbers that time
+          it stay yours.</p>
+        <p className="mt-1.5"><b>No treatment recommendations.</b> A label rate is
+          law, and jurisdiction-specific. Event details route you to the extension
+          service whose bulletin is authoritative where you farm.</p>
+        <p className="mt-1.5"><b>No projection dressed as a date.</b> Anything past
+          the forecast horizon is labelled as carried forward at the recent rate,
+          everywhere it appears.</p>
       </div>
 
-      <p className="mt-6 max-w-prose text-[12px] leading-relaxed text-ink-soft">
-        Found something here that disagrees with your own record? That is the
-        most useful thing you can tell it. File a field report — the calibration
-        loop turns a disagreement into a correction for your block, which is the
-        one part of this that gets better the longer you use it.
+      <p className="mt-6 text-[12px] leading-relaxed text-ink-soft">
+        Disagrees with your own record? File a field report.
       </p>
     </>
   );
