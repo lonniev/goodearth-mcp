@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.lonniev/goodearth-mcp",
   "description": "Good Earth — region-scoped farm climate analytics, monetized with Tollbooth DPYC",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "repository": {
     "url": "https://github.com/lonniev/goodearth-mcp",
     "source": "github"

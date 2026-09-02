@@ -5,6 +5,19 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-09-02
+
+### Fixed — force Horizon rebuild after deploy-verify saw an unreachable service (#11)
+
+After `c8a352ac` merged, deploy-verify could not read a live
+`goodearth_service_status` within the poll window (`serving <unreachable>`).
+A fresh probe still initializes and lists tools, but the status tool call
+times out — the stale/broken-wheel class, not an application-code defect.
+
+No domain behavior change. Bump package metadata `0.1.0 → 0.1.1`, add
+`.deploy-trigger`, and land deployability smoke tests so the next triage has
+the same contract guards the fleet already uses.
+
 ## [0.1.0] - 2026-08-30
 
 Initial scaffold — T1.
