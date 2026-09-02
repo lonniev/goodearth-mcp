@@ -8,10 +8,14 @@ import { useState } from "react";
 import { deleteRegion, listRegions, type SavedRegion } from "../lib/regions";
 
 export default function Favorites({
-  active, onPick,
+  active, onPick, synced = true,
 }: {
   active: SavedRegion;
   onPick: (r: SavedRegion) => void;
+  /// False until the server's blocks have arrived. The list shown before then
+  /// is this device's cache, which is right often enough to show immediately
+  /// and honest enough to caption.
+  synced?: boolean;
 }) {
   const [regions, setRegions] = useState<SavedRegion[]>(() => listRegions());
 
@@ -19,7 +23,9 @@ export default function Favorites({
     <>
       <div className="mb-3.5 flex items-baseline gap-3">
         <h1 className="figure text-[26px] font-bold">Favorites</h1>
-        <span className="text-[13px] text-ink-soft">the ground you work</span>
+        <span className="text-[13px] text-ink-soft">
+          {synced ? "the ground you work" : "the ground you work — checking for more"}
+        </span>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
