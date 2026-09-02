@@ -72,7 +72,7 @@ export default function Favorites({
         })}
       </div>
 
-      <p className="mt-5 max-w-prose text-[13px] leading-relaxed text-ink-soft">
+      <p className="mt-5 text-[13px] leading-relaxed text-ink-soft">
         Add ground with the region picker in the top bar — a pin with a radius,
         or a pasted GeoJSON polygon from any mapping tool. Drawing on a map
         arrives with the Map view.

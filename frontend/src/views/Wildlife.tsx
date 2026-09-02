@@ -273,7 +273,7 @@ export default function Wildlife({
             </button>
           ))}
         </div>
-        <p className="mt-1.5 max-w-prose text-[12px] leading-relaxed text-ink-soft">
+        <p className="mt-1.5 text-[12px] leading-relaxed text-ink-soft">
           A ewe's gestation does not care what the season is doing — it is a
           count of days from the day she was bred, so these are arithmetic
           rather than weather. Set the date above, then tap. Figures are typical

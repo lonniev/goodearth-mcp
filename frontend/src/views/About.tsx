@@ -125,7 +125,7 @@ export default function About() {
         ))}
       </div>
 
-      <p className="mt-6 max-w-prose text-[12px] leading-relaxed text-ink-soft">
+      <p className="mt-6 text-[12px] leading-relaxed text-ink-soft">
         Good Earth is open source under Apache-2.0. If an answer here disagrees
         with your own record, the References page shows exactly which feed and
         which assumption produced it — and a field report turns that

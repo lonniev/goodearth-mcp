@@ -230,7 +230,7 @@ export default function MapView({
         {msg && <p className="mt-2 text-[12.5px] text-ink">{msg}</p>}
       </div>
 
-      <p className="mt-4 max-w-prose text-[12px] leading-relaxed text-ink-soft">
+      <p className="mt-4 text-[12px] leading-relaxed text-ink-soft">
         Imagery is the default layer because a field is easier to recognise from
         the air than from a road map. Nothing you draw leaves your browser until
         you ask a question about it.
