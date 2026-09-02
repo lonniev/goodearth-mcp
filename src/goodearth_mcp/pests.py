@@ -53,8 +53,21 @@ def validate_model(model: Any) -> dict[str, Any]:
             raise PestError(f"{pest}: biofix must be YYYY-MM-DD, got {biofix_raw!r}") from exc
 
     stages_raw = model.get("stages")
+
+    # A watch list is not a model. A grower watches voles, slugs and wasps —
+    # creatures with no degree-day stages, watched all season — and demanding
+    # thresholds for them invites exactly the invented numbers review_roster
+    # warns about. `watch: true` records the vigilance and dates nothing.
+    watching = bool(model.get("watch")) and not stages_raw
+    if watching:
+        return {"pest": pest, "base_temp_f": base_f, "biofix": biofix,
+                "stages": [], "watch": True}
+
     if not isinstance(stages_raw, list) or not stages_raw:
-        raise PestError(f"{pest}: needs a non-empty stages list")
+        raise PestError(
+            f"{pest}: needs a non-empty stages list, or watch=true to note it "
+            "as something you keep an eye on without dating it"
+        )
     if len(stages_raw) > MAX_THRESHOLDS:
         raise PestError(f"{pest}: {len(stages_raw)} stages is more than one model should carry")
 

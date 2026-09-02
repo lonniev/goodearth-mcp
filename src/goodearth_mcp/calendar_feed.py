@@ -83,6 +83,31 @@ def validate_todos(raw: Any) -> list[dict[str, Any]]:
     return out
 
 
+def _each(
+    rows: list[dict[str, Any]] | None, check: Any, kind: str,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Validate rows one at a time, keeping what holds and naming what does not.
+
+    The grower is told which row was left out and why, in their own words —
+    "Vole: needs a non-empty stages list" is actionable, where a feed that
+    silently shrank, or refused outright, is not.
+    """
+    kept: list[dict[str, Any]] = []
+    skipped: list[dict[str, Any]] = []
+    for row in rows or []:
+        try:
+            kept.append(check(row))
+        except (crops.CropError, pests.PestError, wildlife.WildlifeError) as exc:
+            skipped.append({
+                "kind": kind,
+                "name": str((row or {}).get("crop") or (row or {}).get("pest")
+                            or (row or {}).get("species") or (row or {}).get("name") or "?"),
+                "item_id": (row or {}).get("item_id"),
+                "reason": str(exc),
+            })
+    return kept, skipped
+
+
 async def build_feed(
     region: Region,
     region_name: str,
@@ -101,9 +126,21 @@ async def build_feed(
     start = gdd.season_start(today)
 
     parsed_todos = validate_todos(todos)
-    parsed_plantings = [crops.validate_planting(p) for p in (plantings or [])]
-    parsed_pests = [pests.validate_model(m) for m in (pest_models or [])]
-    parsed_wild = [wildlife.validate_event(e) for e in (wildlife_events or [])]
+
+    # Partial knowledge is the permanent condition of farming, so one row that
+    # cannot be dated must not cost the grower the other forty. Each row is
+    # validated on its own and a failure is REPORTED rather than raised.
+    #
+    # This was a list comprehension, which meant a single bad row raised and
+    # took the whole feed with it. That was survivable while the caller passed
+    # these collections in — it could simply omit the row. Once the feed began
+    # reading them from the block's record there was no way around it: one
+    # unrenderable stored row made the feed permanently unpublishable.
+    parsed_plantings, skipped = _each(plantings, crops.validate_planting, "planting")
+    parsed_pests, _sp = _each(pest_models, pests.validate_model, "pest")
+    parsed_wild, _sw = _each(wildlife_events, wildlife.validate_event, "wildlife")
+    skipped.extend(_sp)
+    skipped.extend(_sw)
 
     dates: list[str] = []
     curves: dict[float, list[float]] = {}
@@ -180,6 +217,16 @@ async def build_feed(
 
     # ── Crop targets ─────────────────────────────────────────────────────
     for p in parsed_plantings:
+        # A presence row records that the crop grows here, not when it went in.
+        # There is nothing to count from, so it dates no calendar entry — and
+        # saying so is the point: it is on the record without pretending to a
+        # progress it cannot have.
+        if p.get("presence_only") or p.get("set_out") is None:
+            skipped.append({
+                "kind": "planting", "name": p["crop"], "item_id": None,
+                "reason": "no set-out recorded — on the record, but nothing to count from",
+            })
+            continue
         curve = curves.get(p["base_temp_f"] or base_temp_f)
         if not curve:
             continue
@@ -331,6 +378,7 @@ async def build_feed(
 
     return {
         "ics": ics,
+        "skipped": skipped,
         "events": structured,
         "counts": counted,
         "total": sum(counted.values()),

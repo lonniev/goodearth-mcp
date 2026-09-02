@@ -41,7 +41,15 @@ async def region_crop_ledger(
             f"(limit {MAX_PLANTINGS}) — split the block."
         )
 
-    parsed = [crops.validate_planting(p) for p in plantings]
+    parsed_all = [crops.validate_planting(p) for p in plantings]
+    # Presence rows have no set-out to count from. They are reported alongside
+    # the ledger rather than dropped silently, so a grower can see which crops
+    # are on the record but not yet being tracked.
+    parsed = [p for p in parsed_all if p.get("set_out") is not None]
+    untracked = [
+        {"crop": p["crop"], "reason": "no set-out recorded"}
+        for p in parsed_all if p.get("set_out") is None
+    ]
 
     # Each crop counts heat from its own base temperature, so plantings are
     # grouped by base and one season curve is built per distinct base rather
@@ -103,6 +111,7 @@ async def region_crop_ledger(
     at_risk = [r["crop"] for r in rows if r["finish"]["verdict"] == "wont_finish"]
 
     return {
+        "untracked": untracked,
         "success": True,
         "as_of": today.isoformat(),
         "region": region.describe(),
