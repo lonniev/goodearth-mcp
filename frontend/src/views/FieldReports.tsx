@@ -20,6 +20,7 @@ import {
   toObservations, type FieldReport, type ReportTag,
 } from "../lib/reports";
 import type { SavedRegion } from "../lib/regions";
+import { FIELD } from "../components/ui";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const nice = (iso: string) =>
@@ -69,7 +70,7 @@ export default function FieldReports({
   function pin() {
     if (!navigator.geolocation) { setMsg("This device will not share a location."); return; }
     navigator.geolocation.getCurrentPosition(
-      (p) => { setHere({ lat: p.coords.latitude, lng: p.coords.longitude }); setMsg("Pinned where you are."); },
+      (p) => { setHere({ lat: p.coords.latitude, lng: p.coords.longitude }); },
       () => setMsg("Could not get a location — the report files fine without one."),
       { enableHighAccuracy: true, timeout: 10_000 },
     );
@@ -94,7 +95,7 @@ export default function FieldReports({
         : {}),
     });
     if (typeof made === "string") { setErr(made); return; }
-    setErr(""); setMsg("Filed.");
+    setErr("");
     setReports(saveReport(made).filter((r) => r.regionId === region.id));
     e.currentTarget.reset();
     setHere(null);
@@ -171,13 +172,13 @@ export default function FieldReports({
   return (
     <>
       <div className="mb-3.5 flex items-baseline gap-3">
-        <h1 className="figure text-[26px] font-bold">Field Reports</h1>
+        <h1 className="figure text-[22px] font-bold">Field Reports</h1>
         <span className="text-[13px] text-ink-soft">{region.name}</span>
       </div>
 
-      {/* ── What your ground has learned ─────────────────────────────────── */}
+      {/* ── Your observations ────────────────────────────────────────── */}
       <h2 className="figure mb-2.5 flex items-baseline gap-2.5 text-[18px] font-semibold">
-        What your ground has learned
+        Your Observations
         {usable > 0 && <Provenance tool="goodearth_calibration" at={ranAt} onCost={onCost} />}
       </h2>
 
@@ -214,9 +215,13 @@ export default function FieldReports({
       {err && <p className="mt-3 rounded-md border border-clay/30 bg-clay/10 p-3 text-[13px] text-clay">{err}</p>}
 
       {/* ── File one ───────────────────────────────────────────────────── */}
-      <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold">File a report</h2>
+      <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold">Observation</h2>
       <form onSubmit={file} className="rounded-md border border-rule bg-panel p-4">
-        <div className="flex flex-wrap gap-1.5">
+        {/* Quick picks, not the vocabulary. Only frost and the stage kinds
+            reach the calibration model; everything else is recorded either
+            way, so a closed list only ever hid that a grower may report
+            whatever they actually saw. */}
+        <div className="flex flex-wrap items-center gap-1.5">
           {TAGS.map((t) => (
             <button key={t.key} type="button" onClick={() => setTag(t.key)}
               className={`min-h-11 rounded-full border px-4 text-[13px] font-medium ${
@@ -224,30 +229,32 @@ export default function FieldReports({
               {t.label}
             </button>
           ))}
+          <input
+            value={TAGS.some((t) => t.key === tag) ? "" : tag}
+            onChange={(e) => setTag(e.target.value)}
+            placeholder="or type what you saw"
+            className="h-11 min-w-[12rem] flex-1 rounded-full border border-rule bg-white px-4 text-[13px] focus:border-honey focus:outline-none"
+          />
         </div>
-        <p className="mt-1.5 text-[12px] text-ink-soft">
-          {TAGS.find((t) => t.key === tag)?.hint}
-          {calibrating && " — this one teaches the model."}
-        </p>
 
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="block text-[11px] text-ink-soft">Seen on
             <input name="on" type="date" defaultValue={today()}
-              className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" /></label>
+              className={FIELD} /></label>
 
           {needsCrop && (
             <label className="block text-[11px] text-ink-soft">Crop
               <input name="crop" placeholder="Dahlia"
-                className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" /></label>
+                className={FIELD} /></label>
           )}
           {calibrating && (
             <>
               <label className="block text-[11px] text-ink-soft">Set out
                 <input name="setout" type="date"
-                  className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" /></label>
+                  className={FIELD} /></label>
               <label className="block text-[11px] text-ink-soft">Expected at (GDD)
                 <input name="target" inputMode="numeric" placeholder="1200"
-                  className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" /></label>
+                  className={FIELD} /></label>
             </>
           )}
         </div>
@@ -256,16 +263,27 @@ export default function FieldReports({
           <textarea name="note" rows={2} placeholder="Patchy in the hollow, bench untouched"
             className="mt-0.5 w-full rounded border border-rule bg-white px-2.5 py-2 text-[16px] focus:border-honey focus:outline-none" /></label>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <button className="min-h-11 rounded border-[1.5px] border-ink bg-ink px-5 text-[13px] font-semibold text-paper">
-            File report
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <button title="Add observation"
+            className="flex min-h-11 items-center gap-1.5 rounded-full border-[1.5px] border-ink bg-ink px-3.5 text-[12.5px] font-semibold text-paper">
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+            </svg>
+            Observation
           </button>
-          <button type="button" onClick={pin}
-            className="min-h-11 rounded border-[1.5px] border-ink px-4 text-[13px] font-semibold active:bg-ink active:text-paper">
-            {here ? "Pinned ✓" : "Pin where I am"}
+          {/* The pin shows the fix in the form rather than announcing it in
+              prose. A coordinate is the confirmation; "Pinned where you are"
+              was the app telling you what you just watched it do. */}
+          <button type="button" onClick={pin} title="Use my location"
+            className={`flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-[12.5px] ${
+              here ? "border-growth/50 bg-growth/8" : "border-rule text-ink-soft active:bg-band"}`}>
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+              <path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z" />
+            </svg>
+            {here ? `${here.lat.toFixed(5)}, ${here.lng.toFixed(5)}` : "Here"}
           </button>
-          {msg && <span className="text-[12.5px] text-ink-soft">{msg}</span>}
         </div>
+        {msg && <p className="mt-2 text-[12.5px] text-ink-soft">{msg}</p>}
       </form>
 
       {/* ── Import ─────────────────────────────────────────────────────── */}
@@ -276,19 +294,15 @@ export default function FieldReports({
             iNaturalist username
             <input value={inatUser} onChange={(e) => setInatUser(e.target.value)}
               placeholder="your-login"
-              className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" />
+              className={FIELD} />
           </label>
           <button onClick={pullINat} disabled={inatBusy || !inatUser.trim()}
             className="min-h-11 rounded border-[1.5px] border-ink px-4 text-[13px] font-semibold active:bg-ink active:text-paper disabled:opacity-40">
             {inatBusy ? "Fetching…" : "Find observations"}
           </button>
         </div>
-        <p className="mt-2 max-w-prose text-[12px] leading-relaxed text-ink-soft">
-          Read-only, and bounded to {region.name} — an unbounded search would
-          bring back your holidays as well as your farm. Observations annotated
-          as flowering come in as bloom reports, which the calibration loop can
-          use; everything else comes in as a sighting, because iNaturalist does
-          not know what you set out or when.
+        <p className="mt-2 text-[12px] leading-relaxed text-ink-soft">
+          Read-only, and bounded to {region.name}. Good Earth never posts as you.
         </p>
 
         {inat && inat.length > 0 && (
@@ -354,11 +368,6 @@ export default function FieldReports({
         </>
       )}
 
-      <p className="mt-5 max-w-prose text-[12px] leading-relaxed text-ink-soft">
-        Reports stay on your device until you ask what they add up to. Nothing
-        is applied to your block silently — a correction appears only once
-        several observations agree, and the reports behind it are always listed.
-      </p>
     </>
   );
 }

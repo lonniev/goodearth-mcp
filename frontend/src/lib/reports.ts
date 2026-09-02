@@ -11,7 +11,12 @@
 
 import type { FieldObservation } from "./mcp";
 
-export type ReportTag = "frost" | "first_bloom" | "emergence" | "pest" | "note";
+/// What was seen. The five below are quick picks, not the whole vocabulary:
+/// a grower may type anything. Only "frost" and the stage kinds reach the
+/// calibration model — the server accepts exactly {frost, stage} — and the
+/// rest are recorded as observations, which is what "pest" and "note"
+/// already were. A closed list here only ever hid that.
+export type ReportTag = string;
 
 export interface FieldReport {
   id: string;
@@ -30,13 +35,21 @@ export interface FieldReport {
   createdAt: string;
 }
 
-export const TAGS: { key: ReportTag; label: string; hint: string; calibrates: boolean }[] = [
+export const TAGS: { key: string; label: string; hint: string; calibrates: boolean }[] = [
   { key: "frost", label: "Frost", hint: "Frost seen on the ground", calibrates: true },
   { key: "first_bloom", label: "First bloom", hint: "A planting reached its stage", calibrates: true },
   { key: "emergence", label: "Emergence", hint: "A sowing came up", calibrates: true },
   { key: "pest", label: "Pest seen", hint: "Sighting or trap catch", calibrates: false },
   { key: "note", label: "Note", hint: "Anything worth remembering", calibrates: false },
 ];
+
+/// Whether a kind carries the extra fields the calibration model needs.
+/// Anything the grower types that is not a known stage kind is simply
+/// recorded — which is the honest default, since the model can only use a
+/// date it can compare against an expectation.
+export function calibrates(tag: string): boolean {
+  return TAGS.find((t) => t.key === tag)?.calibrates ?? false;
+}
 
 const KEY = "goodearth:reports:v1";
 
