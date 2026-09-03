@@ -248,6 +248,18 @@ export default function Crops({
               className={FIELD} />
           </label>
         </div>
+
+        {/* The field nobody could interpret. It is not a property of the
+            ground — it belongs to the PLANT, and the presets prove it: winter
+            wheat counts from 32 °F and field corn from 50 °F on the same acre. */}
+        <p className="mt-2 text-[11.5px] text-ink-soft">
+          <b>Base °F</b> is the temperature below which this plant does no
+          growing — its own threshold, not the field's. Heat is counted as the
+          degrees each day spends above it. Winter wheat counts from 32 °F and
+          field corn from 50 °F on the same acre, which is why it sits on the
+          planting rather than on the block. Leave it blank to use{" "}
+          {region.name}&rsquo;s default of {region.baseTempF} °F.
+        </p>
         <datalist id="ge-crop-presets">
           {CROP_PRESETS.map((c) => <option key={c.crop} value={c.crop} />)}
         </datalist>
