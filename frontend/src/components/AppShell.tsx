@@ -7,6 +7,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Avatar from "./Avatar";
+import Boundary from "./Boundary";
 import RegionPicker from "./RegionPicker";
 import type { SavedRegion } from "../lib/regions";
 import { applyOrder, move, readCollapsed, readOrder, writeCollapsed, writeOrder } from "../lib/navOrder";
@@ -192,7 +193,9 @@ export default function AppShell({
       </header>
 
       <main className="relative col-start-1 row-start-2 overflow-auto px-5 pt-5 pb-16 md:col-start-2 md:px-6">
-        {children}
+        {/* Keyed on the view so a failure on one page clears when the grower
+            moves to another, rather than following them around. */}
+        <Boundary key={view} what="This page">{children}</Boundary>
       </main>
     </div>
   );
