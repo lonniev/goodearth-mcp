@@ -34,7 +34,22 @@ async def region_wildlife(
             f"(limit {wildlife.MAX_EVENTS})"
         )
 
-    parsed = [wildlife.validate_event(e) for e in events]
+    # Validated one at a time. As a list comprehension, one unusable row raised
+    # and the grower lost the whole page — a single roster entry hid seventeen
+    # tracked creatures. What cannot be dated is reported, not fatal.
+    parsed = []
+    skipped = []
+    for row in events:
+        try:
+            parsed.append(wildlife.validate_event(row))
+        except wildlife.WildlifeError as exc_:
+            skipped.append({"name": str((row or {}).get("species") or "?"), "reason": str(exc_)})
+    # A roster entry names a creature the grower watches for, not an event
+    # with a date. It belongs in the answer, but not in any of the arithmetic
+    # below — there is nothing to count toward.
+    roster = [e for e in parsed if e.get("roster_only")]
+    parsed = [e for e in parsed if not e.get("roster_only")]
+
     needs_heat = any(e["driver"] == "heat" for e in parsed)
     needs_light = any(e["driver"] == "daylight" for e in parsed)
 
@@ -99,6 +114,12 @@ async def region_wildlife(
         "as_of": today.isoformat(),
         "region": region.describe(),
         "events": rows,
+        "roster": [
+            {"species": e["species"], "emoji": e.get("emoji", ""),
+             "role": e.get("role", "")}
+            for e in roster
+        ],
+        "skipped": skipped,
         "due_soon": soon,
         "summary": (
             f"{len(seen)} of {len(rows)} already this season"

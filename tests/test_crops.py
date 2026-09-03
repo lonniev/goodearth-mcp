@@ -40,10 +40,25 @@ def test_missing_name_is_rejected():
         crops.validate_planting({"gdd_target": 780, "set_out": "2026-08-02"})
 
 
-@pytest.mark.parametrize("target", [0, -5, 99_999, "lots", None])
+@pytest.mark.parametrize("target", [0, -5, 99_999, "lots"])
 def test_absurd_targets_are_rejected(target):
+    """A stated number must be plausible. Zero is a claim, and a wrong one."""
     with pytest.raises(crops.CropError):
         crops.validate_planting({"crop": "X", "gdd_target": target, "set_out": "2026-08-02"})
+
+
+def test_a_crop_with_no_heat_target_is_a_presence_record():
+    """Absent is a gap, not a claim — and perennials mostly have no target.
+
+    Requiring the number forces a fabricated zero, which then fails the range
+    check above and takes the whole ledger down with it. That is exactly what
+    happened to a real record: one columbine row blanked every planting on the
+    farm.
+    """
+    row = crops.validate_planting({"crop": "Columbine", "set_out": "2026-05-01"})
+    assert row["gdd_target"] is None
+    assert row["presence_only"] is True
+    assert row["crop"] == "Columbine"
 
 
 @pytest.mark.parametrize("d", ["yesterday", "2026-13-01"])

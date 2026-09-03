@@ -95,7 +95,16 @@ async def region_suitability(
             f"(limit {suitability.MAX_CROPS})"
         )
 
-    parsed = [suitability.validate_crop(c) for c in crops_in]
+    # One unusable row must not cost the rest. Found by the guard in
+    # tests/test_partial_knowledge.py after the same bug was fixed four times
+    # elsewhere and still lived here.
+    parsed = []
+    skipped = []
+    for row in crops_in:
+        try:
+            parsed.append(suitability.validate_crop(row))
+        except suitability.SuitabilityError as exc_:
+            skipped.append({"name": str((row or {}).get("crop") or "?"), "reason": str(exc_)})
 
     try:
         record = await sources.fetch_daily_history(
@@ -138,6 +147,7 @@ async def region_suitability(
 
     return {
         "success": True,
+        "skipped": skipped,
         "as_of": today.isoformat(),
         "region": region.describe(),
         "budget": {

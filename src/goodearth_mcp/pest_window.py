@@ -37,7 +37,16 @@ async def region_pest_window(
             f"{len(models)} models is more than one call should carry (limit {MAX_MODELS})"
         )
 
-    parsed = [pests.validate_model(m) for m in models]
+    # Validated one at a time. As a list comprehension, one unusable row raised
+    # and the grower lost the whole page — a single roster entry hid seventeen
+    # tracked creatures. What cannot be dated is reported, not fatal.
+    parsed = []
+    skipped = []
+    for row in models:
+        try:
+            parsed.append(pests.validate_model(row))
+        except pests.PestError as exc_:
+            skipped.append({"name": str((row or {}).get("pest") or "?"), "reason": str(exc_)})
 
     start = gdd.season_start(today)
     try:
@@ -68,6 +77,7 @@ async def region_pest_window(
 
     return {
         "success": True,
+        "skipped": skipped,
         "as_of": today.isoformat(),
         "region": region.describe(),
         "pests": assessments,

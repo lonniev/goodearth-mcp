@@ -53,9 +53,21 @@ def test_unknown_drivers_are_rejected(driver):
         w.validate_event(ev(driver=driver))
 
 
-def test_a_species_without_an_event_name_is_rejected():
+def test_a_species_without_an_event_name_is_a_roster_entry():
+    """"The heron is an ally here" names a creature, not a date.
+
+    It used to be refused, and refusing it cost the whole page: one such row
+    raised and seventeen tracked creatures rendered as "Nothing tracked yet".
+    """
+    row = w.validate_event({"species": "Great blue heron", "role": "friend"})
+    assert row["roster_only"] is True
+    assert row["species"] == "Great blue heron"
+    assert row["role"] == "friend"
+
+
+def test_a_roster_entry_still_needs_a_species():
     with pytest.raises(w.WildlifeError):
-        w.validate_event({"species": "Robin", "driver": "calendar", "typical_on": "03-01"})
+        w.validate_event({"role": "friend"})
 
 
 @pytest.mark.parametrize("h", [0, 24, 30, -3, "noon", None])

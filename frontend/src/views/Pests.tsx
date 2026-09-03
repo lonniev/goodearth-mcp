@@ -27,7 +27,8 @@ export default function Pests({
 }: { region: SavedRegion; onCost: (sats: number) => void }) {
   // Read from the grower's record under their npub, not from this browser.
   const { items: models, save: storePest, retire: retirePest,
-          loading: modelsLoading, error: modelsError } =
+          loading: modelsLoading, error: modelsError,
+          unknownBlock: modelsUnknown } =
     useBlockItems<SavedPest>(region.id, "pest", pestCodec);
   const [data, setData] = useState<PestWindowResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -153,6 +154,8 @@ export default function Pests({
         </ul>
       ) : modelsLoading ? (
         <Empty>Reading what you have on {region.name}…</Empty>
+      ) : modelsUnknown ? (
+        <ErrorBox>This browser is set to ground the record does not have. Pick the block again from Favorites, or save it on the Map.</ErrorBox>
       ) : modelsError ? (
         <ErrorBox>Could not read your record for {region.name}: {modelsError}</ErrorBox>
       ) : (

@@ -42,12 +42,21 @@ def validate_planting(planting: Any) -> dict[str, Any]:
     if not name:
         raise CropError("planting needs a crop name")
 
-    try:
-        target = float(planting["gdd_target"])
-    except (KeyError, TypeError, ValueError) as exc:
-        raise CropError(f"{name}: gdd_target must be a number of growing degree days") from exc
-    if not 1 <= target <= 20_000:
-        raise CropError(f"{name}: gdd_target of {target:g} is outside any real crop's range")
+    # A heat target is optional, for the same reason a set-out date is. A
+    # grower recording "columbine grows here" is stating a fact about their
+    # ground and has no degree-day figure for it — perennials mostly do not
+    # have one they care about. Requiring the number forces a fabricated zero,
+    # which then fails this very range check and takes the whole ledger with
+    # it. Absent is absent; a target that IS given still has to be plausible.
+    raw_target = planting.get("gdd_target")
+    target: float | None = None
+    if raw_target not in (None, ""):
+        try:
+            target = float(raw_target)
+        except (TypeError, ValueError) as exc:
+            raise CropError(f"{name}: gdd_target must be a number of growing degree days") from exc
+        if not 1 <= target <= 20_000:
+            raise CropError(f"{name}: gdd_target of {target:g} is outside any real crop's range")
 
     base = planting.get("base_temp")
     base_f = float(base) if isinstance(base, (int, float)) else None
@@ -62,7 +71,7 @@ def validate_planting(planting: Any) -> dict[str, Any]:
     # a placeholder date, which is a lie that then propagates into every GDD
     # answer and every calibration drawn from it. Such a row carries no dates,
     # so nothing downstream can count from it; it is presence, not progress.
-    if not set_out_raw:
+    if not set_out_raw or target is None:
         return {"crop": name, "gdd_target": target, "set_out": None,
                 "base_temp_f": base_f, "presence_only": True}
     try:

@@ -14,6 +14,7 @@ from datetime import UTC, date, datetime
 from typing import Any
 
 from goodearth_mcp import crops, frost, gdd, sources
+from goodearth_mcp.crops import CropError
 from goodearth_mcp.region import Region
 
 MAX_PLANTINGS = 40
@@ -41,14 +42,34 @@ async def region_crop_ledger(
             f"(limit {MAX_PLANTINGS}) — split the block."
         )
 
-    parsed_all = [crops.validate_planting(p) for p in plantings]
-    # Presence rows have no set-out to count from. They are reported alongside
-    # the ledger rather than dropped silently, so a grower can see which crops
-    # are on the record but not yet being tracked.
-    parsed = [p for p in parsed_all if p.get("set_out") is not None]
-    untracked = [
-        {"crop": p["crop"], "reason": "no set-out recorded"}
-        for p in parsed_all if p.get("set_out") is None
+    # Validated one at a time. As a list comprehension, a single unusable row
+    # raised and the grower lost their whole ledger — which is what happened
+    # live: one columbine with no heat target blanked every planting on the
+    # farm. calendar_feed was fixed for this and this path was not.
+    parsed_all: list[dict[str, Any]] = []
+    untracked: list[dict[str, Any]] = []
+    for row in plantings:
+        try:
+            parsed_all.append(crops.validate_planting(row))
+        except CropError as exc:
+            untracked.append({
+                "crop": str((row or {}).get("crop") or (row or {}).get("name") or "?"),
+                "reason": str(exc),
+            })
+
+    # Presence rows are on the record but have nothing to count from — no
+    # set-out, or no target, or neither. Reported rather than dropped silently,
+    # so a grower can see what is known about and what is being tracked.
+    parsed = [
+        p for p in parsed_all
+        if p.get("set_out") is not None and p.get("gdd_target") is not None
+    ]
+    untracked += [
+        {"crop": p["crop"],
+         "reason": "no set-out recorded" if p.get("set_out") is None
+                   else "no heat target recorded"}
+        for p in parsed_all
+        if p.get("set_out") is None or p.get("gdd_target") is None
     ]
 
     # Each crop counts heat from its own base temperature, so plantings are

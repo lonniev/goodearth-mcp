@@ -105,6 +105,9 @@ export function buildFlags(
   // A planting's target is counted from its set-out, not from Jan 1, so the
   // flag sits at the season total AT set-out plus the target.
   for (const p of plantings) {
+    // A presence row has no target to reach, so there is no point on the curve
+    // to flag. It is on the record; it is not on this chart.
+    if (p.gddTarget == null || !p.setOut) continue;
     const startIdx = indexOfDate(dates, p.setOut);
     const offset = startIdx != null && startIdx < values.length ? values[Math.round(startIdx)] : 0;
     push("crop", p.crop, offset + p.gddTarget, "🌱", p.baseTempF ?? base);

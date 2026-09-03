@@ -61,7 +61,15 @@ def validate_event(ev: Any) -> dict[str, Any]:
         raise WildlifeError("an event needs a species")
     label = str(ev.get("event") or "").strip()
     if not label:
-        raise WildlifeError(f"{species}: needs an event name, like 'first arrival'")
+        # A roster entry is not an event. "The great blue heron is an ally
+        # here" is the grower's own judgment about a creature on their ground,
+        # and it names no date — the same shape as a watched pest with no
+        # stages, or a crop that grows here with no set-out. It is recorded,
+        # and it dates nothing.
+        return {"species": species, "event": "", "driver": "roster",
+                "emoji": str(ev.get("emoji") or "").strip(),
+                "role": str(ev.get("role") or "").strip(),
+                "roster_only": True}
 
     driver = str(ev.get("driver") or "").strip().lower()
     if driver not in DRIVERS:
