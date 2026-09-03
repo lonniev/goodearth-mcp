@@ -56,3 +56,36 @@ export function dateFor(day: number, origin: string): string | null {
 export function dateAt(day: number, origin: string): string | null {
   return dateFor(Math.round(day), origin);
 }
+
+
+/// How long the timeline must be to hold everything on it.
+///
+/// The curve occupies days `0..seriesHi`, but a task dated next January is
+/// still a real day and belongs somewhere. So the domain is the union of the
+/// series and every mark, padded so an edge mark is not clipped in half.
+///
+/// When nothing falls outside the curve — the ordinary case — this returns
+/// exactly the series bounds and the chart behaves as it always did. That
+/// property matters: growing the domain rescales every zoom fraction with it,
+/// so it must not happen by accident.
+export function timelineDomain(
+  seriesHi: number, marks: readonly (number | null | undefined)[], pad = 4,
+): { lo: number; hi: number; extended: boolean } {
+  let lo = 0;
+  let hi = Math.max(seriesHi, 1);
+  for (const m of marks) {
+    if (m == null || !Number.isFinite(m)) continue;
+    lo = Math.min(lo, m);
+    hi = Math.max(hi, m);
+  }
+  // Pad only the side that actually reached. A task next January is no reason
+  // to open four empty days before the season started.
+  const top = Math.max(seriesHi, 1);
+  const grewLeft = lo < 0;
+  const grewRight = hi > top;
+  return {
+    lo: grewLeft ? Math.floor(lo) - pad : 0,
+    hi: grewRight ? Math.ceil(hi) + pad : top,
+    extended: grewLeft || grewRight,
+  };
+}
