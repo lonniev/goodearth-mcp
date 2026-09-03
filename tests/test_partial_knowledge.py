@@ -163,3 +163,101 @@ def test_no_validator_is_called_in_a_list_comprehension():
         "validator called inside a comprehension at " + ", ".join(offenders)
         + " — one bad row will take the whole collection with it"
     )
+
+
+# ── Referencing a published model, rather than restating it ───────────────
+
+
+def test_a_pest_may_reference_a_published_model():
+    """"Watch the Japanese beetle by the published forecast" needs no numbers.
+
+    The service already reads USA-NPN's layers for the caller's own ground —
+    pest_catalog renders their dates on screen. Asking the caller to restate
+    those as degree-day stages invites exactly the confidently-wrong figures
+    review_roster warns about, because an agent can only get them from training
+    data.
+    """
+    row = pests.validate_model({"pest": "Japanese beetle", "model": "usa-npn"})
+    assert row["model"] == "usa-npn"
+    assert row["stages"] == []
+
+
+def test_an_unknown_model_name_is_refused_with_the_alternatives():
+    """A name we cannot resolve is a promise we cannot keep."""
+    with pytest.raises(pests.PestError) as exc:
+        pests.validate_model({"pest": "Japanese beetle", "model": "vibes"})
+    assert "usa-npn" in str(exc.value)
+    assert "watch=true" in str(exc.value)
+
+
+def test_explicit_stages_still_win_over_a_reference():
+    """A grower with extension-service numbers keeps using them."""
+    row = pests.validate_model({
+        "pest": "Codling moth", "model": "usa-npn",
+        "stages": [{"stage": "first flight", "gdd": 250}],
+    })
+    assert len(row["stages"]) == 1
+    assert row.get("model") in (None, "")
+
+
+def test_the_three_shapes_are_all_accepted():
+    """The change request's whole ask, in one assertion.
+
+    A roster legitimately holds all three at once: creatures with no model at
+    all, insects whose model somebody else publishes, and the one pest this
+    grower has a local bulletin for.
+    """
+    rows = [
+        pests.validate_model({"pest": "Vole", "watch": True}),
+        pests.validate_model({"pest": "Spotted lanternfly", "model": "usa-npn"}),
+        pests.validate_model({"pest": "Codling moth",
+                              "stages": [{"stage": "egg hatch", "gdd": 220}]}),
+    ]
+    assert [bool(r.get("watch")) for r in rows] == [True, False, False]
+    assert [r.get("model") for r in rows] == [None, "usa-npn", None]
+    assert [len(r["stages"]) for r in rows] == [0, 0, 1]
+
+
+@pytest.mark.asyncio
+async def test_a_referenced_model_resolves_to_dates_for_this_ground(monkeypatch):
+    """The reference becomes dates, and says where they came from."""
+    from goodearth_mcp import catalog
+
+    async def fake_catalog(region, today=None):
+        return {"events": [
+            # NPN's own layer naming — longer than what a grower types.
+            {"model": "japanese_beetle_adult", "name": "Japanese beetle adult",
+             "date": "2026-06-18", "passed": False,
+             "source": "USA-NPN Pheno Forecast", "resolution_m": 2400},
+            {"model": "lilac_bloom", "name": "Lilac bloom", "date": "2026-05-02",
+             "passed": True, "source": "USA-NPN Pheno Forecast", "resolution_m": 2400},
+        ]}
+
+    monkeypatch.setattr(catalog, "region_pest_catalog", fake_catalog)
+    events, unresolved = await catalog.resolve_referenced_models(
+        object(), [{"pest": "Japanese beetle", "model": "usa-npn", "stages": []}],
+    )
+    assert unresolved == []
+    assert len(events) == 1
+    assert events[0]["date"] == "2026-06-18"
+    assert events[0]["pest"] == "Japanese beetle"
+    # The citation travels with it. This is a source being quoted, not an
+    # assertion Good Earth is making about insects.
+    assert events[0]["source"] == "USA-NPN Pheno Forecast"
+
+
+@pytest.mark.asyncio
+async def test_a_model_with_nothing_published_here_is_named_not_dropped(monkeypatch):
+    """"NPN publishes nothing for this here" is an answer."""
+    from goodearth_mcp import catalog
+
+    async def empty(region, today=None):
+        return {"events": []}
+
+    monkeypatch.setattr(catalog, "region_pest_catalog", empty)
+    events, unresolved = await catalog.resolve_referenced_models(
+        object(), [{"pest": "Emerald ash borer", "model": "usa-npn", "stages": []}],
+    )
+    assert events == []
+    assert len(unresolved) == 1
+    assert unresolved[0]["pest"] == "Emerald ash borer"
