@@ -18,7 +18,7 @@ import type { Planting } from "./plantings";
 import type { SavedPest } from "./pestModels";
 import type { SavedWildlife } from "./wildlifeModels";
 
-export type FlagKind = "crop" | "pest" | "wildlife";
+export type FlagKind = "crop" | "pest" | "wildlife" | "task";
 
 export interface LedgerFlag {
   kind: FlagKind;
@@ -29,6 +29,19 @@ export interface LedgerFlag {
   /// GDD at the flag, when it sits on the heat axis.
   gdd?: number;
   date: string | null;
+  /// Where this mark begins on the timeline. Everything is a date by the time
+  /// it is drawn; what differs is how the date was arrived at.
+  begin: string | null;
+  /// Where it ends. Absent for an instant — a bar of zero width is a tick, and
+  /// most of what a season marks really is a moment.
+  end?: string | null;
+  /// How `begin` was arrived at. "heat" means the curve was asked when this
+  /// threshold is crossed; "date" means the grower stated it, and it stands
+  /// whatever the heat did that day.
+  anchor: "heat" | "date";
+  /// Fractional day of `end`, kept because a crossing lands between samples
+  /// and rounding it to a date is only good enough to label with.
+  endIndex?: number;
   /// True once the curve has passed it.
   reached: boolean;
   /// Set when the threshold's base temperature differs from the curve's.
@@ -71,6 +84,40 @@ function indexOfDate(dates: (string | null)[], iso: string): number | null {
   return off >= 0 && off < dates.length ? off : null;
 }
 
+/// The grower's own dated work, placed on the timeline.
+///
+/// A task is the plainest date-anchored mark there is: "buy seeds on Jan 13"
+/// happens on Jan 13 whatever the heat did that day, and the curve is never
+/// consulted. It carries no `gdd`, so it sits on the baseline rather than
+/// pretending to a height on the heat axis.
+///
+/// Done tasks are left off. The chart is what is coming.
+export function taskFlags(tasks: TaskLike[]): LedgerFlag[] {
+  const out: LedgerFlag[] = [];
+  for (const t of tasks ?? []) {
+    if (!t || t.done || !t.due) continue;
+    out.push({
+      kind: "task",
+      label: t.title,
+      emoji: t.reminder_only ? "🔔" : "✓",
+      index: 0,          // unused for a date-anchored mark; the date decides
+      date: t.due,
+      begin: t.due,
+      anchor: "date",
+      reached: false,
+    });
+  }
+  return out;
+}
+
+export interface TaskLike {
+  id?: string;
+  title: string;
+  due?: string | null;
+  done?: boolean;
+  reminder_only?: boolean;
+}
+
 export function buildFlags(
   curve: SeasonCurveResult,
   plantings: Planting[],
@@ -91,14 +138,24 @@ export function buildFlags(
 
   const push = (
     kind: FlagKind, label: string, gdd: number, emoji: string | undefined, evBase: number,
+    extra?: Partial<LedgerFlag>,
   ) => {
     const idx = indexAt(values, gdd);
     if (idx == null) return;
+    const on = dates[Math.round(idx)] ?? null;
+    // A caller that states its own beginning turns this crossing into an END:
+    // the mark runs from the day the grower named to the day the heat arrives.
+    // Without one, the crossing IS the mark, and it has no width.
+    const stated = extra?.begin ?? null;
     out.push({
       kind, label, emoji, gdd, index: idx,
-      date: dates[Math.round(idx)] ?? null,
+      date: on,
+      begin: stated ?? on,
+      anchor: stated ? "date" : "heat",
+      ...(stated ? { end: on, endIndex: idx } : {}),
       reached: idx <= today,
       ...(Math.abs(evBase - base) > 0.5 ? { baseMismatch: evBase } : {}),
+      ...(extra ?? {}),
     });
   };
 
@@ -110,7 +167,12 @@ export function buildFlags(
     if (p.gddTarget == null || !p.setOut) continue;
     const startIdx = indexOfDate(dates, p.setOut);
     const offset = startIdx != null && startIdx < values.length ? values[Math.round(startIdx)] : 0;
-    push("crop", p.crop, offset + p.gddTarget, "🌱", p.baseTempF ?? base);
+    // The one mark with an anchor of each kind: it BEGINS on the day the
+    // grower put it in the ground, and ENDS on the day the curve says its heat
+    // target arrives. Left end stated, right end computed, same bar.
+    push("crop", p.crop, offset + p.gddTarget, "🌱", p.baseTempF ?? base, {
+      begin: p.setOut,
+    });
   }
 
   for (const m of pests) {
@@ -137,7 +199,10 @@ export function buildFlags(
       if (idx != null) {
         out.push({
           kind: "wildlife", label: `${w.species} · ${w.event}`, emoji: w.emoji || "🐿️",
-          index: idx, date: iso, reached: idx <= today,
+          index: idx, date: iso,
+          // Stated by the grower: it stands whatever the heat did that day.
+          begin: iso, anchor: "date",
+          reached: idx <= today,
         });
       }
     }

@@ -18,6 +18,7 @@ import { useMemo, useState } from "react";
 import type { SeasonCurveResult } from "../lib/mcp";
 import type { LedgerFlag } from "../lib/ledgerFlags";
 import { placeLabels } from "../lib/labelPlacement";
+import { dayNumber } from "../lib/seasonDays";
 import { regionImageUrl } from "../lib/basemapImage";
 import { TIMESCALES, useChartZoom, windowToDomain } from "../lib/useChartZoom";
 import ZoomControls from "./ZoomControls";
@@ -112,6 +113,8 @@ export default function SeasonChart({
     const spread = data.accumulated_gdd;
 
     const totalDays = mean.length + fc.length + proj.length;
+    // Day zero of the timeline. Every date on this chart is measured from here.
+    const origin = dates[0] ?? data.season_start ?? "";
     const gFull = Math.max(...mean, ...fc, ...proj, ...band.map((b) => b.max), 1);
 
     // Domain windows after zoom.
@@ -127,8 +130,27 @@ export default function SeasonChart({
     // rather than inside the render loop, where each flag could only see
     // itself. Flags outside the zoom window are excluded so an off-screen
     // label cannot push a visible one around.
+    // Where a mark sits on the timeline.
+    //
+    // A stated date resolves through dayNumber, which works for any date —
+    // including one outside the plotted series, which is the point of a
+    // timeline. A computed crossing keeps its fractional index instead: for a
+    // contiguous daily series that IS the day number, only carrying the
+    // sub-day precision that `indexAt` interpolated and a rounded date throws
+    // away. Same quantity, better resolution.
+    const dayOf = (f: LedgerFlag): number => {
+      if (f.anchor === "heat") return f.index;
+      const d = f.begin ? dayNumber(f.begin, origin) : null;
+      return d ?? f.index;
+    };
+    const endDayOf = (f: LedgerFlag): number | null => {
+      if (f.endIndex != null) return f.endIndex;
+      const d = f.end ? dayNumber(f.end, origin) : null;
+      return d;
+    };
+
     const flagItems = flags.map((f) => ({
-      cx: x(f.index),
+      cx: x(dayOf(f)),
       cy: f.gdd != null ? y(f.gdd) : B - 8,
       lines: wrapLabel(f.label),
     }));
@@ -200,7 +222,7 @@ export default function SeasonChart({
         } · ${Math.round(gLo).toLocaleString()}–${Math.round(gHi).toLocaleString()} GDD`
       : "";
 
-    return { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, rangeLabel, totalDays, placement };
+    return { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, rangeLabel, totalDays, placement, dayOf, endDayOf };
   }, [data, zoom, flags]);
 
   if (!view) {
@@ -211,7 +233,7 @@ export default function SeasonChart({
     );
   }
 
-  const { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, rangeLabel, totalDays, placement } = view;
+  const { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, rangeLabel, totalDays, placement, dayOf, endDayOf } = view;
   const todayIndex = last;
   const todayGdd = mean[last];
 
@@ -319,13 +341,21 @@ export default function SeasonChart({
               threshold is counted from a different base temperature is dimmed
               rather than quietly misplaced. */}
           {flags.map((f, i) => {
-            const cx = x(f.index);
-            if (cx < L - 4 || cx > R + 4) return null;
+            const cx = x(dayOf(f));
+            // A bar is only off-screen when BOTH ends are, or a planting that
+            // began before the window would vanish while it is still running.
+            const endDay = endDayOf(f);
+            const ex = endDay != null ? x(endDay) : cx;
+            if (Math.max(cx, ex) < L - 4 || Math.min(cx, ex) > R + 4) return null;
             const cy = f.gdd != null ? y(f.gdd) : B - 8;
             const { stem, flip } = placement[i] ?? { stem: 14, flip: false };
             const tone =
               f.kind === "crop" ? "var(--color-growth)"
               : f.kind === "pest" ? "var(--color-honey)"
+              // A task is the grower's own hand on the timeline, not a reading
+              // off the ground, so it is drawn in the ink colour rather than
+              // one of the three that mean "measured".
+              : f.kind === "task" ? "var(--color-ink-soft)"
               : "var(--color-frost)";
             return (
               <g key={`${f.label}-${f.index}`}
@@ -349,6 +379,22 @@ export default function SeasonChart({
                     </>
                   );
                 })()}
+                {/* A mark that runs from one day to another is drawn as a
+                    bar. A planting is the clearest case: it begins on the day
+                    it went in the ground — a date the grower stated — and ends
+                    on the day the curve says its heat target arrives. Left end
+                    stated, right end computed, one bar.
+
+                    An instant draws no bar at all. Most of what a season marks
+                    really is a moment: an egg hatch happens on a day, and
+                    giving it a width would be inventing a duration. */}
+                {endDay != null && Math.abs(ex - cx) > 1.5 && (
+                  <rect
+                    x={Math.min(cx, ex)} y={cy - 3}
+                    width={Math.abs(ex - cx)} height={6} rx={3}
+                    fill={tone} opacity={f.reached ? 0.34 : 0.2}
+                  />
+                )}
                 {/* The stem can be long now, so it is drawn lighter than the
                     dot it belongs to — a leader should point, not compete. */}
                 <line x1={cx} y1={cy} x2={cx} y2={cy - stem} stroke={tone} strokeWidth={1} opacity={0.55} />
