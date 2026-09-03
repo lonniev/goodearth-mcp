@@ -9,7 +9,7 @@
 import { useMemo } from "react";
 import type { Measure } from "../lib/mcp";
 import { useChartZoom, windowToDomain } from "../lib/useChartZoom";
-import ZoomControls from "./ZoomControls";
+import ZoomControls, { AxisZoom } from "./ZoomControls";
 
 const W = 740, H = 150, L = 46, R = 726, T = 10, B = 118;
 
@@ -109,6 +109,11 @@ export default function MeasureChart({
         )}
       </div>
 
+      {/* The value control sits beside the value axis it scales. It used to be
+          a button in the row below labelled "GDD" — on a chart of degrees,
+          inches or hours. */}
+      <div className="flex items-stretch">
+      {zoomable && <AxisZoom onZoom={zoomY} label={measure.unit || label} />}
       <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`}
         className={`ge-chart block h-auto w-full min-w-[520px] touch-none select-none ${isZoomed ? "cursor-grab" : ""}`}
         role="img" aria-label={`${label}, this season against the normal range`}>
@@ -142,9 +147,10 @@ export default function MeasureChart({
         ))}
         <line x1={L} x2={R} y1={B} y2={B} stroke="var(--color-ink)" strokeWidth={1.2} />
       </svg>
+      </div>
 
       {zoomable && (
-        <ZoomControls onZoomX={zoomX} onZoomY={zoomY} onReset={reset} isZoomed={isZoomed} />
+        <ZoomControls onZoomX={zoomX} onReset={reset} isZoomed={isZoomed} />
       )}
     </div>
   );

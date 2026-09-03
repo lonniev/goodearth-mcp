@@ -21,7 +21,7 @@ import { placeLabels } from "../lib/labelPlacement";
 import { dateFor, dayNumber, timelineDomain } from "../lib/seasonDays";
 import { regionImageUrl } from "../lib/basemapImage";
 import { TIMESCALES, useChartZoom, windowToDomain } from "../lib/useChartZoom";
-import ZoomControls from "./ZoomControls";
+import ZoomControls, { AxisZoom } from "./ZoomControls";
 
 const W = 740, H = 268, L = 46, R = 716, T = 16, B = 232;
 
@@ -284,6 +284,11 @@ export default function SeasonChart({
 
   return (
     <div className="overflow-x-auto rounded-md border border-rule bg-panel px-2.5 pt-3.5 pb-2">
+      {/* The degree-day control sits beside the degree-day axis. This is the
+          one chart in the app that actually plots GDD, which is why the shared
+          row could not go on calling its vertical button "GDD". */}
+      <div className="flex items-stretch">
+      <AxisZoom onZoom={zoomY} label="GDD" />
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
@@ -498,6 +503,7 @@ export default function SeasonChart({
         ))}
         <line x1={L} x2={R} y1={B} y2={B} stroke="var(--color-ink)" strokeWidth={1.5} />
       </svg>
+      </div>
 
       {overlay && (() => {
         const vals = overlay.values.filter((v): v is number => typeof v === "number");
@@ -514,7 +520,6 @@ export default function SeasonChart({
 
       <ZoomControls
         onZoomX={(f) => { setSpan(null); zoomX(f); }}
-        onZoomY={zoomY}
         // Reset means "show me the season", not "show me the whole domain".
         // Once the timeline reaches past the curve to hold a task next
         // January, the whole domain is mostly empty, and landing there would
