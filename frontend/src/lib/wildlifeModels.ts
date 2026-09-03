@@ -16,8 +16,6 @@ export interface SavedWildlife extends WildlifeEventInput {
   regionId: string;
 }
 
-const KEY = "goodearth:wildlife:v1";
-
 // The starter events that used to live here are gone. Twenty-two species
 // chosen to demonstrate three clocks is not the fauna of anyone's farm — the
 // owls, bats and coyotes a grower actually hears were never in it. The
@@ -53,31 +51,6 @@ export const HUSBANDRY_INTERVALS: { species: string; event: string; days: number
   { species: "Calves", event: "weaning", days: 205, emoji: "🐄", from_label: "born" },
 ];
 
-function read(): SavedWildlife[] {
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as SavedWildlife[]) : [];
-  } catch { return []; }
-}
-
-function write(all: SavedWildlife[]): SavedWildlife[] {
-  try { window.localStorage.setItem(KEY, JSON.stringify(all)); } catch { /* noop */ }
-  return all;
-}
-
-export function listWildlife(regionId?: string): SavedWildlife[] {
-  const all = read();
-  return regionId ? all.filter((w) => w.regionId === regionId) : all;
-}
-
-export function saveWildlife(w: SavedWildlife): SavedWildlife[] {
-  return write([...read().filter((x) => x.id !== w.id), w]);
-}
-
-export function deleteWildlife(id: string): SavedWildlife[] {
-  return write(read().filter((x) => x.id !== id));
-}
-
 /// Validate the way the server does, so the grower is corrected in the form.
 export function makeWildlife(
   input: WildlifeEventInput, regionId: string,
@@ -109,3 +82,20 @@ export function makeWildlife(
     regionId,
   };
 }
+
+// ── The record ───────────────────────────────────────────────────────────
+
+import type { ItemCodec } from "./blockItems";
+import type { ItemRow } from "./mcp";
+
+export const wildlifeCodec: ItemCodec<SavedWildlife> = {
+  from: (r: ItemRow): SavedWildlife => ({
+    ...(r as unknown as SavedWildlife),
+    id: String(r.item_id),
+    regionId: String(r.block_id ?? ""),
+  }),
+  to: (w: SavedWildlife) => {
+    const { id, regionId: _r, ...rest } = w;
+    return { ...(id ? { item_id: id } : {}), ...rest };
+  },
+};

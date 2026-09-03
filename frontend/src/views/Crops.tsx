@@ -12,8 +12,9 @@ import QuoteScroller from "../components/QuoteScroller";
 import { cropGddStatus, cropSuitability, plantingWindow, type CropLedgerResult,
   type PlantingWindowResult, type SuitabilityResult, type Verdict } from "../lib/mcp";
 import {
-  CROP_CATEGORIES, CROP_PRESETS, deletePlanting, listPlantings, makePlanting,
-  savePlanting, type CropPreset, type Planting, plantingDateFor } from "../lib/plantings";
+  CROP_CATEGORIES, CROP_PRESETS, makePlanting, plantingCodec,
+  type CropPreset, type Planting, plantingDateFor } from "../lib/plantings";
+import { useBlockItems } from "../lib/blockItems";
 import type { SavedRegion } from "../lib/regions";
 import { Empty, ErrorBox, FIELD, Note, PageTitle, Section } from "../components/ui";
 
@@ -26,7 +27,11 @@ export default function Crops({
   region: SavedRegion;
   onCost: (sats: number) => void;
 }) {
-  const [plantings, setPlantings] = useState<Planting[]>(() => listPlantings(region.id));
+  // The grower's record, read from the server under their npub — not from
+  // this browser. What they saved on the laptop is what the phone shows.
+  const { items: plantings, save: storePlanting, retire: retirePlanting,
+          loading: plantingsLoading, error: plantingsError } =
+    useBlockItems<Planting>(region.id, "planting", plantingCodec);
   const [ledger, setLedger] = useState<CropLedgerResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -42,7 +47,6 @@ export default function Crops({
   const [whenAt, setWhenAt] = useState<Date | null>(null);
   const [whenBusy, setWhenBusy] = useState(false);
 
-  useEffect(() => { setPlantings(listPlantings(region.id)); }, [region.id]);
 
   const run = useCallback(async (list: Planting[]) => {
     if (!list.length) { setLedger(null); return; }
@@ -94,7 +98,7 @@ export default function Crops({
     const made = makePlanting(c.crop, c.gddTarget, on, region.id, c.baseTempF);
     if (typeof made === "string") { setFormErr(made); return; }
     setFormErr("");
-    setPlantings(savePlanting(made).filter((p) => p.regionId === region.id));
+    void storePlanting(made).catch((e) => setFormErr(String(e.message ?? e)));
     setAdded(`${c.emoji} ${c.crop} — on the ledger, dated ${short(on)}.`);
   }
 
@@ -104,7 +108,7 @@ export default function Crops({
     );
     if (typeof made === "string") { setFormErr(made); return; }
     setFormErr("");
-    setPlantings(savePlanting(made).filter((p) => p.regionId === region.id));
+    void storePlanting(made).catch((e) => setFormErr(String(e.message ?? e)));
   }
 
   // "How much heat does it need" and "when does it go in" are different
@@ -142,12 +146,12 @@ export default function Crops({
     );
     if (typeof made === "string") { setFormErr(made); return; }
     setFormErr("");
-    setPlantings(savePlanting(made).filter((p) => p.regionId === region.id));
+    void storePlanting(made).catch((err) => setFormErr(String(err.message ?? err)));
     e.currentTarget.reset();
   }
 
   const remove = (id: string) =>
-    setPlantings(deletePlanting(id).filter((p) => p.regionId === region.id));
+    void retirePlanting(id).catch((e) => setFormErr(String(e.message ?? e)));
 
   return (
     <>
@@ -179,6 +183,12 @@ export default function Crops({
         </div>
       ) : ledger ? (
         <CropLedger rows={ledger.plantings} plantings={plantings} onDelete={remove} />
+      ) : plantingsLoading ? (
+        <Empty>Reading what you have on {region.name}…</Empty>
+      ) : plantingsError ? (
+        // The record is the truth here, so a failure to read it must say so.
+        // Showing an empty page would claim this ground grows nothing.
+        <ErrorBox>Could not read your record for {region.name}: {plantingsError}</ErrorBox>
       ) : (
         <Empty>
           No plantings on {region.name} yet. Add one below and the ledger will

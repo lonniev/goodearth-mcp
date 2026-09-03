@@ -12,9 +12,10 @@ import { useCallback, useEffect, useState } from "react";
 import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
 import { Chiclet, Empty, ErrorBox, FIELD, Note, PageTitle, Pill, Section, StatusChip } from "../components/ui";
+import { useBlockItems } from "../lib/blockItems";
 import { pestCatalog, pestThreshold, type PestCatalogResult, type PestWindowResult } from "../lib/mcp";
 import {
-  deletePest, listPests, makePest, savePest, type SavedPest,
+  makePest, pestCodec, type SavedPest,
 } from "../lib/pestModels";
 import type { SavedRegion } from "../lib/regions";
 
@@ -24,7 +25,10 @@ const d = (iso: string) =>
 export default function Pests({
   region, onCost,
 }: { region: SavedRegion; onCost: (sats: number) => void }) {
-  const [models, setModels] = useState<SavedPest[]>(() => listPests(region.id));
+  // Read from the grower's record under their npub, not from this browser.
+  const { items: models, save: storePest, retire: retirePest,
+          loading: modelsLoading, error: modelsError } =
+    useBlockItems<SavedPest>(region.id, "pest", pestCodec);
   const [data, setData] = useState<PestWindowResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -37,7 +41,6 @@ export default function Pests({
   /// The species is a fact about this country; the threshold is the grower's.
   const [pestName, setPestName] = useState("");
 
-  useEffect(() => { setModels(listPests(region.id)); }, [region.id]);
 
   const run = useCallback(async (list: SavedPest[]) => {
     if (!list.length) { setData(null); return; }
@@ -62,7 +65,7 @@ export default function Pests({
     );
     if (typeof made === "string") { setFormErr(made); return; }
     setFormErr("");
-    setModels(savePest(made).filter((p) => p.regionId === region.id));
+    void storePest(made).catch((e) => setFormErr(String(e.message ?? e)));
     setPestName("");
     e.currentTarget.reset();
   }
@@ -140,7 +143,7 @@ export default function Pests({
                   </div>
                 </div>
                 {id && (
-                  <button onClick={() => setModels(deletePest(id).filter((p) => p.regionId === region.id))}
+                  <button onClick={() => void retirePest(id)}
                     aria-label={`Remove ${a.pest}`}
                     className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>
                 )}
@@ -148,6 +151,10 @@ export default function Pests({
             );
           })}
         </ul>
+      ) : modelsLoading ? (
+        <Empty>Reading what you have on {region.name}…</Empty>
+      ) : modelsError ? (
+        <ErrorBox>Could not read your record for {region.name}: {modelsError}</ErrorBox>
       ) : (
         <Empty>
           Nothing being watched on {region.name} yet. Take one from Nearby below, or add your own.

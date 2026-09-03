@@ -17,8 +17,6 @@ export interface Planting {
   regionId: string;
 }
 
-const KEY = "goodearth:plantings:v1";
-
 /// Starting points from extension data, so a grower is not staring at an empty
 /// table. These are typical targets, not promises — the whole point of the
 /// calibration loop is that a farm learns its own.
@@ -246,33 +244,6 @@ export const CROP_CATEGORIES: { key: CropPreset["category"]; label: string }[] =
   { key: "cover", label: "Cover" },
 ];
 
-function read(): Planting[] {
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as Planting[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function write(all: Planting[]): Planting[] {
-  try { window.localStorage.setItem(KEY, JSON.stringify(all)); } catch { /* noop */ }
-  return all;
-}
-
-export function listPlantings(regionId?: string): Planting[] {
-  const all = read();
-  return regionId ? all.filter((p) => p.regionId === regionId) : all;
-}
-
-export function savePlanting(p: Planting): Planting[] {
-  return write([...read().filter((x) => x.id !== p.id), p]);
-}
-
-export function deletePlanting(id: string): Planting[] {
-  return write(read().filter((x) => x.id !== id));
-}
-
 /// Validate the way the server does, so a grower is corrected in the form
 /// rather than by a failed paid call.
 export function makePlanting(
@@ -291,7 +262,6 @@ export function makePlanting(
     ...(baseTempF != null ? { baseTempF } : {}),
   };
 }
-
 
 /// The icon for a crop name, for the ledger rows.
 ///
@@ -328,7 +298,6 @@ function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-
 /// The date a planting added from a sowing row should carry.
 ///
 /// The row's whole point is its out date, so that is the date to use — but
@@ -339,3 +308,32 @@ function escapeRe(s: string): string {
 export function plantingDateFor(earliestOut: string | null | undefined, today: string): string {
   return earliestOut && earliestOut > today ? earliestOut : today;
 }
+
+// ── The record ───────────────────────────────────────────────────────────
+//
+// Plantings live on the block now, not in this browser. The codec is the only
+// place that knows how a Planting maps onto a stored item, so the views keep
+// working in their own shape.
+
+import type { ItemCodec } from "./blockItems";
+import type { ItemRow } from "./mcp";
+
+export const plantingCodec: ItemCodec<Planting> = {
+  from: (r: ItemRow): Planting => ({
+    id: String(r.item_id),
+    crop: String(r.crop ?? ""),
+    gddTarget: Number(r.gdd_target ?? 0),
+    // A presence row has no set-out: the crop grows here and when it went in
+    // is not known. Empty string rather than a fabricated date.
+    setOut: String(r.set_out ?? ""),
+    baseTempF: r.base_temp == null ? undefined : Number(r.base_temp),
+    regionId: String(r.block_id ?? ""),
+  }),
+  to: (p: Planting) => ({
+    ...(p.id ? { item_id: p.id } : {}),
+    crop: p.crop,
+    gdd_target: p.gddTarget,
+    ...(p.setOut ? { set_out: p.setOut } : {}),
+    ...(p.baseTempF != null ? { base_temp: p.baseTempF } : {}),
+  }),
+};

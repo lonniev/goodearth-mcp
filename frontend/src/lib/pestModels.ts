@@ -16,8 +16,6 @@ export interface SavedPest extends PestModel {
   regionId: string;
 }
 
-const KEY = "goodearth:pests:v1";
-
 /// Starting shapes only. Every number here must be confirmed against a local
 /// extension bulletin before anyone sprays or skips a scouting round — which
 /// is why the UI says so next to them rather than in a footnote.
@@ -25,31 +23,6 @@ const KEY = "goodearth:pests:v1";
 // this file were one author's guess at what a farm cares about, identical for
 // a Vermont lakeshore and a Georgia orchard. The Pests page now reads USA-NPN's
 // degree-day forecasts for the actual region — see `pestCatalog` in lib/mcp.
-
-function read(): SavedPest[] {
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as SavedPest[]) : [];
-  } catch { return []; }
-}
-
-function write(all: SavedPest[]): SavedPest[] {
-  try { window.localStorage.setItem(KEY, JSON.stringify(all)); } catch { /* noop */ }
-  return all;
-}
-
-export function listPests(regionId?: string): SavedPest[] {
-  const all = read();
-  return regionId ? all.filter((p) => p.regionId === regionId) : all;
-}
-
-export function savePest(p: SavedPest): SavedPest[] {
-  return write([...read().filter((x) => x.id !== p.id), p]);
-}
-
-export function deletePest(id: string): SavedPest[] {
-  return write(read().filter((x) => x.id !== id));
-}
 
 /// Validate the way the server does, so the grower is corrected in the form.
 export function makePest(
@@ -79,3 +52,20 @@ export function makePest(
     ...(biofix ? { biofix } : {}),
   };
 }
+
+// ── The record ───────────────────────────────────────────────────────────
+
+import type { ItemCodec } from "./blockItems";
+import type { ItemRow } from "./mcp";
+
+export const pestCodec: ItemCodec<SavedPest> = {
+  from: (r: ItemRow): SavedPest => ({
+    ...(r as unknown as SavedPest),
+    id: String(r.item_id),
+    regionId: String(r.block_id ?? ""),
+  }),
+  to: (p: SavedPest) => {
+    const { id, regionId: _r, ...rest } = p;
+    return { ...(id ? { item_id: id } : {}), ...rest };
+  },
+};

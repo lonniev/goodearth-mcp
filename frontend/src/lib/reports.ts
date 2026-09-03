@@ -51,33 +51,6 @@ export function calibrates(tag: string): boolean {
   return TAGS.find((t) => t.key === tag)?.calibrates ?? false;
 }
 
-const KEY = "goodearth:reports:v1";
-
-function read(): FieldReport[] {
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as FieldReport[]) : [];
-  } catch { return []; }
-}
-
-function write(all: FieldReport[]): FieldReport[] {
-  try { window.localStorage.setItem(KEY, JSON.stringify(all)); } catch { /* noop */ }
-  return all;
-}
-
-export function listReports(regionId?: string): FieldReport[] {
-  const all = read().sort((a, b) => b.observedOn.localeCompare(a.observedOn));
-  return regionId ? all.filter((r) => r.regionId === regionId) : all;
-}
-
-export function saveReport(r: FieldReport): FieldReport[] {
-  return write([...read().filter((x) => x.id !== r.id), r]);
-}
-
-export function deleteReport(id: string): FieldReport[] {
-  return write(read().filter((x) => x.id !== id));
-}
-
 export function makeReport(
   input: Omit<FieldReport, "id" | "createdAt">,
 ): FieldReport | string {
@@ -119,3 +92,37 @@ export function toObservations(reports: FieldReport[]): FieldObservation[] {
   }
   return out;
 }
+
+// ── The record ───────────────────────────────────────────────────────────
+
+import type { ItemCodec } from "./blockItems";
+import type { ItemRow } from "./mcp";
+
+export const reportCodec: ItemCodec<FieldReport> = {
+  from: (r: ItemRow): FieldReport => ({
+    id: String(r.item_id),
+    regionId: String(r.block_id ?? ""),
+    tag: String(r.tag ?? r.kind ?? ""),
+    observedOn: String(r.observed_on ?? ""),
+    note: String(r.note ?? ""),
+    lat: r.lat == null ? undefined : Number(r.lat),
+    lng: r.lng == null ? undefined : Number(r.lng),
+    crop: r.crop == null ? undefined : String(r.crop),
+    stage: r.stage == null ? undefined : String(r.stage),
+    gddTarget: r.gdd_target == null ? undefined : Number(r.gdd_target),
+    setOut: r.set_out == null ? undefined : String(r.set_out),
+    createdAt: String(r.created_at ?? r.observed_on ?? ""),
+  }),
+  to: (f: FieldReport) => ({
+    ...(f.id ? { item_id: f.id } : {}),
+    observed_on: f.observedOn,
+    tag: f.tag,
+    note: f.note,
+    ...(f.lat != null ? { lat: f.lat } : {}),
+    ...(f.lng != null ? { lng: f.lng } : {}),
+    ...(f.crop ? { crop: f.crop } : {}),
+    ...(f.stage ? { stage: f.stage } : {}),
+    ...(f.gddTarget != null ? { gdd_target: f.gddTarget } : {}),
+    ...(f.setOut ? { set_out: f.setOut } : {}),
+  }),
+};

@@ -13,9 +13,10 @@ import SoilCard from "../components/SoilCard";
 import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
 import { buildFlags, type LedgerFlag } from "../lib/ledgerFlags";
-import { listPlantings } from "../lib/plantings";
-import { listPests } from "../lib/pestModels";
-import { listWildlife } from "../lib/wildlifeModels";
+import { plantingCodec, type Planting } from "../lib/plantings";
+import { pestCodec, type SavedPest } from "../lib/pestModels";
+import { wildlifeCodec, type SavedWildlife } from "../lib/wildlifeModels";
+import { useBlockItems } from "../lib/blockItems";
 import { almanacFor, type AlmanacResult, type MeasureKey,
   frostWindow, gddSeasonCurve, soilTempProjection, type FrostWindowResult, type SeasonCurveResult, type SoilWindowResult } from "../lib/mcp";
 import type { SavedRegion } from "../lib/regions";
@@ -35,6 +36,12 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
   const [data, setData] = useState<SeasonCurveResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  // The flags read the grower's record, not this browser — the same rows the
+  // Crops, Pests and Wildlife pages show.
+  const { items: plantings } = useBlockItems<Planting>(region.id, "planting", plantingCodec);
+  const { items: pests } = useBlockItems<SavedPest>(region.id, "pest", pestCodec);
+  const { items: wildlife } = useBlockItems<SavedWildlife>(region.id, "wildlife", wildlifeCodec);
   const [ranAt, setRanAt] = useState<Date | null>(null);
   const [frost, setFrost] = useState<FrostWindowResult | null>(null);
   const [frostAt, setFrostAt] = useState<Date | null>(null);
@@ -94,7 +101,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
   // this curve is a date. The curve is already on the page, so this needs no
   // second call.
   const flags: LedgerFlag[] = data
-    ? buildFlags(data, listPlantings(region.id), listPests(region.id), listWildlife(region.id))
+    ? buildFlags(data, plantings, pests, wildlife)
     : [];
 
   // One chiclet, one tap per measure, and a tap that clears it. The almanac is
