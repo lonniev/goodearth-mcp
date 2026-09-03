@@ -72,8 +72,18 @@ def validate_planting(planting: Any) -> dict[str, Any]:
     # answer and every calibration drawn from it. Such a row carries no dates,
     # so nothing downstream can count from it; it is presence, not progress.
     if not set_out_raw or target is None:
+        # Say WHICH field is absent, here, once. Callers used to infer it from
+        # ``set_out is None`` — but this branch nulls the set-out whenever
+        # EITHER field is missing, so a grower who gave a date and no heat
+        # target was told "no set-out recorded", which is simply untrue, and
+        # the branch meant to report a missing target could never run.
+        missing = [
+            *(["set_out"] if not set_out_raw else []),
+            *(["gdd_target"] if target is None else []),
+        ]
         return {"crop": name, "gdd_target": target, "set_out": None,
-                "base_temp_f": base_f, "presence_only": True}
+                "base_temp_f": base_f, "presence_only": True,
+                "missing": missing}
     try:
         set_out = date.fromisoformat(str(set_out_raw))
     except ValueError as exc:

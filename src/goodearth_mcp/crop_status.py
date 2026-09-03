@@ -25,6 +25,21 @@ class LedgerError(ValueError):
     """The request cannot be answered as asked."""
 
 
+WORDS = {"set_out": "no set-out recorded", "gdd_target": "no heat target recorded"}
+
+
+def _why_untracked(p: dict[str, Any]) -> str:
+    """Why this planting carries no dates, in the grower's terms.
+
+    A perennial is the ordinary case here, not an error: an apple tree has no
+    heat target anyone counts, and "it grows here" is a true thing to record.
+    """
+    missing = p.get("missing") or []
+    if not missing:
+        return "nothing to count from"
+    return " and ".join(WORDS[m] for m in missing if m in WORDS) or "nothing to count from"
+
+
 async def region_crop_ledger(
     region: Region,
     plantings: Any,
@@ -64,10 +79,12 @@ async def region_crop_ledger(
         p for p in parsed_all
         if p.get("set_out") is not None and p.get("gdd_target") is not None
     ]
+    # The reason comes from the planting itself rather than being re-derived
+    # here. Deriving it from ``set_out is None`` read wrong: validate_planting
+    # nulls the set-out when EITHER field is absent, so every untracked row was
+    # reported as "no set-out recorded" and the other branch was dead code.
     untracked += [
-        {"crop": p["crop"],
-         "reason": "no set-out recorded" if p.get("set_out") is None
-                   else "no heat target recorded"}
+        {"crop": p["crop"], "reason": _why_untracked(p), "missing": p.get("missing") or []}
         for p in parsed_all
         if p.get("set_out") is None or p.get("gdd_target") is None
     ]
@@ -139,9 +156,20 @@ async def region_crop_ledger(
         "first_frost": frost_summary,
         "plantings": rows,
         "wont_finish": at_risk,
+        # Count what is on the record, not only what could be evaluated. The
+        # tracked count alone read as "0 plantings" over a table listing four,
+        # which invites the grower to believe their record was lost.
         "summary": (
-            f"{len(rows)} planting{'s' if len(rows) != 1 else ''}; "
-            + (f"{len(at_risk)} will not finish before the median first frost."
+            f"{len(rows)} planting{'s' if len(rows) != 1 else ''} tracked"
+            + (f", {len(untracked)} on the record with nothing to count from"
+               if untracked else "")
+            + "; "
+            # A pace verdict over an empty set is a claim about nothing. With
+            # nothing tracked the honest sentence names what would change that.
+            + ("nothing to pace yet — a set-out date and a heat target make a "
+               "planting trackable."
+               if not rows
+               else f"{len(at_risk)} will not finish before the median first frost."
                if at_risk else "all on pace for the median first frost."
                if frost_summary else "no frost record, so finish verdicts are unknown.")
         ),

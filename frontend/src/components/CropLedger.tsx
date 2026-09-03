@@ -3,6 +3,19 @@
 // The bar is heat-to-target, not calendar progress, because that is the clock
 // the plant is actually on. A row that will not finish is called out in clay
 // rather than left for the reader to compute from two dates.
+//
+// **Every planting appears, including the ones nothing can be computed for.**
+// This table used to iterate the TRACKED rows only, so a planting saved without
+// a set-out date or a heat target was stored, sent, classified by the server as
+// untracked — and then dropped on the floor here. The grower saw an empty
+// ledger listing none of the choices they had just made, which reads as data
+// loss when nothing was lost at all.
+//
+// Perennials are why this is the ordinary case and not an edge one. An apple
+// tree has no heat target anyone counts and no set-out this season; "it grows
+// here" is a true thing to record. Such a row carries no progress, so it is
+// shown as presence — named, and honest about what is missing — rather than
+// given a fabricated zero that would then propagate into every projection.
 
 import type { PlantingStatus } from "../lib/mcp";
 import { emojiFor } from "../lib/plantings";
@@ -26,13 +39,18 @@ const shortDate = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
 export default function CropLedger({
-  rows, plantings, onDelete,
+  rows, untracked = [], plantings, onDelete,
 }: {
   rows: PlantingStatus[];
+  /// On the record, but with nothing to count from. Shown, never hidden.
+  untracked?: { crop: string; reason: string; missing?: string[] }[];
   plantings: Planting[];
   onDelete: (id: string) => void;
 }) {
   const idFor = (crop: string) => plantings.find((p) => p.crop === crop)?.id;
+  /// What the grower actually saved, for the fields the server cannot echo
+  /// back on a row it could not evaluate.
+  const savedFor = (crop: string) => plantings.find((p) => p.crop === crop);
 
   return (
     <div className="overflow-x-auto overscroll-x-contain rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">
@@ -113,6 +131,45 @@ export default function CropLedger({
                   </span>
                   {id && (
                     <button onClick={() => onDelete(id)} aria-label={`Remove ${r.crop}`}
+                            className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+
+          {/* Presence rows. Same table, because they are the same record —
+              a separate list would read as a problem area rather than as the
+              rest of the farm. Muted, and each says what it would need to be
+              tracked, so the remedy is on the row rather than in a manual. */}
+          {untracked.map((u) => {
+            const saved = savedFor(u.crop);
+            const id = saved?.id;
+            return (
+              <tr key={"presence-" + u.crop}
+                  className="border-b border-rule last:border-b-0 text-ink-soft">
+                <td className="px-3 py-2.5 font-semibold">
+                  <span className="mr-1.5 text-[15px]" aria-hidden="true">{emojiFor(u.crop)}</span>
+                  {u.crop}
+                  <small className="block text-[11px] font-normal text-ink-soft">
+                    {saved?.gddTarget != null
+                      ? `target ${saved.gddTarget.toLocaleString()} GDD`
+                      : "on the record"}
+                    {saved?.baseTempF != null && ` · base ${saved.baseTempF}°F`}
+                  </small>
+                </td>
+                <td className="px-3 py-2.5 whitespace-nowrap">
+                  {saved?.setOut ? shortDate(saved.setOut) : "—"}
+                </td>
+                <td className="px-3 py-2.5" colSpan={3}>
+                  <span className="data text-[11px]">{u.reason}</span>
+                </td>
+                <td className="px-2 py-2.5 text-right">
+                  <span className="mr-2 whitespace-nowrap rounded-full bg-band px-2 py-[3px] text-[11px] font-semibold text-ink-soft">
+                    Not tracked
+                  </span>
+                  {id && (
+                    <button onClick={() => onDelete(id)} aria-label={`Remove ${u.crop}`}
                             className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>
                   )}
                 </td>
