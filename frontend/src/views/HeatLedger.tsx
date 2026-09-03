@@ -12,13 +12,13 @@ import EventDetail from "../components/EventDetail";
 import SoilCard from "../components/SoilCard";
 import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
-import { buildFlags, type LedgerFlag } from "../lib/ledgerFlags";
+import { buildFlags, taskFlags, type LedgerFlag } from "../lib/ledgerFlags";
 import { plantingCodec, type Planting } from "../lib/plantings";
 import { pestCodec, type SavedPest } from "../lib/pestModels";
 import { wildlifeCodec, type SavedWildlife } from "../lib/wildlifeModels";
 import { useBlockItems } from "../lib/blockItems";
 import { almanacFor, type AlmanacResult, type MeasureKey,
-  frostWindow, gddSeasonCurve, soilTempProjection, type FrostWindowResult, type SeasonCurveResult, type SoilWindowResult } from "../lib/mcp";
+  frostWindow, gddSeasonCurve, soilTempProjection, taskList, type TaskRow, type FrostWindowResult, type SeasonCurveResult, type SoilWindowResult } from "../lib/mcp";
 import type { SavedRegion } from "../lib/regions";
 
 interface Props {
@@ -42,6 +42,18 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
   const { items: plantings } = useBlockItems<Planting>(region.id, "planting", plantingCodec);
   const { items: pests } = useBlockItems<SavedPest>(region.id, "pest", pestCodec);
   const { items: wildlife } = useBlockItems<SavedWildlife>(region.id, "wildlife", wildlifeCodec);
+
+  // The grower's own dated work belongs on the timeline too: a task sits on
+  // the day it is due, whatever the heat did that day. Fetched here rather
+  // than derived from the record hooks because tasks are their own store.
+  const [tasks, setTasks] = useState<TaskRow[]>([]);
+  useEffect(() => {
+    let live = true;
+    void taskList(region.id, { timeframe: "all", page_size: 200 })
+      .then((r) => { if (live && r?.success) setTasks(r.rows ?? []); })
+      .catch(() => { /* the chart is still worth drawing without them */ });
+    return () => { live = false; };
+  }, [region.id]);
   const [ranAt, setRanAt] = useState<Date | null>(null);
   const [frost, setFrost] = useState<FrostWindowResult | null>(null);
   const [frostAt, setFrostAt] = useState<Date | null>(null);
@@ -101,7 +113,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
   // this curve is a date. The curve is already on the page, so this needs no
   // second call.
   const flags: LedgerFlag[] = data
-    ? buildFlags(data, plantings, pests, wildlife)
+    ? [...buildFlags(data, plantings, pests, wildlife), ...taskFlags(tasks)]
     : [];
 
   // One chiclet, one tap per measure, and a tap that clears it. The almanac is

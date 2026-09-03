@@ -39,6 +39,10 @@ const KIND: Record<LedgerFlag["kind"], { label: string; tone: string; source: st
     label: "Wildlife event", tone: "text-frost",
     source: "Your own wildlife threshold — Good Earth times it, it does not publish natural history.",
   },
+  task: {
+    label: "Your task", tone: "text-ink-soft",
+    source: "Your own dated work. It sits on the day you set, whatever the heat did.",
+  },
 };
 
 const nice = (iso: string) =>
@@ -73,14 +77,20 @@ export default function EventDetail({
       .finally(() => { if (!ac.signal.aborted) setLooking(false); });
 
     const c = curve.region?.centroid;
+    // A task carries no species and no threshold — there is nothing to route
+    // to an extension service, and offering pesticide guidance next to "buy
+    // seeds" would be absurd. Skip the lookup rather than search for a crop
+    // called "Buy seeds".
+    const kind = flag.kind;
+    if (kind === "task") { setLinks([]); return; }
     if (c) {
       jurisdictionFor(c.lat, c.lon, ac.signal)
         .then((state) => {
-          if (!ac.signal.aborted) setLinks(guidanceLinks(subject, flag.kind, state));
+          if (!ac.signal.aborted) setLinks(guidanceLinks(subject, kind, state));
         })
-        .catch(() => setLinks(guidanceLinks(subject, flag.kind, null)));
+        .catch(() => setLinks(guidanceLinks(subject, kind, null)));
     } else {
-      setLinks(guidanceLinks(subject, flag.kind, null));
+      setLinks(guidanceLinks(subject, kind, null));
     }
     return () => ac.abort();
   }, [subject, flag.kind, curve.region]);
