@@ -118,6 +118,7 @@ async def build_feed(
     wildlife_events: Any = None,
     todos: Any = None,
     base_temp_f: float = 50.0,
+    referenced: list[dict[str, Any]] | None = None,
     today: date | None = None,
 ) -> dict[str, Any]:
     """Compute every dated thing this block knows about, as one calendar."""
@@ -251,6 +252,21 @@ async def build_feed(
             stamp=stamp, categories="Good Earth,Crops",
         ))
         counted["crop"] += 1
+
+    # ── Pests that reference a published model ───────────────────────────
+    #
+    # These carry no stages to count toward: the grower asked for the published
+    # forecast for their ground, so the date comes from USA-NPN rather than
+    # from this curve. They are dated events, not heat crossings, and they are
+    # labelled with the source so nobody mistakes a citation for our claim.
+    for e in referenced or []:
+        record(
+            "pest", f"{e['pest']}-{e['date']}", f"{e['pest']} — {e['name']}",
+            date.fromisoformat(e["date"]),
+            f"{e['source']}, resolved for this ground at {e.get('resolution_m', 0)} m",
+            "🐛",
+        )
+        counted["pest"] += 1
 
     # ── Pest stages ──────────────────────────────────────────────────────
     for m in parsed_pests:

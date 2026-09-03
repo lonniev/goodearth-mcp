@@ -668,10 +668,18 @@ async def pest_threshold(
         list[dict[str, Any]],
         Field(
             description=(
-                "The pest models to evaluate, from your extension service. Each is "
+                "The pests to evaluate, in any of three shapes.\n"
+                "1. Your own thresholds, from an extension bulletin: "
                 '{"pest": "Aster leafhopper", "base_temp": 50, "biofix": "2026-05-01", '
                 '"stages": [{"stage": "second flight", "gdd": 1850}]}. '
-                "biofix is optional; without it the count runs from Jan 1."
+                "biofix is optional; without it the count runs from Jan 1.\n"
+                '2. A published model, cited rather than restated: '
+                '{"pest": "Japanese beetle", "model": "usa-npn"} — the dates come '
+                "from USA-NPN for your ground, and re-resolve each season instead "
+                "of freezing whatever was pasted in.\n"
+                '3. Something you simply keep an eye out for: '
+                '{"pest": "Vole", "watch": true} — no stages, no dates.\n'
+                "Do NOT invent degree-day figures to fill shape 1. Use 2 or 3."
             ),
         ),
     ],
@@ -1372,12 +1380,27 @@ async def calendar_dataset(
         return {"success": False, "error": "The record is unreachable right now.",
                 "error_code": "persistence_unavailable"}
 
+    # A pest may reference a published model rather than restate it. Those
+    # dates come from USA-NPN for this ground, not from the heat curve, so they
+    # are resolved before the feed is built and travel as dated events.
+    referenced: list[dict[str, Any]] = []
+    unresolved: list[dict[str, Any]] = []
+    try:
+        referenced, unresolved = await catalog.resolve_referenced_models(parsed, pests)
+    except (biota.BiotaError, OSError) as exc:
+        # A forecast that will not answer must not cost the grower the rest of
+        # their calendar. Say which models went unresolved and build the rest.
+        logger.warning("referenced pest models did not resolve: %s", exc)
+        unresolved = [{"pest": str(p.get("pest") or "?"),
+                       "reason": f"the published forecast did not answer: {exc}"}
+                      for p in pests if p.get("model")]
+
     feed_token = token.strip() or calendar_feed.new_token()
     try:
         built = await calendar_feed.build_feed(
             parsed, region_name, feed_token,
             plantings=plantings, pest_models=pests, wildlife_events=wildlife_events,
-            todos=todos, base_temp_f=base_temp,
+            todos=todos, base_temp_f=base_temp, referenced=referenced,
         )
     except (CalendarError, CropError, PestError, WildlifeError) as exc:
         return {"success": False, "error": str(exc), "error_code": "invalid_request"}
@@ -1410,6 +1433,10 @@ async def calendar_dataset(
         # named — rather than a refusal that makes a partially-known season
         # unpublishable, which is most seasons.
         "skipped": built.get("skipped") or [],
+        # Models the grower referenced that this ground has no published layer
+        # for. Named rather than dropped: "NPN publishes nothing for this here"
+        # is an answer, and a silent omission is not.
+        "unresolved_models": unresolved,
         "computed_on": built["computed_on"],
         "note": (
             "Subscribe with the webcal link, or paste the https one into "

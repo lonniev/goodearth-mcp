@@ -22,7 +22,7 @@ import time
 from datetime import UTC, date, datetime
 from typing import Any
 
-from goodearth_mcp import biota
+from goodearth_mcp import biota, roster
 from goodearth_mcp.region import Region
 
 # Groups offered for the wildlife catalogue. This maps a taxon to an icon —
@@ -303,3 +303,46 @@ def _sources() -> list[dict[str, Any]]:
         {"name": "USA-NPN Pheno Forecast", "role": "degree-day pest models",
          "resolution_m": biota.NPN_RESOLUTION_M},
     ]
+
+
+async def resolve_referenced_models(
+    region: Region, pests: list[dict[str, Any]], today: date | None = None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Dates for the pests that reference a published model instead of stating one.
+
+    Returns ``(events, unresolved)``. An event is the same shape the pest
+    catalog already publishes — name, date, source, resolution — because it IS
+    that: the caller asked for the published forecast for their own ground, and
+    this is that forecast, cited.
+
+    Names are matched with the roster's own comparison, which already knows a
+    grower's "Japanese beetle" and a layer's "japanese beetle adult" are the
+    same animal. A pest that names a model but finds no layer for this ground
+    comes back in ``unresolved`` rather than vanishing: "NPN publishes nothing
+    for this here" is an answer, and a silent omission is not.
+    """
+    wanted = [p for p in pests if p.get("model") and not p.get("stages")]
+    if not wanted:
+        return [], []
+
+    catalog = await region_pest_catalog(region, today=today)
+    published = catalog.get("events") or []
+
+    events: list[dict[str, Any]] = []
+    unresolved: list[dict[str, Any]] = []
+    for p in wanted:
+        name = str(p.get("pest") or "")
+        hits = [e for e in published if roster._matches(name, {roster.norm(e["name"])})]
+        if not hits:
+            unresolved.append({
+                "pest": name,
+                "reason": (
+                    f"{p['model']} publishes no dated layer for this ground — "
+                    "the model is on your list, but it has nothing to say here yet"
+                ),
+            })
+            continue
+        for e in hits:
+            events.append({**e, "pest": name, "via": p["model"]})
+    events.sort(key=lambda e: e["date"])
+    return events, unresolved

@@ -23,6 +23,12 @@ from typing import Any
 MAX_THRESHOLDS = 12
 
 
+#: Models a grower may reference rather than restate. Kept deliberately short:
+#: each entry is a published source this service already reads for the caller's
+#: own coordinates, so a name here is a promise that dates can be resolved.
+PUBLISHED_MODELS = {"usa-npn"}
+
+
 class PestError(ValueError):
     """A pest model cannot be evaluated as described."""
 
@@ -54,6 +60,30 @@ def validate_model(model: Any) -> dict[str, Any]:
 
     stages_raw = model.get("stages")
 
+    # A grower may REFERENCE a published model instead of restating it.
+    #
+    # USA-NPN publishes pheno-forecast layers, and this service already reads
+    # them for the caller's own ground — pest_catalog renders their dates on
+    # screen. So "watch the Japanese beetle by the published model" needs no
+    # degree-day figures from the caller at all, and asking for them invites
+    # exactly the confidently-wrong numbers review_roster warns about: an agent
+    # can only get those from training data.
+    #
+    # This is citing a source, not publishing entomology. The dates come from
+    # NPN, for this block, and they are labelled with where they came from.
+    # It also means the model RE-RESOLVES every season, where stages copied in
+    # once would freeze whatever the forecast said the day they were pasted.
+    reference = str(model.get("model") or "").strip().lower()
+    if reference and not stages_raw:
+        if reference not in PUBLISHED_MODELS:
+            raise PestError(
+                f"{pest}: {reference!r} is not a published model. "
+                f"Use one of {', '.join(sorted(PUBLISHED_MODELS))}, give your own "
+                "stages, or set watch=true to note it without dating it."
+            )
+        return {"pest": pest, "base_temp_f": base_f, "biofix": biofix,
+                "stages": [], "model": reference}
+
     # A watch list is not a model. A grower watches voles, slugs and wasps —
     # creatures with no degree-day stages, watched all season — and demanding
     # thresholds for them invites exactly the invented numbers review_roster
@@ -65,8 +95,9 @@ def validate_model(model: Any) -> dict[str, Any]:
 
     if not isinstance(stages_raw, list) or not stages_raw:
         raise PestError(
-            f"{pest}: needs a non-empty stages list, or watch=true to note it "
-            "as something you keep an eye on without dating it"
+            f"{pest}: needs a non-empty stages list, model=\"usa-npn\" to use the "
+            "published forecast for your ground, or watch=true to note it as "
+            "something you keep an eye on without dating it"
         )
     if len(stages_raw) > MAX_THRESHOLDS:
         raise PestError(f"{pest}: {len(stages_raw)} stages is more than one model should carry")
