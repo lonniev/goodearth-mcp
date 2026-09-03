@@ -1447,6 +1447,12 @@ export interface ItemRow {
   [field: string]: unknown;
 }
 
+/// The columns the server will order by. Mirrors `block_store.SORTABLE`
+/// rather than hoping the two agree — a key absent there cannot be sorted by.
+export type ItemSort =
+  | "name" | "event" | "driver" | "starts_on" | "target_gdd"
+  | "observed_on" | "season" | "created" | "updated";
+
 export interface ItemPage {
   success: boolean;
   block_id: string;
@@ -1484,6 +1490,11 @@ export async function blockItemList(
   q: {
     season?: number; since?: string; until?: string; as_of?: string;
     include_retired?: boolean; page?: number; page_size?: number;
+    /// Case-insensitive regex over name and event, applied by the database.
+    search?: string;
+    /// name | event | driver | starts_on | target_gdd | observed_on | season |
+    /// created | updated. Omit for the record's default order.
+    sort_col?: ItemSort; sort_dir?: "asc" | "desc";
   } = {},
 ): Promise<ItemPage> {
   return callTool<ItemPage>("block_item_list", { block, kind, ...q });

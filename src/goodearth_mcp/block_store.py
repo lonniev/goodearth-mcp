@@ -30,15 +30,27 @@ date predicate over rows that were live then. The vault has no transactions —
 one POST per statement — so a version pointer could not be maintained atomically
 anyway.
 
-**What is encrypted and what is not.** The grower's content — names, geometry,
-crops, species, thresholds, notes, coordinates — is encrypted at rest with the
-SDK's ``VaultCipher``, bound to its owner by AAD so a ciphertext cannot be moved
-between patrons. The skeleton that the database sorts, filters and pages by —
-kind, season, observation date, retirement — stays in the clear, because
-encrypting the columns you filter on means decrypting the whole table per query.
-A block is found by name through a blind index: a deterministic HMAC of the
-normalised name, which is an indexed equality lookup that does not put the plot's
-name in the clear beside its own ciphertext.
+**What is encrypted and what is not.** An item's content is in the clear, like
+every other operator in the fleet: taxsort holds bank descriptions, amounts and
+account names that way, excalibur holds post bodies that way, and Good Earth
+holds crop names and species. This service was the fleet's only user of
+``VaultCipher`` on business rows, and no requirement asked for it — ``ee6ec8b``
+introduced the sealing stating only its mechanics. It was reached for by analogy
+to a rule about **PII and financial data**, which a record of what grows in a
+field is not.
+
+That mattered because it was not free. ``VaultCipher`` derives one key from the
+OPERATOR's nsec, so it defended a stolen database dump and nothing else — the
+operator could read every row regardless — while making it impossible for
+Postgres to sort, search, filter or index any of the grower's own content. The
+Crops, Pests and Wildlife pages could not have the sorted, searchable, paged
+tables that Tasks has, for a protection weaker than the one taxsort declines to
+apply to tax records.
+
+The block's **geometry stays sealed**. A polygon is the precise boundary of
+someone's property and a dump would tie it to a public npub, which is a
+question about physical safety rather than about business data. It is never
+sorted or searched, so keeping it costs nothing.
 """
 
 from __future__ import annotations
@@ -61,6 +73,11 @@ ITEMS = "goodearth_block_items"
 _vault: Any = None
 _cipher: Any = None
 _schema_done = False
+_backfill_done = False
+
+#: Rows converted per pass. Small enough that a cold start is not held up by a
+#: long-established farm, large enough that a normal one finishes in one.
+_BACKFILL_BATCH = 500
 
 #: The kinds of thing that can hang off a block. ``planting``/``pest``/
 #: ``wildlife`` are scoped to a season; ``observation`` is scoped to the day it
@@ -167,7 +184,155 @@ _MIGRATIONS: list[str] = [
     f"CREATE INDEX IF NOT EXISTS ge_items_season_idx ON {ITEMS} (npub, block_id, kind, season_year)",
     f"CREATE INDEX IF NOT EXISTS ge_items_seen_idx ON {ITEMS} (npub, block_id, kind, observed_on)",
     f"ALTER TABLE {ITEMS} ADD COLUMN IF NOT EXISTS source TEXT",
+
+    # The grower's content, where the database can reach it. Each column is a
+    # field the four pages sort, search or filter by; everything else rides in
+    # `payload`. `payload_enc` is the legacy sealed column, read on the way out
+    # and never written again — it is dropped once no row still needs it.
+    f"ALTER TABLE {ITEMS} ADD COLUMN IF NOT EXISTS name TEXT",
+    f"ALTER TABLE {ITEMS} ADD COLUMN IF NOT EXISTS event TEXT",
+    f"ALTER TABLE {ITEMS} ADD COLUMN IF NOT EXISTS driver TEXT",
+    f"ALTER TABLE {ITEMS} ADD COLUMN IF NOT EXISTS starts_on DATE",
+    f"ALTER TABLE {ITEMS} ADD COLUMN IF NOT EXISTS target_gdd DOUBLE PRECISION",
+    f"ALTER TABLE {ITEMS} ADD COLUMN IF NOT EXISTS payload JSONB",
+    # payload_enc was NOT NULL when it was the only place content lived.
+    f"ALTER TABLE {ITEMS} ALTER COLUMN payload_enc DROP NOT NULL",
+    f"CREATE INDEX IF NOT EXISTS ge_items_name_idx ON {ITEMS} (npub, block_id, kind, name)",
+    f"CREATE INDEX IF NOT EXISTS ge_items_starts_idx ON {ITEMS} (npub, block_id, kind, starts_on)",
+
 ]
+
+
+# ── What the database can see, per kind ──────────────────────────────────
+#
+# Four kinds keep four vocabularies for the same few ideas, so the mapping is
+# stated once here rather than branched on at every read and write. A key not
+# listed simply stays in `payload`, which is the default and needs no entry.
+
+#: payload key -> clear column, tried in order. First hit wins.
+_CLEAR_COLUMNS: dict[str, tuple[str, ...]] = {
+    # What the row is about: a crop, a pest, a creature, a sighting's tag.
+    "name": ("crop", "pest", "species", "tag"),
+    # Wildlife alone distinguishes several events for one creature — the
+    # owner's case: migration arrival and migration departure are two rows
+    # about one species, and only `event` tells them apart.
+    "event": ("event",),
+    "driver": ("driver",),
+    # The day the clock starts: a set-out, a pest's biofix, a typical date.
+    "starts_on": ("set_out", "biofix", "typical_on", "from"),
+    # The heat it is counting toward. A pest carries one per stage rather than
+    # one per model, so it has none here and sorts by name instead.
+    "target_gdd": ("gdd_target", "gdd"),
+}
+
+#: Sort keys a caller may name. The value is SQL and the key is not, which is
+#: what stops a sort parameter from becoming an injection — the guard
+#: ``task_store.SORTABLE`` uses. A column absent from this map cannot be
+#: sorted by at all.
+SORTABLE: dict[str, str] = {
+    "name": "LOWER(name)",
+    "event": "LOWER(event)",
+    "driver": "driver",
+    "starts_on": "starts_on",
+    "target_gdd": "target_gdd",
+    "observed_on": "observed_on",
+    "season": "season_year",
+    "created": "created_at",
+    "updated": "updated_at",
+}
+
+#: The order used when a caller names no sort. Unchanged from before the clear
+#: columns existed, so adding the capability moved nothing already on screen.
+LEGACY_ORDER = "observed_on DESC NULLS LAST, created_at DESC, item_id ASC"
+
+
+
+def clear_columns(payload: dict[str, Any]) -> dict[str, Any]:
+    """The parts of an item the database is allowed to see.
+
+    Reads the item's own vocabulary through ``_CLEAR_COLUMNS`` and returns the
+    five columns, any of which may be None. Nothing is removed from the
+    payload: a crop is stored as ``crop`` there AND as ``name`` here, because
+    a reader that had to know which of four keys held the name is exactly the
+    branching this table exists to stop.
+    """
+    out: dict[str, Any] = {}
+    for column, keys in _CLEAR_COLUMNS.items():
+        value = next((payload[k] for k in keys if payload.get(k) not in (None, "")), None)
+        if value is None:
+            out[column] = None
+        elif column == "target_gdd":
+            try:
+                out[column] = float(value)
+            except (TypeError, ValueError):
+                out[column] = None
+        elif column == "starts_on":
+            # A date column will not take "sometime in April". Anything that is
+            # not a date is left out rather than rejected — the row is still a
+            # true thing the grower recorded.
+            try:
+                out[column] = date.fromisoformat(str(value)[:10]).isoformat()
+            except (TypeError, ValueError):
+                out[column] = None
+        else:
+            out[column] = str(value)[:MAX_NAME_LEN]
+    return out
+
+
+def clean_search(pattern: str) -> str:
+    """A regex the caller may search with, or a refusal."""
+    pat = (pattern or "").strip()
+    if not pat:
+        return ""
+    if len(pat) > MAX_SEARCH_LEN:
+        raise BlockError(f"search pattern is longer than {MAX_SEARCH_LEN} characters")
+    return pat
+
+
+async def _backfill(v: Any) -> None:
+    """Move sealed payloads into the clear columns, once.
+
+    Bounded and idempotent: it only ever looks at rows that have not been
+    converted, and it writes the new columns without touching ``payload_enc``,
+    so the old read path keeps working throughout and a bad pass can simply be
+    run again. If it fills a whole batch there is probably more, so the flag is
+    left unset and the next request continues.
+    """
+    global _backfill_done
+    rows_r = await v._execute(
+        _t(
+            f"SELECT npub, item_id, block_id, payload_enc FROM {ITEMS} "
+            f"WHERE payload IS NULL AND payload_enc IS NOT NULL LIMIT {_BACKFILL_BATCH}"
+        ),
+    )
+    rows = rows_r.get("rows") or []
+    if not rows:
+        _backfill_done = True
+        return
+
+    moved = 0
+    for row in rows:
+        npub, iid = row.get("npub") or "", row.get("item_id") or ""
+        payload = _open(row.get("payload_enc"), npub, row.get("block_id") or "", default=None)
+        if not isinstance(payload, dict):
+            # Unreadable under the current key. Leave payload_enc alone and put
+            # an empty object in payload so the row stops being retried forever
+            # — it keeps its bookkeeping columns and stays visible as a row.
+            payload = {}
+        cols = clear_columns(payload)
+        await v._execute(
+            _t(
+                f"UPDATE {ITEMS} SET payload = $3::jsonb, name = $4, event = $5, "
+                "driver = $6, starts_on = $7::date, target_gdd = $8 "
+                "WHERE npub = $1 AND item_id = $2"
+            ),
+            [npub, iid, json.dumps(payload), cols["name"], cols["event"],
+             cols["driver"], cols["starts_on"], cols["target_gdd"]],
+        )
+        moved += 1
+    logger.info("block items: moved %d row(s) into the clear columns", moved)
+    if moved < _BACKFILL_BATCH:
+        _backfill_done = True
 
 
 async def _vault_for() -> Any:
@@ -191,6 +356,13 @@ async def _vault_for() -> Any:
                 ok = False
                 logger.error("block schema statement failed: %s — %s", stmt[:60], exc)
         _schema_done = ok
+    if _schema_done and not _backfill_done:
+        try:
+            await _backfill(_vault)
+        except Exception as exc:  # noqa: BLE001
+            # A failed conversion must never cost the grower their record: the
+            # sealed column is still there and still read.
+            logger.error("block item backfill failed: %s", exc)
     return _vault
 
 
@@ -496,15 +668,19 @@ async def save_items(
         seen = _clean_day(item.get("observed_on"), "observed_on")
         if k == "observation" and not seen:
             raise BlockError("an observation needs the day it was observed")
+        clear = clear_columns(payload)
         n = len(args)
         cols.append(
-            f"(${n + 1},${n + 2},${n + 3},${n + 4},${n + 5},${n + 6}::date,${n + 7},${n + 8})"
+            f"(${n + 1},${n + 2},${n + 3},${n + 4},${n + 5},${n + 6}::date,${n + 7}::jsonb,"
+            f"${n + 8},${n + 9},${n + 10},${n + 11},${n + 12}::date,${n + 13})"
         )
         args.extend([
             npub, iid, block_id, k,
             None if k == "observation" else year,
-            seen, _seal(payload, npub, block_id),
+            seen, json.dumps(payload),
             str(item.get("source") or "") or None,
+            clear["name"], clear["event"], clear["driver"],
+            clear["starts_on"], clear["target_gdd"],
         ])
         ids.append(iid)
 
@@ -512,10 +688,16 @@ async def save_items(
     await v._execute(
         _t(
             f"INSERT INTO {ITEMS} (npub, item_id, block_id, kind, season_year, observed_on, "
-            f"payload_enc, source) VALUES {','.join(cols)} "
+            f"payload, source, name, event, driver, starts_on, target_gdd) "
+            f"VALUES {','.join(cols)} "
             "ON CONFLICT (npub, item_id) DO UPDATE SET "
-            "payload_enc = EXCLUDED.payload_enc, season_year = EXCLUDED.season_year, "
+            "payload = EXCLUDED.payload, season_year = EXCLUDED.season_year, "
             "observed_on = EXCLUDED.observed_on, source = EXCLUDED.source, "
+            "name = EXCLUDED.name, event = EXCLUDED.event, driver = EXCLUDED.driver, "
+            "starts_on = EXCLUDED.starts_on, target_gdd = EXCLUDED.target_gdd, "
+            # An edit supersedes whatever the sealed column held, so it is
+            # cleared rather than left to contradict the row it sits in.
+            "payload_enc = NULL, "
             "retired_at = NULL, updated_at = NOW() "
             f"WHERE {ITEMS}.npub = EXCLUDED.npub"
         ),
@@ -543,17 +725,42 @@ async def retire_items(npub: str, item_ids: list[str]) -> int:
     return int(r.get("rowCount") or r.get("rowcount") or 0)
 
 
+def _payload_of(row: dict[str, Any], npub: str, block_id: str) -> dict[str, Any]:
+    """An item's content, from the clear column or the legacy sealed one.
+
+    Both are read for as long as any row still holds only the sealed form. A
+    row converted by the backfill has `payload`; one written before this change
+    and not yet reached still has only `payload_enc`, and must not read as an
+    empty item in the meantime.
+    """
+    clear = row.get("payload")
+    if isinstance(clear, dict):
+        return clear
+    if isinstance(clear, str) and clear:
+        try:
+            return json.loads(clear)
+        except (TypeError, ValueError):
+            pass
+    return _open(row.get("payload_enc"), npub, block_id, default={}) or {}
+
+
 async def list_items(
     npub: str, block_id: str, kind: str, *,
     season_year: int | None = None, since: str = "", until: str = "",
     as_of: str = "", include_retired: bool = False,
+    search: str = "", sort_col: str = "", sort_dir: str = "asc",
     page: int = 0, page_size: int = 50,
 ) -> dict[str, Any]:
-    """One page of items of one kind.
+    """One page of items of one kind, ordered and filtered by the database.
 
     ``as_of`` asks what was live on a past day — the whole of the
     season-history requirement, answered by a date predicate rather than a
     version table.
+
+    ``sort_col`` and ``search`` reach the grower's own content, which they
+    could not while it was sealed: a name that only exists inside a ciphertext
+    cannot be an ORDER BY. Naming no ``sort_col`` keeps the order this function
+    has always returned, so the new capability moved nothing already on screen.
     """
     k = _clean_kind(kind)
     pg = max(0, int(page or 0))
@@ -582,6 +789,13 @@ async def list_items(
         args.append(_clean_day(until, "until"))
         where.append(f"observed_on <= ${len(args)}::date")
 
+    pat = clean_search(search)
+    if pat:
+        args.append(pat)
+        # ~* is case-insensitive POSIX regex. Name and event together, so a
+        # grower looking for "migration" finds both of a species' events.
+        where.append(f"(COALESCE(name,'') ~* ${len(args)} OR COALESCE(event,'') ~* ${len(args)})")
+
     clause = " AND ".join(where)
     v = await _vault_for()
     total_r = await v._execute(
@@ -589,20 +803,26 @@ async def list_items(
     )
     total = int((total_r.get("rows") or [{"n": 0}])[0].get("n") or 0)
 
-    # observed_on first for observations, season then creation for the rest;
-    # item_id last so a row cannot land on two pages or on none.
-    order = "observed_on DESC NULLS LAST, created_at DESC, item_id ASC"
+    # Never interpolated: the caller's sort_col indexes SORTABLE. Naming none
+    # keeps the legacy order — observed_on for sightings, creation for the
+    # rest, item_id last so a row cannot land on two pages or on none.
+    if sort_col and sort_col in SORTABLE:
+        direction = "DESC" if str(sort_dir).lower() == "desc" else "ASC"
+        order = f"{SORTABLE[sort_col]} {direction} NULLS LAST, item_id ASC"
+    else:
+        order = LEGACY_ORDER
+
     rows_r = await v._execute(
         _t(
-            f"SELECT npub, item_id, block_id, kind, season_year, observed_on, payload_enc, "
-            f"source, retired_at, created_at, updated_at FROM {ITEMS} WHERE {clause} "
-            f"ORDER BY {order} LIMIT {size} OFFSET {pg * size}"
+            f"SELECT npub, item_id, block_id, kind, season_year, observed_on, payload, "
+            f"payload_enc, source, retired_at, created_at, updated_at FROM {ITEMS} "
+            f"WHERE {clause} ORDER BY {order} LIMIT {size} OFFSET {pg * size}"
         ),
         args,
     )
     items = []
     for row in rows_r.get("rows") or []:
-        payload = _open(row.get("payload_enc"), npub, block_id, default={}) or {}
+        payload = _payload_of(row, npub, block_id)
         items.append({
             **payload,
             "item_id": row.get("item_id"),
@@ -619,4 +839,6 @@ async def list_items(
         "page_size": size,
         "pages": (total + size - 1) // size if size else 0,
         "kind": k,
+        "sort_col": sort_col if sort_col in SORTABLE else "",
+        "sort_dir": "desc" if str(sort_dir).lower() == "desc" else "asc",
     }
