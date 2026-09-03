@@ -71,6 +71,33 @@ class UpstreamError(RuntimeError):
     """An upstream feed failed or answered in a shape we don't recognise."""
 
 
+def _why(exc: Exception) -> str:
+    """Why a feed did not answer, in words.
+
+    Every httpx transport error stringifies to the empty string — a timeout, a
+    refused connection and a DNS failure all render as "". So the message read
+    "archive-api.open-meteo.com/v1/archive unreachable:" and stopped, which
+    tells a grower nothing and tells whoever is debugging it less: they cannot
+    distinguish "the service is down" from "we have no network" from "the
+    address is wrong", which are three different days' work.
+
+    The exception CLASS always carries the answer, so it is used when the
+    message is empty, and timeouts say how long they waited.
+    """
+    said = str(exc).strip()
+    if isinstance(exc, httpx.TimeoutException):
+        kind = {
+            httpx.ConnectTimeout: "did not accept a connection",
+            httpx.ReadTimeout: "accepted the connection but sent nothing back",
+            httpx.WriteTimeout: "would not accept the request",
+            httpx.PoolTimeout: "had no free connection",
+        }.get(type(exc), "timed out")
+        return f"{kind} within {_TIMEOUT:g}s"
+    if isinstance(exc, httpx.ConnectError):
+        return said or "the connection was refused or the host could not be found"
+    return said or type(exc).__name__
+
+
 async def _get(client: httpx.AsyncClient, url: str, params: dict[str, Any]) -> Any:
     try:
         resp = await client.get(url, params=params)
@@ -79,7 +106,7 @@ async def _get(client: httpx.AsyncClient, url: str, params: dict[str, Any]) -> A
     except httpx.HTTPStatusError as exc:
         raise UpstreamError(f"{url} returned HTTP {exc.response.status_code}") from exc
     except httpx.HTTPError as exc:
-        raise UpstreamError(f"{url} unreachable: {exc}") from exc
+        raise UpstreamError(f"{url} unreachable: {_why(exc)}") from exc
     except ValueError as exc:
         raise UpstreamError(f"{url} returned malformed JSON") from exc
 
@@ -503,7 +530,7 @@ async def fetch_daymet_history(lat: float, lon: float, start: str, end: str) -> 
         except httpx.HTTPStatusError as exc:
             raise UpstreamError(f"Daymet returned HTTP {exc.response.status_code}") from exc
         except httpx.HTTPError as exc:
-            raise UpstreamError(f"Daymet unreachable: {exc}") from exc
+            raise UpstreamError(f"Daymet unreachable: {_why(exc)}") from exc
 
     dates, tmax, tmin = parse_daymet_csv(resp.text, start, end)
     return {
