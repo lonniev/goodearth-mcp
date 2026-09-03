@@ -1089,6 +1089,10 @@ export interface WildlifeEventInput {
 }
 
 export interface WildlifeRow {
+  /// The saved watch this row is about, echoed back untouched. One creature
+  /// can hold several events — an arrival and a departure — and only this
+  /// separates them with certainty.
+  ref?: string;
   species: string; event: string; emoji: string | null; note: string | null;
   driver: "heat" | "daylight" | "interval" | "calendar";
   threshold: string;
