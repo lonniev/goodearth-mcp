@@ -123,3 +123,43 @@ def test_a_stated_zero_is_still_refused():
     """Absent is a gap; zero is a claim, and a wrong one."""
     with pytest.raises(crops.CropError):
         crops.validate_planting({"crop": "X", "gdd_target": 0, "set_out": "2026-05-01"})
+
+
+# ── The same shape, in every collection ──────────────────────────────────
+
+
+def test_every_collection_lets_a_grower_record_without_dating():
+    """One rule, three collections: naming a thing is not scheduling it.
+
+    Each of these was mandatory once, and each refusal cost a whole page —
+    a crop ledger, a pest list, a wildlife year — because the rows were
+    validated as a batch. A grower records what is on their ground long
+    before they can date it.
+    """
+    from goodearth_mcp import wildlife
+
+    assert crops.validate_planting({"crop": "Columbine"})["presence_only"] is True
+    assert pests.validate_model({"pest": "Vole", "watch": True})["watch"] is True
+    assert wildlife.validate_event({"species": "Great blue heron"})["roster_only"] is True
+
+
+def test_no_validator_is_called_in_a_list_comprehension():
+    """The fix does not generalise by being written down once.
+
+    calendar_feed was fixed, then crop_status was found with the same bug, then
+    both windows. A comprehension over a validator means one unusable row takes
+    every good row with it.
+    """
+    import pathlib
+    import re
+
+    src_dir = pathlib.Path(__file__).parent.parent / "src" / "goodearth_mcp"
+    offenders = []
+    for path in src_dir.glob("*.py"):
+        for n, line in enumerate(path.read_text().splitlines(), 1):
+            if re.search(r"\[\s*\w*\.?validate_\w+\(.*for .* in ", line):
+                offenders.append(f"{path.name}:{n}")
+    assert not offenders, (
+        "validator called inside a comprehension at " + ", ".join(offenders)
+        + " — one bad row will take the whole collection with it"
+    )

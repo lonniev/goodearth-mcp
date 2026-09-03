@@ -42,7 +42,16 @@ async def region_calibration(
             f"(limit {MAX_OBSERVATIONS})"
         )
 
-    parsed = [calibration.validate_observation(o) for o in observations]
+    # One unusable row must not cost the rest. Found by the guard in
+    # tests/test_partial_knowledge.py after the same bug was fixed four times
+    # elsewhere and still lived here.
+    parsed = []
+    skipped = []
+    for row in observations:
+        try:
+            parsed.append(calibration.validate_observation(row))
+        except calibration.CalibrationError as exc_:
+            skipped.append({"name": str((row or {}).get("kind") or "?"), "reason": str(exc_)})
 
     # Reports can span seasons, and a stage seen in 2024 must be counted
     # against 2024's heat. One archive request covers the whole span.
@@ -141,6 +150,7 @@ async def region_calibration(
 
     return {
         "success": True,
+        "skipped": skipped,
         "as_of": today.isoformat(),
         "region": region.describe(),
         "observations_used": len(parsed),
