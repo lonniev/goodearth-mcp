@@ -383,6 +383,22 @@ async def fetch_daily_history(
     # a rate-limit slot to be told nothing.
     if not lats or not lons:
         return []
+
+    # A multi-season record of max/min is exactly what Daymet is for, and it is
+    # both the finest and the fastest source we have for it: 1 km, and ten
+    # years in 0.8 s against 3.5 s from the reanalysis and 25.4 s from the
+    # model runs. It also keeps the diurnal range sharp, which matters here
+    # more than anywhere — a frost record is a record of MINIMA, and a source
+    # that smooths them dates the first frost late.
+    #
+    # One point only: Daymet is a single-pixel service, so a multi-point
+    # request still goes to Open-Meteo, which answers them in one call.
+    if len(lats) == 1 and _span_days({"start_date": start, "end_date": end}) > DEEP_SPAN_DAYS:
+        try:
+            record = await fetch_daymet_history(lats[0], lons[0], start, end)
+            return [_stamp(record, "Daymet v4 (NASA ORNL)", DAYMET_RESOLUTION_M)]
+        except UpstreamError as exc:
+            logger.warning("history: Daymet did not answer (%s)", exc)
     payload, name, res = await _history_any_feed({
         "latitude": ",".join(f"{v:.6f}" for v in lats),
         "longitude": ",".join(f"{v:.6f}" for v in lons),
@@ -417,6 +433,25 @@ def feed_of(records: Any) -> dict[str, Any]:
     return {"name": name, "resolution_m": res}
 
 
+#: A span longer than this is "deep history" — a record or a normal, not the
+#: running season. Measured on the same ten-year request: the archived model
+#: runs took 25.4 s where the reanalysis took 3.5 s, against a 30 s timeout. The
+#: model-run feed reconstructs deep history and is slow at it; the reanalysis is
+#: built for exactly that query. Which feed is "best" depends on the SPAN, and
+#: sending every span to the same one is what made this look like an outage.
+DEEP_SPAN_DAYS = 400
+
+
+def _span_days(params: dict[str, Any]) -> int:
+    """How many days this request covers, or 0 if it does not say."""
+    try:
+        a = date.fromisoformat(str(params["start_date"])[:10])
+        b = date.fromisoformat(str(params["end_date"])[:10])
+    except (KeyError, TypeError, ValueError):
+        return 0
+    return max((b - a).days, 0)
+
+
 async def _history_any_feed(params: dict[str, Any]) -> tuple[Any, str, int]:
     """Ask each history feed in turn; return the first answer and who gave it.
 
@@ -430,8 +465,16 @@ async def _history_any_feed(params: dict[str, Any]) -> tuple[Any, str, int]:
     now serves the sun times and the soil fields it once lacked — so this is a
     plain retry against a different host, not a translation layer.
     """
+    # Order by what the span needs. A season wants resolution: its minima decide
+    # frost dates and its cells decide whether one farm's ends differ. A decade
+    # wants to arrive at all — a ten-year read that takes 25 s against a 30 s
+    # timeout is a coin toss dressed as a service.
+    feeds = _HISTORY_FEEDS
+    if _span_days(params) > DEEP_SPAN_DAYS:
+        feeds = tuple(reversed(feeds))
+
     last: UpstreamError | None = None
-    for url, name, res in _HISTORY_FEEDS:
+    for url, name, res in feeds:
         try:
             async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
                 return await _get(client, url, params), name, res
