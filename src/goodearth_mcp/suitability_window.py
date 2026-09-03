@@ -12,7 +12,7 @@ import statistics
 from datetime import UTC, date, datetime
 from typing import Any
 
-from goodearth_mcp import frost, gdd, sources, suitability
+from goodearth_mcp import frost, gdd, record_cache, sources, suitability
 from goodearth_mcp.region import Region
 
 RECORD_SPAN_YEARS = 8
@@ -107,7 +107,7 @@ async def region_suitability(
             skipped.append({"name": str((row or {}).get("crop") or "?"), "reason": str(exc_)})
 
     try:
-        record = await sources.fetch_daily_history(
+        record = await record_cache.daily_history(
             [region.centroid.lat], [region.centroid.lon],
             date(today.year - RECORD_SPAN_YEARS, 1, 1).isoformat(),
             date(today.year - 1, 12, 31).isoformat(),

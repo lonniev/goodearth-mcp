@@ -13,7 +13,7 @@ import asyncio
 from datetime import UTC, date, datetime
 from typing import Any
 
-from goodearth_mcp import soil, sources
+from goodearth_mcp import record_cache, soil, sources
 from goodearth_mcp.region import Region
 
 RECORD_SPAN_YEARS = 8
@@ -40,7 +40,7 @@ async def region_soil_window(
     )
     # One span request for the record, sliced per season locally — same shape
     # as the normals band, and for the same rate-limit reason.
-    history_task = sources.fetch_soil_history(
+    history_task = record_cache.soil_history(
         region.centroid.lat, region.centroid.lon, spec["archive"],
         date(today.year - RECORD_SPAN_YEARS, 1, 1).isoformat(),
         date(today.year - 1, 12, 31).isoformat(),

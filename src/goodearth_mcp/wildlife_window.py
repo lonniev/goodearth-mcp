@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 from typing import Any
 
-from goodearth_mcp import crops, gdd, sources, wildlife
+from goodearth_mcp import crops, gdd, record_cache, sources, wildlife
 from goodearth_mcp.region import Region
 
 
@@ -60,7 +60,7 @@ async def region_wildlife(
     if needs_heat or needs_light:
         start = gdd.season_start(today)
         try:
-            record = await sources.fetch_almanac_history(
+            record = await record_cache.almanac_history(
                 region.centroid.lat, region.centroid.lon,
                 start.isoformat(), today.isoformat(),
             )

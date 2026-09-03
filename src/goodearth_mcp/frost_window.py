@@ -17,7 +17,7 @@ import asyncio
 from datetime import UTC, date, datetime
 from typing import Any
 
-from goodearth_mcp import frost, gdd, sources
+from goodearth_mcp import frost, gdd, record_cache, sources
 from goodearth_mcp.region import Region, summarize
 
 RECORD_SPAN_YEARS = 10
@@ -43,7 +43,7 @@ async def region_frost_window(
     except sources.UpstreamError as exc:
         elevs, elev_note = None, str(exc)
 
-    record_task = sources.fetch_daily_history(
+    record_task = record_cache.daily_history(
         [region.centroid.lat],
         [region.centroid.lon],
         date(sources.record_start_year(today.year, RECORD_SPAN_YEARS), 1, 1).isoformat(),

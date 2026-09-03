@@ -14,7 +14,7 @@ import asyncio
 from datetime import UTC, date, datetime
 from typing import Any
 
-from goodearth_mcp import calibration, crops, frost, gdd, sources
+from goodearth_mcp import calibration, crops, frost, gdd, record_cache, sources
 from goodearth_mcp.region import Region
 
 MAX_OBSERVATIONS = 60
@@ -59,11 +59,11 @@ async def region_calibration(
     span_start = date(min(years), 1, 1)
     span_end = min(date(max(years), 12, 31), today)
 
-    history_task = sources.fetch_daily_history(
+    history_task = record_cache.daily_history(
         [region.centroid.lat], [region.centroid.lon],
         span_start.isoformat(), span_end.isoformat(),
     )
-    frost_task = sources.fetch_daily_history(
+    frost_task = record_cache.daily_history(
         [region.centroid.lat], [region.centroid.lon],
         date(sources.record_start_year(today.year, RECORD_SPAN_YEARS), 1, 1).isoformat(),
         date(today.year - 1, 12, 31).isoformat(),

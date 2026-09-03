@@ -13,7 +13,7 @@ import asyncio
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
-from goodearth_mcp import almanac, gdd, sources
+from goodearth_mcp import almanac, gdd, record_cache, sources
 from goodearth_mcp.region import Region
 
 NORMALS_SPAN_YEARS = 10
@@ -58,11 +58,11 @@ async def region_almanac(
     today = today or datetime.now(UTC).date()
     start = gdd.season_start(today)
 
-    actual_task = sources.fetch_almanac_history(
+    actual_task = record_cache.almanac_history(
         region.centroid.lat, region.centroid.lon,
         start.isoformat(), today.isoformat(),
     )
-    normals_task = sources.fetch_almanac_history(
+    normals_task = record_cache.almanac_history(
         region.centroid.lat, region.centroid.lon,
         date(today.year - NORMALS_SPAN_YEARS, 1, 1).isoformat(),
         date(today.year - 1, 12, 31).isoformat(),
