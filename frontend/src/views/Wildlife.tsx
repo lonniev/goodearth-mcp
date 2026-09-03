@@ -12,9 +12,10 @@ import { useCallback, useEffect, useState } from "react";
 import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
 import { wildlifeCalendar, type WildlifeResult } from "../lib/mcp";
+import { useBlockItems } from "../lib/blockItems";
 import {
-  deleteWildlife, DRIVER_HELP, HUSBANDRY_INTERVALS, listWildlife, makeWildlife,
-  saveWildlife, type SavedWildlife,
+  DRIVER_HELP, HUSBANDRY_INTERVALS, makeWildlife,
+  wildlifeCodec, type SavedWildlife,
 } from "../lib/wildlifeModels";
 import type { SavedRegion } from "../lib/regions";
 import { Empty, ErrorBox, FIELD, Note, PageTitle, Pill, Section, SpeciesChiclet } from "../components/ui";
@@ -33,7 +34,10 @@ const day = (iso: string) =>
 export default function Wildlife({
   region, onCost,
 }: { region: SavedRegion; onCost: (sats: number) => void }) {
-  const [models, setModels] = useState<SavedWildlife[]>(() => listWildlife(region.id));
+  // Read from the grower's record under their npub, not from this browser.
+  const { items: models, save: storeWildlife, retire: retireWildlife,
+          loading: modelsLoading, error: modelsError } =
+    useBlockItems<SavedWildlife>(region.id, "wildlife", wildlifeCodec);
   const [data, setData] = useState<WildlifeResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -54,7 +58,6 @@ export default function Wildlife({
   /// grower's, exactly as the species name does.
   const [eventName, setEventName] = useState("");
 
-  useEffect(() => { setModels(listWildlife(region.id)); }, [region.id]);
 
   const run = useCallback(async (list: SavedWildlife[]) => {
     if (!list.length) { setData(null); return; }
@@ -90,7 +93,7 @@ export default function Wildlife({
     }, region.id);
     if (typeof made === "string") { setError(made); return; }
     setError("");
-    setModels(saveWildlife(made).filter((m) => m.regionId === region.id));
+    void storeWildlife(made);
     // A controlled field is not cleared by form.reset(), so a saved event
     // would otherwise sit in the box looking unsaved.
     setSpecies(""); setEventName("");
@@ -173,7 +176,7 @@ export default function Wildlife({
                   {past ? "seen" : "ahead"}
                 </span>
                 {id && (
-                  <button onClick={() => setModels(deleteWildlife(id).filter((m) => m.regionId === region.id))}
+                  <button onClick={() => void retireWildlife(id)}
                     aria-label={`Remove ${e.species}`}
                     className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>
                 )}
@@ -181,6 +184,10 @@ export default function Wildlife({
             );
           })}
         </ul>
+      ) : modelsLoading ? (
+        <Empty>Reading what you have on {region.name}…</Empty>
+      ) : modelsError ? (
+        <ErrorBox>Could not read your record for {region.name}: {modelsError}</ErrorBox>
       ) : (
         <Empty>
           Nothing tracked on {region.name} yet. Take a creature from what is
@@ -264,7 +271,7 @@ export default function Wildlife({
                   days: h.days, from: husbandryFrom, emoji: h.emoji,
                 }, region.id);
                 if (typeof made === "string") setError(made);
-                else setModels(saveWildlife(made).filter((m) => m.regionId === region.id));
+                else void storeWildlife(made);
               }}
               title={`${h.days} days from ${h.from_label}`}
               className="data min-h-11 rounded-full border border-rule bg-panel px-3.5 text-[12px] text-ink-soft active:border-ink active:text-ink">

@@ -15,12 +15,13 @@ import QuoteScroller from "../components/QuoteScroller";
 import { calibration, type CalibrationResult } from "../lib/mcp";
 import { boundsFrom, fetchObservations, type INatObservation } from "../lib/inaturalist";
 import { geoJSONToRing } from "../lib/geo";
+import { useBlockItems } from "../lib/blockItems";
 import {
-  deleteReport, listReports, makeReport, saveReport, TAGS,
+  makeReport, reportCodec, TAGS,
   toObservations, type FieldReport, type ReportTag,
 } from "../lib/reports";
 import type { SavedRegion } from "../lib/regions";
-import { FIELD } from "../components/ui";
+import { ErrorBox, FIELD, Note } from "../components/ui";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const nice = (iso: string) =>
@@ -36,7 +37,11 @@ const CONFIDENCE: Record<string, string> = {
 export default function FieldReports({
   region, onCost,
 }: { region: SavedRegion; onCost: (sats: number) => void }) {
-  const [reports, setReports] = useState<FieldReport[]>(() => listReports(region.id));
+  // Observations are the most valuable thing a grower produces here, so they
+  // live on their record under their npub rather than in one browser.
+  const { items: reports, save: storeReport, retire: retireReport, reload: reloadReports,
+          loading: reportsLoading, error: reportsError } =
+    useBlockItems<FieldReport>(region.id, "observation", reportCodec);
   const [tag, setTag] = useState<ReportTag>("frost");
   const [cal, setCal] = useState<CalibrationResult | null>(null);
   const [ranAt, setRanAt] = useState<Date | null>(null);
@@ -51,7 +56,6 @@ export default function FieldReports({
   const [inatBusy, setInatBusy] = useState(false);
   const [picked, setPicked] = useState<Set<number>>(new Set());
 
-  useEffect(() => { setReports(listReports(region.id)); }, [region.id]);
 
   const run = useCallback(async (list: FieldReport[]) => {
     const obs = toObservations(list);
@@ -96,7 +100,7 @@ export default function FieldReports({
     });
     if (typeof made === "string") { setErr(made); return; }
     setErr("");
-    setReports(saveReport(made).filter((r) => r.regionId === region.id));
+    void storeReport(made).catch((e) => setErr(String(e.message ?? e)));
     e.currentTarget.reset();
     setHere(null);
   }
@@ -156,9 +160,9 @@ export default function FieldReports({
         ...(o.lat != null && o.lng != null ? { lat: o.lat, lng: o.lng } : {}),
         ...(o.flowering ? { crop: o.species, stage: "flowering" } : {}),
       });
-      if (typeof made !== "string") { saveReport(made); added++; }
+      if (typeof made !== "string") { void storeReport(made); added++; }
     }
-    setReports(listReports(region.id));
+    void reloadReports();
     setInat(null);
     setMsg(added
       ? `Imported ${added}. Bloom observations need a set-out date and an expected GDD before they can teach the model — add those on the rows that matter.`
@@ -327,6 +331,12 @@ export default function FieldReports({
       </div>
 
       {/* ── The log ────────────────────────────────────────────────────── */}
+      {/* The record is the truth here. An empty page would claim this ground
+          has never been walked, so a read that failed says so instead. */}
+      {reportsLoading && <Note>Reading your observations for {region.name}…</Note>}
+      {!reportsLoading && reportsError && (
+        <ErrorBox>Could not read your observations: {reportsError}</ErrorBox>
+      )}
       {reports.length > 0 && (
         <>
           <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold">
@@ -350,7 +360,7 @@ export default function FieldReports({
                     )}
                     {r.note && <p className="mt-0.5 text-[12.5px] text-ink-soft">{r.note}</p>}
                   </div>
-                  <button onClick={() => setReports(deleteReport(r.id).filter((x) => x.regionId === region.id))}
+                  <button onClick={() => void retireReport(r.id)}
                     aria-label="Delete report"
                     className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>
                 </li>
