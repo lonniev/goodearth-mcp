@@ -159,7 +159,7 @@ async def build_feed(
             ),
             await sources.fetch_daily_history(
                 [region.centroid.lat], [region.centroid.lon],
-                date(today.year - RECORD_SPAN_YEARS, 1, 1).isoformat(),
+                date(sources.record_start_year(today.year, RECORD_SPAN_YEARS), 1, 1).isoformat(),
                 date(today.year - 1, 12, 31).isoformat(),
             ),
         )
@@ -180,7 +180,7 @@ async def build_feed(
     if record:
         try:
             f_dates, _fx, f_tmin = sources.daily_series(record[0])
-            years = list(range(today.year - RECORD_SPAN_YEARS, today.year))
+            years = list(range(sources.record_start_year(today.year, RECORD_SPAN_YEARS), today.year))
             got = [d for y in years if (d := first_fall_frost(f_dates, f_tmin, y))]
             frost_summary = summarize_frost_dates(got, today.year)
         except (sources.UpstreamError, IndexError, ValueError):

@@ -157,8 +157,8 @@ async def region_planting_window(
             "slower in September than in July. Requirements are the caller's own."
         ),
         "sources": [
-            {"name": "Open-Meteo archive (ERA5)",
+            {"name": "Open-Meteo archived model runs",
              "role": f"{RECORD_SPAN_YEARS}-season frost record and heat rate",
-             "resolution_m": sources.ARCHIVE_RESOLUTION_M},
+             "resolution_m": sources.HISTORY_RESOLUTION_M},
         ],
     }

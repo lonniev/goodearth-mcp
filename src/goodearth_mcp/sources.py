@@ -10,16 +10,21 @@ variation across it — see ``downscale`` in ``gdd.py``.
 Sources (all free, no API key):
   - Daymet v4 (NASA ORNL) — daily observed max/min, **1 km**, North America,
     history only (it lags the current year)
-  - Open-Meteo archive    — daily observed max/min, ~9 km (ERA5)
-  - Open-Meteo forecast   — 7-day daily max/min, ~2-11 km by model
-  - Open-Meteo elevation  — terrain height, ~90 m (SRTM)
+  - Open-Meteo archived runs — daily observed max/min, ~2 km, from 2018
+  - Open-Meteo forecast      — 7-day daily max/min, ~2-11 km by model
+  - Open-Meteo elevation     — terrain height, ~90 m (SRTM)
 
-Daymet is nine times finer than the reanalysis archive and it shows: three
-points that ERA5 folds into one cell and returns identically for come back
-distinct from Daymet, ordered by their elevation. It cannot replace the
-archive — it carries no current year and no forecast — so it supplies the
-*history*, where frost dates and normals come from, and Open-Meteo supplies
-the running season.
+The running season used to come from the ERA5 reanalysis archive at ~9 km, and
+that was the wrong instrument for this service. Measured at Frogdale over one
+week, ERA5 put the daily swing at 15.5 °F where the archived model runs put it
+at 20.7 °F — almost the whole difference in the MINIMUM, which is what decides
+a frost date. And it snapped a request 4.6 km east, returning a single cell
+across 6.4 km of longitude: on a service whose claim is the spread across your
+own ground, the two ends of a farm cannot differ if they are one grid cell.
+
+Daymet still supplies the deep history, where the normals come from. It is
+finer still at 1 km, but it lags: it carries nothing after the previous year,
+so it cannot see the running season at all.
 """
 
 from __future__ import annotations
@@ -29,7 +34,18 @@ from typing import Any
 
 import httpx
 
-_ARCHIVE = "https://archive-api.open-meteo.com/v1/archive"
+# The season's record comes from Open-Meteo's archived high-resolution model
+# runs, not from ERA5.
+#
+# ERA5 is a ~9 km reanalysis and it SMOOTHS: measured on one week at Frogdale it
+# put the daily swing at 15.5 °F against this feed's 20.7 °F, almost all of the
+# difference in the minimum — and the minimum is what decides a frost date. It
+# also snapped a request 4.6 km east, giving one cell across 6.4 km of
+# longitude, which is fatal to a service whose whole claim is the spread across
+# YOUR ground: two ends of a farm cannot differ if they are the same grid cell.
+#
+# This feed snapped 1.4 km and gave four distinct cells over that same span.
+_HISTORY = "https://historical-forecast-api.open-meteo.com/v1/forecast"
 _FORECAST = "https://api.open-meteo.com/v1/forecast"
 _ELEVATION = "https://api.open-meteo.com/v1/elevation"
 _DAYMET = "https://daymet.ornl.gov/single-pixel/api/data"
@@ -38,7 +54,14 @@ _TIMEOUT = 30.0
 
 # Metres. What each feed can actually distinguish — quoted in tool responses
 # so a grower is never sold precision the data does not contain.
-ARCHIVE_RESOLUTION_M = 9_000
+# Measured, not quoted: four distinct cells across 0.08° of longitude at 44°N
+# is ~1.6 km. Rounded up, because a resolution claim should err coarse.
+HISTORY_RESOLUTION_M = 2_000
+
+#: The first season this feed carries. 2017 answers with nulls, 2018 with data,
+#: so a request reaching further back does not fail — it quietly returns
+#: nothing, which is the shape that gets read as "no frost that year".
+HISTORY_FROM_YEAR = 2018
 FORECAST_RESOLUTION_M = 11_000
 ELEVATION_RESOLUTION_M = 90
 DAYMET_RESOLUTION_M = 1_000
@@ -52,19 +75,29 @@ _DAILY_FROST = (
     "cloud_cover_mean,dew_point_2m_min"
 )
 
-# The almanac's own field set. Sunrise/sunset and the durations are only on the
-# forecast endpoint; the archive carries the measures but not the sun, so the
-# two lists differ and the caller must not assume symmetry.
+# The almanac's own field set. One list now: the archived model runs carry the
+# sun times too, where ERA5 did not, so the record and the outlook finally ask
+# for the same thing. The two lists that used to differ were a standing
+# invitation to assume symmetry that was not there.
 _DAILY_ALMANAC_FORECAST = (
     "temperature_2m_max,temperature_2m_min,dew_point_2m_mean,precipitation_sum,"
     "rain_sum,snowfall_sum,sunrise,sunset,daylight_duration,sunshine_duration,"
     "wind_speed_10m_max,wind_direction_10m_dominant,weather_code,"
     "precipitation_probability_max"
 )
-_DAILY_ALMANAC_ARCHIVE = (
-    "temperature_2m_max,temperature_2m_min,dew_point_2m_mean,precipitation_sum,"
-    "daylight_duration,sunshine_duration,wind_speed_10m_max,weather_code"
-)
+_DAILY_ALMANAC_HISTORY = _DAILY_ALMANAC_FORECAST
+
+
+def record_start_year(this_year: int, want_years: int) -> int:
+    """The earliest season the record can honestly reach.
+
+    The feed carries 2018 onward. Asking for 2016 does not fail — it answers
+    with nulls, which is exactly the shape that gets counted as "no frost that
+    year" and drags a ten-season median toward a date nothing observed. So the
+    span is clamped to what exists, and callers report the span they actually
+    got rather than the one they asked for.
+    """
+    return max(this_year - want_years, HISTORY_FROM_YEAR)
 
 
 class UpstreamError(RuntimeError):
@@ -158,7 +191,7 @@ async def fetch_daily_history(
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         payload = await _get(
             client,
-            _ARCHIVE,
+            _HISTORY,
             {
                 "latitude": _join(lats),
                 "longitude": _join(lons),
@@ -346,7 +379,7 @@ async def fetch_soil_history(
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         payload = await _get(
             client,
-            _ARCHIVE,
+            _HISTORY,
             {
                 "latitude": lat,
                 "longitude": lon,
@@ -403,11 +436,11 @@ async def fetch_almanac_history(lat: float, lon: float, start: str, end: str) ->
     """The same measures from the record, for actuals and for normals."""
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         payload = await _get(
-            client, _ARCHIVE,
+            client, _HISTORY,
             {
                 "latitude": lat, "longitude": lon,
                 "start_date": start, "end_date": end,
-                "daily": _DAILY_ALMANAC_ARCHIVE,
+                "daily": _DAILY_ALMANAC_HISTORY,
                 "timezone": "auto",
                 "precipitation_unit": "inch",
                 **_US_UNITS,
@@ -563,4 +596,4 @@ async def fetch_normals_history(
         return [record], "Daymet v4 (NASA ORNL)", DAYMET_RESOLUTION_M
     except UpstreamError:
         records = await fetch_daily_history([lat], [lon], start, end)
-        return records, "Open-Meteo archive (ERA5)", ARCHIVE_RESOLUTION_M
+        return records, "Open-Meteo archived model runs", HISTORY_RESOLUTION_M

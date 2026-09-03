@@ -222,8 +222,8 @@ async def region_almanac(
         },
         "normals_span_years": NORMALS_SPAN_YEARS,
         "sources": [
-            {"name": "Open-Meteo archive (ERA5)", "role": "season actuals and normals",
-             "resolution_m": sources.ARCHIVE_RESOLUTION_M},
+            {"name": "Open-Meteo archived model runs", "role": "season actuals and normals",
+             "resolution_m": sources.HISTORY_RESOLUTION_M},
             {"name": "Open-Meteo forecast", "role": "14-day outlook, sun times",
              "resolution_m": sources.FORECAST_RESOLUTION_M},
             {"name": "computed", "role": "moon phase, day-length trend", "resolution_m": 0},

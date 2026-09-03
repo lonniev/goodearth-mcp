@@ -74,7 +74,7 @@ async def region_season_curve(
     # the same cell and would return identical numbers. Fetch each distinct
     # cell once; the per-point variation comes from terrain, not from asking
     # the same grid square 48 times (which is also what trips its rate limit).
-    cells, cell_of_point = cluster_to_grid(region.points, sources.ARCHIVE_RESOLUTION_M)
+    cells, cell_of_point = cluster_to_grid(region.points, sources.HISTORY_RESOLUTION_M)
 
     history_task = sources.fetch_daily_history(
         [c.lat for c in cells],
@@ -154,8 +154,8 @@ async def region_season_curve(
 
     # ── Normals band from the same window in prior seasons ───────────────
     normals_curves: list[list[float]] = []
-    normals_source = "Open-Meteo archive (ERA5)"
-    normals_resolution = sources.ARCHIVE_RESOLUTION_M
+    normals_source = "Open-Meteo archived model runs"
+    normals_resolution = sources.HISTORY_RESOLUTION_M
     if not isinstance(normals_raw, BaseException) and normals_raw:
         normals_records, normals_source, normals_resolution = normals_raw
         try:
@@ -205,7 +205,7 @@ async def region_season_curve(
             "note": (
                 "min/mean/max are across your region's terrain, not across time. "
                 "Spread comes from elevation at ~90 m; the temperature field itself "
-                f"resolves ~{sources.ARCHIVE_RESOLUTION_M // 1000} km."
+                f"resolves ~{sources.HISTORY_RESOLUTION_M // 1000} km."
             ),
             "terrain_correction": "applied" if elevs is not None else "unavailable",
             "archive_cells_fetched": len(cells),
@@ -239,7 +239,7 @@ async def region_season_curve(
             else None
         ),
         "sources": [
-            {"name": "Open-Meteo archive (ERA5)", "role": "observed daily max/min", "resolution_m": sources.ARCHIVE_RESOLUTION_M},
+            {"name": "Open-Meteo archived model runs", "role": "observed daily max/min", "resolution_m": sources.HISTORY_RESOLUTION_M},
             {"name": "Open-Meteo forecast", "role": "7-day extension", "resolution_m": sources.FORECAST_RESOLUTION_M},
             {"name": "Open-Meteo elevation (SRTM)", "role": "terrain downscaling", "resolution_m": sources.ELEVATION_RESOLUTION_M},
             {"name": normals_source, "role": "past seasons for the normal band", "resolution_m": normals_resolution},
