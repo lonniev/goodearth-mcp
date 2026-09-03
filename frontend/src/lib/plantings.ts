@@ -9,7 +9,7 @@ export interface Planting {
   id: string;
   crop: string;
   /// Growing degree days from set-out to the stage the grower cares about.
-  gddTarget: number;
+  gddTarget?: number;
   setOut: string; // YYYY-MM-DD
   /// Per-crop override; blank means the block's default.
   baseTempF?: number;
@@ -322,7 +322,10 @@ export const plantingCodec: ItemCodec<Planting> = {
   from: (r: ItemRow): Planting => ({
     id: String(r.item_id),
     crop: String(r.crop ?? ""),
-    gddTarget: Number(r.gdd_target ?? 0),
+    // Never fabricate a target. A missing one meant 0 here, which the server
+    // then rejected as "outside any real crop's range" — and one such row took
+    // the whole ledger down. Absent stays absent.
+    gddTarget: r.gdd_target == null ? undefined : Number(r.gdd_target),
     // A presence row has no set-out: the crop grows here and when it went in
     // is not known. Empty string rather than a fabricated date.
     setOut: String(r.set_out ?? ""),
@@ -332,7 +335,7 @@ export const plantingCodec: ItemCodec<Planting> = {
   to: (p: Planting) => ({
     ...(p.id ? { item_id: p.id } : {}),
     crop: p.crop,
-    gdd_target: p.gddTarget,
+    ...(p.gddTarget != null ? { gdd_target: p.gddTarget } : {}),
     ...(p.setOut ? { set_out: p.setOut } : {}),
     ...(p.baseTempF != null ? { base_temp: p.baseTempF } : {}),
   }),

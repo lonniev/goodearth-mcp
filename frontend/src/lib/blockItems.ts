@@ -28,6 +28,10 @@ export interface ItemCodec<T> {
 
 export interface ItemsHandle<T> {
   items: T[];
+  /// The record has no such block. The browser is asking about ground the
+  /// server does not know — usually a stale active region after a device
+  /// switch, which is a different thing from having nothing planted.
+  unknownBlock: boolean;
   /// True only on the first load, so a refresh does not blank the page.
   loading: boolean;
   error: string;
@@ -49,6 +53,7 @@ export function useBlockItems<T>(
   const [items, setItems] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [unknownBlock, setUnknownBlock] = useState(false);
 
   const { from, to } = codec;
 
@@ -62,10 +67,19 @@ export function useBlockItems<T>(
       if (page?.success) {
         setItems((page.items ?? []).map(from));
         setError("");
+        setUnknownBlock(false);
+      } else if (page?.error_code === "no_such_block") {
+        // Say it. This was swallowed as "what a grower sees before they have
+        // saved any ground", which is wrong twice: a grower with no ground has
+        // no block to ask about, so this never fires for them — and when it
+        // DOES fire, it means this browser is pointed at ground the record has
+        // never heard of. Rendering that as an empty page is the same lie an
+        // unreachable record was: a claim that nothing grows here.
+        setUnknownBlock(true);
+        setError("");
+        setItems([]);
       } else {
-        // A block the server does not know is not an error worth shouting
-        // about — it is what a grower sees before they have saved any ground.
-        setError(page?.error_code === "no_such_block" ? "" : (page?.error ?? ""));
+        setError(page?.error ?? "");
         setItems([]);
       }
     } catch (e) {
@@ -92,5 +106,5 @@ export function useBlockItems<T>(
     await reload();
   }, [block, kind, reload]);
 
-  return { items, loading, error, save, retire, reload };
+  return { items, loading, error, unknownBlock, save, retire, reload };
 }

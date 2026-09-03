@@ -40,7 +40,8 @@ export default function FieldReports({
   // Observations are the most valuable thing a grower produces here, so they
   // live on their record under their npub rather than in one browser.
   const { items: reports, save: storeReport, retire: retireReport, reload: reloadReports,
-          loading: reportsLoading, error: reportsError } =
+          loading: reportsLoading, error: reportsError,
+          unknownBlock: reportsUnknown } =
     useBlockItems<FieldReport>(region.id, "observation", reportCodec);
   const [tag, setTag] = useState<ReportTag>("frost");
   const [cal, setCal] = useState<CalibrationResult | null>(null);
@@ -334,6 +335,9 @@ export default function FieldReports({
       {/* The record is the truth here. An empty page would claim this ground
           has never been walked, so a read that failed says so instead. */}
       {reportsLoading && <Note>Reading your observations for {region.name}…</Note>}
+      {!reportsLoading && reportsUnknown && (
+        <ErrorBox>This browser is set to ground the record does not have. Pick the block again from Favorites, or save it on the Map.</ErrorBox>
+      )}
       {!reportsLoading && reportsError && (
         <ErrorBox>Could not read your observations: {reportsError}</ErrorBox>
       )}

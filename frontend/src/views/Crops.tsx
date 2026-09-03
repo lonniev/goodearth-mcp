@@ -30,7 +30,8 @@ export default function Crops({
   // The grower's record, read from the server under their npub — not from
   // this browser. What they saved on the laptop is what the phone shows.
   const { items: plantings, save: storePlanting, retire: retirePlanting,
-          loading: plantingsLoading, error: plantingsError } =
+          loading: plantingsLoading, error: plantingsError,
+          unknownBlock: plantingsUnknown } =
     useBlockItems<Planting>(region.id, "planting", plantingCodec);
   const [ledger, setLedger] = useState<CropLedgerResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -55,7 +56,12 @@ export default function Crops({
       const r = await cropGddStatus(
         region.id,
         list.map((p) => ({
-          crop: p.crop, gdd_target: p.gddTarget, set_out: p.setOut,
+          crop: p.crop,
+          // Omitted rather than defaulted: the server reads a missing target
+          // or set-out as a presence row and reports it as untracked, where a
+          // fabricated value would be rejected and cost the whole ledger.
+          ...(p.gddTarget != null ? { gdd_target: p.gddTarget } : {}),
+          ...(p.setOut ? { set_out: p.setOut } : {}),
           ...(p.baseTempF != null ? { base_temp: p.baseTempF } : {}),
         })),
         region.baseTempF,
@@ -185,6 +191,8 @@ export default function Crops({
         <CropLedger rows={ledger.plantings} plantings={plantings} onDelete={remove} />
       ) : plantingsLoading ? (
         <Empty>Reading what you have on {region.name}…</Empty>
+      ) : plantingsUnknown ? (
+        <ErrorBox>This browser is set to ground the record does not have. Pick the block again from Favorites, or save it on the Map.</ErrorBox>
       ) : plantingsError ? (
         // The record is the truth here, so a failure to read it must say so.
         // Showing an empty page would claim this ground grows nothing.

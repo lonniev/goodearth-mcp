@@ -863,7 +863,7 @@ export interface CropLedgerResult {
 /// the season curve and frost record are shared across plantings server-side.
 export async function cropGddStatus(
   block: string,
-  plantings: { crop: string; gdd_target: number; set_out: string; base_temp?: number }[],
+  plantings: { crop: string; gdd_target?: number; set_out?: string; base_temp?: number }[],
   baseTemp = 50,
 ): Promise<CropLedgerResult> {
   return callTool<CropLedgerResult>("crop_gdd_status", { block, plantings, base_temp: baseTemp,

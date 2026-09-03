@@ -93,3 +93,33 @@ def test_a_row_that_validates_is_never_reported_as_skipped():
         crops.validate_planting, "planting",
     )
     assert len(kept) == 1 and skipped == []
+
+
+# ── One unusable row must not cost the ledger, either ─────────────────────
+
+
+def test_a_row_with_no_heat_target_does_not_blank_the_ledger():
+    """The live failure: one columbine hid an entire farm.
+
+    A perennial recorded as "grows here" has no degree-day target. The old
+    contract required one, the frontend supplied 0 to satisfy it, and 0 fails
+    the range check — so `crop_gdd_status` raised and the grower's whole crop
+    ledger rendered as "No plantings yet". Three separate mistakes stacked:
+    a mandatory field that should not have been, a fabricated value to fill
+    it, and a validation loop that failed whole rather than per row.
+    """
+    rows = [
+        {"crop": "Dahlia", "gdd_target": 1200, "set_out": "2026-05-24"},
+        {"crop": "Columbine"},                       # presence: neither half
+        {"crop": "Peony", "set_out": "2026-04-10"},  # dated, but no target
+    ]
+    parsed = [crops.validate_planting(r) for r in rows]   # none of these raise
+    assert parsed[0]["gdd_target"] == 1200
+    assert parsed[1]["presence_only"] is True
+    assert parsed[2]["presence_only"] is True
+
+
+def test_a_stated_zero_is_still_refused():
+    """Absent is a gap; zero is a claim, and a wrong one."""
+    with pytest.raises(crops.CropError):
+        crops.validate_planting({"crop": "X", "gdd_target": 0, "set_out": "2026-05-01"})
