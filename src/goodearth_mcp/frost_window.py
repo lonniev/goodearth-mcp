@@ -143,7 +143,7 @@ async def region_frost_window(
         },
         "sources": [
             {
-                "name": "Open-Meteo archived model runs",
+                **sources.feed_of(record),
                 # The span actually read, not the one asked for. The feed
                 # starts in 2018, so a ten-season request is honoured with
                 # however many exist — and saying "10 seasons" over eight of
@@ -152,7 +152,6 @@ async def region_frost_window(
                     f"first-frost dates, "
                     f"{today.year - sources.record_start_year(today.year, RECORD_SPAN_YEARS)} seasons"
                 ),
-                "resolution_m": sources.HISTORY_RESOLUTION_M,
             },
             {
                 "name": "Open-Meteo forecast",

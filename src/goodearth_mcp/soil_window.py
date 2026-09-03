@@ -119,7 +119,6 @@ async def region_soil_window(
         "sources": [
             {"name": "Open-Meteo forecast", "role": f"hourly soil at {spec['label']}",
              "resolution_m": sources.FORECAST_RESOLUTION_M},
-            {"name": "Open-Meteo archived model runs", "role": f"{RECORD_SPAN_YEARS}-season soil record",
-             "resolution_m": sources.HISTORY_RESOLUTION_M},
+            {**sources.feed_of(history), "role": f"{RECORD_SPAN_YEARS}-season soil record"},
         ],
     }

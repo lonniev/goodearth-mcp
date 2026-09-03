@@ -151,7 +151,6 @@ async def region_crop_ledger(
             "forward and are not a forecast."
         ),
         "sources": [
-            {"name": "Open-Meteo archived model runs", "role": "season heat and frost record",
-             "resolution_m": sources.HISTORY_RESOLUTION_M},
+            {**sources.feed_of(history), "role": "season heat and frost record"},
         ],
     }

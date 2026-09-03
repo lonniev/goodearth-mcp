@@ -71,10 +71,47 @@ async def test_single_location_object_is_normalized_to_a_list():
 
 
 @respx.mock
-async def test_http_error_becomes_upstream_error():
+async def test_the_record_falls_back_rather_than_disappearing():
+    """One feed stalling must not cost the grower their season.
+
+    Open-Meteo's services fail independently and they fail from somewhere: on
+    2026-09-03 the reanalysis archive stalled for an operator on Horizon while
+    answering a laptop in half a second, and hours later the archived model
+    runs did the same. Reading one feed made the record a single point of
+    failure.
+    """
     respx.get(sources._HISTORY).mock(return_value=httpx.Response(503))
+    respx.get(sources._ARCHIVE_ERA5).mock(return_value=httpx.Response(200, json={
+        "latitude": 44.48, "longitude": -73.21,
+        "daily": {"time": ["2026-01-01"], "temperature_2m_max": [30.0],
+                  "temperature_2m_min": [12.0]},
+    }))
+    records = await sources.fetch_daily_history([44.48], [-73.21], "2026-01-01", "2026-01-01")
+    assert records, "the fallback answered but nothing came back"
+    # And it says which feed answered. A provenance block naming the preferred
+    # source while showing the fallback's numbers is worse than saying nothing.
+    assert sources.feed_of(records)["name"] == "Open-Meteo archive (ERA5)"
+    assert sources.feed_of(records)["resolution_m"] == sources.ERA5_RESOLUTION_M
+
+
+@respx.mock
+async def test_both_feeds_failing_is_still_an_error():
+    """Degrading is not the same as pretending."""
+    respx.get(sources._HISTORY).mock(return_value=httpx.Response(503))
+    respx.get(sources._ARCHIVE_ERA5).mock(return_value=httpx.Response(503))
     with pytest.raises(sources.UpstreamError):
         await sources.fetch_daily_history([44.48], [-73.21], "2026-01-01", "2026-01-02")
+
+
+@respx.mock
+async def test_the_preferred_feed_is_named_when_it_answers():
+    respx.get(sources._HISTORY).mock(return_value=httpx.Response(200, json={
+        "latitude": 44.48, "longitude": -73.21,
+        "daily": {"time": ["2026-01-01"], "temperature_2m_max": [30.0],
+                  "temperature_2m_min": [12.0]},
+    }))
+    records = await sources.fetch_daily_history([44.48], [-73.21], "2026-01-01", "2026-01-01")
+    assert sources.feed_of(records)["resolution_m"] == sources.HISTORY_RESOLUTION_M
 
 
 @respx.mock
@@ -218,3 +255,24 @@ def test_the_record_and_the_outlook_now_ask_for_the_same_measures():
     a caller assuming symmetry would have been quietly wrong.
     """
     assert sources._DAILY_ALMANAC_HISTORY == sources._DAILY_ALMANAC_FORECAST
+
+
+def test_a_provenance_line_never_raises():
+    """It is the part of the answer that says how much to trust the rest.
+
+    Callers gather with return_exceptions=True, so the variable holding a
+    record may hold the failure instead. feed_of takes whatever it is given.
+    """
+    for junk in (None, [], {}, "nope", 7, ValueError("boom"), [ValueError("boom")]):
+        got = sources.feed_of(junk)
+        assert got["name"] and got["resolution_m"] > 0, junk
+
+
+def test_an_unattributable_read_names_the_preferred_feed():
+    """There are no numbers to misattribute when nothing came back."""
+    assert sources.feed_of([])["resolution_m"] == sources.HISTORY_RESOLUTION_M
+
+
+def test_a_stamped_record_reports_the_feed_that_answered():
+    stamped = [{"_feed": {"name": "Open-Meteo archive (ERA5)", "resolution_m": 9_000}}]
+    assert sources.feed_of(stamped)["resolution_m"] == 9_000
