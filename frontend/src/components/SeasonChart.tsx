@@ -14,11 +14,11 @@
 // where the server returned no band or forecast, that element is absent rather
 // than guessed at.
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SeasonCurveResult } from "../lib/mcp";
 import type { LedgerFlag } from "../lib/ledgerFlags";
 import { placeLabels } from "../lib/labelPlacement";
-import { dayNumber } from "../lib/seasonDays";
+import { dateFor, dayNumber, timelineDomain } from "../lib/seasonDays";
 import { regionImageUrl } from "../lib/basemapImage";
 import { TIMESCALES, useChartZoom, windowToDomain } from "../lib/useChartZoom";
 import ZoomControls from "./ZoomControls";
@@ -117,23 +117,10 @@ export default function SeasonChart({
     const origin = dates[0] ?? data.season_start ?? "";
     const gFull = Math.max(...mean, ...fc, ...proj, ...band.map((b) => b.max), 1);
 
-    // Domain windows after zoom.
-    const [dLo, dHi] = windowToDomain(zoom.x, 0, totalDays - 1);
-    const [gLo, gHi] = windowToDomain(zoom.y, 0, gFull * 1.04);
-
-    const x = (d: number) => L + ((d - dLo) * (R - L)) / Math.max(dHi - dLo, 1e-6);
-    const y = (g: number) => B - ((g - gLo) * (B - T)) / Math.max(gHi - gLo, 1e-6);
-    const line = (pts: [number, number][]) =>
-      pts.map((p, i) => `${i ? "L" : "M"}${x(p[0]).toFixed(1)} ${y(p[1]).toFixed(1)}`).join(" ");
-
-    // Label placement is geometry, so it is resolved here with the scales
-    // rather than inside the render loop, where each flag could only see
-    // itself. Flags outside the zoom window are excluded so an off-screen
-    // label cannot push a visible one around.
     // Where a mark sits on the timeline.
     //
-    // A stated date resolves through dayNumber, which works for any date —
-    // including one outside the plotted series, which is the point of a
+    // A stated date resolves through dayNumber, which works for ANY date —
+    // including one outside the plotted series, which is the whole point of a
     // timeline. A computed crossing keeps its fractional index instead: for a
     // contiguous daily series that IS the day number, only carrying the
     // sub-day precision that `indexAt` interpolated and a rounded date throws
@@ -145,10 +132,38 @@ export default function SeasonChart({
     };
     const endDayOf = (f: LedgerFlag): number | null => {
       if (f.endIndex != null) return f.endIndex;
-      const d = f.end ? dayNumber(f.end, origin) : null;
-      return d;
+      return f.end ? dayNumber(f.end, origin) : null;
     };
 
+    // The timeline is as long as it needs to be to hold everything on it.
+    //
+    // The curve occupies days 0..totalDays-1, but a task dated next January is
+    // still a real day and belongs somewhere. So the domain is the union of
+    // the series and every mark, padded a little so an edge mark is not
+    // clipped in half. When nothing falls outside the curve — the ordinary
+    // case — this is exactly the old domain and nothing moves.
+    const seriesHi = Math.max(totalDays - 1, 1);
+    const { lo: domLo, hi: domHi, extended } = timelineDomain(
+      seriesHi,
+      flags.flatMap((f) => [dayOf(f), endDayOf(f)]),
+    );
+
+    // Domain windows after zoom. The zoom window is a FRACTION of whatever
+    // bounds it is given, so lengthening the domain rescales every fraction —
+    // which is why the span buttons and the reset below are expressed in days
+    // against this same span rather than against the array length.
+    const [dLo, dHi] = windowToDomain(zoom.x, domLo, domHi);
+    const [gLo, gHi] = windowToDomain(zoom.y, 0, gFull * 1.04);
+
+    const x = (d: number) => L + ((d - dLo) * (R - L)) / Math.max(dHi - dLo, 1e-6);
+    const y = (g: number) => B - ((g - gLo) * (B - T)) / Math.max(gHi - gLo, 1e-6);
+    const line = (pts: [number, number][]) =>
+      pts.map((p, i) => `${i ? "L" : "M"}${x(p[0]).toFixed(1)} ${y(p[1]).toFixed(1)}`).join(" ");
+
+    // Label placement is geometry, so it is resolved here with the scales
+    // rather than inside the render loop, where each flag could only see
+    // itself. Flags outside the zoom window are excluded so an off-screen
+    // label cannot push a visible one around.
     const flagItems = flags.map((f) => ({
       cx: x(dayOf(f)),
       cy: f.gdd != null ? y(f.gdd) : B - 8,
@@ -193,17 +208,24 @@ export default function SeasonChart({
     const ticks: { d: number; label: string }[] = [];
     const visDays = dHi - dLo;
     if (visDays > 45) {
+      // Walked in DAYS across the visible window rather than over the recorded
+      // dates. The old loop iterated `curve.dates`, so the forecast and
+      // projection thirds of the axis carried no labels at all — and a
+      // timeline that reaches past the curve would have been a wholly
+      // unlabelled void out there, which is no use to scroll into.
       let lastM = "";
-      dates.forEach((iso, i) => {
+      for (let d = Math.floor(dLo) - 1; d <= Math.ceil(dHi) + 1; d++) {
+        const iso = dateFor(d, origin);
+        if (!iso) continue;
         const m = iso.slice(0, 7);
-        if (m !== lastM) {
-          lastM = m;
-          if (i >= dLo - 1 && i <= dHi + 1) {
-            ticks.push({ d: i, label: new Date(iso + "T12:00:00")
-              .toLocaleString("en-US", { month: "short" }).toUpperCase() });
-          }
-        }
-      });
+        if (m === lastM) continue;
+        lastM = m;
+        const label = new Date(iso + "T12:00:00Z")
+          .toLocaleString("en-US", { month: "short", timeZone: "UTC" }).toUpperCase();
+        // A January tick says which year, because a timeline that runs past
+        // the season is otherwise ambiguous about which one you are reading.
+        ticks.push({ d, label: iso.slice(5, 7) === "01" ? `${label} ${iso.slice(0, 4)}` : label });
+      }
     } else {
       const stride = Math.max(Math.round(visDays / 6), 1);
       for (let i = Math.max(Math.ceil(dLo), 0); i <= Math.min(Math.floor(dHi), dates.length - 1); i += stride) {
@@ -216,13 +238,16 @@ export default function SeasonChart({
     const gridLines: number[] = [];
     for (let g = Math.ceil(gLo / step) * step; g <= gHi; g += step) gridLines.push(Math.round(g));
 
-    const rangeLabel = dates.length
-      ? `${dates[Math.max(Math.round(dLo), 0)] ?? ""} → ${
-          dates[Math.min(Math.round(dHi), dates.length - 1)] ?? "projection"
-        } · ${Math.round(gLo).toLocaleString()}–${Math.round(gHi).toLocaleString()} GDD`
+    // Read off the timeline, not off the recorded array. The old version
+    // indexed `dates` and printed the literal word "projection" for any window
+    // whose right edge was past the last recorded day — which is most of them
+    // once the timeline can reach into next year.
+    const rangeLabel = origin
+      ? `${dateFor(Math.round(dLo), origin) ?? ""} → ${dateFor(Math.round(dHi), origin) ?? ""} · ${
+          Math.round(gLo).toLocaleString()}–${Math.round(gHi).toLocaleString()} GDD`
       : "";
 
-    return { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, rangeLabel, totalDays, placement, dayOf, endDayOf };
+    return { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, rangeLabel, totalDays, placement, dayOf, endDayOf, domLo, domHi, seriesHi, extended };
   }, [data, zoom, flags]);
 
   if (!view) {
@@ -233,7 +258,27 @@ export default function SeasonChart({
     );
   }
 
-  const { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, rangeLabel, totalDays, placement, dayOf, endDayOf } = view;
+  // A timeline long enough to hold next January's task opens on the season,
+  // not on the whole of it. Runs once per domain change and only while the
+  // reader has not zoomed — panning somewhere and being yanked back would be
+  // worse than opening in the wrong place.
+  const domainKey = view ? `${view.domLo}:${view.domHi}` : "";
+  useEffect(() => {
+    if (!view?.extended || isZoomed) return;
+    const span = view.domHi - view.domLo + 1;
+    showSpan(view.seriesHi + 1, span, view.seriesHi - view.domLo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [domainKey]);
+
+  /// Put the window over the recorded season, wherever it sits in the domain.
+  const showSeason = useCallback(() => {
+    if (!view) return;
+    const span = view.domHi - view.domLo + 1;
+    if (span <= view.seriesHi + 1) return;   // domain IS the season; FULL is right
+    showSpan(view.seriesHi + 1, span, view.seriesHi - view.domLo);
+  }, [view, showSpan]);
+
+  const { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, rangeLabel, placement, dayOf, endDayOf, domLo, domHi } = view;
   const todayIndex = last;
   const todayGdd = mean[last];
 
@@ -470,7 +515,11 @@ export default function SeasonChart({
       <ZoomControls
         onZoomX={(f) => { setSpan(null); zoomX(f); }}
         onZoomY={zoomY}
-        onReset={() => { setSpan("season"); reset(); }}
+        // Reset means "show me the season", not "show me the whole domain".
+        // Once the timeline reaches past the curve to hold a task next
+        // January, the whole domain is mostly empty, and landing there would
+        // make the season a smudge in the corner.
+        onReset={() => { setSpan("season"); reset(); showSeason(); }}
         isZoomed={isZoomed}
         range={rangeLabel}
         activeSpan={span}
@@ -478,7 +527,12 @@ export default function SeasonChart({
           setSpan(TIMESCALES.find((t) => t.days === days)?.key ?? null);
           // Anchor on today, because that is where the reader is standing —
           // a month view that lands in March is a month of the wrong month.
-          showSpan(days, totalDays, todayIndex);
+          // In DAYS against the domain's own length. showSpan turns days into
+          // a fraction of the total it is handed, so handing it the array
+          // length while the domain is longer would make every button lie by
+          // the ratio between them — "Week" quietly showing a fortnight is a
+          // wrong reading that looks right.
+          showSpan(days, domHi - domLo + 1, todayIndex - domLo);
         }}
       />
 

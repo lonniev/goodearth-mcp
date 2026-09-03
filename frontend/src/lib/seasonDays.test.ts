@@ -8,7 +8,8 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { dateAt, dateFor, dayNumber, isDate } from "./seasonDays.ts";
+import { readFileSync } from "node:fs";
+import { dateAt, dateFor, dayNumber, isDate, timelineDomain } from "./seasonDays.ts";
 
 describe("dayNumber", () => {
   it("counts whole days forward", () => {
@@ -72,6 +73,85 @@ describe("isDate", () => {
   it("rejects everything else", () => {
     for (const bad of [null, undefined, "", "soon", "2026-13-01"]) {
       assert.equal(isDate(bad as string), false, String(bad));
+    }
+  });
+});
+
+describe("timelineDomain", () => {
+  it("does NOT grow when everything fits on the curve", () => {
+    // The property that matters most. Growing the domain rescales every zoom
+    // fraction with it, so it must never happen by accident — an ordinary
+    // season has to behave exactly as it always did.
+    const d = timelineDomain(240, [0, 12.5, 239]);
+    assert.deepEqual(d, { lo: 0, hi: 240, extended: false });
+  });
+
+  it("reaches forward for a task dated past the curve", () => {
+    // "Buy seeds Jan 13 2027" against a season starting Jan 1 2026: day 377.
+    const d = timelineDomain(240, [12, 377]);
+    assert.equal(d.extended, true);
+    assert.ok(d.hi >= 377, "the day must be inside the domain");
+    assert.equal(d.lo, 0, "no reason to reach backward");
+  });
+
+  it("reaches back for a mark before the season began", () => {
+    const d = timelineDomain(240, [-30, 100]);
+    assert.equal(d.extended, true);
+    assert.ok(d.lo <= -30);
+  });
+
+  it("pads so an edge mark is not clipped in half", () => {
+    const d = timelineDomain(240, [377]);
+    assert.ok(d.hi > 377, "a mark exactly on the edge would be half-drawn");
+  });
+
+  it("ignores marks it cannot place", () => {
+    assert.deepEqual(
+      timelineDomain(240, [null, undefined, NaN, Infinity, 50]),
+      { lo: 0, hi: 240, extended: false },
+    );
+  });
+
+  it("survives having no marks at all", () => {
+    assert.deepEqual(timelineDomain(240, []), { lo: 0, hi: 240, extended: false });
+  });
+});
+
+describe("the span buttons against a lengthened domain", () => {
+  it("a week is still seven days once the timeline reaches next year", () => {
+    // showSpan turns days into a FRACTION of the total it is handed, and the
+    // chart then maps that fraction back over the domain. Hand it the array
+    // length while the domain is longer and every button lies by the ratio
+    // between them — "Week" quietly showing a fortnight is a wrong reading
+    // that looks right, on a chart a grower plans from.
+    const { lo, hi } = timelineDomain(240, [377]);
+    const domainSpan = hi - lo + 1;
+    const frac = 7 / domainSpan;                 // what showSpan computes
+    const shownDays = frac * (hi - lo);          // what windowToDomain gives back
+    assert.ok(Math.abs(shownDays - 7) < 0.1, `week showed ${shownDays.toFixed(2)} days`);
+  });
+
+  it("would show the WRONG span if handed the array length instead", () => {
+    // The bug this guards, stated as a failing arithmetic rather than a hope.
+    const { lo, hi } = timelineDomain(240, [377]);
+    const wrongFrac = 7 / 241;                   // the array length
+    const shownDays = wrongFrac * (hi - lo);
+    assert.ok(shownDays > 10, "the mistake must be big enough to matter");
+  });
+});
+
+describe("the chart's own wiring", () => {
+  it("never hands showSpan the raw array length", () => {
+    // A source guard, because this is the mistake that produces a wrong
+    // reading rather than a crash: the arithmetic above proves `totalDays`
+    // would show 10+ days for a "Week" button once the timeline lengthens,
+    // and nothing about the screen would look broken.
+    const src = readFileSync(new URL("../components/SeasonChart.tsx", import.meta.url), "utf8");
+    for (const call of src.match(/showSpan\([^)]*\)/g) ?? []) {
+      assert.ok(
+        !/\btotalDays\b/.test(call),
+        `${call} passes the array length; it must pass the domain span in days`,
+      );
     }
   });
 });
