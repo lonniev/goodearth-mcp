@@ -918,6 +918,8 @@ export interface PestStage {
 }
 
 export interface PestAssessment {
+  /// The saved pest model this row is about, echoed back untouched.
+  ref?: string;
   pest: string;
   base_temp_f?: number;
   biofix?: string | null;
@@ -942,6 +944,10 @@ export interface PestWindowResult {
 
 export interface PestModel {
   pest: string;
+  /// Vigilance without arithmetic. A grower watches voles, slugs and wasps —
+  /// creatures with no degree-day stages — and demanding thresholds for them
+  /// invites invented numbers.
+  watch?: boolean;
   base_temp?: number;
   biofix?: string;
   stages: { stage: string; gdd: number }[];
