@@ -134,7 +134,6 @@ async def region_wildlife(
             "ones move with the season."
         ),
         "sources": [
-            {"name": "Open-Meteo archived model runs", "role": "season heat and day length",
-             "resolution_m": sources.HISTORY_RESOLUTION_M},
+            {**sources.feed_of(record), "role": "season heat and day length"},
         ],
     }

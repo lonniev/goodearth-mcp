@@ -98,7 +98,6 @@ async def region_pest_window(
             "Confirm the numbers against your local extension service."
         ),
         "sources": [
-            {"name": "Open-Meteo archived model runs", "role": "season heat",
-             "resolution_m": sources.HISTORY_RESOLUTION_M},
+            {**sources.feed_of(history), "role": "season heat"},
         ],
     }

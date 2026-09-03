@@ -29,6 +29,7 @@ so it cannot see the running season at all.
 
 from __future__ import annotations
 
+import logging
 from datetime import date, timedelta
 from typing import Any
 
@@ -45,7 +46,13 @@ import httpx
 # YOUR ground: two ends of a farm cannot differ if they are the same grid cell.
 #
 # This feed snapped 1.4 km and gave four distinct cells over that same span.
+logger = logging.getLogger(__name__)
+
 _HISTORY = "https://historical-forecast-api.open-meteo.com/v1/forecast"
+
+#: Kept as the fallback. It is coarser and it smooths, but it answers when the
+#: other does not — and the two fail independently, which is the whole point.
+_ARCHIVE_ERA5 = "https://archive-api.open-meteo.com/v1/archive"
 _FORECAST = "https://api.open-meteo.com/v1/forecast"
 _ELEVATION = "https://api.open-meteo.com/v1/elevation"
 _DAYMET = "https://daymet.ornl.gov/single-pixel/api/data"
@@ -57,6 +64,7 @@ _TIMEOUT = 30.0
 # Measured, not quoted: four distinct cells across 0.08° of longitude at 44°N
 # is ~1.6 km. Rounded up, because a resolution claim should err coarse.
 HISTORY_RESOLUTION_M = 2_000
+ERA5_RESOLUTION_M = 9_000
 
 #: The first season this feed carries. 2017 answers with nulls, 2018 with data,
 #: so a request reaching further back does not fail — it quietly returns
@@ -172,39 +180,6 @@ async def fetch_elevations(lats: list[float], lons: list[float]) -> list[float]:
     if not isinstance(elevations, list) or len(elevations) != len(lats):
         raise UpstreamError("elevation service returned an unexpected shape")
     return [float(e) for e in elevations]
-
-
-async def fetch_daily_history(
-    lats: list[float],
-    lons: list[float],
-    start: str,
-    end: str,
-) -> list[dict[str, Any]]:
-    """Observed daily max/min °F for each point over ``start``..``end``.
-
-    Batched into one request — Open-Meteo accepts comma-separated
-    coordinates, which keeps a priced call to a single upstream round trip
-    no matter how many points the region samples.
-    """
-    if not lats:
-        return []
-    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-        payload = await _get(
-            client,
-            _HISTORY,
-            {
-                "latitude": _join(lats),
-                "longitude": _join(lons),
-                "start_date": start,
-                "end_date": end,
-                "daily": _DAILY,
-                "timezone": "auto",
-                **_US_UNITS,
-            },
-        )
-    return _as_list(payload)
-
-
 async def fetch_daily_forecast(lat: float, lon: float, days: int = 7) -> dict[str, Any]:
     """Forecast daily max/min °F at the region centroid.
 
@@ -372,28 +347,124 @@ def hourly_series(record: dict[str, Any], field: str) -> tuple[list[str], list[f
     )
 
 
+#: The season's record, best first. Each entry is (url, name, resolution).
+#:
+#: Order is quality, not preference for its own sake: the archived model runs
+#: resolve ~2 km and keep the daily swing, where the reanalysis smooths it into
+#: a ~9 km cell. The reanalysis is the fallback because a coarse reading of the
+#: right ground beats no reading at all.
+_HISTORY_FEEDS: tuple[tuple[str, str, int], ...] = (
+    (_HISTORY, "Open-Meteo archived model runs", HISTORY_RESOLUTION_M),
+    (_ARCHIVE_ERA5, "Open-Meteo archive (ERA5)", ERA5_RESOLUTION_M),
+)
+
+
+async def fetch_daily_history(
+    lats: list[float],
+    lons: list[float],
+    start: str,
+    end: str,
+) -> list[dict[str, Any]]:
+    """Observed daily max/min °F for each point, from whichever feed answers.
+
+    Open-Meteo's services fail independently and they fail from SOMEWHERE: on
+    2026-09-03 the reanalysis archive stalled for an operator on Horizon while
+    answering a laptop in under half a second, and hours later the archived
+    model runs did the same. Reading one feed made the season's record a single
+    point of failure, and the grower saw a page with no season on it.
+
+    So the feeds are tried in order of quality and the answer degrades in
+    resolution rather than disappearing — the pattern fetch_normals_history
+    already uses for Daymet. The feed that actually answered is stamped onto
+    each record, because a provenance block that names the preferred source
+    while showing the fallback's numbers is worse than one that says nothing.
+    """
+    # No points, no request. Asking a feed about nowhere costs a round trip and
+    # a rate-limit slot to be told nothing.
+    if not lats or not lons:
+        return []
+    payload, name, res = await _history_any_feed({
+        "latitude": ",".join(f"{v:.6f}" for v in lats),
+        "longitude": ",".join(f"{v:.6f}" for v in lons),
+        "start_date": start,
+        "end_date": end,
+        "daily": _DAILY,
+        "timezone": "UTC",
+        **_US_UNITS,
+    })
+    return [_stamp(r, name, res) for r in _as_list(payload)]
+
+
+def feed_of(records: Any) -> dict[str, Any]:
+    """Which feed answered for these records, for a provenance block.
+
+    Takes anything, because callers gather with ``return_exceptions=True`` and
+    the variable holding a record may hold the failure instead. A provenance
+    line must never be the thing that raises: it is the part of the answer that
+    says how much to trust the rest.
+
+    Names the preferred feed only when nothing was stamped — an empty or failed
+    read, where there are no numbers to misattribute anyway.
+    """
+    if isinstance(records, dict):
+        records = [records]
+    if isinstance(records, (list, tuple)):
+        for r in records:
+            stamped = r.get("_feed") if isinstance(r, dict) else None
+            if stamped:
+                return dict(stamped)
+    _, name, res = _HISTORY_FEEDS[0]
+    return {"name": name, "resolution_m": res}
+
+
+async def _history_any_feed(params: dict[str, Any]) -> tuple[Any, str, int]:
+    """Ask each history feed in turn; return the first answer and who gave it.
+
+    Open-Meteo's services fail independently and they fail FROM SOMEWHERE: on
+    2026-09-03 the reanalysis archive stalled for an operator on Horizon while
+    answering a laptop in under half a second, and hours later the archived
+    model runs did the same to the Almanac. Reading one feed made every dated
+    answer a single point of failure.
+
+    The parameters are identical for both feeds — the archive has caught up and
+    now serves the sun times and the soil fields it once lacked — so this is a
+    plain retry against a different host, not a translation layer.
+    """
+    last: UpstreamError | None = None
+    for url, name, res in _HISTORY_FEEDS:
+        try:
+            async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+                return await _get(client, url, params), name, res
+        except UpstreamError as exc:
+            last = exc
+            logger.warning("history: %s did not answer (%s)", name, exc)
+    raise last if last else UpstreamError("no history feed is configured")
+
+
+def _stamp(record: Any, name: str, res: int) -> Any:
+    """Record which feed answered, so provenance cannot name the wrong one."""
+    if isinstance(record, dict):
+        record["_feed"] = {"name": name, "resolution_m": res}
+    return record
+
+
 async def fetch_soil_history(
     lat: float, lon: float, archive_field: str, start: str, end: str,
 ) -> dict[str, Any]:
     """Daily mean soil temperature from the archive, for the climatology."""
-    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-        payload = await _get(
-            client,
-            _HISTORY,
-            {
-                "latitude": lat,
-                "longitude": lon,
-                "start_date": start,
-                "end_date": end,
-                "daily": archive_field,
-                "timezone": "auto",
-                **_US_UNITS,
-            },
-        )
+    payload, name, res = await _history_any_feed({
+        "latitude": lat,
+        "longitude": lon,
+        "start_date": start,
+        "end_date": end,
+        "daily": archive_field,
+        "timezone": "auto",
+        **_US_UNITS,
+    })
     results = _as_list(payload)
     if not results:
-        raise UpstreamError("soil archive returned no locations")
-    return results[0]
+        raise UpstreamError("the soil record returned no locations")
+    return _stamp(results[0], name, res)
 
 
 def daily_field(record: dict[str, Any], field: str) -> tuple[list[str], list[float | None]]:
@@ -434,22 +505,18 @@ async def fetch_almanac_forecast(lat: float, lon: float, days: int = 14) -> dict
 
 async def fetch_almanac_history(lat: float, lon: float, start: str, end: str) -> dict[str, Any]:
     """The same measures from the record, for actuals and for normals."""
-    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-        payload = await _get(
-            client, _HISTORY,
-            {
-                "latitude": lat, "longitude": lon,
-                "start_date": start, "end_date": end,
-                "daily": _DAILY_ALMANAC_HISTORY,
-                "timezone": "auto",
-                "precipitation_unit": "inch",
-                **_US_UNITS,
-            },
-        )
+    payload, name, res = await _history_any_feed({
+        "latitude": lat, "longitude": lon,
+        "start_date": start, "end_date": end,
+        "daily": _DAILY_ALMANAC_HISTORY,
+        "timezone": "auto",
+        "precipitation_unit": "inch",
+        **_US_UNITS,
+    })
     results = _as_list(payload)
     if not results:
-        raise UpstreamError("almanac archive returned no locations")
-    return results[0]
+        raise UpstreamError("the almanac record returned no locations")
+    return _stamp(results[0], name, res)
 
 
 def daily_block(record: dict[str, Any]) -> dict[str, list[Any]]:
