@@ -63,7 +63,7 @@ async def test_no_points_makes_no_request():
 @respx.mock
 async def test_single_location_object_is_normalized_to_a_list():
     """Open-Meteo returns a bare object for one point and an array for many."""
-    respx.get(sources._ARCHIVE).mock(
+    respx.get(sources._HISTORY).mock(
         return_value=httpx.Response(200, json={"daily": {"time": [], "temperature_2m_max": [], "temperature_2m_min": []}})
     )
     out = await sources.fetch_daily_history([44.48], [-73.21], "2026-01-01", "2026-01-02")
@@ -72,7 +72,7 @@ async def test_single_location_object_is_normalized_to_a_list():
 
 @respx.mock
 async def test_http_error_becomes_upstream_error():
-    respx.get(sources._ARCHIVE).mock(return_value=httpx.Response(503))
+    respx.get(sources._HISTORY).mock(return_value=httpx.Response(503))
     with pytest.raises(sources.UpstreamError):
         await sources.fetch_daily_history([44.48], [-73.21], "2026-01-01", "2026-01-02")
 
@@ -172,3 +172,49 @@ async def test_fetch_daymet_history_reports_its_resolution():
     out = await sources.fetch_daymet_history(44.4813, -73.2083, "2025-06-01", "2025-06-01")
     assert out["resolution_m"] == 1_000
     assert out["daily"]["time"] == ["2025-06-01"]
+
+
+# ── Reading the ground, not the region ────────────────────────────────────
+
+
+def test_the_record_is_read_at_field_resolution():
+    """ERA5's ~9 km cell could not see one farm's two ends as different.
+
+    Measured at Frogdale: the old archive snapped a request 4.6 km east and
+    returned a single cell across 6.4 km of longitude. A service whose claim is
+    the spread across your own ground cannot read that ground from a cell four
+    kilometres away.
+    """
+    assert sources.HISTORY_RESOLUTION_M <= 3_000
+    assert "historical-forecast" in sources._HISTORY
+
+
+def test_the_record_span_never_asks_for_years_the_feed_lacks():
+    """Asking for 2016 does not fail — it answers with nulls.
+
+    Which is the shape that gets counted as "no frost that year" and drags a
+    median toward a date nothing observed. Clamping is the difference between
+    a short record and a wrong one.
+    """
+    assert sources.record_start_year(2026, 10) == sources.HISTORY_FROM_YEAR
+    assert sources.record_start_year(2026, 10) >= 2018
+
+
+def test_the_span_grows_of_its_own_accord():
+    """No maintenance: it reaches the full ten seasons and stops there."""
+    assert 2028 - sources.record_start_year(2028, 10) == 10
+    assert 2035 - sources.record_start_year(2035, 10) == 10
+
+
+def test_a_short_request_is_not_stretched():
+    """The clamp is a floor, not an override of what the caller asked for."""
+    assert sources.record_start_year(2026, 3) == 2023
+
+
+def test_the_record_and_the_outlook_now_ask_for_the_same_measures():
+    """The asymmetry is gone, so nothing has to remember it is there.
+
+    ERA5 carried the measures but not the sun, so two field lists existed and
+    a caller assuming symmetry would have been quietly wrong.
+    """
+    assert sources._DAILY_ALMANAC_HISTORY == sources._DAILY_ALMANAC_FORECAST

@@ -175,7 +175,7 @@ async def region_suitability(
             "Good Earth computes against your ground; it does not publish agronomy."
         ),
         "sources": [
-            {"name": "Open-Meteo archive (ERA5)", "role": f"{RECORD_SPAN_YEARS}-season frost and heat record",
-             "resolution_m": sources.ARCHIVE_RESOLUTION_M},
+            {"name": "Open-Meteo archived model runs", "role": f"{RECORD_SPAN_YEARS}-season frost and heat record",
+             "resolution_m": sources.HISTORY_RESOLUTION_M},
         ],
     }

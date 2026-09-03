@@ -65,7 +65,7 @@ async def region_calibration(
     )
     frost_task = sources.fetch_daily_history(
         [region.centroid.lat], [region.centroid.lon],
-        date(today.year - RECORD_SPAN_YEARS, 1, 1).isoformat(),
+        date(sources.record_start_year(today.year, RECORD_SPAN_YEARS), 1, 1).isoformat(),
         date(today.year - 1, 12, 31).isoformat(),
     )
     history, frost_record = await asyncio.gather(history_task, frost_task, return_exceptions=True)
@@ -112,7 +112,7 @@ async def region_calibration(
     if not isinstance(frost_record, BaseException) and frost_record:
         try:
             f_dates, _fx, f_tmin = sources.daily_series(frost_record[0])
-            yrs = list(range(today.year - RECORD_SPAN_YEARS, today.year))
+            yrs = list(range(sources.record_start_year(today.year, RECORD_SPAN_YEARS), today.year))
             predicted_frost = frost.summarize_frost_dates(
                 frost.frost_dates(f_dates, f_tmin, yrs), today.year
             )

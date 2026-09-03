@@ -46,7 +46,7 @@ async def region_frost_window(
     record_task = sources.fetch_daily_history(
         [region.centroid.lat],
         [region.centroid.lon],
-        date(today.year - RECORD_SPAN_YEARS, 1, 1).isoformat(),
+        date(sources.record_start_year(today.year, RECORD_SPAN_YEARS), 1, 1).isoformat(),
         date(today.year - 1, 12, 31).isoformat(),
     )
     forecast_task = sources.fetch_frost_forecast(
@@ -60,7 +60,7 @@ async def region_frost_window(
     if not isinstance(record, BaseException) and record:
         try:
             dates, _tmax, tmin = sources.daily_series(record[0])
-            years = list(range(today.year - RECORD_SPAN_YEARS, today.year))
+            years = list(range(sources.record_start_year(today.year, RECORD_SPAN_YEARS), today.year))
             history = frost.summarize_frost_dates(
                 frost.frost_dates(dates, tmin, years), today.year
             )
@@ -143,9 +143,16 @@ async def region_frost_window(
         },
         "sources": [
             {
-                "name": "Open-Meteo archive (ERA5)",
-                "role": f"first-frost dates, {RECORD_SPAN_YEARS} seasons",
-                "resolution_m": sources.ARCHIVE_RESOLUTION_M,
+                "name": "Open-Meteo archived model runs",
+                # The span actually read, not the one asked for. The feed
+                # starts in 2018, so a ten-season request is honoured with
+                # however many exist — and saying "10 seasons" over eight of
+                # them would be a claim about evidence we do not have.
+                "role": (
+                    f"first-frost dates, "
+                    f"{today.year - sources.record_start_year(today.year, RECORD_SPAN_YEARS)} seasons"
+                ),
+                "resolution_m": sources.HISTORY_RESOLUTION_M,
             },
             {
                 "name": "Open-Meteo forecast",
