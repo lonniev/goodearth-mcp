@@ -25,7 +25,7 @@ import secrets
 from datetime import UTC, date, datetime
 from typing import Any
 
-from goodearth_mcp import crops, gdd, ical, pests, sources, wildlife
+from goodearth_mcp import crops, gdd, ical, pests, record_cache, sources, wildlife
 from goodearth_mcp.frost import first_fall_frost, summarize_frost_dates
 from goodearth_mcp.region import Region
 
@@ -153,11 +153,11 @@ async def build_feed(
     # else was in it would be a surprising calendar.
     try:
         season, record = (
-            await sources.fetch_daily_history(
+            await record_cache.daily_history(
                 [region.centroid.lat], [region.centroid.lon],
                 start.isoformat(), today.isoformat(),
             ),
-            await sources.fetch_daily_history(
+            await record_cache.daily_history(
                 [region.centroid.lat], [region.centroid.lon],
                 date(sources.record_start_year(today.year, RECORD_SPAN_YEARS), 1, 1).isoformat(),
                 date(today.year - 1, 12, 31).isoformat(),

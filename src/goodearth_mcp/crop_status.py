@@ -13,7 +13,7 @@ import asyncio
 from datetime import UTC, date, datetime
 from typing import Any
 
-from goodearth_mcp import crops, frost, gdd, sources
+from goodearth_mcp import crops, frost, gdd, record_cache, sources
 from goodearth_mcp.crops import CropError
 from goodearth_mcp.region import Region
 
@@ -81,10 +81,10 @@ async def region_crop_ledger(
     cells_lat = [region.centroid.lat]
     cells_lon = [region.centroid.lon]
 
-    history_task = sources.fetch_daily_history(
+    history_task = record_cache.daily_history(
         cells_lat, cells_lon, start.isoformat(), today.isoformat()
     )
-    frost_task = sources.fetch_daily_history(
+    frost_task = record_cache.daily_history(
         cells_lat, cells_lon,
         date(today.year - RECORD_SPAN_YEARS, 1, 1).isoformat(),
         date(today.year - 1, 12, 31).isoformat(),

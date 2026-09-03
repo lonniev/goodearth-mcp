@@ -14,7 +14,7 @@ import asyncio
 from datetime import UTC, date, datetime
 from typing import Any
 
-from goodearth_mcp import gdd, sources
+from goodearth_mcp import gdd, record_cache, sources
 from goodearth_mcp.region import Region, cluster_to_grid, summarize
 
 # Sane bounds on a crop base temperature. 50 °F is the field-corn convention,
@@ -76,7 +76,7 @@ async def region_season_curve(
     # the same grid square 48 times (which is also what trips its rate limit).
     cells, cell_of_point = cluster_to_grid(region.points, sources.HISTORY_RESOLUTION_M)
 
-    history_task = sources.fetch_daily_history(
+    history_task = record_cache.daily_history(
         [c.lat for c in cells],
         [c.lon for c in cells],
         start.isoformat(),
@@ -88,7 +88,7 @@ async def region_season_curve(
     # Normals take the 1 km feed where the running season cannot: they are one
     # point over a span that has entirely happened, which is exactly what
     # Daymet serves and nine times finer than the archive underneath it.
-    normals_task = sources.fetch_normals_history(
+    normals_task = record_cache.normals_history(
         region.centroid.lat,
         region.centroid.lon,
         start.replace(year=today.year - NORMALS_SPAN_YEARS).isoformat(),

@@ -11,7 +11,7 @@ import asyncio
 from datetime import UTC, date, datetime
 from typing import Any
 
-from goodearth_mcp import frost, gdd, planting, soil, sources
+from goodearth_mcp import frost, gdd, planting, record_cache, soil, sources
 from goodearth_mcp.region import Region
 
 RECORD_SPAN_YEARS = 10
@@ -44,11 +44,11 @@ async def region_planting_window(
     span_to = date(today.year - 1, 12, 31).isoformat()
 
     tasks: list[Any] = [
-        sources.fetch_daily_history([region.centroid.lat], [region.centroid.lon], span_from, span_to)
+        record_cache.daily_history([region.centroid.lat], [region.centroid.lon], span_from, span_to)
     ]
     if soil_wanted:
         band = soil.BANDS[soil.DEFAULT_BAND]
-        tasks.append(sources.fetch_soil_history(
+        tasks.append(record_cache.soil_history(
             region.centroid.lat, region.centroid.lon, band["archive"], span_from, span_to
         ))
 

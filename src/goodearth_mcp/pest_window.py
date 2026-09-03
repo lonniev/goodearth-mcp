@@ -12,7 +12,7 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 from typing import Any
 
-from goodearth_mcp import crops, gdd, pests, sources
+from goodearth_mcp import crops, gdd, pests, record_cache, sources
 from goodearth_mcp.region import Region
 
 MAX_MODELS = 10
@@ -50,7 +50,7 @@ async def region_pest_window(
 
     start = gdd.season_start(today)
     try:
-        history = await sources.fetch_daily_history(
+        history = await record_cache.daily_history(
             [region.centroid.lat], [region.centroid.lon],
             start.isoformat(), today.isoformat(),
         )

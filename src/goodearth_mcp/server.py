@@ -29,6 +29,7 @@ from goodearth_mcp import (
     calendar_feed,
     catalog,
     feed_store,
+    record_cache,
     roster,
     season,
     sources,
@@ -386,6 +387,13 @@ async def _block_region(npub: str, block: str) -> tuple[Region, dict[str, Any]]:
     is a ``ValueError``, which the runtime surfaces with its message intact, so
     the grower still reads exactly what went wrong.
     """
+    # Every compute tool resolves its ground through here, which makes this the
+    # one place the patron has to be named for the weather cache. The impls
+    # below take a Region and know nothing about identity or billing — rightly:
+    # a frost calculation has no business holding an npub. Unset, the cache is
+    # a no-op that calls straight through to the feeds.
+    record_cache.serving(npub)
+
     found = await block_store.resolve(npub, block)
     geometry = found.get("geometry") or {}
     try:
