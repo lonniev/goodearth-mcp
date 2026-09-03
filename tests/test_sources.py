@@ -276,3 +276,60 @@ def test_an_unattributable_read_names_the_preferred_feed():
 def test_a_stamped_record_reports_the_feed_that_answered():
     stamped = [{"_feed": {"name": "Open-Meteo archive (ERA5)", "resolution_m": 9_000}}]
     assert sources.feed_of(stamped)["resolution_m"] == 9_000
+
+
+# ── The feed that suits the span ──────────────────────────────────────────
+
+
+def test_span_days_reads_the_request():
+    assert sources._span_days({"start_date": "2026-01-01", "end_date": "2026-01-31"}) == 30
+    assert sources._span_days({"start_date": "2016-01-01", "end_date": "2025-12-31"}) > 3_000
+
+
+def test_a_request_without_dates_is_not_deep():
+    """Unknown span keeps the resolution-first order, which is the safe default."""
+    for junk in ({}, {"start_date": "soon", "end_date": "later"}, {"start_date": None}):
+        assert sources._span_days(junk) == 0
+
+
+def test_the_deep_threshold_sits_above_a_season():
+    """A running season must never be treated as deep history.
+
+    The season is where resolution earns its keep — its minima decide frost
+    dates and its cells decide whether one farm's two ends can differ at all.
+    """
+    assert sources.DEEP_SPAN_DAYS > 366
+
+
+@respx.mock
+async def test_a_deep_record_prefers_the_fast_fine_feed():
+    """Ten years of max/min is exactly what Daymet is for.
+
+    Measured: 0.8 s at 1 km, against 3.5 s from the reanalysis and 25.4 s from
+    the model runs — against a 30 s timeout. That last number is why this
+    looked like an outage: a read that takes 25 s passes or fails on the day's
+    latency. And a frost record is a record of MINIMA, so a source that smooths
+    them dates the first frost late.
+    """
+    respx.get(sources._DAYMET).mock(return_value=httpx.Response(200, text=(
+        "year,yday,tmax (deg c),tmin (deg c)\n2018,1,0.0,-10.0\n"
+    )))
+    records = await sources.fetch_daily_history(
+        [44.13], [-73.34], "2018-01-01", "2025-12-31",
+    )
+    assert sources.feed_of(records)["name"].startswith("Daymet")
+    assert sources.feed_of(records)["resolution_m"] == sources.DAYMET_RESOLUTION_M
+
+
+@respx.mock
+async def test_a_season_does_not_go_to_daymet():
+    """Daymet lags a year, so it cannot see the running season at all."""
+    respx.get(sources._HISTORY).mock(return_value=httpx.Response(200, json={
+        "latitude": 44.13, "longitude": -73.34,
+        "daily": {"time": ["2026-01-01"], "temperature_2m_max": [30.0],
+                  "temperature_2m_min": [12.0]},
+    }))
+    records = await sources.fetch_daily_history(
+        [44.13], [-73.34], "2026-01-01", "2026-09-03",
+    )
+    assert sources.feed_of(records)["resolution_m"] == sources.HISTORY_RESOLUTION_M
