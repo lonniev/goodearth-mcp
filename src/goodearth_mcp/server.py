@@ -370,8 +370,15 @@ async def _stored_items(npub: str, block_id: str, kind: str, *, season: int | No
     page = await block_store.list_items(
         npub, block_id, kind, season_year=season, page_size=block_store.MAX_PAGE_SIZE,
     )
+    # The row's id survives as `ref`, and only as `ref`. A computed answer has
+    # to be able to say WHICH saved item it is about: a grower runs the same
+    # crop as several successions and watches one bird for both its arrival and
+    # its departure, so nothing a human would name tells two rows apart. It is
+    # carried through the arithmetic untouched and never read by it.
     return [
-        {k: v for k, v in row.items() if k not in ("item_id", "kind", "retired", "source")}
+        {**{k: v for k, v in row.items()
+            if k not in ("item_id", "kind", "retired", "source")},
+         "ref": row.get("item_id")}
         for row in page["items"]
     ]
 
@@ -1819,6 +1826,27 @@ async def block_item_list(
         bool,
         Field(description="Include what you have retired."),
     ] = False,
+    search: Annotated[
+        str,
+        Field(
+            description=(
+                "Case-insensitive regex over the name and the event, e.g. "
+                "'migration' finds both of a bird's. Empty matches everything."
+            )
+        ),
+    ] = "",
+    sort_col: Annotated[
+        str,
+        Field(
+            description=(
+                "Order by one of: name, event, driver, starts_on, target_gdd, "
+                "observed_on, season, created, updated. Omit for the default "
+                "order — sightings newest first, everything else by when it "
+                "was added."
+            )
+        ),
+    ] = "",
+    sort_dir: Annotated[str, Field(description="'asc' or 'desc'.")] = "asc",
     page: Annotated[int, Field(description="Zero-based page number.")] = 0,
     page_size: Annotated[int, Field(description="Rows per page, up to 200.")] = 50,
     npub: Annotated[
@@ -1831,13 +1859,18 @@ async def block_item_list(
 
     `as_of` is how a past season answers: the record as it stood that day,
     rather than as it stands now.
+
+    Sorting and searching happen in the database, over as many rows as the
+    block holds rather than the page you are looking at.
     """
     try:
         found = await block_store.resolve(npub, block)
         result = await block_store.list_items(
             npub, found["block_id"], kind,
             season_year=season, since=since, until=until, as_of=as_of,
-            include_retired=include_retired, page=page, page_size=page_size,
+            include_retired=include_retired, search=search,
+            sort_col=sort_col, sort_dir=sort_dir,
+            page=page, page_size=page_size,
         )
     except OSError as exc:
         logger.error("block_item_list persistence failed: %s", exc)

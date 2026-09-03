@@ -18,6 +18,19 @@ class WildlifeWindowError(ValueError):
     """The request cannot be answered as asked."""
 
 
+def _with_ref(parsed: dict, row) -> dict:
+    """Carry the saved item's id onto its validated form.
+
+    Stamped here rather than inside the validator, which returns a fixed shape
+    on purpose — the domain modules compute against crops and creatures and
+    have no business holding a database id. It rides along and is never read.
+    """
+    ref = str((row or {}).get("ref") or "") if isinstance(row, dict) else ""
+    if ref:
+        parsed["ref"] = ref
+    return parsed
+
+
 async def region_wildlife(
     region: Region,
     events: Any,
@@ -41,7 +54,7 @@ async def region_wildlife(
     skipped = []
     for row in events:
         try:
-            parsed.append(wildlife.validate_event(row))
+            parsed.append(_with_ref(wildlife.validate_event(row), row))
         except wildlife.WildlifeError as exc_:
             skipped.append({"name": str((row or {}).get("species") or "?"), "reason": str(exc_)})
     # A roster entry names a creature the grower watches for, not an event
@@ -56,6 +69,13 @@ async def region_wildlife(
     dates: list[str] = []
     curves: dict[float, list[float]] = {}
     daylight: list[float | None] = []
+    # Bound here, not only inside the branch below. A roster of nothing but
+    # calendar and interval events needs no weather at all — "swallows arrive
+    # about 20 April", a gestation count — and that is an ordinary list, not a
+    # degenerate one. Left unbound, the provenance block at the end raised
+    # UnboundLocalError and took the whole page with it: the grower lost every
+    # creature they track because none of them happened to need heat.
+    record: Any = None
 
     if needs_heat or needs_light:
         start = gdd.season_start(today)
@@ -101,6 +121,9 @@ async def region_wildlife(
         else:
             detail = wildlife.calendar_event(e, today)
         rows.append({
+            # Which saved watch this is. One bird's arrival and its departure
+            # are two rows about one species — the owner's own case.
+            **({"ref": e["ref"]} if e.get("ref") else {}),
             "species": e["species"], "event": e["event"],
             "emoji": e["emoji"], "note": e["note"] or None,
             **detail,

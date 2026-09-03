@@ -11,14 +11,19 @@
 import { useCallback, useEffect, useState } from "react";
 import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
+import { Pager, SortHeaders, type Column } from "../components/RecordTable";
+import SearchBox from "../components/SearchBox";
 import { wildlifeCalendar, type WildlifeResult } from "../lib/mcp";
-import { useBlockItems } from "../lib/blockItems";
+import { useBlockItems, type ItemSort } from "../lib/blockItems";
 import {
   DRIVER_HELP, HUSBANDRY_INTERVALS, makeWildlife,
   wildlifeCodec, type SavedWildlife,
 } from "../lib/wildlifeModels";
 import type { SavedRegion } from "../lib/regions";
-import { Empty, ErrorBox, FIELD, Note, PageTitle, Pill, Section, SpeciesChiclet } from "../components/ui";
+import {
+  CELL, Empty, ErrorBox, FIELD, ICON, IconButton, Note, PageTitle, Pill,
+  RowActions, Section, SpeciesChiclet,
+} from "../components/ui";
 import { speciesHabits, wildlifeCatalog, type SpeciesHabitsResult, type WildlifeCatalogResult } from "../lib/mcp";
 
 const CLOCK: Record<string, { label: string; cls: string }> = {
@@ -31,14 +36,36 @@ const CLOCK: Record<string, { label: string; cls: string }> = {
 const day = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
+/// Species and event sort in the database; the clock and the computed date do
+/// not, so they are not offered as headers that would quietly do nothing.
+const COLS: Column<ItemSort>[] = [
+  { key: "name", label: "Creature" },
+  { key: "event", label: "Event" },
+  { key: "driver", label: "Clock" },
+  { label: "When", width: "38%" },
+  { label: "" },
+];
+
 export default function Wildlife({
   region, onCost,
 }: { region: SavedRegion; onCost: (sats: number) => void }) {
   // Read from the grower's record under their npub, not from this browser.
+  // Order, search and paging are the database's — it sorts every watch on the
+  // block, not the twenty in hand. Search runs on submit: a read costs sats.
+  const [sort, setSort] = useState<ItemSort>("name");
+  const [dir, setDir] = useState<"asc" | "desc">("asc");
+  const [pageNo, setPageNo] = useState(0);
+  const [search, setSearch] = useState("");
+  const [editing, setEditing] = useState("");
+  const [draft, setDraft] = useState<SavedWildlife | null>(null);
+  const [savingRow, setSavingRow] = useState(false);
+
   const { items: models, save: storeWildlife, retire: retireWildlife,
           loading: modelsLoading, error: modelsError,
-          unknownBlock: modelsUnknown } =
-    useBlockItems<SavedWildlife>(region.id, "wildlife", wildlifeCodec);
+          unknownBlock: modelsUnknown, total, page, pages } =
+    useBlockItems<SavedWildlife>(region.id, "wildlife", wildlifeCodec, undefined, {
+      sortCol: sort, sortDir: dir, page: pageNo, search, pageSize: 20,
+    });
   const [data, setData] = useState<WildlifeResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -66,7 +93,9 @@ export default function Wildlife({
     try {
       const r = await wildlifeCalendar(
         region.id,
-        list.map(({ id: _i, regionId: _r, ...e }) => e),
+        // The id goes ALONG as `ref`. One species can hold several events —
+        // a migration arrival and a departure — and only this separates them.
+        list.map(({ id, regionId: _r, ...e }) => ({ ...e, ref: id })),
       );
       if (!r.success) { setError(r.error || "The calendar could not be read."); return; }
       setData(r); setRanAt(new Date());
@@ -75,6 +104,34 @@ export default function Wildlife({
   }, [region]);
 
   useEffect(() => { void run(models); }, [run, models]);
+
+  function sortBy(col: ItemSort) {
+    if (col === sort) setDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSort(col); setDir("asc"); }
+    setPageNo(0);
+  }
+
+  /// The record, joined to what the year said about it by `ref` — the saved
+  /// item's own id. It used to match on species AND event, which is the right
+  /// natural key but still only a guess; the ref is the grower's actual row.
+  const watched = models.map((m) => ({
+    model: m,
+    seen: data?.events?.find(
+      (e) => (e.ref && e.ref === m.id)
+        || (!e.ref && e.species === m.species && e.event === m.event),
+    ),
+  }));
+
+  async function commitRow() {
+    if (!draft) return;
+    setSavingRow(true); setError("");
+    try {
+      await storeWildlife(draft);
+      setEditing(""); setDraft(null);
+    } catch (e) {
+      setError(String((e as Error).message ?? e));
+    } finally { setSavingRow(false); }
+  }
 
   function add(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -138,53 +195,84 @@ export default function Wildlife({
         </div>
       )}
 
+      <div className="mb-3 flex items-center justify-end gap-1.5">
+        <IconButton path={ICON.add} label="Watch" form="new-watch" title="Track something" />
+      </div>
+
       <Section emoji="📅" title="The year" first>
         {models.length > 0 && <Provenance tool="goodearth_wildlife_calendar" at={ranAt} onCost={onCost} />}
       </Section>
       {data?.summary && <p className="mb-2.5 text-[13px] text-ink-soft">{data.summary}</p>}
 
+      <div className="mb-2.5 flex flex-wrap items-center gap-1.5">
+        <SearchBox value={search} placeholder="regex ok, e.g. robin|migration"
+          onSearch={(t) => { setSearch(t); setPageNo(0); }} />
+      </div>
+
       {busy && !data ? (
         <div className="rounded-md border border-rule bg-panel"><QuoteScroller heading="Reading the year" /></div>
-      ) : data ? (
-        <ul className="space-y-2">
-          {data.events.map((e) => {
-            const clock = CLOCK[e.driver];
-            const when = e.reached_on ?? e.projected_date;
-            const past = !!e.reached_on;
-            const id = models.find((m) => m.species === e.species && m.event === e.event)?.id;
-            return (
-              <li key={e.species + e.event}
-                className="flex items-start gap-3 rounded-md border border-rule bg-panel px-3.5 py-2.5">
-                <span className="text-[22px] leading-none">{e.emoji || "•"}</span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-baseline gap-2">
-                    <b className="text-[13.5px]">{e.species}</b>
-                    <span className="text-[13px] text-ink-soft">{e.event}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${clock.cls}`}>
-                      {clock.label}
-                    </span>
-                  </div>
-                  <div className="data mt-0.5 text-[11px] text-ink-soft">
-                    {e.threshold}
-                    {when && ` → ${day(when)}${past ? "" : " expected"}`}
-                    {e.window && !past && ` (${day(e.window.from)}–${day(e.window.to)})`}
-                    {!when && " → not this season"}
-                  </div>
-                  {e.note && <p className="mt-0.5 text-[12px] text-ink-soft">{e.note}</p>}
-                </div>
-                <span className={`shrink-0 self-center rounded-full px-2 py-1 text-[11px] font-semibold ${
-                  past ? "bg-growth/12 text-growth" : "bg-band text-ink-soft"}`}>
-                  {past ? "seen" : "ahead"}
-                </span>
-                {id && (
-                  <button onClick={() => void retireWildlife(id)}
-                    aria-label={`Remove ${e.species}`}
-                    className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+      ) : models.length ? (
+        <>
+          <div className="overflow-x-auto overscroll-x-contain rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">
+            <table className="w-full border-collapse text-[13px]">
+              <thead>
+                <SortHeaders cols={COLS} sort={sort} dir={dir} onSort={sortBy} />
+              </thead>
+              <tbody>
+                {watched.map(({ model: m, seen: e }) => {
+                  const clock = CLOCK[m.driver];
+                  const when = e?.reached_on ?? e?.projected_date;
+                  const past = !!e?.reached_on;
+                  const open = () => { setEditing(m.id); setDraft(m); };
+                  return editing === m.id && draft ? (
+                    <Editor key={m.id} draft={draft} onChange={setDraft}
+                      onCommit={commitRow} saving={savingRow}
+                      onCancel={() => { setEditing(""); setDraft(null); }} />
+                  ) : (
+                    <tr key={m.id} className="border-b border-rule last:border-b-0">
+                      <td onClick={open} className="cursor-text px-3 py-2.5 font-semibold">
+                        <span className="mr-1.5 text-[15px]" aria-hidden="true">{m.emoji || "•"}</span>
+                        {m.species}
+                      </td>
+                      {/* The event, not the creature, is what tells two rows
+                          apart — a bird's arrival and its departure are two
+                          things the grower chose to track. */}
+                      <td onClick={open} className="cursor-text px-3 py-2.5">{m.event}</td>
+                      <td className="px-3 py-2.5 whitespace-nowrap">
+                        <span className={`rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${clock.cls}`}>
+                          {clock.label}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <span className="data text-[11px] text-ink-soft">
+                          {e ? (
+                            <>
+                              {e.threshold}
+                              {when && ` → ${day(when)}${past ? "" : " expected"}`}
+                              {e.window && !past && ` (${day(e.window.from)}–${day(e.window.to)})`}
+                              {!when && " → not this season"}
+                            </>
+                          ) : "not yet read"}
+                        </span>
+                        {m.note && <p className="mt-0.5 text-[12px] text-ink-soft">{m.note}</p>}
+                      </td>
+                      <td className="px-2 py-2.5 text-right whitespace-nowrap">
+                        <span className={`mr-2 shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold ${
+                          past ? "bg-growth/12 text-growth" : "bg-band text-ink-soft"}`}>
+                          {past ? "seen" : "ahead"}
+                        </span>
+                        <button onClick={() => void retireWildlife(m.id)}
+                          aria-label={`Remove ${m.species} ${m.event}`}
+                          className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <Pager page={page} pages={pages} total={total} noun="watch" onPage={setPageNo} />
+        </>
       ) : modelsLoading ? (
         <Empty>Reading what you have on {region.name}…</Empty>
       ) : modelsUnknown ? (
@@ -193,16 +281,21 @@ export default function Wildlife({
         <ErrorBox>Could not read your record for {region.name}: {modelsError}</ErrorBox>
       ) : (
         <Empty>
-          Nothing tracked on {region.name} yet. Take a creature from what is
-          recorded around you below — when do your robins arrive, when do the
-          squirrels start caching — and the calendar works out when it happens
-          on this ground.
+          {search
+            ? "Nothing matches that. Clear the search to see everything you track."
+            : `Nothing tracked on ${region.name} yet. Take a creature from what is `
+              + "recorded around you below — when do your robins arrive, when do the "
+              + "squirrels start caching — and the calendar works out when it happens "
+              + "on this ground."}
         </Empty>
       )}
 
       {/* ── Add ────────────────────────────────────────────────────────── */}
+      {/* Submitted from the icon button at the top of the page. This form asks
+          different questions per clock, so it keeps its own block rather than
+          being flattened into the header row. */}
       <Section emoji="➕" title="Track something" />
-      <form onSubmit={add} className="rounded-md border border-rule bg-panel p-4">
+      <form id="new-watch" onSubmit={add} className="rounded-md border border-rule bg-panel p-4">
         <div className="flex flex-wrap gap-1.5">
           {(["daylight", "heat", "interval", "calendar"] as const).map((d) => (
             <button key={d} type="button" onClick={() => setDriver(d)}
@@ -252,9 +345,6 @@ export default function Wildlife({
           {driver === "calendar" && <Field name="on" label="Typical (MM-DD)" placeholder="09-15" />}
         </div>
 
-        <button className="mt-3 min-h-11 rounded border-[1.5px] border-ink px-4 text-[13px] font-semibold active:bg-ink active:text-paper">
-          Track it
-        </button>
       </form>
 
       <Section emoji="🐄" title="Livestock" />
@@ -381,5 +471,52 @@ function Field({ name, label, placeholder, value, onChange }: {
       <input name={name} placeholder={placeholder} className={FIELD}
         {...(onChange ? { value: value ?? "", onChange: (e) => onChange(e.target.value) } : {})} />
     </label>
+  );
+}
+
+/// One watch, open for editing.
+///
+/// Only the fields every clock shares are editable in the row — the creature,
+/// its event, and the note. The thresholds differ per driver (a GDD figure, a
+/// day length, a count of days, a date), and cramming four shapes into one row
+/// would make the common edit — a misspelt species, a clearer event name —
+/// worse in order to serve the rare one. Change a threshold by removing the
+/// watch and adding it again from the form, which already asks the right
+/// questions for each clock.
+function Editor({ draft, onChange, onCommit, onCancel, saving }: {
+  draft: SavedWildlife;
+  onChange: (w: SavedWildlife) => void;
+  onCommit: () => void;
+  onCancel: () => void;
+  saving: boolean;
+}) {
+  const set = (patch: Partial<SavedWildlife>) => onChange({ ...draft, ...patch });
+  const keys = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") { e.preventDefault(); onCommit(); }
+    if (e.key === "Escape") onCancel();
+  };
+  return (
+    <tr className="border-b border-rule bg-band/40 last:border-b-0">
+      <td className="px-3 py-2 align-top">
+        <input autoFocus value={draft.species} className={CELL} onKeyDown={keys}
+          onChange={(e) => set({ species: e.target.value })} />
+      </td>
+      <td className="px-3 py-2 align-top">
+        <input value={draft.event} className={CELL} onKeyDown={keys}
+          placeholder="first arrival"
+          onChange={(e) => set({ event: e.target.value })} />
+      </td>
+      <td className="px-3 py-2 align-top">
+        <input value={draft.emoji ?? ""} className={CELL} onKeyDown={keys}
+          placeholder="🐦" onChange={(e) => set({ emoji: e.target.value })} />
+      </td>
+      <td className="px-3 py-2 align-top">
+        <input value={draft.note ?? ""} className={CELL} onKeyDown={keys}
+          placeholder="note" onChange={(e) => set({ note: e.target.value })} />
+      </td>
+      <td className="px-2 py-2 text-right align-top whitespace-nowrap">
+        <RowActions onCommit={onCommit} onCancel={onCancel} saving={saving} what="watch" />
+      </td>
+    </tr>
   );
 }

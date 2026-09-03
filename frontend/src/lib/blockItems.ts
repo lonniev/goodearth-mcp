@@ -12,9 +12,27 @@
 // would have been four chances to drift.
 
 import { useCallback, useEffect, useState } from "react";
-import { blockItemList, blockItemSave, type ItemKind, type ItemRow } from "./mcp";
+import {
+  blockItemList, blockItemSave, type ItemKind, type ItemRow, type ItemSort,
+} from "./mcp";
 
-export type { ItemKind };
+export type { ItemKind, ItemSort };
+
+/// How a view wants the record ordered and narrowed.
+///
+/// All of it is applied by the DATABASE, over every row the block holds rather
+/// than over the page in hand. That became possible when the grower's content
+/// moved into columns Postgres can read; while it was sealed, a name only
+/// existed inside a ciphertext and could not be an ORDER BY.
+export interface ItemQuery {
+  /// Regex over the name and the event. Set only when the grower asks for it
+  /// — never while they are still typing.
+  search?: string;
+  sortCol?: ItemSort;
+  sortDir?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
+}
 
 /// Rows carry the server's bookkeeping alongside the grower's payload. Views
 /// want their own shape, so each caller supplies the two mappings and this
@@ -28,6 +46,11 @@ export interface ItemCodec<T> {
 
 export interface ItemsHandle<T> {
   items: T[];
+  /// Where this page sits in the whole record. `total` counts every matching
+  /// row, not the ones in hand, so "12 plantings" stays true on page two.
+  total: number;
+  page: number;
+  pages: number;
   /// The record has no such block. The browser is asking about ground the
   /// server does not know — usually a stale active region after a device
   /// switch, which is a different thing from having nothing planted.
@@ -49,8 +72,13 @@ export function useBlockItems<T>(
   kind: ItemKind,
   codec: ItemCodec<T>,
   season?: number,
+  /// Omit entirely and the hook behaves exactly as it always did: one page of
+  /// 200 in the record's own order. A view adopts sorting when it is ready to,
+  /// not when this signature changes.
+  query?: ItemQuery,
 ): ItemsHandle<T> {
   const [items, setItems] = useState<T[]>([]);
+  const [count, setCount] = useState({ total: 0, page: 0, pages: 1 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [unknownBlock, setUnknownBlock] = useState(false);
@@ -62,10 +90,17 @@ export function useBlockItems<T>(
     try {
       const page = await blockItemList(block, kind, {
         ...(season != null ? { season } : {}),
-        page_size: 200,
+        ...(query?.search ? { search: query.search } : {}),
+        ...(query?.sortCol ? { sort_col: query.sortCol } : {}),
+        ...(query?.sortDir ? { sort_dir: query.sortDir } : {}),
+        ...(query?.page != null ? { page: query.page } : {}),
+        page_size: query?.pageSize ?? 200,
       });
       if (page?.success) {
         setItems((page.items ?? []).map(from));
+        setCount({
+          total: page.total ?? 0, page: page.page ?? 0, pages: page.pages ?? 1,
+        });
         setError("");
         setUnknownBlock(false);
       } else if (page?.error_code === "no_such_block") {
@@ -87,7 +122,10 @@ export function useBlockItems<T>(
     } finally {
       setLoading(false);
     }
-  }, [block, kind, season, from]);
+    // Every field is named rather than depending on the object, which a caller
+    // rebuilds on each render — that would refetch forever.
+  }, [block, kind, season, from,
+      query?.search, query?.sortCol, query?.sortDir, query?.page, query?.pageSize]);
 
   useEffect(() => { setLoading(true); void reload(); }, [reload]);
 
@@ -106,5 +144,5 @@ export function useBlockItems<T>(
     await reload();
   }, [block, kind, reload]);
 
-  return { items, loading, error, unknownBlock, save, retire, reload };
+  return { items, ...count, loading, error, unknownBlock, save, retire, reload };
 }

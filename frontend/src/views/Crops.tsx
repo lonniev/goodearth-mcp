@@ -6,17 +6,19 @@
 // failed paid call.
 
 import { useCallback, useEffect, useState } from "react";
-import CropLedger from "../components/CropLedger";
+import CropLedger, { type LedgerRow } from "../components/CropLedger";
 import Provenance from "../components/Provenance";
+import { Pager } from "../components/RecordTable";
+import SearchBox from "../components/SearchBox";
 import QuoteScroller from "../components/QuoteScroller";
 import { cropGddStatus, cropSuitability, plantingWindow, type CropLedgerResult,
   type PlantingWindowResult, type SuitabilityResult, type Verdict } from "../lib/mcp";
 import {
   CROP_CATEGORIES, CROP_PRESETS, makePlanting, plantingCodec,
   type CropPreset, type Planting, plantingDateFor } from "../lib/plantings";
-import { useBlockItems } from "../lib/blockItems";
+import { useBlockItems, type ItemSort } from "../lib/blockItems";
 import type { SavedRegion } from "../lib/regions";
-import { Empty, ErrorBox, FIELD, Note, PageTitle, Section } from "../components/ui";
+import { Empty, ErrorBox, FIELD, ICON, IconButton, Note, Pill, Section } from "../components/ui";
 
 const short = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -29,10 +31,43 @@ export default function Crops({
 }) {
   // The grower's record, read from the server under their npub — not from
   // this browser. What they saved on the laptop is what the phone shows.
+  // Order, search and paging are the database's — it sorts every planting on
+  // the block, not the twenty in hand. Search runs on submit, never per
+  // keystroke: a read costs sats.
+  const [sort, setSort] = useState<ItemSort>("name");
+  const [dir, setDir] = useState<"asc" | "desc">("asc");
+  const [pageNo, setPageNo] = useState(0);
+  const [search, setSearch] = useState("");
+
   const { items: plantings, save: storePlanting, retire: retirePlanting,
           loading: plantingsLoading, error: plantingsError,
-          unknownBlock: plantingsUnknown } =
-    useBlockItems<Planting>(region.id, "planting", plantingCodec);
+          unknownBlock: plantingsUnknown, total, page, pages } =
+    useBlockItems<Planting>(region.id, "planting", plantingCodec, undefined, {
+      sortCol: sort, sortDir: dir, page: pageNo, search, pageSize: 20,
+    });
+
+  function sortBy(col: ItemSort) {
+    if (col === sort) setDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSort(col); setDir("asc"); }
+    setPageNo(0);
+  }
+
+  /// The planting open for editing, and the draft being typed into it.
+  const [editing, setEditing] = useState("");
+  const [draft, setDraft] = useState<Planting | null>(null);
+  const [savingRow, setSavingRow] = useState(false);
+
+  async function commitRow() {
+    if (!draft) return;
+    if (!draft.crop.trim()) { setFormErr("A planting needs a crop."); return; }
+    setSavingRow(true); setFormErr("");
+    try {
+      await storePlanting(draft);
+      setEditing(""); setDraft(null);
+    } catch (e) {
+      setFormErr(String((e as Error).message ?? e));
+    } finally { setSavingRow(false); }
+  }
   const [ledger, setLedger] = useState<CropLedgerResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -56,6 +91,10 @@ export default function Crops({
       const r = await cropGddStatus(
         region.id,
         list.map((p) => ({
+          // Which saved planting this is. Two successions of one crop are two
+          // choices the grower made, and nothing else on the row tells them
+          // apart — they share a name, a target and often a base temperature.
+          ref: p.id,
           crop: p.crop,
           // Omitted rather than defaulted: the server reads a missing target
           // or set-out as a presence row and reports it as untracked, where a
@@ -156,16 +195,64 @@ export default function Crops({
     e.currentTarget.reset();
   }
 
+  /// The record, decorated by whatever the season had to say about it.
+  ///
+  /// Joined on `ref` — the saved item's own id, echoed back untouched. It used
+  /// to be joined on the crop NAME, which meant two successions of one crop
+  /// were the same row to this code. They are two choices the grower made.
+  const ledgerRows: LedgerRow[] = plantings.map((planting) => {
+    const status = ledger?.plantings?.find(
+      (r) => (r.ref && r.ref === planting.id) || (!r.ref && r.crop === planting.crop),
+    );
+    const missed = ledger?.untracked?.find(
+      (u) => (u.ref && u.ref === planting.id) || (!u.ref && u.crop === planting.crop),
+    );
+    return { planting, status, reason: missed?.reason };
+  });
+
   const remove = (id: string) =>
     void retirePlanting(id).catch((e) => setFormErr(String(e.message ?? e)));
 
   return (
     <>
-      <PageTitle>Crops</PageTitle>
+      <div className="mb-3 flex items-center justify-end gap-1.5">
+        {/* Submits the form below by id, so the act has one compact control
+            instead of a sentence at the foot of a form. */}
+        <IconButton path={ICON.add} label="Planting" form="new-planting"
+          title="Add a planting" />
+      </div>
 
       {error && (
         <ErrorBox>{error}</ErrorBox>
       )}
+
+      {/* ── Add a planting ─────────────────────────────────────────────── */}
+      <form id="new-planting" onSubmit={add} className="mb-4 rounded-md border border-rule bg-panel p-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="block text-[11px] text-ink-soft">
+            Crop
+            <input name="crop" list="ge-crop-presets" placeholder="Zinnia · succession 4"
+              className={FIELD} />
+          </label>
+          <label className="block text-[11px] text-ink-soft">
+            GDD target <span className="opacity-60">(optional)</span>
+            <input name="target" inputMode="numeric" placeholder="780" className={FIELD} />
+          </label>
+          <label className="block text-[11px] text-ink-soft">
+            Planted <span className="opacity-60">(set out or sown)</span>
+            <input name="setout" type="date" className={FIELD} />
+          </label>
+          <label className="block text-[11px] text-ink-soft">
+            Base °F <span className="opacity-60">(optional)</span>
+            <input name="base" inputMode="numeric" placeholder={String(region.baseTempF)}
+              className={FIELD} />
+          </label>
+        </div>
+        <datalist id="ge-crop-presets">
+          {CROP_PRESETS.map((c) => <option key={c.crop} value={c.crop} />)}
+        </datalist>
+        {formErr && <p className="mt-2 text-[12px] text-clay">{formErr}</p>}
+      </form>
 
       <Section emoji="📒" title="Crop ledger" first>
         {plantings.length > 0 && (
@@ -173,13 +260,20 @@ export default function Crops({
         )}
       </Section>
 
-      {ledger?.summary && (
+      <div className="mb-2.5 flex flex-wrap items-center gap-1.5">
+        <SearchBox value={search} placeholder="regex ok, e.g. zinnia|dahlia"
+          onSearch={(t) => { setSearch(t); setPageNo(0); }} />
+      </div>
+
+      {/* The server's summary counts the rows it was SENT, which is now one
+          page. Quoting it over a paged table would say "3 plantings" of a
+          block holding twenty. The pager states the true count; what only the
+          ledger knows is the frost date, so that is what is kept. */}
+      {ledger?.first_frost && (
         <p className="mb-2.5 text-[13px] text-ink-soft">
-          {ledger.summary}
-          {ledger.first_frost && (
-            <> Median first frost {new Date(ledger.first_frost.median + "T12:00:00")
-              .toLocaleDateString("en-US", { month: "short", day: "numeric" })}.</>
-          )}
+          Median first frost {new Date(ledger.first_frost.median + "T12:00:00")
+            .toLocaleDateString("en-US", { month: "short", day: "numeric" })}.
+          {ledger.wont_finish?.length ? ` ${ledger.wont_finish.length} on this page will not make it.` : ""}
         </p>
       )}
 
@@ -188,8 +282,19 @@ export default function Crops({
           <QuoteScroller heading="Reading the ledger" />
         </div>
       ) : ledger ? (
-        <CropLedger rows={ledger.plantings} untracked={ledger.untracked}
-                    plantings={plantings} onDelete={remove} />
+        <>
+          <CropLedger
+            rows={ledgerRows} sort={sort} dir={dir} onSort={sortBy}
+            editing={editing} draft={draft} saving={savingRow}
+            onEdit={(pl) => { setEditing(pl.id); setDraft(pl); }}
+            onDraft={setDraft}
+            onCancel={() => { setEditing(""); setDraft(null); }}
+            onCommit={commitRow}
+            onDelete={remove}
+          />
+          <Pager page={page} pages={pages} total={total} noun="planting"
+            onPage={setPageNo} />
+        </>
       ) : plantingsLoading ? (
         <Empty>Reading what you have on {region.name}…</Empty>
       ) : plantingsUnknown ? (
@@ -200,55 +305,19 @@ export default function Crops({
         <ErrorBox>Could not read your record for {region.name}: {plantingsError}</ErrorBox>
       ) : (
         <Empty>
-          No plantings on {region.name} yet. Add one below and the ledger will
-          tell you where it stands and whether it finishes before frost.
+          {search
+            ? "Nothing matches that. Clear the search to see everything you grow."
+            : `No plantings on ${region.name} yet. Add one above and the ledger will `
+              + "tell you where it stands and whether it finishes before frost."}
         </Empty>
       )}
-
-      {/* ── Add a planting ─────────────────────────────────────────────── */}
-      <Section emoji="➕" title="Add a planting" />
-      <form onSubmit={add} className="rounded-md border border-rule bg-panel p-4">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="block text-[11px] text-ink-soft">
-            Crop
-            <input name="crop" list="ge-crop-presets" placeholder="Zinnia · succession 4"
-              className={FIELD} />
-          </label>
-          <label className="block text-[11px] text-ink-soft">
-            GDD target
-            <input name="target" inputMode="numeric" placeholder="780"
-              className={FIELD} />
-          </label>
-          <label className="block text-[11px] text-ink-soft">
-            Planted <span className="opacity-60">(set out or sown)</span>
-            <input name="setout" type="date"
-              className={FIELD} />
-          </label>
-          <label className="block text-[11px] text-ink-soft">
-            Base °F <span className="opacity-60">(optional)</span>
-            <input name="base" inputMode="numeric" placeholder={String(region.baseTempF)}
-              className={FIELD} />
-          </label>
-        </div>
-
-        <datalist id="ge-crop-presets">
-          {CROP_PRESETS.map((c) => <option key={c.crop} value={c.crop} />)}
-        </datalist>
-
-        {formErr && <p className="mt-2 text-[12px] text-clay">{formErr}</p>}
-
-        <button className="mt-3 min-h-11 rounded border-[1.5px] border-ink px-4 text-[13px] font-semibold active:bg-ink active:text-paper">
-          Add to the ledger
-        </button>
-      </form>
 
       {/* ── Grows here ─────────────────────────────────────────────── */}
       <Section emoji="🌾" title="Grows here">
         {!fit && (
-          <button onClick={checkFit} disabled={fitBusy}
-            className="min-h-11 rounded-full border-[1.5px] border-ink px-4 text-[12.5px] font-semibold active:bg-ink active:text-paper disabled:opacity-40">
+          <Pill onClick={checkFit} disabled={fitBusy} active>
             {fitBusy ? "🧠 Reading…" : "🧠 What?"}
-          </button>
+          </Pill>
         )}
         {fit && <Provenance tool="goodearth_crop_suitability" at={fitAt} onCost={onCost} />}
       </Section>
@@ -341,10 +410,9 @@ export default function Crops({
       {/* ── Sowing ─────────────────────────────────────────────────── */}
       <Section emoji="🌱" title="Sowing">
         {!when && (
-          <button onClick={checkWhen} disabled={whenBusy}
-            className="min-h-11 rounded-full border-[1.5px] border-ink px-4 text-[12.5px] font-semibold active:bg-ink active:text-paper disabled:opacity-40">
+          <Pill onClick={checkWhen} disabled={whenBusy} active>
             {whenBusy ? "🧠 Reading…" : "🧠 When?"}
-          </button>
+          </Pill>
         )}
         {when && <Provenance tool="goodearth_planting_window" at={whenAt} onCost={onCost} />}
       </Section>

@@ -25,6 +25,19 @@ class LedgerError(ValueError):
     """The request cannot be answered as asked."""
 
 
+def _with_ref(parsed: dict, row) -> dict:
+    """Carry the saved item's id onto its validated form.
+
+    Stamped here rather than inside the validator, which returns a fixed shape
+    on purpose — the domain modules compute against crops and creatures and
+    have no business holding a database id. It rides along and is never read.
+    """
+    ref = str((row or {}).get("ref") or "") if isinstance(row, dict) else ""
+    if ref:
+        parsed["ref"] = ref
+    return parsed
+
+
 WORDS = {"set_out": "no set-out recorded", "gdd_target": "no heat target recorded"}
 
 
@@ -65,7 +78,7 @@ async def region_crop_ledger(
     untracked: list[dict[str, Any]] = []
     for row in plantings:
         try:
-            parsed_all.append(crops.validate_planting(row))
+            parsed_all.append(_with_ref(crops.validate_planting(row), row))
         except CropError as exc:
             untracked.append({
                 "crop": str((row or {}).get("crop") or (row or {}).get("name") or "?"),
@@ -84,7 +97,8 @@ async def region_crop_ledger(
     # nulls the set-out when EITHER field is absent, so every untracked row was
     # reported as "no set-out recorded" and the other branch was dead code.
     untracked += [
-        {"crop": p["crop"], "reason": _why_untracked(p), "missing": p.get("missing") or []}
+        {"crop": p["crop"], "reason": _why_untracked(p), "missing": p.get("missing") or [],
+         **({"ref": p["ref"]} if p.get("ref") else {})}
         for p in parsed_all
         if p.get("set_out") is None or p.get("gdd_target") is None
     ]
@@ -139,6 +153,10 @@ async def region_crop_ledger(
         base = p["base_temp_f"] or base_temp_f
         st = crops.status(p, dates, curves[base], today)
         st["base_temp_f"] = base
+        # Which saved planting this is. Two successions of one crop are two
+        # rows a grower chose separately, and only this tells them apart.
+        if p.get("ref"):
+            st["ref"] = p["ref"]
         st["finish"] = crops.finish_before_frost(
             st,
             frost_summary["median"] if frost_summary else None,

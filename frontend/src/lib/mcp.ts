@@ -823,6 +823,9 @@ export async function frostWindow(block: string): Promise<FrostWindowResult> {
 
 
 export interface PlantingStatus {
+  /// The saved planting this row is about. Carried through the arithmetic
+  /// untouched, so two successions of one crop are never confused.
+  ref?: string;
   crop: string;
   set_out: string;
   days_since_set_out?: number;
@@ -858,7 +861,7 @@ export interface CropLedgerResult {
   /// target, or neither. A perennial is the ordinary case: an apple tree has
   /// no heat target anyone counts. These must still be SHOWN, or the grower's
   /// own choices are invisible on the page that is supposed to list them.
-  untracked?: { crop: string; reason: string; missing?: string[] }[];
+  untracked?: { crop: string; reason: string; missing?: string[]; ref?: string }[];
   wont_finish: string[];
   summary: string;
   note: string;
@@ -915,6 +918,8 @@ export interface PestStage {
 }
 
 export interface PestAssessment {
+  /// The saved pest model this row is about, echoed back untouched.
+  ref?: string;
   pest: string;
   base_temp_f?: number;
   biofix?: string | null;
@@ -939,6 +944,10 @@ export interface PestWindowResult {
 
 export interface PestModel {
   pest: string;
+  /// Vigilance without arithmetic. A grower watches voles, slugs and wasps —
+  /// creatures with no degree-day stages — and demanding thresholds for them
+  /// invites invented numbers.
+  watch?: boolean;
   base_temp?: number;
   biofix?: string;
   stages: { stage: string; gdd: number }[];
@@ -1080,6 +1089,10 @@ export interface WildlifeEventInput {
 }
 
 export interface WildlifeRow {
+  /// The saved watch this row is about, echoed back untouched. One creature
+  /// can hold several events — an arrival and a departure — and only this
+  /// separates them with certainty.
+  ref?: string;
   species: string; event: string; emoji: string | null; note: string | null;
   driver: "heat" | "daylight" | "interval" | "calendar";
   threshold: string;
@@ -1447,6 +1460,12 @@ export interface ItemRow {
   [field: string]: unknown;
 }
 
+/// The columns the server will order by. Mirrors `block_store.SORTABLE`
+/// rather than hoping the two agree — a key absent there cannot be sorted by.
+export type ItemSort =
+  | "name" | "event" | "driver" | "starts_on" | "target_gdd"
+  | "observed_on" | "season" | "created" | "updated";
+
 export interface ItemPage {
   success: boolean;
   block_id: string;
@@ -1484,6 +1503,11 @@ export async function blockItemList(
   q: {
     season?: number; since?: string; until?: string; as_of?: string;
     include_retired?: boolean; page?: number; page_size?: number;
+    /// Case-insensitive regex over name and event, applied by the database.
+    search?: string;
+    /// name | event | driver | starts_on | target_gdd | observed_on | season |
+    /// created | updated. Omit for the record's default order.
+    sort_col?: ItemSort; sort_dir?: "asc" | "desc";
   } = {},
 ): Promise<ItemPage> {
   return callTool<ItemPage>("block_item_list", { block, kind, ...q });
