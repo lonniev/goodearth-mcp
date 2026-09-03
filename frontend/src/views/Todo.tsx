@@ -18,7 +18,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
-import { Empty, ErrorBox, FIELD, Pill, Section } from "../components/ui";
+import { Pager, SortHeaders, type Column } from "../components/RecordTable";
+import SearchBox from "../components/SearchBox";
+import {
+  CELL, Empty, ErrorBox, FIELD, ICON, IconButton, Pill, RowActions, Section,
+} from "../components/ui";
 import {
   taskDelete, taskList, taskSave, taskSetDone,
   type TaskInput, type TaskRow, type TaskSort, type Timeframe,
@@ -44,11 +48,12 @@ const FRAMES: { key: Timeframe; label: string }[] = [
 /// Column header text and the sort key it asks the server for. A header that
 /// is not in this list cannot be sorted by, which mirrors the server's own
 /// whitelist rather than hoping the two agree.
-const COLS: { key: TaskSort; label: string }[] = [
+const COLS: Column<TaskSort>[] = [
   { key: "done", label: "" },
   { key: "title", label: "Task" },
   { key: "due", label: "Due" },
   { key: "starts", label: "Time" },
+  { label: "" },
 ];
 
 export default function TodoView({
@@ -152,27 +157,14 @@ export default function TodoView({
     } finally { setSaving(false); }
   }
 
-  const arrow = (c: TaskSort) => (c === sortCol ? (sortDir === "asc" ? " ▲" : " ▼") : "");
-
   return (
     <>
       <div className="mb-3 flex items-center justify-end gap-1.5">
         {/* Submits the form below by id, so the control can sit up here in the
             row the title used to hold without the form losing its button. */}
-        <button type="submit" form="new-task" title="Add task"
-          className="flex min-h-11 items-center gap-1.5 rounded-full border-[1.5px] border-ink bg-ink px-3.5 text-[12.5px] font-semibold text-paper">
-          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-          </svg>
-          Task
-        </button>
-        <button onClick={() => onView?.("account")} title="Calendar feed settings"
-          className="flex min-h-11 items-center gap-1.5 rounded-full border border-rule px-3.5 text-[12.5px] text-ink-soft active:bg-band">
-          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-            <path d="M19.14 12.94a7.07 7.07 0 0 0 0-1.88l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7 7 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.58.24-1.13.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.65 8.84a.5.5 0 0 0 .12.64l2.03 1.58a7.07 7.07 0 0 0 0 1.88l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.4.31.6.22l2.39-.96c.5.39 1.05.7 1.63.94l.36 2.54c.04.24.25.42.5.42h3.84c.25 0 .46-.18.5-.42l.36-2.54c.58-.24 1.13-.55 1.63-.94l2.39.96c.22.09.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z" />
-          </svg>
-          iCal
-        </button>
+        <IconButton path={ICON.add} label="Task" form="new-task" title="Add task" />
+        <IconButton path={ICON.settings} label="iCal" tone="quiet"
+          title="Calendar feed settings" onClick={() => onView?.("account")} />
       </div>
 
       {err && <ErrorBox>{err}</ErrorBox>}
@@ -231,12 +223,10 @@ export default function TodoView({
             {f.label}
           </Pill>
         ))}
-        <input
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPageNo(0); }}
-          placeholder="search — regex ok, e.g. mulch|cover"
-          className="ml-auto h-11 w-full max-w-[16rem] rounded border border-rule bg-white px-2.5 text-[13px] focus:border-honey focus:outline-none"
-        />
+        {/* Runs on submit, never on keystroke. This box used to refetch per
+            character, so typing "mulch" billed five task_list calls. */}
+        <SearchBox value={search} placeholder="regex ok, e.g. mulch|cover"
+          onSearch={(t) => { setSearch(t); setPageNo(0); }} />
       </div>
 
       {busy && !page ? (
@@ -245,16 +235,9 @@ export default function TodoView({
         <>
           <div className="overflow-x-auto rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">
             <table className="w-full text-[13px]">
-              <thead><tr>
-                {COLS.map((c) => (
-                  <th key={c.key}
-                    onClick={() => sortBy(c.key)}
-                    className="data cursor-pointer border-b-[1.5px] border-ink px-3 py-2.5 text-left text-[10px] font-medium uppercase tracking-[.1em] text-ink-soft select-none">
-                    {c.label}{arrow(c.key)}
-                  </th>
-                ))}
-                <th className="border-b-[1.5px] border-ink px-3 py-2.5" />
-              </tr></thead>
+              <thead>
+                <SortHeaders cols={COLS} sort={sortCol} dir={sortDir} onSort={sortBy} />
+              </thead>
               <tbody>
                 {page.rows.map((t) => (draft?.task_id === t.id ? (
                   <Editor key={t.id} draft={draft} onChange={setDraft} onCommit={commit}
@@ -289,15 +272,8 @@ export default function TodoView({
             </table>
           </div>
 
-          {page.total > 0 && (
-          <div className="mt-2 flex items-center gap-2">
-            <Pill onClick={() => setPageNo((p) => Math.max(0, p - 1))} disabled={page.page <= 0}>← Back</Pill>
-            <span className="data text-[11.5px] text-ink-soft">
-              page {page.page + 1} of {page.pages} · {page.total} task{page.total === 1 ? "" : "s"}
-            </span>
-            <Pill onClick={() => setPageNo((p) => p + 1)} disabled={page.page + 1 >= page.pages}>Next →</Pill>
-          </div>
-          )}
+          <Pager page={page.page} pages={page.pages} total={page.total}
+            noun="task" onPage={setPageNo} />
         </>
       ) : (
         <Empty>
@@ -324,7 +300,7 @@ function Editor({ draft, onChange, onCommit, onCancel, saving }: {
   onCancel: () => void;
   saving: boolean;
 }) {
-  const cell = "w-full rounded border border-rule bg-white px-2 py-1 text-[13px] focus:border-honey focus:outline-none";
+  const cell = CELL;
   const set = (patch: Partial<TaskInput>) => onChange({ ...draft, ...patch });
 
   return (
@@ -367,10 +343,7 @@ function Editor({ draft, onChange, onCommit, onCancel, saving }: {
         )}
       </td>
       <td className="px-3 py-2 text-right align-top whitespace-nowrap">
-        <button onClick={onCommit} disabled={saving} aria-label="Save task"
-          className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-growth disabled:opacity-40">✓</button>
-        <button onClick={onCancel} aria-label="Cancel"
-          className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>
+        <RowActions onCommit={onCommit} onCancel={onCancel} saving={saving} what="task" />
       </td>
     </tr>
   );
