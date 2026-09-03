@@ -114,12 +114,20 @@ export function buildFlags(
   }
 
   for (const m of pests) {
-    for (const st of m.stages) {
+    // A watched pest carries no stages — the grower keeps an eye out for voles
+    // all season and there is no degree-day figure to flag. This used to be
+    // `for (const st of m.stages)`, which throws on a row that has none, and a
+    // throw here unmounts the whole page: the chart, the ledger, everything.
+    for (const st of Array.isArray(m.stages) ? m.stages : []) {
+      if (st == null || typeof st.gdd !== "number") continue;
       push("pest", `${m.pest} · ${st.stage}`, st.gdd, "🐛", m.base_temp ?? 50);
     }
   }
 
   for (const w of wildlife) {
+    // A roster entry names a creature, not a dated event: no driver, nothing
+    // to place on a curve. It belongs on the Wildlife page, not on this chart.
+    if (!w || !w.driver) continue;
     if (w.driver === "heat" && w.gdd) {
       push("wildlife", `${w.species} · ${w.event}`, w.gdd, w.emoji || "🦋", w.base_temp ?? 50);
     } else if (w.driver === "calendar" && w.typical_on) {
