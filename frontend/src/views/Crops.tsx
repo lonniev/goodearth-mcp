@@ -188,7 +188,8 @@ export default function Crops({
           <QuoteScroller heading="Reading the ledger" />
         </div>
       ) : ledger ? (
-        <CropLedger rows={ledger.plantings} plantings={plantings} onDelete={remove} />
+        <CropLedger rows={ledger.plantings} untracked={ledger.untracked}
+                    plantings={plantings} onDelete={remove} />
       ) : plantingsLoading ? (
         <Empty>Reading what you have on {region.name}…</Empty>
       ) : plantingsUnknown ? (

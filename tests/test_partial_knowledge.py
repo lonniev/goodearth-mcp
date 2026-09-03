@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from goodearth_mcp import calendar_feed, crops, pests
+from goodearth_mcp import calendar_feed, crop_status, crops, pests
 
 # ── A watch list is not a model ──────────────────────────────────────────
 
@@ -117,6 +117,49 @@ def test_a_row_with_no_heat_target_does_not_blank_the_ledger():
     assert parsed[0]["gdd_target"] == 1200
     assert parsed[1]["presence_only"] is True
     assert parsed[2]["presence_only"] is True
+
+
+def test_a_presence_row_names_which_half_it_is_missing():
+    """The reason must be true of THIS row, not of presence rows in general.
+
+    ``validate_planting`` nulls the set-out whenever either field is absent,
+    so a caller deriving the reason from ``set_out is None`` told a grower who
+    HAD given a date that there was "no set-out recorded" — and its branch for
+    a missing target could never run at all. A guard that cannot fire for the
+    real reason is worse than no guard: it is a confident wrong answer.
+    """
+    neither = crops.validate_planting({"crop": "Honeycrisp apple"})
+    dated = crops.validate_planting({"crop": "Peony", "set_out": "2026-04-10"})
+    targeted = crops.validate_planting({"crop": "Meyer lemon", "gdd_target": 2000})
+
+    assert neither["missing"] == ["set_out", "gdd_target"]
+    assert dated["missing"] == ["gdd_target"], "the date WAS given"
+    assert targeted["missing"] == ["set_out"]
+
+
+def test_the_ledger_reports_a_perennial_rather_than_dropping_it():
+    """An orchard tree is on the record. The ledger must say so.
+
+    The rows the ledger can evaluate and the rows it cannot are both part of
+    the grower's record. Returning only the first made an apple tree invisible
+    on the very page meant to list what grows here, which reads as data loss
+    when nothing was lost.
+    """
+    why = crop_status._why_untracked(
+        crops.validate_planting({"crop": "Bartlett pear", "set_out": "2024-04-15"})
+    )
+    assert why == "no heat target recorded"
+    assert "set-out" not in why, "it has a set-out; saying otherwise is a lie"
+
+    both = crop_status._why_untracked(crops.validate_planting({"crop": "Apple"}))
+    assert "set-out" in both and "heat target" in both
+
+
+def test_a_reason_survives_a_row_that_names_nothing():
+    """Never raise while explaining. A missing explanation is not an error."""
+    assert crop_status._why_untracked({"crop": "X"})
+    assert crop_status._why_untracked({"crop": "X", "missing": []})
+    assert crop_status._why_untracked({"crop": "X", "missing": ["unheard_of"]})
 
 
 def test_a_stated_zero_is_still_refused():

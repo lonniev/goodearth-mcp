@@ -854,6 +854,11 @@ export interface CropLedgerResult {
   region: RegionDescription;
   first_frost: { median: string; earliest: string; latest: string; years_on_record: number } | null;
   plantings: PlantingStatus[];
+  /// On the record but with nothing to count from — no set-out, no heat
+  /// target, or neither. A perennial is the ordinary case: an apple tree has
+  /// no heat target anyone counts. These must still be SHOWN, or the grower's
+  /// own choices are invisible on the page that is supposed to list them.
+  untracked?: { crop: string; reason: string; missing?: string[] }[];
   wont_finish: string[];
   summary: string;
   note: string;
