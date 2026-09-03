@@ -47,7 +47,11 @@ export default function Pests({
     if (!list.length) { setData(null); return; }
     setBusy(true); setError("");
     try {
-      const r = await pestThreshold(region.id, list.map(({ id: _id, regionId: _r, ...m }) => m));
+      // The id goes ALONG as `ref`, not away. Two rows can be the same
+      // pest, and a computed answer has to say which saved one it is about.
+      const r = await pestThreshold(
+        region.id, list.map(({ id, regionId: _r, ...m }) => ({ ...m, ref: id })),
+      );
       if (!r.success) { setError(r.error || "What you are watching could not be read."); return; }
       setData(r); setRanAt(new Date());
     } catch (e) { setError((e as Error).message); }

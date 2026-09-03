@@ -7,6 +7,8 @@ came from a real season interview that could not be persisted honestly.
 
 from __future__ import annotations
 
+from datetime import date
+
 import pytest
 
 from goodearth_mcp import calendar_feed, crop_status, crops, pests
@@ -117,6 +119,43 @@ def test_a_row_with_no_heat_target_does_not_blank_the_ledger():
     assert parsed[0]["gdd_target"] == 1200
     assert parsed[1]["presence_only"] is True
     assert parsed[2]["presence_only"] is True
+
+
+async def test_a_roster_that_needs_no_weather_still_answers():
+    """A wildlife list of only calendar and interval events is ORDINARY.
+
+    "Swallows arrive about 20 April" and a gestation count need no season
+    curve, so the weather fetch is skipped — and the provenance block at the
+    end then read a variable that had never been bound. The grower lost every
+    creature they track because none of them happened to need heat. Not a bad
+    row taking the page down; a perfectly good list doing it.
+    """
+    from goodearth_mcp import block_store, record_cache, wildlife_window
+    from goodearth_mcp.region import parse_region
+
+    class Offline:
+        def _t(self, t): return t
+        async def _execute(self, sql, params=None): return {}
+
+    record_cache._vault, record_cache._schema_done = Offline(), True
+    record_cache.serving("")
+    try:
+        out = await wildlife_window.region_wildlife(
+            parse_region(block_store.EXAMPLE_BLOCK["geometry"]),
+            [
+                {"species": "Hirundo rustica", "event": "migration arrival",
+                 "driver": "calendar", "typical_on": "2026-04-20"},
+                {"species": "Ovis aries", "event": "lambing", "driver": "interval",
+                 "days": 147, "from": "2026-01-05"},
+            ],
+            today=date(2026, 9, 3),
+        )
+    finally:
+        record_cache._vault, record_cache._schema_done = None, False
+
+    assert out["success"] is True
+    assert len(out["events"]) == 2
+    assert out["sources"], "provenance still answers, naming no feed it did not use"
 
 
 def test_a_presence_row_names_which_half_it_is_missing():

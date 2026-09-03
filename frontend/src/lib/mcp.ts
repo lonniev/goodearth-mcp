@@ -823,6 +823,9 @@ export async function frostWindow(block: string): Promise<FrostWindowResult> {
 
 
 export interface PlantingStatus {
+  /// The saved planting this row is about. Carried through the arithmetic
+  /// untouched, so two successions of one crop are never confused.
+  ref?: string;
   crop: string;
   set_out: string;
   days_since_set_out?: number;
@@ -858,7 +861,7 @@ export interface CropLedgerResult {
   /// target, or neither. A perennial is the ordinary case: an apple tree has
   /// no heat target anyone counts. These must still be SHOWN, or the grower's
   /// own choices are invisible on the page that is supposed to list them.
-  untracked?: { crop: string; reason: string; missing?: string[] }[];
+  untracked?: { crop: string; reason: string; missing?: string[]; ref?: string }[];
   wont_finish: string[];
   summary: string;
   note: string;

@@ -47,10 +47,18 @@ export default function CropLedger({
   plantings: Planting[];
   onDelete: (id: string) => void;
 }) {
-  const idFor = (crop: string) => plantings.find((p) => p.crop === crop)?.id;
-  /// What the grower actually saved, for the fields the server cannot echo
-  /// back on a row it could not evaluate.
-  const savedFor = (crop: string) => plantings.find((p) => p.crop === crop);
+  /// Which saved planting a row is about.
+  ///
+  /// The server echoes the item's own id back as `ref`, so this is exact. It
+  /// used to match on the crop NAME, which meant two successions of one crop
+  /// shared a delete button — press either and the same row went. The name
+  /// match survives only as a fallback for an answer computed before refs
+  /// existed, and it is the reason `ref` was added rather than a date being
+  /// pressed into service: two successions can also share a set-out.
+  const savedFor = (row: { crop: string; ref?: string }) =>
+    (row.ref && plantings.find((p) => p.id === row.ref))
+    || plantings.find((p) => p.crop === row.crop);
+  const idFor = (row: { crop: string; ref?: string }) => savedFor(row)?.id;
 
   return (
     <div className="overflow-x-auto overscroll-x-contain rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">
@@ -72,7 +80,7 @@ export default function CropLedger({
             const vd = VERDICT[r.finish.verdict] ?? VERDICT.unknown;
             const pct = Math.round((r.progress ?? 0) * 100);
             const over = r.state === "past_target";
-            const id = idFor(r.crop);
+            const id = idFor(r);
             return (
               <tr key={r.crop + r.set_out} className="border-b border-rule last:border-b-0">
                 <td className="px-3 py-2.5 font-semibold">
@@ -143,7 +151,7 @@ export default function CropLedger({
               rest of the farm. Muted, and each says what it would need to be
               tracked, so the remedy is on the row rather than in a manual. */}
           {untracked.map((u) => {
-            const saved = savedFor(u.crop);
+            const saved = savedFor(u);
             const id = saved?.id;
             return (
               <tr key={"presence-" + u.crop}

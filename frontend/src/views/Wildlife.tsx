@@ -66,7 +66,9 @@ export default function Wildlife({
     try {
       const r = await wildlifeCalendar(
         region.id,
-        list.map(({ id: _i, regionId: _r, ...e }) => e),
+        // The id goes ALONG as `ref`. One species can hold several events —
+        // a migration arrival and a departure — and only this separates them.
+        list.map(({ id, regionId: _r, ...e }) => ({ ...e, ref: id })),
       );
       if (!r.success) { setError(r.error || "The calendar could not be read."); return; }
       setData(r); setRanAt(new Date());

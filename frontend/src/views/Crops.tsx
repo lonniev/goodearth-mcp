@@ -56,6 +56,10 @@ export default function Crops({
       const r = await cropGddStatus(
         region.id,
         list.map((p) => ({
+          // Which saved planting this is. Two successions of one crop are two
+          // choices the grower made, and nothing else on the row tells them
+          // apart — they share a name, a target and often a base temperature.
+          ref: p.id,
           crop: p.crop,
           // Omitted rather than defaulted: the server reads a missing target
           // or set-out as a presence row and reports it as untracked, where a

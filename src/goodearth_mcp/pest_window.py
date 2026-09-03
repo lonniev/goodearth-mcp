@@ -22,6 +22,19 @@ class PestWindowError(ValueError):
     """The request cannot be answered as asked."""
 
 
+def _with_ref(parsed: dict, row) -> dict:
+    """Carry the saved item's id onto its validated form.
+
+    Stamped here rather than inside the validator, which returns a fixed shape
+    on purpose — the domain modules compute against crops and creatures and
+    have no business holding a database id. It rides along and is never read.
+    """
+    ref = str((row or {}).get("ref") or "") if isinstance(row, dict) else ""
+    if ref:
+        parsed["ref"] = ref
+    return parsed
+
+
 async def region_pest_window(
     region: Region,
     models: Any,
@@ -44,7 +57,7 @@ async def region_pest_window(
     skipped = []
     for row in models:
         try:
-            parsed.append(pests.validate_model(row))
+            parsed.append(_with_ref(pests.validate_model(row), row))
         except pests.PestError as exc_:
             skipped.append({"name": str((row or {}).get("pest") or "?"), "reason": str(exc_)})
 
@@ -69,8 +82,12 @@ async def region_pest_window(
     bases = sorted({p["base_temp_f"] for p in parsed})
     curves = {b: gdd.accumulate(tmax, tmin, b) for b in bases}
 
+    # The ref rides onto the assessment rather than into it: `assess` computes
+    # against a pest's stages and has no business holding a database id.
     assessments = [
-        pests.assess(p, dates, curves[p["base_temp_f"]], crops.recent_rate(curves[p["base_temp_f"]]))
+        {**({"ref": p["ref"]} if p.get("ref") else {}),
+         **pests.assess(p, dates, curves[p["base_temp_f"]],
+                        crops.recent_rate(curves[p["base_temp_f"]]))}
         for p in parsed
     ]
     priority = pests.scouting_priority(assessments, today)

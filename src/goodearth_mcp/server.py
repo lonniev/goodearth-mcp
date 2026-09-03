@@ -370,8 +370,15 @@ async def _stored_items(npub: str, block_id: str, kind: str, *, season: int | No
     page = await block_store.list_items(
         npub, block_id, kind, season_year=season, page_size=block_store.MAX_PAGE_SIZE,
     )
+    # The row's id survives as `ref`, and only as `ref`. A computed answer has
+    # to be able to say WHICH saved item it is about: a grower runs the same
+    # crop as several successions and watches one bird for both its arrival and
+    # its departure, so nothing a human would name tells two rows apart. It is
+    # carried through the arithmetic untouched and never read by it.
     return [
-        {k: v for k, v in row.items() if k not in ("item_id", "kind", "retired", "source")}
+        {**{k: v for k, v in row.items()
+            if k not in ("item_id", "kind", "retired", "source")},
+         "ref": row.get("item_id")}
         for row in page["items"]
     ]
 
