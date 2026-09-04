@@ -101,10 +101,19 @@ export default function CropLedger({
                   <span className="mr-1.5 text-[15px]" aria-hidden="true">{emojiFor(p.crop)}</span>
                   {p.crop}
                   <small className="block text-[11px] font-normal text-ink-soft">
-                    {p.gddTarget != null
-                      ? `target ${u.showDD(p.gddTarget)}`
-                      : "on the record"}
-                    {p.baseTempF != null && ` · base ${u.showTemp(p.baseTempF)}`}
+                    {/* A tree is described by the figures it IS judged on.
+                        "on the record · base 50 °F" under an apple stated one
+                        thing that was vague and one that was not true. */}
+                    {p.perennial
+                      ? [p.chillHours != null && `${p.chillHours} h chill`,
+                         p.hardyToF != null && `hardy to ${u.showTemp(p.hardyToF)}`]
+                          .filter(Boolean).join(" · ") || "on the record"
+                      : <>
+                          {p.gddTarget != null
+                            ? `target ${u.showDD(p.gddTarget)}`
+                            : "on the record"}
+                          {p.baseTempF != null && ` · base ${u.showTemp(p.baseTempF)}`}
+                        </>}
                   </small>
                 </td>
                 <td onClick={() => onEdit(p)} className="cursor-text px-3 py-2.5 whitespace-nowrap">
@@ -135,7 +144,10 @@ export default function CropLedger({
                   <span className={`mr-2 whitespace-nowrap rounded-full px-2 py-[3px] text-[11px] font-semibold ${
                     r ? (STATUS[r.state] ?? STATUS.on_pace).cls : "bg-band text-ink-soft"
                   }`}>
-                    {r ? (STATUS[r.state] ?? STATUS.on_pace).label : "Not tracked"}
+                    {/* "Not tracked" is wrong for a tree: it is tracked, on a
+                        different clock. */}
+                    {r ? (STATUS[r.state] ?? STATUS.on_pace).label
+                       : p.perennial ? "Perennial" : "Not tracked"}
                   </span>
                   <button onClick={() => onDelete(p.id)} aria-label={`Remove ${p.crop}`}
                     className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>

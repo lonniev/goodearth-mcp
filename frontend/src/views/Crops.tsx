@@ -13,10 +13,12 @@ import Provenance from "../components/Provenance";
 import { Pager } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
 import QuoteScroller from "../components/QuoteScroller";
-import { cropGddStatus, cropSuitability, plantingWindow, type CropLedgerResult,
-  type PlantingWindowResult, type SuitabilityResult, type Verdict } from "../lib/mcp";
+import { cropGddStatus, cropSuitability, plantingWindow, treeSuitability,
+  type CropLedgerResult, type PlantingWindowResult, type SuitabilityResult,
+  type TreeAssessment, type TreeSuitabilityResult, type Verdict } from "../lib/mcp";
 import {
-  CROP_CATEGORIES, CROP_PRESETS, makePlanting, plantingCodec,
+  CROP_CATEGORIES, CROP_PRESETS, HEAT_RATED, makePlanting, plantingCodec,
+  WINTER_RATED,
   type CropPreset, type Planting, plantingDateFor } from "../lib/plantings";
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
 import type { SavedRegion } from "../lib/regions";
@@ -24,6 +26,29 @@ import { Empty, ErrorBox, FIELD, ICON, IconButton, Note, Pill, Section } from ".
 
 const short = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+/// One glyph vocabulary, two questions.
+///
+/// An annual is marked on whether it FINISHES; a perennial on whether it
+/// SURVIVES. Sharing the glyphs and the tones is deliberate — ✓ means "this is
+/// fine here" on both halves of the library, and a reader should not have to
+/// learn two alphabets to scan one grid.
+const MARK_CROP = {
+  comfortable: { glyph: "✓", ink: "text-growth", tone: "border-growth/50 bg-growth/8" },
+  tight:       { glyph: "⚠", ink: "text-honey",  tone: "border-honey/50 bg-honey/8" },
+  marginal:    { glyph: "⚠", ink: "text-honey",  tone: "border-honey/60 bg-honey/12" },
+  too_short:   { glyph: "✕", ink: "text-clay",   tone: "border-clay/40 bg-clay/8 opacity-60" },
+  unknown:     null,
+} as const;
+
+const MARK_TREE = {
+  hardy:    { glyph: "✓", ink: "text-growth", tone: "border-growth/50 bg-growth/8" },
+  marginal: { glyph: "⚠", ink: "text-honey",  tone: "border-honey/50 bg-honey/8" },
+  risky:    { glyph: "⚠", ink: "text-honey",  tone: "border-honey/60 bg-honey/12" },
+  too_cold: { glyph: "✕", ink: "text-clay",   tone: "border-clay/40 bg-clay/8 opacity-60" },
+  unrated:  null,
+  unknown:  null,
+} as const;
 
 export default function Crops({
   region, onCost,
@@ -81,6 +106,9 @@ export default function Crops({
   const [fit, setFit] = useState<SuitabilityResult | null>(null);
   const [fitAt, setFitAt] = useState<Date | null>(null);
   const [fitBusy, setFitBusy] = useState(false);
+  const [treeFit, setTreeFit] = useState<TreeSuitabilityResult | null>(null);
+  const [treeAt, setTreeAt] = useState<Date | null>(null);
+  const [treeBusy, setTreeBusy] = useState(false);
   const [cat, setCat] = useState<CropPreset["category"] | "all">("all");
   const [when, setWhen] = useState<PlantingWindowResult | null>(null);
   const [whenAt, setWhenAt] = useState<Date | null>(null);
@@ -105,6 +133,11 @@ export default function Crops({
           ...(p.gddTarget != null ? { gdd_target: p.gddTarget } : {}),
           ...(p.setOut ? { set_out: p.setOut } : {}),
           ...(p.baseTempF != null ? { base_temp: p.baseTempF } : {}),
+          // Sent so the ledger can say "perennial" rather than listing the
+          // fields an annual would have had.
+          ...(p.perennial ? { perennial: true } : {}),
+          ...(p.chillHours != null ? { chill_hours: p.chillHours } : {}),
+          ...(p.hardyToF != null ? { hardy_to_f: p.hardyToF } : {}),
         })),
         region.baseTempF,
       );
@@ -124,8 +157,12 @@ export default function Crops({
     try {
       const r = await cropSuitability(
         region.id,
-        CROP_PRESETS.map((c) => ({
-          crop: c.crop, gdd_target: c.gddTarget, base_temp: c.baseTempF,
+        // Only what carries a heat target. "Does it finish before frost" is a
+        // question a peony is not asked, and sending one would mean inventing
+        // the number it deliberately does not have. This is NOT "annuals":
+        // alfalfa is a perennial and belongs in both calls.
+        HEAT_RATED.map((c) => ({
+          crop: c.crop, gdd_target: c.gddTarget!, base_temp: c.baseTempF!,
           frost_hardy: c.frostHardy ?? false, category: c.category, emoji: c.emoji,
         })),
       );
@@ -151,8 +188,18 @@ export default function Crops({
   }
 
   function addPreset(c: CropPreset) {
+    // A perennial goes on the record undated. "Planted today" is right for a
+    // tray of zinnias and usually wrong for a tree, which was here before this
+    // page was — and a fabricated set-out would propagate into every answer.
     const made = makePlanting(
-      c.crop, c.gddTarget, new Date().toISOString().slice(0, 10), region.id, c.baseTempF,
+      c.crop,
+      c.gddTarget,
+      c.perennial ? "" : new Date().toISOString().slice(0, 10),
+      region.id,
+      c.baseTempF,
+      c.perennial
+        ? { perennial: true, chillHours: c.chillHours, hardyToF: c.hardyToF }
+        : undefined,
     );
     if (typeof made === "string") { setFormErr(made); return; }
     setFormErr("");
@@ -166,8 +213,8 @@ export default function Crops({
     try {
       const r = await plantingWindow(
         region.id,
-        CROP_PRESETS.map((c) => ({
-          crop: c.crop, gdd_target: c.gddTarget, base_temp: c.baseTempF,
+        HEAT_RATED.map((c) => ({
+          crop: c.crop, gdd_target: c.gddTarget!, base_temp: c.baseTempF!,
           frost_hardy: c.frostHardy ?? false, direct_sow: c.directSow ?? false,
           emoji: c.emoji,
           ...(c.minSoilF != null ? { min_soil_f: c.minSoilF } : {}),
@@ -183,15 +230,42 @@ export default function Crops({
   const verdictOf = (crop: string): Verdict | null =>
     fit?.crops.find((r) => r.crop === crop)?.verdict ?? null;
 
+  const treeOf = (crop: string): TreeAssessment | null =>
+    treeFit?.trees.find((r) => r.tree === crop) ?? null;
+
+  // "Will it live here?" — the perennial half of "what can I grow". One call
+  // rates the whole tree library against every winter on record.
+  const checkTrees = useCallback(async () => {
+    setTreeBusy(true); setError("");
+    try {
+      const r = await treeSuitability(
+        region.id,
+        WINTER_RATED.map((c) => ({
+          tree: c.crop, category: c.category, emoji: c.emoji,
+          ...(c.chillHours != null ? { chill_hours: c.chillHours } : {}),
+          ...(c.hardyToF != null ? { hardy_to_f: c.hardyToF } : {}),
+        })),
+      );
+      if (!r.success) { setError(r.error || "The tree record could not be read."); return; }
+      setTreeFit(r); setTreeAt(new Date());
+    } catch (e) { setError((e as Error).message); }
+    finally { setTreeBusy(false); }
+  }, [region]);
+
 
   function add(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     // Typed in the scale on screen, held in the Fahrenheit the record keeps.
     const base = f.get("base") ? u.toF(Number(f.get("base"))) : undefined;
+    const target = String(f.get("target") ?? "").trim();
     const made = makePlanting(
-      String(f.get("crop") ?? ""), Number(f.get("target")),
+      String(f.get("crop") ?? ""),
+      target ? u.ddToF(Number(target)) : undefined,
       String(f.get("setout") ?? ""), region.id, base,
+      // Blank on both counts is how a perennial is entered by hand: it is on
+      // the record, and it is not being paced.
+      target ? undefined : { perennial: true },
     );
     if (typeof made === "string") { setFormErr(made); return; }
     setFormErr("");
@@ -335,8 +409,32 @@ export default function Crops({
             {fitBusy ? "🧠 Reading…" : "🧠 What?"}
           </Pill>
         )}
+        {/* The perennial half of the same question, and a separate call
+            because it is a separate one: an annual is rated on whether it
+            finishes before frost, a tree on whether it lives through the
+            winter. Asked on its own so a grower with no trees never pays for
+            an answer about them. */}
+        {!treeFit && (
+          <Pill onClick={checkTrees} disabled={treeBusy}>
+            {treeBusy ? "🌳 Reading…" : "🌳 Trees?"}
+          </Pill>
+        )}
         {fit && <Provenance tool="goodearth_crop_suitability" at={fitAt} onCost={onCost} />}
+        {treeFit && <Provenance tool="goodearth_tree_suitability" at={treeAt} onCost={onCost} />}
       </Section>
+
+      {treeFit && (
+        <div className="mb-3 rounded-md border border-rule border-l-4 border-l-growth bg-panel px-4 py-3">
+          <p className="text-[13px]">{treeFit.summary}</p>
+          {treeFit.chill && (
+            <p className="data mt-1 text-[11.5px] text-ink-soft">
+              {treeFit.chill.median_hours} h median chill · lowest{" "}
+              {treeFit.chill.lowest_hours} h · {treeFit.chill.winters_on_record} winters ·{" "}
+              {treeFit.chill.window}
+            </p>
+          )}
+        </div>
+      )}
 
       {fit ? (
         <div className="mb-3 rounded-md border border-rule border-l-4 border-l-growth bg-panel px-4 py-3">
@@ -377,29 +475,40 @@ export default function Crops({
 
       <div className="flex flex-wrap gap-1.5">
         {CROP_PRESETS.filter((c) => cat === "all" || c.category === cat).map((c) => {
-          const v = verdictOf(c.crop);
-          const tone =
-            v === "comfortable" ? "border-growth/50 bg-growth/8"
-            : v === "tight" ? "border-honey/50 bg-honey/8"
-            : v === "marginal" ? "border-honey/60 bg-honey/12"
-            : v === "too_short" ? "border-clay/40 bg-clay/8 opacity-60"
-            : "border-rule bg-panel";
+          // Two libraries in one grid. An annual is marked by whether it
+          // finishes before frost; a perennial by whether it survives the
+          // winter here — different question, different call, same chiclet.
+          const t = c.perennial ? treeOf(c.crop) : null;
+          const v = c.perennial ? null : verdictOf(c.crop);
+          const mark =
+            c.perennial
+              ? t && MARK_TREE[t.hardiness.verdict]
+              : v && MARK_CROP[v];
+          const tone = mark?.tone ?? "border-rule bg-panel";
           const row = fit?.crops.find((r) => r.crop === c.crop);
           const w = when?.crops.find((r) => r.crop === c.crop);
+          // The figure a chiclet carries is the number that decides it: heat
+          // for an annual, the chill it wants for a tree.
+          const figure = c.perennial
+            ? (c.chillHours != null ? `${c.chillHours} h` : "")
+            : String(Math.round(u.degreeDays(c.gddTarget ?? 0)));
           return (
             <button key={c.crop} onClick={() => addPreset(c)}
               title={[
-                row?.note,
+                c.perennial ? t?.hardiness.note : row?.note,
+                c.perennial ? t?.chill.note : undefined,
                 w && `Seed ${w.start_seed_indoors ? short(w.start_seed_indoors) : "direct"} · out ${w.earliest_out ? short(w.earliest_out) : "—"}`,
-                `${u.showDD(c.gddTarget)} ${c.note}, base ${u.showTemp(c.baseTempF)}`,
+                c.perennial
+                  ? [c.note, c.chillHours != null && `${c.chillHours} chill hours`,
+                     c.hardyToF != null && `hardy to ${u.showTemp(c.hardyToF)}`]
+                      .filter(Boolean).join(", ")
+                  : `${u.showDD(c.gddTarget ?? 0)} ${c.note}, base ${u.showTemp(c.baseTempF ?? region.baseTempF)}`,
               ].filter(Boolean).join(" — ")}
               className={`flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-[12.5px] active:border-ink ${tone}`}>
               <span>{c.emoji}</span>
               <span className="font-medium">{c.crop}</span>
-              <span className="data text-[10.5px] text-ink-soft">{Math.round(u.degreeDays(c.gddTarget))}</span>
-              {v === "comfortable" && <span className="text-[11px] text-growth">✓</span>}
-              {(v === "tight" || v === "marginal") && <span className="text-[11px] text-honey">⚠</span>}
-              {v === "too_short" && <span className="text-[11px] text-clay">✕</span>}
+              {figure && <span className="data text-[10.5px] text-ink-soft">{figure}</span>}
+              {mark && <span className={`text-[11px] ${mark.ink}`}>{mark.glyph}</span>}
               {w?.sow_now && (
                 <span className="rounded-full bg-growth/15 px-1.5 text-[10px] font-semibold text-growth">now</span>
               )}
