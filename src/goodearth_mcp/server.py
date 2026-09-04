@@ -62,6 +62,8 @@ from goodearth_mcp.soil_window import region_soil_window as soil_window_impl
 from goodearth_mcp.suitability import SuitabilityError
 from goodearth_mcp.suitability_window import SuitabilityWindowError
 from goodearth_mcp.suitability_window import region_suitability as suitability_impl
+from goodearth_mcp.tree_year_window import TreeYearError
+from goodearth_mcp.tree_year_window import region_tree_year as tree_year_impl
 from goodearth_mcp.wildlife import WildlifeError
 from goodearth_mcp.wildlife_window import WildlifeWindowError
 from goodearth_mcp.wildlife_window import region_wildlife as wildlife_impl
@@ -147,7 +149,7 @@ BLOCK_LIST_UUID            = "00680666-0289-548b-b297-3700dfa4e885"
 BLOCK_ITEM_SAVE_UUID       = "af45380a-1bcb-54a8-9b81-3569f785c33f"
 BLOCK_ITEM_LIST_UUID       = "587e418b-59f5-5400-bc9b-98db6929fec1"
 TREE_SUITABILITY_UUID      = "9f065c39-548a-5675-a562-cbf2bb720dd9"
-TREE_YEAR_UUID             = "993d83ad-9edd-5690-88fd-298f2137dc24"  # unit 3
+TREE_YEAR_UUID             = "993d83ad-9edd-5690-88fd-298f2137dc24"
 
 _DOMAIN_TOOLS = [
     ToolIdentity(
@@ -257,6 +259,12 @@ _DOMAIN_TOOLS = [
         capability="tree_suitability",
         category="read",
         intent="Whether a tree survives and gets its chill on this ground, across every winter on record",
+    ),
+    ToolIdentity(
+        tool_id=TREE_YEAR_UUID,
+        capability="tree_year",
+        category="read",
+        intent="When spring reached this block — first leaf and first bloom against their normals — and what the sap did",
     ),
     ToolIdentity(
         tool_id=PLANTING_WINDOW_UUID,
@@ -1391,6 +1399,53 @@ async def tree_suitability(
     except (sources.UpstreamError, OSError) as exc:
         logger.warning("tree_suitability failed: %s", exc)
         return {"success": False, "error": f"A weather feed did not answer: {exc}",
+                "error_code": "upstream_unavailable"}
+
+
+@tool
+@runtime.paid_tool(TREE_YEAR_UUID)
+async def tree_year(
+    block: Annotated[str, BLOCK_FIELD],
+    npub: Annotated[
+        str,
+        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
+    ] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """When spring reached this ground, and what the sap did.
+
+    **First leaf and first bloom**, from USA-NPN's Spring Index, dated for this
+    block and set against its own thirty-year normal. "Spring is early this
+    year" is a headline; "leaf-out reached this block seven days before its
+    normal" is something to act on.
+
+    First bloom is also when the pollen starts. That is a restatement of what
+    bloom is, not a pollen forecast — Good Earth has no pollen feed, models
+    none, and says nothing about what anyone should do about it.
+
+    **The sap run**, for a block with maple, birch or walnut on it. Sap moves
+    on freeze and thaw rather than on warmth: a night below freezing followed
+    by a day above it. Counted off this ground's own season record, so it
+    costs no extra call. A block with nothing tappable gets no sap section —
+    the count would be just as true there and would answer a question nobody
+    on that ground asked.
+
+    The trees are read from the block's own record; nothing needs passing.
+
+    Args:
+        block: The ground to answer for — its id, its name, or an alias.
+    """
+    parsed, found = await _block_region(npub, block)
+
+    plants = await _stored_items(npub, found["block_id"], "crop") if found else []
+
+    try:
+        return await tree_year_impl(parsed, plants)
+    except TreeYearError as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_request"}
+    except (sources.UpstreamError, OSError) as exc:
+        logger.warning("tree_year failed: %s", exc)
+        return {"success": False, "error": f"A feed did not answer: {exc}",
                 "error_code": "upstream_unavailable"}
 
 

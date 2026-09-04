@@ -1030,6 +1030,50 @@ export async function treeSuitability(
 }
 
 
+export interface SpringStage {
+  /// The date this stage reached this block, and the date it normally does.
+  /// Either may be absent — a coastal pixel, or a season the run has not
+  /// reached — and absent is reported rather than filled in.
+  on: string | null;
+  normally: string | null;
+  /// Negative is early. The subtraction is shown rather than taken from
+  /// NPN's own anomaly layer, which is computed against a baseline this code
+  /// cannot see and disagreed with it.
+  days_from_normal?: number;
+}
+
+export interface SapRun {
+  state: "running" | "over" | "not_started" | "none_recorded";
+  started_on?: string;
+  last_cycle_on?: string;
+  cycles: number;
+  days_since_last_cycle?: number;
+  window?: string;
+  note: string;
+}
+
+export interface TreeYearResult {
+  success: boolean;
+  error?: string;
+  as_of: string;
+  spring: { first_leaf: SpringStage; first_bloom: SpringStage } | null;
+  /// The saved plants a sugarmaker would tap. Empty means no sap section.
+  tapped: string[];
+  sap: SapRun | null;
+  sap_error?: string;
+  summary: string;
+  note: string;
+  sources?: { name: string; role: string }[];
+}
+
+/// When spring reached this ground — first leaf and first bloom against their
+/// thirty-year normals — and what the sap did. The trees are read from the
+/// block's own record, so nothing is passed.
+export async function treeYear(block: string): Promise<TreeYearResult> {
+  return callTool<TreeYearResult>("tree_year", { block });
+}
+
+
 export interface PestModel {
   pest: string;
   /// Cite the published forecast for this ground instead of restating it.

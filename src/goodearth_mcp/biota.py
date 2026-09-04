@@ -21,6 +21,7 @@ a back field. Counts travel with the answer so a reader can see that.
 
 from __future__ import annotations
 
+import asyncio
 import re
 from datetime import date, timedelta
 from typing import Any
@@ -200,7 +201,10 @@ async def fetch_npn_point(layer: str, lat: float, lon: float) -> float | None:
     """
     d = 0.02
     bbox = f"{lon - d},{lat - d},{lon + d},{lat + d}"
-    qualified = layer if layer.startswith("gdd:") else f"gdd:{layer}"
+    # An unqualified name is a pest model, which is the common case and the
+    # only one this took when it was written. A name that names its own
+    # workspace is passed through — the spring indices live in `si-x:`.
+    qualified = layer if ":" in layer else f"gdd:{layer}"
     params = {
         "service": "WMS", "version": "1.1.1", "request": "GetFeatureInfo",
         "layers": qualified, "query_layers": qualified,
@@ -231,6 +235,64 @@ async def fetch_npn_point(layer: str, lat: float, lon: float) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+# ── The Spring Index ─────────────────────────────────────────────────────
+#
+# USA-NPN's SI-x models the arrival of spring from the accumulated warmth a
+# set of calibration plants respond to — cloned lilac and honeysuckle, grown
+# identically across the continent so the index means the same thing in
+# Georgia and in Maine. Two moments are published as rasters: FIRST LEAF, when
+# the growing season starts, and FIRST BLOOM, when it begins to flower.
+#
+# Both are dated FOR A POINT, which is the whole reason they are worth
+# fetching: "spring is early this year" is a headline, and "leaf-out reached
+# this block on 11 April, seven days before its thirty-year normal" is an
+# answer.
+#
+# Measured at Macon GA, Caribou ME and Panton VT on 2026-09-04:
+#
+#   average_leaf_best     26   112   101      rises north -> day of year
+#   average_bloom_best    58   144   139      rises north -> day of year
+#   30yr_avg_six_leaf     35   123   108      the normal, same encoding
+#   30yr_avg_six_bloom    65   149   135
+#
+# `_best` is NPN's own blend of observed and forecast, which is the product
+# they intend a reader to use. The `_ncep` and `_prism` variants are the two
+# inputs, and picking one over the blend would be this repo second-guessing
+# the people who built the model.
+#
+# NPN also publishes leaf_anomaly and bloom_anomaly. Those are NOT used: they
+# disagreed with subtracting the 30-year layer from the current one (-1 where
+# the subtraction gives -7 at Panton), which means they are computed against
+# some other baseline. One transparent subtraction a reader can check beats a
+# second number this code cannot explain.
+
+SPRING_LAYERS = {
+    "first_leaf": "si-x:average_leaf_best",
+    "first_bloom": "si-x:average_bloom_best",
+    "normal_leaf": "si-x:30yr_avg_six_leaf",
+    "normal_bloom": "si-x:30yr_avg_six_bloom",
+}
+
+
+async def fetch_spring_index(lat: float, lon: float) -> dict[str, float | None]:
+    """First leaf and first bloom at one point, this year and normally.
+
+    Four point queries, gathered rather than serialised. Each returns None on
+    its own where the layer has no value — a coastal pixel, or a season the
+    run has not reached — and an absent half is reported as absent rather
+    than costing the other three.
+    """
+    keys = list(SPRING_LAYERS)
+    values = await asyncio.gather(
+        *(fetch_npn_point(SPRING_LAYERS[k], lat, lon) for k in keys),
+        return_exceptions=True,
+    )
+    return {
+        k: (v if isinstance(v, (int, float)) else None)
+        for k, v in zip(keys, values, strict=True)
+    }
 
 
 # ── What a layer's number MEANS ──────────────────────────────────────────
