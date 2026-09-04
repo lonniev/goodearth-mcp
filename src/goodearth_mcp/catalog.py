@@ -218,6 +218,46 @@ async def region_species_habits(scientific_name: str, today: date | None = None)
     }
 
 
+async def region_plant_catalog(region: Region) -> dict[str, Any]:
+    """Which plants are actually recorded around this ground.
+
+    The catalogue a grower browses is hand-written and the same everywhere;
+    this is the ground's own. It is how a woodlot gets an inventory without
+    anyone walking it, and how a Vermont farm learns it has bur oak and
+    shagbark hickory that no preset list was ever going to mention.
+
+    **Ordered by how often each is observed, which is a fact about observers
+    as much as about plants.** A roadside is better recorded than a back
+    hayfield, and nothing here corrects for that — the count is evidence
+    somebody saw it, not that it is common.
+
+    No growth habit and no judgement. iNaturalist does not say which of these
+    is a tree, and it does not say which is a weed; the buckthorn and the
+    trillium come back the same way, ranked by how often people photographed
+    them. Sorting them into "woody" or "invasive" would be this file adding a
+    claim to a feed that made none.
+    """
+    box = search_box(region)
+    try:
+        plants = await biota.fetch_inat_species(box, "Plantae", MAX_PER_GROUP)
+    except biota.BiotaError as exc:
+        raise CatalogError(f"iNaturalist did not answer: {exc}") from exc
+
+    return {
+        "success": True,
+        "region": region.describe(),
+        "plants_recorded": plants,
+        "search_span_km": _search_km(box),
+        "note": (
+            "Plants recorded near this ground, most-observed first. The count "
+            "is how often someone photographed it, not how much of it grows "
+            "here. Good Earth reports what the record holds; it does not say "
+            "which of these is a tree, a weed or worth planting."
+        ),
+        "sources": _sources(),
+    }
+
+
 async def region_wildlife_catalog(region: Region) -> dict[str, Any]:
     """Which animals are actually recorded on this ground, by group.
 

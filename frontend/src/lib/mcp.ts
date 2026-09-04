@@ -1074,6 +1074,24 @@ export async function treeYear(block: string): Promise<TreeYearResult> {
 }
 
 
+export interface PlantCatalogResult {
+  success: boolean;
+  error?: string;
+  /// Most-observed first. The count measures observers as much as plants —
+  /// a roadside is better recorded than a back hayfield.
+  plants_recorded: { name: string; scientific_name?: string; observations: number }[];
+  search_span_km: number;
+  note: string;
+}
+
+/// Which plants are actually recorded around this ground, most-observed
+/// first. The library a grower browses is hand-written and the same
+/// everywhere; this is the ground's own.
+export async function plantCatalog(block: string): Promise<PlantCatalogResult> {
+  return callTool<PlantCatalogResult>("plant_catalog", { block });
+}
+
+
 export interface PestModel {
   pest: string;
   /// Cite the published forecast for this ground instead of restating it.

@@ -138,6 +138,7 @@ CALENDAR_LIST_UUID         = "5e006f97-eaba-5ba7-a630-f493242b691d"
 CALENDAR_REVOKE_UUID       = "2a8310d1-f65d-56f3-bb99-6b77acd6252a"
 PEST_CATALOG_UUID          = "7101e6e8-40a9-58ef-8a2a-32bd2514ae1e"
 WILDLIFE_CATALOG_UUID      = "d066a193-3592-5fea-bab6-48aa8057e59c"
+PLANT_CATALOG_UUID         = "33c30fc5-9c1a-5ebb-9a3e-f5c854cbacb7"
 TASK_SAVE_UUID             = "4c814e90-07c7-5944-b8cb-f05b619e6d2f"
 TASK_LIST_UUID             = "1be9b304-d895-5e80-995f-29838befc305"
 TASK_DELETE_UUID           = "87d174df-5cc7-5943-911f-cd41f7d2a000"
@@ -247,6 +248,12 @@ _DOMAIN_TOOLS = [
         capability="wildlife_catalog",
         category="read",
         intent="Which animals are actually recorded around this ground, by group and by how often they are seen",
+    ),
+    ToolIdentity(
+        tool_id=PLANT_CATALOG_UUID,
+        capability="plant_catalog",
+        category="read",
+        intent="Which plants are actually recorded around this ground, most-observed first",
     ),
     ToolIdentity(
         tool_id=CROP_SUITABILITY_UUID,
@@ -1169,6 +1176,48 @@ async def pest_catalog(
         logger.warning("pest_catalog failed: %s", exc)
         return {"success": False, "error": f"A species feed did not answer: {exc}",
                 "error_code": "upstream_unavailable"}
+
+
+@tool
+@runtime.paid_tool(PLANT_CATALOG_UUID)
+async def plant_catalog(
+    block: Annotated[str, BLOCK_FIELD],
+    npub: Annotated[
+        str,
+        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
+    ] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """Which plants are actually recorded around this ground.
+
+    The crop library a grower browses is hand-written and the same everywhere.
+    This is the ground's own: what people have actually observed growing near
+    here, most-observed first. It is how a woodlot gets an inventory without
+    anyone walking it, and how a farm finds it has bur oak and shagbark
+    hickory that no preset list was ever going to mention.
+
+    Plants are a landscape fact, so the search widens to the surrounding
+    country the way the pest and wildlife catalogues do, and the answer says
+    how wide it looked.
+
+    **The count measures observers as much as plants.** A roadside is better
+    recorded than a back hayfield; the number is evidence somebody saw it, not
+    that it is common here.
+
+    No growth habit and no judgement. iNaturalist does not say which of these
+    is a tree and does not say which is a weed — the buckthorn and the
+    trillium come back the same way. Sorting them would be adding a claim to a
+    feed that made none.
+
+    Args:
+        block: The ground to answer for — its id, its name, or an alias.
+    """
+    parsed, _found = await _block_region(npub, block)
+
+    try:
+        return await catalog.region_plant_catalog(parsed)
+    except catalog.CatalogError as exc:
+        return {"success": False, "error": str(exc), "error_code": "upstream_unavailable"}
 
 
 @tool
