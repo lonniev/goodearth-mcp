@@ -13,17 +13,19 @@ import Provenance from "../components/Provenance";
 import { Pager } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
 import QuoteScroller from "../components/QuoteScroller";
-import { cropGddStatus, cropSuitability, plantingWindow, treeSuitability, treeYear,
+import { cropGddStatus, cropSuitability, plantCatalog, plantingWindow,
+  treeSuitability, treeYear,
   type CropLedgerResult, type PlantingWindowResult, type SuitabilityResult,
-  type TreeAssessment, type TreeSuitabilityResult, type TreeYearResult,
-  type Verdict } from "../lib/mcp";
+  type PlantCatalogResult, type TreeAssessment, type TreeSuitabilityResult,
+  type TreeYearResult, type Verdict } from "../lib/mcp";
 import {
   CROP_CATEGORIES, CROP_PRESETS, HEAT_RATED, makePlanting, plantingCodec,
   WINTER_RATED,
   type CropPreset, type Planting, plantingDateFor } from "../lib/plantings";
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
 import type { SavedRegion } from "../lib/regions";
-import { Empty, ErrorBox, FIELD, ICON, IconButton, Note, Pill, Section } from "../components/ui";
+import { Chiclet, Empty, ErrorBox, FIELD, ICON, IconButton, Note, Pill,
+  Section } from "../components/ui";
 
 const short = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -113,6 +115,12 @@ export default function Crops({
   const [year, setYear] = useState<TreeYearResult | null>(null);
   const [yearAt, setYearAt] = useState<Date | null>(null);
   const [yearBusy, setYearBusy] = useState(false);
+  const [near, setNear] = useState<PlantCatalogResult | null>(null);
+  const [nearAt, setNearAt] = useState<Date | null>(null);
+  const [nearBusy, setNearBusy] = useState(false);
+  /// The add form's crop field, held here so a chiclet can fill it. The
+  /// species is a fact about this country; what you do with it is yours.
+  const [cropName, setCropName] = useState("");
   const [cat, setCat] = useState<CropPreset["category"] | "all">("all");
   const [when, setWhen] = useState<PlantingWindowResult | null>(null);
   const [whenAt, setWhenAt] = useState<Date | null>(null);
@@ -246,6 +254,26 @@ export default function Crops({
     finally { setYearBusy(false); }
   }, [region]);
 
+  // What is actually recorded growing around here. The library above is
+  // hand-written and identical for every farm; this is the ground's own.
+  const loadNear = useCallback(async () => {
+    setNearBusy(true); setError("");
+    try {
+      const r = await plantCatalog(region.id);
+      if (r.success) { setNear(r); setNearAt(new Date()); }
+      else setError(r.error || "The plant record could not be read.");
+    } catch (e) { setError((e as Error).message); }
+    finally { setNearBusy(false); }
+  }, [region]);
+
+  /// Naming a recorded plant the library has never heard of. It fills the add
+  /// form and goes there — the same move the Pests page makes, and without it
+  /// the tap looks like it did nothing because the field is off screen.
+  function nameOnForm(name: string) {
+    setCropName(name);
+    document.getElementById("new-planting")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
   const treeOf = (crop: string): TreeAssessment | null =>
     treeFit?.trees.find((r) => r.tree === crop) ?? null;
 
@@ -286,6 +314,7 @@ export default function Crops({
     if (typeof made === "string") { setFormErr(made); return; }
     setFormErr("");
     void storePlanting(made).catch((err) => setFormErr(String(err.message ?? err)));
+    setCropName("");
     e.currentTarget.reset();
   }
 
@@ -326,6 +355,7 @@ export default function Crops({
           <label className="block text-[11px] text-ink-soft">
             Crop
             <input name="crop" list="ge-crop-presets" placeholder="Zinnia · succession 4"
+              value={cropName} onChange={(e) => setCropName(e.target.value)}
               className={FIELD} />
           </label>
           <label className="block text-[11px] text-ink-soft">
@@ -685,6 +715,51 @@ export default function Crops({
         </p>
       )}
 
+      {/* ── Nearby ─────────────────────────────────────────────────────
+          The same shape Pests and Wildlife already have. The library above
+          is hand-written and the same for every farm; this is what people
+          have actually observed near this block. */}
+      <Section emoji="🔭" title="Nearby">
+        {!near && (
+          <Pill onClick={loadNear} disabled={nearBusy} active>
+            {nearBusy ? "🧠 Reading…" : "🧠 What's here?"}
+          </Pill>
+        )}
+        {near && <Provenance tool="goodearth_plant_catalog" at={nearAt} onCost={onCost} />}
+      </Section>
+
+      {near ? (
+        <>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {(near.plants_recorded ?? []).map((pl) => {
+              // A recorded plant the library also knows can go straight on the
+              // ledger; one it does not is still worth naming, and taps into
+              // the add form by name rather than doing nothing.
+              const known = CROP_PRESETS.find(
+                (c) => c.crop.toLowerCase() === pl.name.toLowerCase()
+                  || c.crop.split("·")[0].trim().toLowerCase() === pl.name.toLowerCase(),
+              );
+              return (
+                <Chiclet key={pl.scientific_name ?? pl.name}
+                  emoji={known?.emoji ?? "🌿"} name={pl.name}
+                  figure={pl.observations.toLocaleString()}
+                  tone={known ? "border-growth/50 bg-growth/8" : "border-rule bg-panel"}
+                  title={[pl.scientific_name,
+                    `${pl.observations.toLocaleString()} sightings near here`,
+                    known ? "In the library — tap to add it." : "Tap to name it on the form above.",
+                  ].filter(Boolean).join(" — ")}
+                  onClick={() => { if (known) addPreset(known); else nameOnForm(pl.name); }} />
+              );
+            })}
+          </div>
+          <Note>
+            Recorded within {near.search_span_km} km, most-seen first. Counts
+            measure observers as much as plants.
+          </Note>
+        </>
+      ) : (
+        <Note>Plants recorded around this ground, from iNaturalist.</Note>
+      )}
     </>
   );
 }
