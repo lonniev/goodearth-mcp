@@ -12,7 +12,8 @@ answer, which is what most of this file checks.
 from __future__ import annotations
 
 import asyncio
-from datetime import date
+import math
+from datetime import date, timedelta
 
 import pytest
 
@@ -28,20 +29,59 @@ from goodearth_mcp import (
 )
 
 
-class OfflineVault:
-    def _t(self, t): return t
-    async def _execute(self, sql, params=None): return {}
+def _season(start: str, end: str) -> dict:
+    """A plausible daily record for whatever span is asked for.
+
+    Synthesised rather than fetched. These tests are about whether a row can
+    say which saved item it is — they have nothing to do with the weather, and
+    reaching Open-Meteo to answer them made the build depend on a third party's
+    uptime. It failed in CI on a connect timeout while passing on a laptop,
+    which is the worst shape a test can take: green where it is written, red
+    where it is trusted.
+    """
+    a = date.fromisoformat(start)
+    b = date.fromisoformat(end)
+    days = [a + timedelta(days=i) for i in range((b - a).days + 1)]
+    # A sine year, warm in July: enough shape for degree days to accumulate and
+    # for a frost date to exist, which is all any of these assertions need.
+    highs, lows = [], []
+    for d in days:
+        peak = math.cos((d.timetuple().tm_yday - 196) / 365.0 * 2 * math.pi)
+        highs.append(round(55 + 28 * peak, 1))
+        lows.append(round(35 + 26 * peak, 1))
+    return {
+        "daily": {
+            "time": [d.isoformat() for d in days],
+            "temperature_2m_max": highs,
+            "temperature_2m_min": lows,
+            # The almanac's fields, so wildlife's daylight and calendar paths
+            # read the same record without a second stub.
+            "daylight_duration": [43200.0] * len(days),
+            "sunrise": [f"{d.isoformat()}T06:00" for d in days],
+            "sunset": [f"{d.isoformat()}T18:00" for d in days],
+            "precipitation_sum": [0.0] * len(days),
+            "dew_point_2m_mean": [round(40 + 15 * math.cos((d.timetuple().tm_yday - 196) / 365.0 * 2 * math.pi), 1) for d in days],
+        },
+        "_feed": {"name": "synthetic (test)", "resolution_m": 1000},
+    }
 
 
 @pytest.fixture(autouse=True)
-def _ground():
-    record_cache._vault = OfflineVault()
-    record_cache._cipher = None
-    record_cache._schema_done = True
-    record_cache.serving("")          # cache off; every read goes upstream
+def _ground(monkeypatch):
+    """No network, no vault. Every read answers from the synthetic season."""
+    async def daily(lats, lons, start, end):
+        return [_season(start, end) for _ in (lats or [0])]
+
+    async def almanac(lat, lon, start, end):
+        return _season(start, end)
+
+    async def normals(lat, lon, start, end):
+        return [_season(start, end)], "synthetic (test)", 1000
+
+    monkeypatch.setattr(record_cache, "daily_history", daily)
+    monkeypatch.setattr(record_cache, "almanac_history", almanac)
+    monkeypatch.setattr(record_cache, "normals_history", normals)
     yield
-    record_cache._vault = None
-    record_cache._schema_done = False
 
 
 REGION = reg.parse_region(block_store.EXAMPLE_BLOCK["geometry"])

@@ -109,6 +109,16 @@ async def test_wildlife_catalog_groups_and_reports_its_search_width(monkeypatch)
     async def species(box, taxon, limit=40):
         return [{"name": f"{taxon} sp.", "observations": 5, "source": "iNaturalist"}]
 
+    # The species index is a SECOND feed, and it is not the subject here. Left
+    # unstubbed it reached USA-NPN for real: harmless-looking, because the
+    # caller swallows a BiotaError and returns {}, but it made these two tests
+    # depend on that service being up. The file's own convention, from
+    # test_species_habits below.
+    async def _index():
+        return {}
+    monkeypatch.setattr(biota, "fetch_npn_species_index", _index)
+    catalog._npn_index = None
+
     monkeypatch.setattr(biota, "fetch_inat_species", species)
     out = await catalog.region_wildlife_catalog(parse_region(FIELD))
     assert [g["group"] for g in out["groups"]] == ["Birds", "Mammals", "Amphibians", "Reptiles"]
@@ -126,6 +136,16 @@ async def test_wildlife_catalog_names_a_group_that_failed(monkeypatch):
         if taxon == "Reptilia":
             raise biota.BiotaError("iNaturalist timed out")
         return [{"name": f"{taxon} sp.", "observations": 1, "source": "iNaturalist"}]
+
+    # The species index is a SECOND feed, and it is not the subject here. Left
+    # unstubbed it reached USA-NPN for real: harmless-looking, because the
+    # caller swallows a BiotaError and returns {}, but it made these two tests
+    # depend on that service being up. The file's own convention, from
+    # test_species_habits below.
+    async def _index():
+        return {}
+    monkeypatch.setattr(biota, "fetch_npn_species_index", _index)
+    catalog._npn_index = None
 
     monkeypatch.setattr(biota, "fetch_inat_species", species)
     out = await catalog.region_wildlife_catalog(parse_region(FIELD))
