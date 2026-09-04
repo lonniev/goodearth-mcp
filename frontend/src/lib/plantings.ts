@@ -13,8 +13,9 @@ export interface Planting {
   setOut: string; // YYYY-MM-DD
   /// Per-crop override; blank means the block's default.
   baseTempF?: number;
-  /// A tree or other perennial: judged on whether it survives the winter here
-  /// and gets its chill, not on whether it finishes before frost.
+  /// A perennial: also judged on whether it survives the winter here and gets
+  /// its chill. Not instead — a perennial may carry a heat target too, when
+  /// the target is a within-season event like a cutting.
   perennial?: boolean;
   /// Chill hours the cultivar needs, and the temperature it is lost at. Both
   /// are the grower's own figures from the nursery tag — Good Earth computes
@@ -41,17 +42,22 @@ export interface CropPreset {
   baseTempF?: number;
   note: string;
   emoji: string;
-  category: "field" | "flower" | "vegetable" | "cover" | "orchard" | "forest";
-  /// A perennial: it lives across seasons, so what it is asked is whether it
-  /// survives the winter here and whether it gets its chill, not whether it
-  /// finishes before frost.
+  category:
+    | "field" | "flower" | "vegetable" | "cover"
+    | "orchard" | "herb" | "forest";
+  /// Lives across seasons, so it is ALSO asked whether it survives the winter
+  /// here and whether it gets its chill. Not instead: alfalfa is a perennial
+  /// that answers a heat target per cutting, and both ratings are true of it.
   perennial?: boolean;
-  /// Chill hours at or below 45 °F the cultivar needs to break dormancy
-  /// cleanly. A starting figure from extension tables — the authority is the
-  /// nursery tag, and cultivars within a species differ by hundreds of hours.
+  /// Chill hours at or below 45 °F needed to break dormancy or set bloom.
+  /// Present only where chill is genuinely the mechanism and a grower can find
+  /// a published figure — fruit, and the bulbs that are set by last winter.
+  /// Absent on a plant whose limit is simply cold, because a number invented
+  /// to fill the column would be worse than the blank.
   chillHours?: number;
-  /// The temperature this species is lost at, °F. Also a starting figure:
-  /// rootstock, siting and age all move it.
+  /// The temperature it is lost at, °F. On every perennial, because this is
+  /// the question every one of them is asked. A starting figure: siting,
+  /// snow cover, rootstock and age all move it.
   hardyToF?: number;
   /// Survives a light frost, so it can use the shoulders of the season.
   frostHardy?: boolean;
@@ -93,8 +99,13 @@ export const CROP_PRESETS: CropPreset[] = [
   { crop: "Hemp · fibre", gddTarget: 1700, baseTempF: 50, emoji: "🌿",
     category: "field", note: "to technical maturity",
     directSow: true, minSoilF: 50 },
+  // A perennial that ALSO answers a heat target: 750 GDD is one cutting's
+  // regrowth, and the stand itself is asked whether it survives the winter.
+  // Both ratings are true of it, which is why the library's two lists overlap
+  // rather than partition it.
   { crop: "Alfalfa", gddTarget: 750, baseTempF: 41, emoji: "🍀",
     category: "field", note: "per cutting, frost hardy", frostHardy: true,
+    perennial: true, hardyToF: -25,
     directSow: true, minSoilF: 42 },
   { crop: "Winter wheat", gddTarget: 2100, baseTempF: 32, emoji: "🌾",
     category: "field", note: "after vernalisation", frostHardy: true,
@@ -156,7 +167,7 @@ export const CROP_PRESETS: CropPreset[] = [
     category: "vegetable", note: "to ripe fruit",
     startIndoorsWeeks: 4, minSoilF: 65 },
   { crop: "Basil", gddTarget: 600, baseTempF: 50, emoji: "🌿",
-    category: "vegetable", note: "to first cut",
+    category: "herb", note: "to first cut",
     startIndoorsWeeks: 6, minSoilF: 60 },
 
   // ── Cut flower ─────────────────────────────────────────────────────────
@@ -180,15 +191,16 @@ export const CROP_PRESETS: CropPreset[] = [
     startIndoorsWeeks: 8, minSoilF: 45 },
 
   // The bench above was six deep because the field list got the attention, not
-  // because six flowers grow here. What follows is the hardy/tender annual
-  // bench a cold-climate cut-flower grower actually plants.
+  // because six flowers grow here.
   //
-  // ANNUALS ONLY, deliberately. This model rates "does it finish before frost",
-  // which is a question only something that must finish in one season can be
-  // asked. A peony blooms in its third year off chill and establishment, and a
-  // tulip is set by what it did in the bulb last summer; giving either a
-  // gddTarget would invent a number the plant does not answer to. They are
-  // absent because the model does not fit them, not because they do not grow.
+  // This once said "ANNUALS ONLY, deliberately", and that was a working
+  // decision of one afternoon written down as though it were a rule. It was
+  // half right and wholly the wrong conclusion. Half right: a peony does not
+  // answer to a heat target, so "does it finish before frost" cannot be asked
+  // of it. Wrong conclusion: what followed from that is that a perennial needs
+  // a DIFFERENT rating, not that it should be left out of the catalogue. It
+  // now has one — whether it survives the winter here and whether it gets its
+  // chill — so nothing is excluded for want of a model any more.
 
   // ── Hardy annuals — go out around the last frost, base 40 ──────────────
   { crop: "Bachelor's button", gddTarget: 700, baseTempF: 40, emoji: "🪻",
@@ -255,6 +267,13 @@ export const CROP_PRESETS: CropPreset[] = [
   { crop: "Winter rye", gddTarget: 900, baseTempF: 38, emoji: "🌾",
     category: "cover", note: "autumn sown, to overwinter", frostHardy: true,
     directSow: true, minSoilF: 38 },
+  { crop: "Clover · red", hardyToF: -30, emoji: "🍀",
+    category: "cover", perennial: true, note: "a stand, not a one-season cover" },
+  { crop: "Timothy", hardyToF: -35, emoji: "🌾",
+    category: "cover", perennial: true, note: "hay stand" },
+  { crop: "Hops", gddTarget: 2000, baseTempF: 50, emoji: "🌿",
+    category: "field", perennial: true, hardyToF: -30,
+    note: "per season to cone; the crown lives on" },
   { crop: "Crimson clover", gddTarget: 1100, baseTempF: 41, emoji: "🍀",
     category: "cover", note: "to bloom", frostHardy: true,
     directSow: true, minSoilF: 42 },
@@ -262,11 +281,142 @@ export const CROP_PRESETS: CropPreset[] = [
     category: "cover", note: "tillage radish, to size", frostHardy: true,
     directSow: true, minSoilF: 45 },
 
-  // ── Fruit-bearing ─────────────────────────────────────────────────────
+  // ── Perennial cut flowers and bulbs ───────────────────────────────────
   //
-  // PERENNIALS. None carries a gddTarget, because a tree does not answer to
-  // one — it is asked whether it survives the winter here and whether it gets
-  // its chill, which is what `tree_suitability` computes against this ground.
+  // These were the plants the "annuals only" note actually excluded, and they
+  // are the backbone of a cut-flower year rather than a curiosity at its
+  // edges. A bulb carries a chill figure because chill IS its mechanism — a
+  // tulip is set by the cold it had, not by the heat it will get. A herbaceous
+  // perennial mostly carries only hardiness, because that is the only number
+  // anyone publishes for it and inventing a chill requirement to fill the
+  // column would be worse than the blank.
+  { crop: "Peony", chillHours: 900, hardyToF: -40, emoji: "\u{1F338}",
+    category: "flower", perennial: true, note: "third year to a cutting stem" },
+  { crop: "Tulip", chillHours: 700, hardyToF: -35, emoji: "\u{1F337}",
+    category: "flower", perennial: true, note: "set by last winter, not this summer" },
+  { crop: "Daffodil", chillHours: 600, hardyToF: -35, emoji: "\u{1F33C}",
+    category: "flower", perennial: true, note: "deer leave it alone" },
+  { crop: "Allium", chillHours: 600, hardyToF: -35, emoji: "\u{1FAB7}",
+    category: "flower", perennial: true, note: "" },
+  { crop: "Lily · Asiatic", chillHours: 500, hardyToF: -30, emoji: "\u{1F33A}",
+    category: "flower", perennial: true, note: "" },
+  { crop: "Iris · bearded", hardyToF: -35, emoji: "\u{1FAB7}",
+    category: "flower", perennial: true, note: "wants the rhizome shallow" },
+  { crop: "Delphinium", hardyToF: -40, emoji: "\u{1FAB7}",
+    category: "flower", perennial: true, note: "short-lived; treat as three years" },
+  { crop: "Echinacea", hardyToF: -35, emoji: "\u{1F33C}",
+    category: "flower", perennial: true, note: "" },
+  { crop: "Phlox · garden", hardyToF: -35, emoji: "\u{1F338}",
+    category: "flower", perennial: true, note: "" },
+  { crop: "Yarrow", hardyToF: -40, emoji: "\u{1F33C}",
+    category: "flower", perennial: true, note: "" },
+  { crop: "Astilbe", hardyToF: -35, emoji: "\u{1FAB7}",
+    category: "flower", perennial: true, note: "the shade end of the field" },
+  { crop: "Baptisia", hardyToF: -35, emoji: "\u{1FAB7}",
+    category: "flower", perennial: true, note: "slow to settle, then decades" },
+  { crop: "Monarda", hardyToF: -40, emoji: "\u{1F33A}",
+    category: "flower", perennial: true, note: "the pollinators find it first" },
+  { crop: "Aster · New England", hardyToF: -40, emoji: "\u{1F33C}",
+    category: "flower", perennial: true, note: "the last flow before frost" },
+  { crop: "Chrysanthemum · hardy", hardyToF: -30, emoji: "\u{1F33C}",
+    category: "flower", perennial: true, note: "" },
+  { crop: "Hellebore", hardyToF: -25, emoji: "\u{1F338}",
+    category: "flower", perennial: true, note: "blooms through snow" },
+  { crop: "Lily of the valley", hardyToF: -40, emoji: "\u{1F33F}",
+    category: "flower", perennial: true, note: "spreads; give it an edge to stop at" },
+  { crop: "Sedum", hardyToF: -40, emoji: "\u{1F33F}",
+    category: "flower", perennial: true, note: "" },
+  { crop: "Lilac", chillHours: 800, hardyToF: -40, emoji: "\u{1FAB7}",
+    category: "flower", perennial: true, note: "USA-NPN dates its leaf and bloom" },
+  { crop: "Hydrangea", hardyToF: -25, emoji: "\u{1F338}",
+    category: "flower", perennial: true, note: "old wood: a hard winter costs the bloom" },
+  { crop: "Viburnum", hardyToF: -35, emoji: "\u{1FAB7}",
+    category: "flower", perennial: true, note: "" },
+
+  // ── Bush, cane and vine fruit ─────────────────────────────────────────
+  //
+  // Fruit, not orchard: a grower thinking "fruit" wants the raspberries and
+  // the apples in one place, so they share a category and the pill says Fruit.
+  { crop: "Strawberry · June", chillHours: 300, hardyToF: -25, emoji: "\u{1F353}",
+    category: "orchard", perennial: true, note: "one flush; renovate after" },
+  { crop: "Strawberry · everbearing", chillHours: 200, hardyToF: -20, emoji: "\u{1F353}",
+    category: "orchard", perennial: true, note: "picks through the season" },
+  { crop: "Raspberry · summer", chillHours: 800, hardyToF: -30, emoji: "\u{1FAD0}",
+    category: "orchard", perennial: true, note: "floricane: last year's wood" },
+  { crop: "Raspberry · fall", chillHours: 700, hardyToF: -25, emoji: "\u{1FAD0}",
+    category: "orchard", perennial: true, note: "primocane: mow it to the ground" },
+  { crop: "Blackberry", chillHours: 500, hardyToF: -15, emoji: "\u{1FAD0}",
+    category: "orchard", perennial: true, note: "canes kill back in a hard winter" },
+  { crop: "Currant · black", chillHours: 800, hardyToF: -35, emoji: "\u{1FAD0}",
+    category: "orchard", perennial: true, note: "check your state's white-pine rules" },
+  { crop: "Gooseberry", chillHours: 800, hardyToF: -30, emoji: "\u{1FAD0}",
+    category: "orchard", perennial: true, note: "" },
+  { crop: "Grape · cold-hardy", chillHours: 1000, hardyToF: -30, emoji: "\u{1F347}",
+    category: "orchard", perennial: true, note: "Marquette, Frontenac and kin" },
+  { crop: "Kiwi · hardy", chillHours: 600, hardyToF: -25, emoji: "\u{1F95D}",
+    category: "orchard", perennial: true, note: "needs a male vine nearby" },
+  { crop: "Aronia", chillHours: 800, hardyToF: -35, emoji: "\u{1FAD0}",
+    category: "orchard", perennial: true, note: "" },
+  { crop: "Honeyberry", chillHours: 500, hardyToF: -40, emoji: "\u{1FAD0}",
+    category: "orchard", perennial: true, note: "haskap; the earliest fruit of the year" },
+  { crop: "Cranberry", chillHours: 800, hardyToF: -30, emoji: "\u{1FAD0}",
+    category: "orchard", perennial: true, note: "wants acid and wet" },
+
+  // ── Perennial vegetables ──────────────────────────────────────────────
+  { crop: "Asparagus", hardyToF: -35, emoji: "\u{1F33F}",
+    category: "vegetable", perennial: true, note: "third spring to a full cut" },
+  { crop: "Rhubarb", hardyToF: -35, emoji: "\u{1F33F}",
+    category: "vegetable", perennial: true, note: "needs the cold to break dormancy" },
+  { crop: "Horseradish", hardyToF: -35, emoji: "\u{1F33F}",
+    category: "vegetable", perennial: true, note: "root it where you mean to keep it" },
+  { crop: "Sunchoke", hardyToF: -30, emoji: "\u{1F33B}",
+    category: "vegetable", perennial: true, note: "spreads; give it a corner" },
+  { crop: "Sorrel", hardyToF: -30, emoji: "\u{1F33F}",
+    category: "vegetable", perennial: true, note: "first green of the spring" },
+  { crop: "Walking onion", hardyToF: -35, emoji: "\u{1F9C5}",
+    category: "vegetable", perennial: true, note: "" },
+  { crop: "Sea kale", hardyToF: -20, emoji: "\u{1F96C}",
+    category: "vegetable", perennial: true, note: "" },
+
+  // ── Herbs ─────────────────────────────────────────────────────────────
+  //
+  // Mostly perennial, and until now they had nowhere to be — basil sat under
+  // Vegetable and everything else was simply missing. Rosemary is the one
+  // worth reading the verdict on: it is a perennial that will not live
+  // through a northern winter outdoors, and saying so plainly is more use
+  // than leaving it off the list.
+  { crop: "Sage", hardyToF: -30, emoji: "\u{1F33F}",
+    category: "herb", perennial: true, note: "" },
+  { crop: "Thyme", hardyToF: -30, emoji: "\u{1F33F}",
+    category: "herb", perennial: true, note: "" },
+  { crop: "Oregano", hardyToF: -30, emoji: "\u{1F33F}",
+    category: "herb", perennial: true, note: "" },
+  { crop: "Mint", hardyToF: -35, emoji: "\u{1F33F}",
+    category: "herb", perennial: true, note: "container it or lose the bed" },
+  { crop: "Chives", hardyToF: -40, emoji: "\u{1F33F}",
+    category: "herb", perennial: true, note: "" },
+  { crop: "Lavender · English", hardyToF: -20, emoji: "\u{1FAB7}",
+    category: "herb", perennial: true, note: "wants drainage more than it wants warmth" },
+  { crop: "Rosemary", hardyToF: 10, emoji: "\u{1F33F}",
+    category: "herb", perennial: true, note: "comes indoors north of zone 7" },
+  { crop: "Tarragon · French", hardyToF: -20, emoji: "\u{1F33F}",
+    category: "herb", perennial: true, note: "" },
+  { crop: "Lemon balm", hardyToF: -30, emoji: "\u{1F33F}",
+    category: "herb", perennial: true, note: "" },
+  { crop: "Winter savory", hardyToF: -20, emoji: "\u{1F33F}",
+    category: "herb", perennial: true, note: "" },
+  { crop: "Cilantro", gddTarget: 500, baseTempF: 40, emoji: "\u{1F33F}",
+    category: "herb", note: "bolts in heat; sow in succession", frostHardy: true,
+    directSow: true, minSoilF: 45 },
+  { crop: "Dill", gddTarget: 700, baseTempF: 40, emoji: "\u{1F33F}",
+    category: "herb", note: "to head", frostHardy: true,
+    directSow: true, minSoilF: 45 },
+
+  // ── Fruit trees and nuts ──────────────────────────────────────────────
+  //
+  // None carries a gddTarget, because none of them answers to one. That is a
+  // fact about these plants and not a rule about perennials: alfalfa is a
+  // perennial and does answer "750 GDD per cutting", and carries both.
   //
   // Every chill and hardiness figure below is a SPECIES-TYPICAL STARTING
   // POINT, and the spread inside a species is the whole reason it must be
@@ -352,22 +502,29 @@ export const CROP_PRESETS: CropPreset[] = [
     category: "forest", perennial: true, note: "the conifer that drops its needles" },
 ];
 
-/// The library split by what each half can be asked.
+/// The library split by what each entry CAN BE ASKED — not into two halves.
 ///
-/// An annual is rated on whether it finishes before frost; a perennial is
-/// rated on whether it survives the winter and gets its chill. They are
-/// different tools and different answers, and the split is by the presence of
-/// a heat target rather than by category name, so a perennial added to any
-/// category cannot leak into a call that would have to invent one.
-export const ANNUALS = CROP_PRESETS.filter((c) => !c.perennial && c.gddTarget != null);
-export const PERENNIALS = CROP_PRESETS.filter((c) => c.perennial);
+/// A plant is rated on heat if it carries a target, and on winter if it is a
+/// perennial, and **these overlap**. Alfalfa is a perennial that also answers
+/// "750 GDD per cutting"; hops the same. Treating the two as a partition was
+/// the error that kept perennials out of the catalogue in the first place —
+/// it assumed a plant could only be one kind of thing.
+///
+/// Membership is by what an entry carries rather than by its category, so
+/// nothing can leak into a call that would have to invent the figure it is
+/// missing.
+export const HEAT_RATED = CROP_PRESETS.filter(
+  (c) => c.gddTarget != null && c.baseTempF != null,
+);
+export const WINTER_RATED = CROP_PRESETS.filter((c) => c.perennial);
 
 export const CROP_CATEGORIES: { key: CropPreset["category"]; label: string }[] = [
   { key: "field", label: "Field" },
   { key: "vegetable", label: "Vegetable" },
   { key: "flower", label: "Cut flower" },
   { key: "cover", label: "Cover" },
-  { key: "orchard", label: "Fruit tree" },
+  { key: "orchard", label: "Fruit" },
+  { key: "herb", label: "Herb" },
   { key: "forest", label: "Forest" },
 ];
 

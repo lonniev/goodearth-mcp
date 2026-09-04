@@ -17,7 +17,8 @@ import { cropGddStatus, cropSuitability, plantingWindow, treeSuitability,
   type CropLedgerResult, type PlantingWindowResult, type SuitabilityResult,
   type TreeAssessment, type TreeSuitabilityResult, type Verdict } from "../lib/mcp";
 import {
-  ANNUALS, CROP_CATEGORIES, CROP_PRESETS, makePlanting, PERENNIALS, plantingCodec,
+  CROP_CATEGORIES, CROP_PRESETS, HEAT_RATED, makePlanting, plantingCodec,
+  WINTER_RATED,
   type CropPreset, type Planting, plantingDateFor } from "../lib/plantings";
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
 import type { SavedRegion } from "../lib/regions";
@@ -156,10 +157,11 @@ export default function Crops({
     try {
       const r = await cropSuitability(
         region.id,
-        // Annuals only. "Does it finish before frost" is a question a tree is
-        // not asked, and sending one would mean inventing the heat target it
-        // deliberately does not have. Trees are rated by `treeSuitability`.
-        ANNUALS.map((c) => ({
+        // Only what carries a heat target. "Does it finish before frost" is a
+        // question a peony is not asked, and sending one would mean inventing
+        // the number it deliberately does not have. This is NOT "annuals":
+        // alfalfa is a perennial and belongs in both calls.
+        HEAT_RATED.map((c) => ({
           crop: c.crop, gdd_target: c.gddTarget!, base_temp: c.baseTempF!,
           frost_hardy: c.frostHardy ?? false, category: c.category, emoji: c.emoji,
         })),
@@ -211,7 +213,7 @@ export default function Crops({
     try {
       const r = await plantingWindow(
         region.id,
-        ANNUALS.map((c) => ({
+        HEAT_RATED.map((c) => ({
           crop: c.crop, gdd_target: c.gddTarget!, base_temp: c.baseTempF!,
           frost_hardy: c.frostHardy ?? false, direct_sow: c.directSow ?? false,
           emoji: c.emoji,
@@ -238,7 +240,7 @@ export default function Crops({
     try {
       const r = await treeSuitability(
         region.id,
-        PERENNIALS.map((c) => ({
+        WINTER_RATED.map((c) => ({
           tree: c.crop, category: c.category, emoji: c.emoji,
           ...(c.chillHours != null ? { chill_hours: c.chillHours } : {}),
           ...(c.hardyToF != null ? { hardy_to_f: c.hardyToF } : {}),

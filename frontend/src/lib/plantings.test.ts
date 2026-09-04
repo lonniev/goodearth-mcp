@@ -5,8 +5,8 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { ANNUALS, CROP_PRESETS, emojiFor, makePlanting, PERENNIALS,
-  plantingDateFor } from "./plantings.ts";
+import { CROP_PRESETS, emojiFor, HEAT_RATED, makePlanting, plantingDateFor,
+  WINTER_RATED } from "./plantings.ts";
 
 describe("emojiFor — marks a row without guessing", () => {
   it("matches a preset by name", () => {
@@ -79,38 +79,68 @@ describe("CROP_PRESETS — invariants the UI relies on", () => {
     assert.deepEqual(dupes, []);
   });
 
-  it("gives every ANNUAL a target and a base", () => {
-    for (const c of ANNUALS) {
-      assert.ok((c.gddTarget ?? 0) > 0, `${c.crop} has no target`);
-      assert.ok((c.baseTempF ?? 0) > 0, `${c.crop} has no base`);
-      assert.ok(c.note, `${c.crop} has no note`);
+  it("pairs a heat target with a base temperature, both ways", () => {
+    // One without the other is unusable: a target with no base cannot be
+    // accumulated, and a base with no target has nothing to count toward.
+    for (const c of CROP_PRESETS) {
+      assert.equal(c.gddTarget != null, c.baseTempF != null,
+        `${c.crop} carries one of target/base without the other`);
     }
   });
 
-  it("gives every preset an icon", () => {
-    for (const c of CROP_PRESETS) assert.ok(c.emoji, `${c.crop} has no icon`);
-  });
-
-  it("gives NO perennial a target or a base", () => {
-    // The whole point. A tree does not answer to "does it finish before
-    // frost", and a target on one would be sent to a tool that would then
-    // rate it against a season it does not live inside. A base temperature
-    // under an apple tree states a fact that isn't.
-    for (const c of PERENNIALS) {
-      assert.equal(c.gddTarget, undefined, `${c.crop} carries a heat target`);
-      assert.equal(c.baseTempF, undefined, `${c.crop} carries a base temperature`);
+  it("gives every preset an icon and a note field", () => {
+    for (const c of CROP_PRESETS) {
+      assert.ok(c.emoji, `${c.crop} has no icon`);
+      assert.equal(typeof c.note, "string", `${c.crop} has no note`);
     }
   });
 
-  it("splits the library so neither half can leak into the other's call", () => {
-    assert.equal(ANNUALS.length + PERENNIALS.length, CROP_PRESETS.length);
-    assert.ok(PERENNIALS.every((c) => c.category === "orchard" || c.category === "forest"));
-    assert.ok(ANNUALS.every((c) => c.category !== "orchard" && c.category !== "forest"));
+  it("gives every perennial the hardiness figure it is judged on", () => {
+    for (const c of WINTER_RATED) {
+      assert.ok(c.hardyToF != null, `${c.crop} has no hardiness figure`);
+    }
   });
 
-  it("gives every fruit tree the two figures it is judged on", () => {
-    const fruit = PERENNIALS.filter((c) => c.category === "orchard");
-    assert.ok(fruit.length >= 12, `only ${fruit.length} fruit trees`);
+  it("gives winter figures to NOTHING that is not a perennial", () => {
+    // A chill requirement on a zinnia would be sent to a tool that rates it
+    // across winters it does not live through.
+    for (const c of CROP_PRESETS) {
+      if (c.perennial) continue;
+      assert.equal(c.chillHours, undefined, `${c.crop} carries chill hours`);
+      assert.equal(c.hardyToF, undefined, `${c.crop} carries a hardiness figure`);
+    }
+  });
+
+  it("lets the two ratings OVERLAP rather than partition the library", () => {
+    // The error that kept perennials out in the first place was assuming a
+    // plant could only be one kind of thing. Alfalfa is a perennial stand that
+    // also answers 750 GDD per cutting, and both are true of it.
+    const both = CROP_PRESETS.filter((c) => c.perennial && c.gddTarget != null);
+    assert.ok(both.length > 0, "nothing is rated on both heat and winter");
+    for (const c of both) {
+      assert.ok(HEAT_RATED.includes(c), `${c.crop} is not asked its heat question`);
+      assert.ok(WINTER_RATED.includes(c), `${c.crop} is not asked its winter question`);
+    }
+  });
+
+  it("sends nothing to a call that would have to invent its figure", () => {
+    for (const c of HEAT_RATED) assert.ok(c.gddTarget != null && c.baseTempF != null, c.crop);
+    for (const c of WINTER_RATED) assert.ok(c.perennial, c.crop);
+  });
+
+  it("carries perennials in every category a grower browses, not a ghetto", () => {
+    // The whole correction. They were absent from the catalogue on a rule that
+    // was one afternoon's working decision; they belong wherever the plant
+    // belongs, beside the annuals a grower is choosing between.
+    const cats = new Set(WINTER_RATED.map((c) => c.category));
+    for (const want of ["flower", "vegetable", "herb", "orchard", "forest", "field", "cover"]) {
+      assert.ok(cats.has(want as never), `no perennial in ${want}`);
+    }
+  });
+
+  it("gives every fruit tree and bush the two figures it is judged on", () => {
+    const fruit = WINTER_RATED.filter((c) => c.category === "orchard");
+    assert.ok(fruit.length >= 25, `only ${fruit.length} fruit entries`);
     for (const c of fruit) {
       assert.ok(c.chillHours != null, `${c.crop} has no chill figure`);
       assert.ok(c.hardyToF != null, `${c.crop} has no hardiness figure`);
@@ -120,7 +150,7 @@ describe("CROP_PRESETS — invariants the UI relies on", () => {
   it("gives every forest tree a hardiness figure and no chill one", () => {
     // A forest tree is not being asked to set fruit, so a chill requirement
     // for it would be a number invented to fill a column.
-    const forest = PERENNIALS.filter((c) => c.category === "forest");
+    const forest = WINTER_RATED.filter((c) => c.category === "forest");
     assert.ok(forest.length >= 10, `only ${forest.length} forest trees`);
     for (const c of forest) {
       assert.ok(c.hardyToF != null, `${c.crop} has no hardiness figure`);
@@ -128,10 +158,10 @@ describe("CROP_PRESETS — invariants the UI relies on", () => {
     }
   });
 
-  it("keeps every tree figure inside what the server will accept", () => {
+  it("keeps every perennial figure inside what the server will accept", () => {
     // The server validates -60..40 °F and 0..2000 hours. A preset outside
     // those is refused on the wire, which reads as a broken page.
-    for (const c of PERENNIALS) {
+    for (const c of WINTER_RATED) {
       if (c.hardyToF != null) assert.ok(c.hardyToF >= -60 && c.hardyToF <= 40, c.crop);
       if (c.chillHours != null) assert.ok(c.chillHours >= 0 && c.chillHours <= 2000, c.crop);
     }
@@ -202,13 +232,13 @@ describe("makePlanting — a perennial is a planting too", () => {
 });
 
 describe("the tree library reads as a grower would name it", () => {
-  it("finds an icon for every tree by name", () => {
-    for (const c of PERENNIALS) assert.equal(emojiFor(c.crop), c.emoji);
+  it("finds an icon for every perennial by name", () => {
+    for (const c of WINTER_RATED) assert.equal(emojiFor(c.crop), c.emoji);
   });
 
-  it("does not let a tree name claim an unrelated crop", () => {
+  it("does not let one head term claim an unrelated plant", () => {
     // "Cherry · black" is a forest tree and "Cherry · sweet" an orchard one;
     // the head-term match must not collapse them into whichever came first.
-    assert.ok(ANNUALS.every((c) => c.crop !== "Cherry"));
+    assert.ok(CROP_PRESETS.every((c) => c.crop !== "Cherry"));
   });
 });
