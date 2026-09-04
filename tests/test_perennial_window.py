@@ -128,8 +128,9 @@ def test_an_empty_list_is_refused_rather_than_answered_emptily():
 
 
 def test_more_trees_than_one_call_should_carry_is_refused():
+    from goodearth_mcp import perennial
     with pytest.raises(perennial_window.PerennialWindowError):
-        run([APPLE] * 50)
+        run([APPLE] * (perennial.MAX_TREES + 1))
 
 
 # ── Identity ─────────────────────────────────────────────────────────────

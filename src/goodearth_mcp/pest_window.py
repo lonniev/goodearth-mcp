@@ -15,7 +15,21 @@ from typing import Any
 from goodearth_mcp import crops, gdd, pests, record_cache, sources
 from goodearth_mcp.region import Region
 
-MAX_MODELS = 10
+#: How many rows one call may carry.
+#:
+#: A guard against a hostile caller, not a page size. Every one of these
+#: answers shares ONE cached read of the ground and then does arithmetic per
+#: row — the pest and crop paths build one heat curve per distinct BASE
+#: TEMPERATURE rather than one per row, and the tree path builds none at all —
+#: so the marginal cost of the fortieth row is a few comparisons. What the
+#: limit actually protects is the size of the response.
+#:
+#: These were sized against the catalogue and the roster as they stood, which
+#: is how this one broke as soon as a grower watched an eleventh pest. A limit set to today's list is a
+#: tripwire under tomorrow's, so they are now set to what the constraint is
+#: rather than to what the data happened to be, and `tests/test_call_limits.py`
+#: holds them against what actually ships.
+MAX_MODELS = 40
 
 
 class PestWindowError(ValueError):

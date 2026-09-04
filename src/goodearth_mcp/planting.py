@@ -28,7 +28,21 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any
 
-MAX_CROPS = 60
+#: How many rows one call may carry.
+#:
+#: A guard against a hostile caller, not a page size. Every one of these
+#: answers shares ONE cached read of the ground and then does arithmetic per
+#: row — the pest and crop paths build one heat curve per distinct BASE
+#: TEMPERATURE rather than one per row, and the tree path builds none at all —
+#: so the marginal cost of the fortieth row is a few comparisons. What the
+#: limit actually protects is the size of the response.
+#:
+#: These were sized against the catalogue and the roster as they stood, which
+#: is how this one sat one preset away from refusing the crop library. A limit set to today's list is a
+#: tripwire under tomorrow's, so they are now set to what the constraint is
+#: rather than to what the data happened to be, and `tests/test_call_limits.py`
+#: holds them against what actually ships.
+MAX_CROPS = 200
 
 # How far before the last frost a hardy crop can reasonably go out. Hardy means
 # it survives a light frost, not that it ignores winter.
