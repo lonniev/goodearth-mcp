@@ -68,11 +68,6 @@ async def region_tree_window(
 
     if not isinstance(trees_in, list) or not trees_in:
         raise PerennialWindowError("trees must be a non-empty list")
-    if len(trees_in) > perennial.MAX_TREES:
-        raise PerennialWindowError(
-            f"{len(trees_in)} trees is more than one call should carry "
-            f"(limit {perennial.MAX_TREES})"
-        )
 
     # One unusable row must not cost the rest — the fault fixed four times
     # elsewhere in this package before anyone wrote it down.

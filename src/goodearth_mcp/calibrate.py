@@ -17,7 +17,6 @@ from typing import Any
 from goodearth_mcp import calibration, crops, frost, gdd, record_cache, sources
 from goodearth_mcp.region import Region
 
-MAX_OBSERVATIONS = 60
 RECORD_SPAN_YEARS = 10
 
 
@@ -36,11 +35,6 @@ async def region_calibration(
 
     if not isinstance(observations, list) or not observations:
         raise CalibrateError("observations must be a non-empty list of field reports")
-    if len(observations) > MAX_OBSERVATIONS:
-        raise CalibrateError(
-            f"{len(observations)} observations is more than one call should carry "
-            f"(limit {MAX_OBSERVATIONS})"
-        )
 
     # One unusable row must not cost the rest. Found by the guard in
     # tests/test_partial_knowledge.py after the same bug was fixed four times

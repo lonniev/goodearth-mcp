@@ -41,11 +41,6 @@ async def region_wildlife(
 
     if not isinstance(events, list) or not events:
         raise WildlifeWindowError("events must be a non-empty list")
-    if len(events) > wildlife.MAX_EVENTS:
-        raise WildlifeWindowError(
-            f"{len(events)} events is more than one call should carry "
-            f"(limit {wildlife.MAX_EVENTS})"
-        )
 
     # Validated one at a time. As a list comprehension, one unusable row raised
     # and the grower lost the whole page — a single roster entry hid seventeen

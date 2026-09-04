@@ -88,7 +88,6 @@ KINDS = ("planting", "pest", "wildlife", "observation")
 SEASON_KINDS = ("planting", "pest", "wildlife")
 
 MAX_NAME_LEN = 120
-MAX_ALIASES = 12
 MAX_ITEMS_PER_CALL = 100
 MAX_PAGE_SIZE = 200
 MAX_SEARCH_LEN = 200
@@ -459,8 +458,6 @@ def _clean_aliases(aliases: Any) -> list[str]:
         t = str(a or "").strip()
         if t:
             out.append(t[:MAX_NAME_LEN])
-    if len(out) > MAX_ALIASES:
-        raise BlockError(f"a block may carry at most {MAX_ALIASES} aliases")
     return out
 
 

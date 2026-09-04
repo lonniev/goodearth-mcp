@@ -89,11 +89,6 @@ async def region_suitability(
 
     if not isinstance(crops_in, list) or not crops_in:
         raise SuitabilityWindowError("crops must be a non-empty list")
-    if len(crops_in) > suitability.MAX_CROPS:
-        raise SuitabilityWindowError(
-            f"{len(crops_in)} crops is more than one call should carry "
-            f"(limit {suitability.MAX_CROPS})"
-        )
 
     # One unusable row must not cost the rest. Found by the guard in
     # tests/test_partial_knowledge.py after the same bug was fixed four times

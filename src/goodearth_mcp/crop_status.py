@@ -17,7 +17,6 @@ from goodearth_mcp import crops, frost, gdd, record_cache, sources
 from goodearth_mcp.crops import CropError
 from goodearth_mcp.region import Region
 
-MAX_PLANTINGS = 40
 RECORD_SPAN_YEARS = 10
 
 
@@ -69,11 +68,6 @@ async def region_crop_ledger(
 
     if not isinstance(plantings, list) or not plantings:
         raise LedgerError("plantings must be a non-empty list")
-    if len(plantings) > MAX_PLANTINGS:
-        raise LedgerError(
-            f"{len(plantings)} plantings is more than one call should carry "
-            f"(limit {MAX_PLANTINGS}) — split the block."
-        )
 
     # Validated one at a time. As a list comprehension, a single unusable row
     # raised and the grower lost their whole ledger — which is what happened

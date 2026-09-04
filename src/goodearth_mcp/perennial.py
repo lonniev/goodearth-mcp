@@ -30,8 +30,6 @@ from typing import Any
 
 from goodearth_mcp import chill
 
-MAX_TREES = 40
-
 #: A cultivar's cold limit, in °F. The range brackets everything from citrus,
 #: which is lost near 26 °F, to a boreal species good past 50 below.
 MIN_HARDY_F = -60.0
