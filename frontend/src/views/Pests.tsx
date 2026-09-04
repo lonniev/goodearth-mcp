@@ -13,6 +13,7 @@ import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
 import { Pager, SortHeaders, type Column } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
+import UndoBar, { remembered } from "../components/UndoBar";
 import Term from "../components/Term";
 import { useUnits } from "../components/Units";
 import {
@@ -79,7 +80,7 @@ export default function Pests({
   const [savingRow, setSavingRow] = useState(false);
 
   // Read from the grower's record under their npub, not from this browser.
-  const { items: models, save: storePest, retire: retirePest,
+  const { items: models, save: storePest, retire: retirePest, reload: reloadPests,
           loading: modelsLoading, error: modelsError,
           unknownBlock: modelsUnknown, total, page, pages } =
     useBlockItems<SavedPest>(region.id, "pest", pestCodec, undefined, {
@@ -188,6 +189,8 @@ export default function Pests({
       <PageTitle>Pests</PageTitle>
 
       {error && <ErrorBox>{error}</ErrorBox>}
+
+      <UndoBar kinds={["pest"]} onRestored={() => void reloadPests()} />
 
       {data && data.scout_now.length > 0 && (
         <div className="mb-5 rounded-md border border-rule border-l-4 border-l-honey bg-panel px-4 py-3">
@@ -336,7 +339,13 @@ export default function Pests({
                         )}
                       </td>
                       <td className="px-2 py-2.5 text-right">
-                        <button onClick={() => void retirePest(m.id)}
+                        <button onClick={() => {
+                          remembered({
+                            kind: "pest", blockId: region.id, label: m.pest,
+                            item: pestCodec.to(m) as Record<string, unknown>,
+                          });
+                          void retirePest(m.id);
+                        }}
                           aria-label={`Remove ${m.pest}`}
                           className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>
                       </td>

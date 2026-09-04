@@ -164,3 +164,20 @@ def test_nothing_to_say_is_not_charged_for(monkeypatch):
     monkeypatch.setattr(biota, "fetch_spring_index", down)
     with pytest.raises(tree_year_window.TreeYearError):
         run([APPLE])
+
+
+def test_the_sap_run_reads_the_kind_the_record_actually_uses():
+    """A guard for a bug that shipped: the tool asked `_stored_items` for kind
+    "crop" where the record has always written "planting", so `tapped` was
+    always empty and the sap section could never appear.
+
+    Asserted against the server module rather than restated here, because the
+    two drifting apart is the whole fault.
+    """
+    import inspect
+
+    from goodearth_mcp import server
+
+    src = inspect.getsource(server.tree_year)
+    assert '"planting"' in src
+    assert '_stored_items(npub, found["block_id"], "crop")' not in src
