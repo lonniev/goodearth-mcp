@@ -5,12 +5,14 @@
 // and the typical crossing together: "plant this week?" and "how long have I
 // got?" are different questions.
 
+import { useUnits } from "./Units";
 import type { SoilWindowResult } from "../lib/mcp";
 
 const d = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
 export default function SoilCard({ data }: { data: SoilWindowResult }) {
+  const u = useUnits();
   const t = data.typical;
   const out = data.days_to_typical_crossing;
   const near = data.near_term;
@@ -19,12 +21,12 @@ export default function SoilCard({ data }: { data: SoilWindowResult }) {
     <div className="mb-3 rounded-md border border-rule bg-panel px-4 py-3.5">
       <h3 className="figure text-[15.5px] font-semibold">
         Soil {data.direction === "cooling" ? "cooling through" : "warming through"}{" "}
-        {Math.round(data.threshold_f)}°F
+        {u.showTemp(data.threshold_f)}
       </h3>
 
       <p className="mt-1.5 text-[13px] leading-relaxed">
         {data.current_soil_f != null ? (
-          <>Soil at planting depth is <b>{Math.round(data.current_soil_f)}°F</b> right now. </>
+          <>Soil at planting depth is <b>{u.showTemp(data.current_soil_f)}</b> right now. </>
         ) : null}
         {near?.crossing_date ? (
           <>It crosses <b>{d(near.crossing_date)}</b> — inside the forecast, so that date is a

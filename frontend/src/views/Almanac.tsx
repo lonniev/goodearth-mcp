@@ -8,6 +8,7 @@
 // because degrees, inches and hours cannot share an axis honestly. The shape
 // is identical across them so the eye learns it once.
 
+import { useUnits } from "../components/Units";
 import { useCallback, useEffect, useState } from "react";
 import MeasureChart from "../components/MeasureChart";
 import OutlookSummary from "../components/OutlookSummary";
@@ -33,6 +34,7 @@ const day = (iso: string) =>
 export default function Almanac({
   region, onCost,
 }: { region: SavedRegion; onCost: (sats: number) => void }) {
+  const u = useUnits();
   const [data, setData] = useState<AlmanacResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -99,8 +101,8 @@ export default function Almanac({
               a wider one — the eye compares them across a single axis. */}
           <div className="grid grid-cols-2 gap-y-4 sm:grid-cols-4 lg:grid-cols-8">
             <Stat emoji={c.sky.emoji} label={c.sky.label}
-              value={`${c.high_f != null ? Math.round(c.high_f) : "—"}° / ${c.low_f != null ? Math.round(c.low_f) : "—"}°`} />
-            <Stat emoji="💧" label="dew point" value={c.dew_point_f != null ? `${Math.round(c.dew_point_f)}°F` : "—"} />
+              value={`${c.high_f != null ? Math.round(u.temp(c.high_f)) : "—"}° / ${c.low_f != null ? Math.round(u.temp(c.low_f)) : "—"}°`} />
+            <Stat emoji="💧" label="dew point" value={c.dew_point_f != null ? u.showTemp(c.dew_point_f) : "—"} />
             <Stat emoji={c.wind.emoji} label="wind"
               value={c.wind.speed_mph != null ? `${Math.round(c.wind.speed_mph)} mph` : "—"}
               sub={c.wind.from ? `${c.wind.arrow ?? ""} from ${c.wind.from}` : undefined} />

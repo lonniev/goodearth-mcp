@@ -16,6 +16,8 @@ import Preferences from "./components/Preferences";
 import AccountSummary from "./components/AccountSummary";
 import CalendarFeed from "./components/CalendarFeed";
 import { readPrefs, writePrefs, type Prefs } from "./lib/prefs";
+import { UnitProvider } from "./components/Units";
+import { showTemp, type Unit } from "./lib/units";
 import HeatLedger from "./views/HeatLedger";
 import Crops from "./views/Crops";
 import Pests from "./views/Pests";
@@ -58,7 +60,7 @@ function frostWatchLive(f: FrostWindowResult | null): boolean {
 /// Glyphs carry the category so the eye can skip to the number it wants
 /// without reading the words — the same trick the Almanac uses, and the reason
 /// that page scans faster than a sentence does.
-function conditions(f: FrostWindowResult | null) {
+function conditions(f: FrostWindowResult | null, unit: Unit) {
   const n = f?.nights?.[0];
   if (!n) return null;
   const cold = n.low_ground_f <= 40;
@@ -70,7 +72,7 @@ function conditions(f: FrostWindowResult | null) {
     <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-0.5">
       <span>
         <span className="mr-1">{cold ? "🥶" : "🌡️"}</span>
-        Tonight <b className="figure text-[15px] text-ink">{Math.round(n.low_ground_f)}°F</b>
+        Tonight <b className="figure text-[15px] text-ink">{showTemp(n.low_ground_f, unit)}</b>
         <span className="text-ink-soft"> on low ground</span>
       </span>
       {wind && (
@@ -80,7 +82,7 @@ function conditions(f: FrostWindowResult | null) {
         <span><span className="mr-1">{cloud}</span>{Math.round(n.cloud_pct!)}% cloud</span>
       )}
       {n.dew_point_f != null && (
-        <span><span className="mr-1">💧</span>{Math.round(n.dew_point_f)}°F dew</span>
+        <span><span className="mr-1">💧</span>{showTemp(n.dew_point_f, unit)} dew</span>
       )}
     </span>
   );
@@ -187,6 +189,7 @@ export default function App() {
       {/* The skep in the rail's foot reads the same night the frost card does,
           so the two can never disagree: tonight's low on the coldest ground
           against the 55°F flight threshold, and shut on a live frost watch. */}
+      <UnitProvider value={prefs.units}>
       <AppShell
         view={view}
         onView={setView}
@@ -195,7 +198,7 @@ export default function App() {
         displayName={displayName}
         region={region}
         onRegion={pickRegion}
-        conditions={conditions(frost)}
+        conditions={conditions(frost, prefs.units)}
         hive={prefs.bees ? <Hive mood={hiveMood(todayHigh(frost), frostWatchLive(frost))} /> : undefined}
       >
         {view === "ledger" && (
@@ -224,6 +227,7 @@ export default function App() {
           </>
         )}
       </AppShell>
+      </UnitProvider>
 
       {/* The foragers work the whole page. pointer-events:none throughout, so
           a bee can never swallow a tap on a frost warning. */}

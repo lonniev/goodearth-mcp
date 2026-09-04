@@ -5,6 +5,7 @@
 // plainly instead of showing a plausible number: a grower who plans around a
 // fabricated frost date loses a crop.
 
+import { useUnits } from "../components/Units";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import SeasonChart from "../components/SeasonChart";
 import FrostCard from "../components/FrostCard";
@@ -33,6 +34,7 @@ interface Props {
 }
 
 export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
+  const u = useUnits();
   const [data, setData] = useState<SeasonCurveResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -147,10 +149,10 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
           the ground, so neither is repeated here. What is left is the two
           dials a grower actually set, and the way to the sources. */}
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1.5">
-        <h1 className="figure text-[22px] font-bold leading-none">GDD</h1>
+        <h1 className="figure text-[22px] font-bold leading-none">{u.ddUnit.trim()}</h1>
         {data && (
           <div className="flex flex-wrap items-center gap-1.5">
-            <Tag>base {Math.round(data.base_temp_f)}°F</Tag>
+            <Tag>base {u.showTemp(data.base_temp_f)}</Tag>
             <Tag>from {fmt(data.season_start)}</Tag>
             {data.region && (
               <Tag>{data.region.sample_count} samples · {Math.round(data.region.grid_spacing_m)} m</Tag>
@@ -218,12 +220,12 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
         />
         <Pulse
           emoji={frost?.worst_night && frost.worst_night.level !== "clear" ? "🥶" : "🌙"}
-          value={frost?.worst_night ? `${Math.round(frost.worst_night.low_ground_f)}°F` : "—"}
+          value={frost?.worst_night ? u.showTemp(frost.worst_night.low_ground_f) : "—"}
           tone="frost"
           muted={!frost?.worst_night}
           label={
             frost?.worst_night
-              ? `coldest ground ${shortDate(frost.worst_night.date)} · forecast ${Math.round(frost.worst_night.forecast_low_f)}°F`
+              ? `coldest ground ${shortDate(frost.worst_night.date)} · forecast ${u.showTemp(frost.worst_night.forecast_low_f)}`
               : "coldest ground ahead"
           }
         />

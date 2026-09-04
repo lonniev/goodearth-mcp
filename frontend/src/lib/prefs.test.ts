@@ -23,8 +23,18 @@ describe("prefs", () => {
   });
 
   it("round-trips a change", () => {
-    writePrefs({ bees: false });
+    writePrefs({ ...DEFAULTS, bees: false });
     assert.equal(readPrefs().bees, false);
+  });
+
+  it("defaults to Fahrenheit, which is what the record is kept in", () => {
+    assert.equal(readPrefs().units, "F");
+  });
+
+  it("round-trips Celsius without touching anything else", () => {
+    writePrefs({ ...DEFAULTS, units: "C" });
+    assert.equal(readPrefs().units, "C");
+    assert.equal(readPrefs().bees, true);
   });
 
   it("merges over the defaults, so a preference added later is present", () => {

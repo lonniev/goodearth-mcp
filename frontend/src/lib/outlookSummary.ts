@@ -10,6 +10,7 @@
 // "so sow early" is not.
 
 import type { AlmanacResult, Measure, MeasureKey } from "./mcp.ts";
+import { temp, tempUnit, type Unit } from "./units.ts";
 
 /// Measures worth a sentence, in the order a grower would read them. Day
 /// length is omitted deliberately — it is astronomy, identical every year, and
@@ -45,7 +46,7 @@ export interface Line {
 /// so the forecast's normal is its TAIL, not the season's average. Comparing
 /// ten October days against a March-to-October mean would report a cold snap
 /// every autumn.
-export function compareOutlook(data: AlmanacResult): Line[] {
+export function compareOutlook(data: AlmanacResult, unit: Unit = "F"): Line[] {
   const days = (data.forecast_dates ?? []).length;
   if (!days) return [];
 
@@ -70,7 +71,19 @@ export function compareOutlook(data: AlmanacResult): Line[] {
       ? normals.reduce((a, b) => a + b, 0) * (fc.length / normals.length)
       : mean(normals);
 
-    out.push({ label, forecast: f, normal: n, delta: f - n, unit: m.unit, decimals });
+    // Convert the two POINTS and take their difference afterwards. Converting
+    // the delta directly would add 32 to a departure — "4 °F above normal"
+    // becoming "34 °C above normal" — which is the one arithmetic mistake this
+    // whole units layer exists to prevent. Inches, hours and mph are the same
+    // number in either scale.
+    const degrees = m.unit === "°F";
+    const fv = degrees ? temp(f, unit) : f;
+    const nv = degrees ? temp(n, unit) : n;
+    out.push({
+      label, forecast: fv, normal: nv, delta: fv - nv,
+      unit: degrees ? tempUnit(unit).trim() : m.unit,
+      decimals,
+    });
   }
   return out;
 }
@@ -87,8 +100,8 @@ function departure(l: Line): string {
 }
 
 /// The whole thing as plain text, ready to paste into a note or an email.
-export function outlookText(data: AlmanacResult, place: string): string {
-  const lines = compareOutlook(data);
+export function outlookText(data: AlmanacResult, place: string, unit: Unit = "F"): string {
+  const lines = compareOutlook(data, unit);
   const days = (data.forecast_dates ?? []).length;
   const span = data.normals_span_years ?? 0;
   if (!lines.length) return `No outlook available for ${place}.`;

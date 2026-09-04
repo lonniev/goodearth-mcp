@@ -104,9 +104,9 @@ async def region_pest_window(
         # person reading, they are pests, and what they do is arrive.
         "summary": (
             f"{len(priority)} of {len(assessments)} pest"
-            f"{'s' if len(assessments) != 1 else ''} to watch this week."
+            f"{'s' if len(assessments) != 1 else ''} active now."
             if priority else
-            f"Nothing due in the next 10 days, across "
+            f"Nothing crossed or due in the next 10 days, across "
             f"{len(assessments)} pest{'s' if len(assessments) != 1 else ''}."
         ),
         "note": (

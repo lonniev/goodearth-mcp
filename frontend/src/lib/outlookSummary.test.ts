@@ -124,3 +124,33 @@ describe("outlookText — what it says, and what it refuses to", () => {
     assert.match(outlookText(almanac({}), "Frogdale Farm"), /No outlook available/);
   });
 });
+
+describe("compareOutlook — the scale the reader asked for", () => {
+  it("converts a temperature line and its NORMAL, and takes the delta after", () => {
+    // The failure this guards: converting the departure itself. A 4 °F
+    // departure is 2.2 °C, not 36.
+    const data = almanac({
+      temp_max: measure({
+        forecast: [68, 68, 68],
+        normal: Array(3).fill({ mean: 50 }),
+        unit: "°F",
+      }),
+    });
+    const f = compareOutlook(data, "F").find((l) => l.label === "Daily high")!;
+    const c = compareOutlook(data, "C").find((l) => l.label === "Daily high")!;
+    assert.equal(f.delta, 18);
+    assert.equal(Math.round(c.forecast), 20);
+    assert.equal(Math.round(c.normal), 10);
+    assert.equal(Math.round(c.delta), 10);
+    assert.equal(c.unit, "°C");
+  });
+
+  it("leaves rain alone — an inch is an inch in either scale", () => {
+    const data = almanac({
+      precip: measure({ forecast: [1, 1], normal: [{ mean: 0.5 }, { mean: 0.5 }], unit: "in", accumulates: true }),
+    });
+    const f = compareOutlook(data, "F").find((l) => l.label === "Rain")!;
+    const c = compareOutlook(data, "C").find((l) => l.label === "Rain")!;
+    assert.deepEqual(f, c);
+  });
+});

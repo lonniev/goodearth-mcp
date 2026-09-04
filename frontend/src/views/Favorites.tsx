@@ -4,6 +4,7 @@
 // the block's name, its measured area and sample count, and the base
 // temperature its crops are counted against.
 
+import { useUnits } from "../components/Units";
 import { useState } from "react";
 import { deleteRegion, listRegions, type SavedRegion } from "../lib/regions";
 
@@ -17,6 +18,7 @@ export default function Favorites({
   /// and honest enough to caption.
   synced?: boolean;
 }) {
+  const u = useUnits();
   const [regions, setRegions] = useState<SavedRegion[]>(() => listRegions());
 
   return (
@@ -52,7 +54,7 @@ export default function Favorites({
                 {r.areaHa != null
                   ? `${r.areaHa.toFixed(1)} ha · ${r.sampleCount} samples`
                   : "not measured yet"}
-                {" · base "}{r.baseTempF}°F
+                {" · base "}{u.showTemp(r.baseTempF)}
               </p>
 
               <div className="mt-3 flex gap-2">

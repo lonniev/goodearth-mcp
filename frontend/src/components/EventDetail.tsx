@@ -18,6 +18,7 @@
 // "what is the usual treatment", it ROUTES — names the jurisdiction and hands
 // over the extension service whose bulletin is actually authoritative there.
 
+import { useUnits } from "./Units";
 import { useEffect, useRef, useState } from "react";
 import type { LedgerFlag } from "../lib/ledgerFlags";
 import type { SeasonCurveResult } from "../lib/mcp";
@@ -57,6 +58,7 @@ export default function EventDetail({
   curve: SeasonCurveResult;
   onClose: () => void;
 }) {
+  const u = useUnits();
   const box = useRef<HTMLDivElement | null>(null);
   const k = KIND[flag.kind];
   const [info, setInfo] = useState<SpeciesInfo | null>(null);
@@ -216,8 +218,8 @@ export default function EventDetail({
 
         {flag.baseMismatch != null && (
           <Row label="⚠ Different base temperature" tone="text-clay">
-            This threshold counts from {flag.baseMismatch}°F, but your ground's curve
-            accumulates from {curve.base_temp_f}°F. The flag is shown dimmed and its
+            This threshold counts from {u.showTemp(flag.baseMismatch)}, but your ground's curve
+            accumulates from {u.showTemp(curve.base_temp_f)}. The flag is shown dimmed and its
             position is approximate — the two are not the same axis. Set your ground's
             base to match, or read this one on its own view.
           </Row>

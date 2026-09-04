@@ -915,6 +915,10 @@ export interface PestStage {
   reached: boolean;
   gdd_remaining: number;
   projected_date: string | null;
+  /// The day the season's count first cleared this stage. A `reached` flag
+  /// says nothing about when, so a stage crossed in June and one crossed
+  /// yesterday read identically without it.
+  crossed_on?: string | null;
 }
 
 export interface PestAssessment {
@@ -940,10 +944,18 @@ export interface PestWindowResult {
   scout_now: string[];
   summary: string;
   note: string;
+  /// Rows the server could not evaluate, with the reason. A pest saved with
+  /// no thresholds is one of these — the page must say so rather than leave
+  /// the row blank.
+  skipped?: { name: string; reason: string }[];
 }
 
 export interface PestModel {
   pest: string;
+  /// Cite the published forecast for this ground instead of restating it.
+  /// Re-resolves every season, where pasted stages freeze whatever the
+  /// forecast said the day they were copied.
+  model?: "usa-npn";
   /// Vigilance without arithmetic. A grower watches voles, slugs and wasps —
   /// creatures with no degree-day stages — and demanding thresholds for them
   /// invites invented numbers.

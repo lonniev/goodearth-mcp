@@ -8,6 +8,7 @@
 // number that tells a grower their polygon is right is the one already in
 // their field book.
 
+import { useUnits } from "../components/Units";
 import { useCallback, useEffect, useRef, useState } from "react";
 import FieldMap, { type MapValue } from "../components/FieldMap";
 import {
@@ -26,6 +27,7 @@ export default function MapView({
   active: SavedRegion;
   onSaved: (r: SavedRegion) => void;
 }) {
+  const u = useUnits();
   const [value, setValue] = useState<MapValue>(EMPTY);
   const [name, setName] = useState("");
   const [baseTemp, setBaseTemp] = useState(50);
@@ -211,9 +213,11 @@ export default function MapView({
               className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" />
           </label>
           <label className="block text-[11px] text-ink-soft">
-            Base °F
-            <input value={baseTemp} inputMode="numeric"
-              onChange={(e) => setBaseTemp(Number(e.target.value) || 50)}
+            Base{u.tempUnit}
+            {/* Shown in the reader's scale, stored in the Fahrenheit the
+                service validates against. */}
+            <input defaultValue={Math.round(u.temp(baseTemp))} inputMode="numeric"
+              onChange={(e) => setBaseTemp(u.toF(Number(e.target.value)) || 50)}
               className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" />
           </label>
           <button onClick={save} disabled={!ready}

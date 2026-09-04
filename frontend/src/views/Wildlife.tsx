@@ -8,6 +8,7 @@
 // changes how much to trust the date. A daylight event is astronomy and barely
 // moves; a heat event moves with the season.
 
+import { useUnits } from "../components/Units";
 import { useCallback, useEffect, useState } from "react";
 import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
@@ -49,6 +50,7 @@ const COLS: Column<ItemSort>[] = [
 export default function Wildlife({
   region, onCost,
 }: { region: SavedRegion; onCost: (sats: number) => void }) {
+  const u = useUnits();
   // Read from the grower's record under their npub, not from this browser.
   // Order, search and paging are the database's — it sorts every watch on the
   // block, not the twenty in hand. Search runs on submit: a read costs sats.
@@ -142,7 +144,8 @@ export default function Wildlife({
       emoji: String(f.get("emoji") ?? "") || undefined,
       driver,
       ...(driver === "heat"
-        ? { gdd: Number(f.get("gdd")), base_temp: Number(f.get("base") || 50) }
+        ? { gdd: u.ddToF(Number(f.get("gdd"))),
+            base_temp: f.get("base") ? u.toF(Number(f.get("base"))) : region.baseTempF }
         : driver === "daylight"
           ? { daylight_hours: Number(f.get("hours")), rising: f.get("rising") === "up" }
           : driver === "interval"
@@ -315,8 +318,9 @@ export default function Wildlife({
           <Field name="emoji" label="Emoji" placeholder="🐦" />
           {driver === "heat" && (
             <>
-              <Field name="gdd" label="GDD" placeholder="120" />
-              <Field name="base" label="Base °F" placeholder="43" />
+              <Field name="gdd" label={u.ddUnit.trim()} placeholder="120" />
+              <Field name="base" label={`Base${u.tempUnit}`}
+                placeholder={String(Math.round(u.temp(region.baseTempF)))} />
             </>
           )}
           {driver === "daylight" && (
