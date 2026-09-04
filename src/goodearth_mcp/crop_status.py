@@ -46,7 +46,12 @@ def _why_untracked(p: dict[str, Any]) -> str:
 
     A perennial is the ordinary case here, not an error: an apple tree has no
     heat target anyone counts, and "it grows here" is a true thing to record.
+    Once it says it is one, it is told apart from an annual someone half
+    entered — "no set-out recorded" reads as a gap to go and fill, and for a
+    tree there is nothing to fill.
     """
+    if p.get("perennial"):
+        return "perennial — rated on winter, not on heat"
     missing = p.get("missing") or []
     if not missing:
         return "nothing to count from"
@@ -98,6 +103,7 @@ async def region_crop_ledger(
     # reported as "no set-out recorded" and the other branch was dead code.
     untracked += [
         {"crop": p["crop"], "reason": _why_untracked(p), "missing": p.get("missing") or [],
+         **({"perennial": True} if p.get("perennial") else {}),
          **({"ref": p["ref"]} if p.get("ref") else {})}
         for p in parsed_all
         if p.get("set_out") is None or p.get("gdd_target") is None

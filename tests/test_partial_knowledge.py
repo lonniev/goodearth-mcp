@@ -343,3 +343,36 @@ async def test_a_model_with_nothing_published_here_is_named_not_dropped(monkeypa
     assert events == []
     assert len(unresolved) == 1
     assert unresolved[0]["pest"] == "Emerald ash borer"
+
+
+# ── A tree is not a planting with fields missing ─────────────────────────
+
+
+def test_a_perennial_says_what_it_IS_not_what_it_lacks():
+    """"No set-out recorded" reads as a gap to go and fill. For an apple tree
+    there is nothing to fill — it is a different kind of thing, rated on
+    whether it survives the winter here rather than on heat."""
+    from goodearth_mcp import crop_status, crops
+
+    p = crops.validate_planting({"crop": "Apple", "perennial": True})
+    assert p["perennial"] is True
+    assert crop_status._why_untracked(p) == "perennial — rated on winter, not on heat"
+
+
+def test_a_tree_is_recognised_from_what_it_CARRIES_not_only_from_a_flag():
+    """An agent that saved a tree through the MCP knowing only its chill
+    figure never set a flag, and the row is still a tree."""
+    from goodearth_mcp import crops
+
+    assert crops.validate_planting({"crop": "Pear", "chill_hours": 700})["perennial"]
+    assert crops.validate_planting({"crop": "Maple", "hardy_to_f": -40})["perennial"]
+
+
+def test_an_annual_someone_half_entered_still_says_which_field_is_missing():
+    """The distinction is load-bearing in both directions: a zinnia with no
+    set-out IS a gap, and calling it a perennial would hide it."""
+    from goodearth_mcp import crop_status, crops
+
+    p = crops.validate_planting({"crop": "Zinnia", "gdd_target": 1100})
+    assert "perennial" not in p
+    assert crop_status._why_untracked(p) == "no set-out recorded"

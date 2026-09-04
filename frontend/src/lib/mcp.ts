@@ -861,7 +861,12 @@ export interface CropLedgerResult {
   /// target, or neither. A perennial is the ordinary case: an apple tree has
   /// no heat target anyone counts. These must still be SHOWN, or the grower's
   /// own choices are invisible on the page that is supposed to list them.
-  untracked?: { crop: string; reason: string; missing?: string[]; ref?: string }[];
+  untracked?: {
+    crop: string; reason: string; missing?: string[]; ref?: string;
+    /// A tree, not an annual with fields missing — so the row can be marked
+    /// as a different kind of thing rather than as an incomplete one.
+    perennial?: boolean;
+  }[];
   wont_finish: string[];
   summary: string;
   note: string;
@@ -871,7 +876,10 @@ export interface CropLedgerResult {
 /// the season curve and frost record are shared across plantings server-side.
 export async function cropGddStatus(
   block: string,
-  plantings: { crop: string; gdd_target?: number; set_out?: string; base_temp?: number }[],
+  plantings: {
+    crop: string; gdd_target?: number; set_out?: string; base_temp?: number;
+    perennial?: boolean; chill_hours?: number; hardy_to_f?: number; ref?: string;
+  }[],
   baseTemp = 50,
 ): Promise<CropLedgerResult> {
   return callTool<CropLedgerResult>("crop_gdd_status", { block, plantings, base_temp: baseTemp,
@@ -949,6 +957,78 @@ export interface PestWindowResult {
   /// the row blank.
   skipped?: { name: string; reason: string }[];
 }
+
+// ─── Trees ───────────────────────────────────────────────────────────────
+
+export interface TreeRequirement {
+  tree: string;
+  /// Chill hours at or below 45 °F the cultivar needs, and the temperature it
+  /// is lost at. Both optional: a tree with neither is recorded and comes back
+  /// unrated rather than refused.
+  chill_hours?: number;
+  hardy_to_f?: number;
+  category?: string;
+  emoji?: string;
+  /// The saved item this row is about, echoed back untouched.
+  ref?: string;
+}
+
+export type HardinessVerdict =
+  "hardy" | "marginal" | "risky" | "too_cold" | "unrated" | "unknown";
+export type ChillVerdict =
+  "reliable" | "usual" | "marginal" | "short" | "unrated" | "unknown";
+
+export interface TreeAssessment {
+  ref?: string;
+  tree: string;
+  emoji?: string | null;
+  category?: string | null;
+  hardiness: {
+    verdict: HardinessVerdict;
+    note: string;
+    record_low_f?: number;
+    record_low_on?: string;
+    hardy_to_f?: number;
+    winters_below?: number;
+    winters_on_record?: number;
+    coldest_margin_f?: number;
+  };
+  chill: {
+    verdict: ChillVerdict;
+    note: string;
+    median_hours?: number;
+    lowest_hours?: number;
+    highest_hours?: number;
+    most_recent_hours?: number;
+    most_recent_winter?: number;
+    winters_on_record?: number;
+    winters_meeting?: number;
+    chill_hours_needed?: number;
+    window?: string;
+    model?: string;
+  };
+}
+
+export interface TreeSuitabilityResult {
+  success: boolean;
+  error?: string;
+  as_of: string;
+  trees: TreeAssessment[];
+  skipped?: { name: string; reason: string }[];
+  chill?: TreeAssessment["chill"] | null;
+  summary: string;
+  note: string;
+}
+
+/// Whether a tree survives and gets its chill on this ground, across every
+/// winter on record. The requirements are the caller's — they are cultivar
+/// figures — and Good Earth computes what the ground delivered against them.
+export async function treeSuitability(
+  block: string, trees: TreeRequirement[],
+): Promise<TreeSuitabilityResult> {
+  return callTool<TreeSuitabilityResult>("tree_suitability", { block, trees });
+}
+
 
 export interface PestModel {
   pest: string;

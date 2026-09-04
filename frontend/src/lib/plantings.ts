@@ -13,6 +13,14 @@ export interface Planting {
   setOut: string; // YYYY-MM-DD
   /// Per-crop override; blank means the block's default.
   baseTempF?: number;
+  /// A tree or other perennial: judged on whether it survives the winter here
+  /// and gets its chill, not on whether it finishes before frost.
+  perennial?: boolean;
+  /// Chill hours the cultivar needs, and the temperature it is lost at. Both
+  /// are the grower's own figures from the nursery tag — Good Earth computes
+  /// what this ground delivered against them.
+  chillHours?: number;
+  hardyToF?: number;
   /// Which saved region this planting is on.
   regionId: string;
 }
@@ -22,11 +30,29 @@ export interface Planting {
 /// calibration loop is that a farm learns its own.
 export interface CropPreset {
   crop: string;
-  gddTarget: number;
-  baseTempF: number;
+  /// Heat from set-out to the stage that matters. **Absent for a perennial**,
+  /// which does not answer to one: a tree is not asked "does it finish before
+  /// frost", and giving it a target would invent a number the plant does not
+  /// answer to.
+  gddTarget?: number;
+  /// Absent for a perennial, which accumulates no heat toward anything this
+  /// page counts — printing "base 50 °F" under an apple tree would state a
+  /// fact that isn't.
+  baseTempF?: number;
   note: string;
   emoji: string;
-  category: "field" | "flower" | "vegetable" | "cover";
+  category: "field" | "flower" | "vegetable" | "cover" | "orchard" | "forest";
+  /// A perennial: it lives across seasons, so what it is asked is whether it
+  /// survives the winter here and whether it gets its chill, not whether it
+  /// finishes before frost.
+  perennial?: boolean;
+  /// Chill hours at or below 45 °F the cultivar needs to break dormancy
+  /// cleanly. A starting figure from extension tables — the authority is the
+  /// nursery tag, and cultivars within a species differ by hundreds of hours.
+  chillHours?: number;
+  /// The temperature this species is lost at, °F. Also a starting figure:
+  /// rootstock, siting and age all move it.
+  hardyToF?: number;
   /// Survives a light frost, so it can use the shoulders of the season.
   frostHardy?: boolean;
   /// Sown where it grows rather than transplanted — so it waits on the soil.
@@ -235,31 +261,160 @@ export const CROP_PRESETS: CropPreset[] = [
   { crop: "Daikon radish", gddTarget: 900, baseTempF: 45, emoji: "🌱",
     category: "cover", note: "tillage radish, to size", frostHardy: true,
     directSow: true, minSoilF: 45 },
+
+  // ── Fruit-bearing ─────────────────────────────────────────────────────
+  //
+  // PERENNIALS. None carries a gddTarget, because a tree does not answer to
+  // one — it is asked whether it survives the winter here and whether it gets
+  // its chill, which is what `tree_suitability` computes against this ground.
+  //
+  // Every chill and hardiness figure below is a SPECIES-TYPICAL STARTING
+  // POINT, and the spread inside a species is the whole reason it must be
+  // edited: apple cultivars run from about 200 hours to over 1,000, and
+  // rootstock, siting and the age of the tree all move the hardiness. The
+  // authority is the nursery tag; these exist so the row is not empty.
+  { crop: "Apple", chillHours: 800, hardyToF: -30, emoji: "\u{1F34E}",
+    category: "orchard", perennial: true, note: "most northern cultivars" },
+  { crop: "Apple \u00b7 low chill", chillHours: 250, hardyToF: -10, emoji: "\u{1F34E}",
+    category: "orchard", perennial: true, note: "Anna, Dorsett Golden and kin" },
+  { crop: "Pear \u00b7 European", chillHours: 700, hardyToF: -20, emoji: "\u{1F350}",
+    category: "orchard", perennial: true, note: "Bartlett, Bosc and kin" },
+  { crop: "Pear \u00b7 Asian", chillHours: 450, hardyToF: -15, emoji: "\u{1F350}",
+    category: "orchard", perennial: true, note: "blooms early, frost-exposed" },
+  { crop: "Cherry \u00b7 sweet", chillHours: 800, hardyToF: -20, emoji: "\u{1F352}",
+    category: "orchard", perennial: true, note: "cracks in a wet harvest" },
+  { crop: "Cherry \u00b7 tart", chillHours: 1000, hardyToF: -30, emoji: "\u{1F352}",
+    category: "orchard", perennial: true, note: "Montmorency and kin" },
+  { crop: "Plum \u00b7 European", chillHours: 800, hardyToF: -25, emoji: "\u{1F7E3}",
+    category: "orchard", perennial: true, note: "prune and dessert types" },
+  { crop: "Peach", chillHours: 850, hardyToF: -12, emoji: "\u{1F351}",
+    category: "orchard", perennial: true, note: "bud-hardiness is the limit, not wood" },
+  { crop: "Apricot", chillHours: 700, hardyToF: -15, emoji: "\u{1F351}",
+    category: "orchard", perennial: true, note: "earliest bloom of the stone fruits" },
+  { crop: "Quince", chillHours: 300, hardyToF: -10, emoji: "\u{1F34F}",
+    category: "orchard", perennial: true, note: "" },
+  { crop: "Fig", chillHours: 100, hardyToF: 10, emoji: "\u{1FAD2}",
+    category: "orchard", perennial: true, note: "wants wrapping or a wall north of zone 7" },
+  { crop: "Citrus", chillHours: 0, hardyToF: 26, emoji: "\u{1F34B}",
+    category: "orchard", perennial: true, note: "needs no chill; loses fruit at a freeze" },
+  { crop: "Persimmon \u00b7 American", chillHours: 150, hardyToF: -25, emoji: "\u{1F383}",
+    category: "orchard", perennial: true, note: "" },
+  { crop: "Pawpaw", chillHours: 400, hardyToF: -25, emoji: "\u{1F96D}",
+    category: "orchard", perennial: true, note: "understory native, wants two for pollen" },
+  { crop: "Hazelnut", chillHours: 800, hardyToF: -25, emoji: "\u{1F330}",
+    category: "orchard", perennial: true, note: "wind-pollinated, catkins in late winter" },
+  { crop: "Chestnut", chillHours: 400, hardyToF: -20, emoji: "\u{1F330}",
+    category: "orchard", perennial: true, note: "Chinese and hybrid types" },
+  { crop: "Walnut \u00b7 black", chillHours: 800, hardyToF: -30, emoji: "\u{1F330}",
+    category: "orchard", perennial: true, note: "juglone: nothing sensitive under it" },
+  { crop: "Elderberry", chillHours: 600, hardyToF: -35, emoji: "\u{1FAD0}",
+    category: "orchard", perennial: true, note: "" },
+  { crop: "Blueberry \u00b7 highbush", chillHours: 800, hardyToF: -25, emoji: "\u{1FAD0}",
+    category: "orchard", perennial: true, note: "wants an acid soil more than it wants heat" },
+
+  // ── Forest ────────────────────────────────────────────────────────────
+  //
+  // No chill figure. A forest tree is not being asked to set fruit, so the
+  // question it answers is hardiness and presence — what is growing here, and
+  // whether something considered for planting would live. Leaf-out, fall
+  // colour and the sap run are the tree year, and belong to `tree_year`.
+  { crop: "Maple \u00b7 sugar", hardyToF: -40, emoji: "\u{1F341}",
+    category: "forest", perennial: true, note: "the sugarbush; runs on freeze and thaw" },
+  { crop: "Maple \u00b7 red", hardyToF: -40, emoji: "\u{1F341}",
+    category: "forest", perennial: true, note: "runs earlier and shorter than sugar" },
+  { crop: "Birch \u00b7 yellow", hardyToF: -40, emoji: "\u{1F333}",
+    category: "forest", perennial: true, note: "" },
+  { crop: "Birch \u00b7 paper", hardyToF: -45, emoji: "\u{1F333}",
+    category: "forest", perennial: true, note: "" },
+  { crop: "Ash \u00b7 white", hardyToF: -40, emoji: "\u{1F333}",
+    category: "forest", perennial: true, note: "watch emerald ash borer on the Pests page" },
+  { crop: "Oak \u00b7 red", hardyToF: -35, emoji: "\u{1F333}",
+    category: "forest", perennial: true, note: "" },
+  { crop: "Oak \u00b7 white", hardyToF: -30, emoji: "\u{1F333}",
+    category: "forest", perennial: true, note: "" },
+  { crop: "Beech \u00b7 American", hardyToF: -35, emoji: "\u{1F333}",
+    category: "forest", perennial: true, note: "" },
+  { crop: "Cherry \u00b7 black", hardyToF: -35, emoji: "\u{1F333}",
+    category: "forest", perennial: true, note: "timber; the fruit is the birds\u2019" },
+  { crop: "Hickory \u00b7 shagbark", hardyToF: -30, emoji: "\u{1F333}",
+    category: "forest", perennial: true, note: "" },
+  { crop: "Basswood", hardyToF: -40, emoji: "\u{1F333}",
+    category: "forest", perennial: true, note: "the bees\u2019 midsummer flow" },
+  { crop: "Pine \u00b7 white", hardyToF: -40, emoji: "\u{1F332}",
+    category: "forest", perennial: true, note: "" },
+  { crop: "Hemlock \u00b7 eastern", hardyToF: -35, emoji: "\u{1F332}",
+    category: "forest", perennial: true, note: "" },
+  { crop: "Fir \u00b7 balsam", hardyToF: -45, emoji: "\u{1F332}",
+    category: "forest", perennial: true, note: "" },
+  { crop: "Spruce \u00b7 red", hardyToF: -45, emoji: "\u{1F332}",
+    category: "forest", perennial: true, note: "" },
+  { crop: "Tamarack", hardyToF: -50, emoji: "\u{1F332}",
+    category: "forest", perennial: true, note: "the conifer that drops its needles" },
 ];
+
+/// The library split by what each half can be asked.
+///
+/// An annual is rated on whether it finishes before frost; a perennial is
+/// rated on whether it survives the winter and gets its chill. They are
+/// different tools and different answers, and the split is by the presence of
+/// a heat target rather than by category name, so a perennial added to any
+/// category cannot leak into a call that would have to invent one.
+export const ANNUALS = CROP_PRESETS.filter((c) => !c.perennial && c.gddTarget != null);
+export const PERENNIALS = CROP_PRESETS.filter((c) => c.perennial);
 
 export const CROP_CATEGORIES: { key: CropPreset["category"]; label: string }[] = [
   { key: "field", label: "Field" },
   { key: "vegetable", label: "Vegetable" },
   { key: "flower", label: "Cut flower" },
   { key: "cover", label: "Cover" },
+  { key: "orchard", label: "Fruit tree" },
+  { key: "forest", label: "Forest" },
 ];
 
 /// Validate the way the server does, so a grower is corrected in the form
 /// rather than by a failed paid call.
+///
+/// A heat target and a set-out date are required of an ANNUAL and optional of
+/// a perennial. `crops.validate_planting` has always allowed the absence — it
+/// returns a presence row rather than raising — but this refused it, so the
+/// only way to record a tree was to save an annual and then edit both fields
+/// back out. An apple planted in 2019 has no set-out this season and no target
+/// anyone counts, and both of those are true things to record.
 export function makePlanting(
-  crop: string, gddTarget: number, setOut: string, regionId: string, baseTempF?: number,
+  crop: string,
+  gddTarget: number | undefined,
+  setOut: string,
+  regionId: string,
+  baseTempF?: number,
+  extra?: Pick<Planting, "perennial" | "chillHours" | "hardyToF">,
 ): Planting | string {
   if (!crop.trim()) return "Give the planting a crop name.";
-  if (!Number.isFinite(gddTarget) || gddTarget < 1 || gddTarget > 20_000)
+  const perennial = !!extra?.perennial;
+
+  if (gddTarget != null && (!Number.isFinite(gddTarget) || gddTarget < 1 || gddTarget > 20_000))
     return "GDD target should be a realistic number of degree days.";
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(setOut) || Number.isNaN(Date.parse(setOut)))
+  if (!perennial && gddTarget == null)
+    return "GDD target should be a realistic number of degree days.";
+
+  if (setOut && (!/^\d{4}-\d{2}-\d{2}$/.test(setOut) || Number.isNaN(Date.parse(setOut))))
     return "Set-out date must be YYYY-MM-DD.";
+  if (!perennial && !setOut) return "Set-out date must be YYYY-MM-DD.";
+
   if (baseTempF != null && (baseTempF < 20 || baseTempF > 80))
     return "Base temperature must be between 20 and 80 °F.";
+  if (extra?.chillHours != null && (extra.chillHours < 0 || extra.chillHours > 2_000))
+    return "Chill hours should be between 0 and 2,000.";
+  if (extra?.hardyToF != null && (extra.hardyToF < -60 || extra.hardyToF > 40))
+    return "Hardiness should be between -60 and 40 °F.";
+
   return {
     id: `pl-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`,
-    crop: crop.trim(), gddTarget, setOut, regionId,
+    crop: crop.trim(), setOut, regionId,
+    ...(gddTarget != null ? { gddTarget } : {}),
     ...(baseTempF != null ? { baseTempF } : {}),
+    ...(perennial ? { perennial: true } : {}),
+    ...(extra?.chillHours != null ? { chillHours: extra.chillHours } : {}),
+    ...(extra?.hardyToF != null ? { hardyToF: extra.hardyToF } : {}),
   };
 }
 
@@ -330,6 +485,13 @@ export const plantingCodec: ItemCodec<Planting> = {
     // is not known. Empty string rather than a fabricated date.
     setOut: String(r.set_out ?? ""),
     baseTempF: r.base_temp == null ? undefined : Number(r.base_temp),
+    // A perennial is inferred from what it carries, not from a flag alone, so
+    // a tree saved through the MCP by an agent that knew only its chill figure
+    // still reads back as one.
+    perennial: r.perennial === true || r.chill_hours != null || r.hardy_to_f != null
+      ? true : undefined,
+    chillHours: r.chill_hours == null ? undefined : Number(r.chill_hours),
+    hardyToF: r.hardy_to_f == null ? undefined : Number(r.hardy_to_f),
     regionId: String(r.block_id ?? ""),
   }),
   to: (p: Planting) => ({
@@ -338,5 +500,8 @@ export const plantingCodec: ItemCodec<Planting> = {
     ...(p.gddTarget != null ? { gdd_target: p.gddTarget } : {}),
     ...(p.setOut ? { set_out: p.setOut } : {}),
     ...(p.baseTempF != null ? { base_temp: p.baseTempF } : {}),
+    ...(p.perennial ? { perennial: true } : {}),
+    ...(p.chillHours != null ? { chill_hours: p.chillHours } : {}),
+    ...(p.hardyToF != null ? { hardy_to_f: p.hardyToF } : {}),
   }),
 };

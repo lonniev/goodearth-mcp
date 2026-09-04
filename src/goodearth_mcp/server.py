@@ -46,6 +46,9 @@ from goodearth_mcp.crop_status import region_crop_ledger as crop_ledger_impl
 from goodearth_mcp.crops import CropError
 from goodearth_mcp.frost_window import FrostError
 from goodearth_mcp.frost_window import region_frost_window as frost_window_impl
+from goodearth_mcp.perennial import PerennialError
+from goodearth_mcp.perennial_window import PerennialWindowError
+from goodearth_mcp.perennial_window import region_tree_window as tree_window_impl
 from goodearth_mcp.pest_window import PestWindowError
 from goodearth_mcp.pest_window import region_pest_window as pest_window_impl
 from goodearth_mcp.pests import PestError
@@ -143,6 +146,8 @@ BLOCK_SAVE_UUID            = "f398ade0-3264-5c55-acf0-cac2ea69be53"
 BLOCK_LIST_UUID            = "00680666-0289-548b-b297-3700dfa4e885"
 BLOCK_ITEM_SAVE_UUID       = "af45380a-1bcb-54a8-9b81-3569f785c33f"
 BLOCK_ITEM_LIST_UUID       = "587e418b-59f5-5400-bc9b-98db6929fec1"
+TREE_SUITABILITY_UUID      = "9f065c39-548a-5675-a562-cbf2bb720dd9"
+TREE_YEAR_UUID             = "993d83ad-9edd-5690-88fd-298f2137dc24"  # unit 3
 
 _DOMAIN_TOOLS = [
     ToolIdentity(
@@ -246,6 +251,12 @@ _DOMAIN_TOOLS = [
         capability="crop_suitability",
         category="read",
         intent="Which crops finish on this ground, measured against its own frost-free heat budget",
+    ),
+    ToolIdentity(
+        tool_id=TREE_SUITABILITY_UUID,
+        capability="tree_suitability",
+        category="read",
+        intent="Whether a tree survives and gets its chill on this ground, across every winter on record",
     ),
     ToolIdentity(
         tool_id=PLANTING_WINDOW_UUID,
@@ -1316,6 +1327,69 @@ async def crop_suitability(
         return {"success": False, "error": str(exc), "error_code": "invalid_request"}
     except (sources.UpstreamError, OSError) as exc:
         logger.warning("crop_suitability failed: %s", exc)
+        return {"success": False, "error": f"A weather feed did not answer: {exc}",
+                "error_code": "upstream_unavailable"}
+
+
+@tool
+@runtime.paid_tool(TREE_SUITABILITY_UUID)
+async def tree_suitability(
+    block: Annotated[str, BLOCK_FIELD],
+    trees: Annotated[
+        list[dict[str, Any]],
+        Field(
+            description=(
+                "The trees to judge, with the figures from their nursery tags. "
+                'Each is {"tree": "Honeycrisp apple", "chill_hours": 800, '
+                '"hardy_to_f": -30} with optional "category" and "emoji". Both '
+                "figures are optional: a tree with neither is recorded and "
+                "reported as unrated rather than refused."
+            ),
+        ),
+    ],
+    npub: Annotated[
+        str,
+        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
+    ] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """Whether a tree survives and gets its chill on this ground.
+
+    A tree is not asked "does it finish before frost" — that is a question only
+    something that must finish in one season can be asked. It is asked two
+    others, both settled before it goes in the ground:
+
+    * **Will it survive?** Every winter on record has a coldest night; a
+      cultivar has a limit. The answer is how often the first went below the
+      second.
+    * **Will it fruit?** A deciduous fruit tree needs chill hours to break
+      dormancy cleanly. The answer is how many winters on record delivered them.
+
+    Both come back as a FREQUENCY across the record rather than a yes. A tree
+    that survives nine winters in ten is a different proposition from one that
+    survives five, and any single word hides the difference.
+
+    Chill is counted as hours in the 32-45 °F band between 1 November and
+    15 February — the window the published chill-hour figures were derived
+    against. A wider window would bank more hours against a requirement
+    calibrated to a narrower one and report a tree comfortable where it is not.
+
+    The requirements are yours. Hardiness limits and chill hours are cultivar
+    figures that vary widely within a species; Good Earth computes what this
+    ground delivered against them and does not publish agronomy.
+
+    Args:
+        block: The ground to answer for — its id, its name, or an alias.
+        trees: The trees to judge, with their own requirements.
+    """
+    parsed, _found = await _block_region(npub, block)
+
+    try:
+        return await tree_window_impl(parsed, trees)
+    except (PerennialWindowError, PerennialError) as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_request"}
+    except (sources.UpstreamError, OSError) as exc:
+        logger.warning("tree_suitability failed: %s", exc)
         return {"success": False, "error": f"A weather feed did not answer: {exc}",
                 "error_code": "upstream_unavailable"}
 

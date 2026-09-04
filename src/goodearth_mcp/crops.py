@@ -81,9 +81,21 @@ def validate_planting(planting: Any) -> dict[str, Any]:
             *(["set_out"] if not set_out_raw else []),
             *(["gdd_target"] if target is None else []),
         ]
+        # A tree is not a planting with fields missing. It is a different kind
+        # of thing, rated on whether it survives the winter here and gets its
+        # chill — so it says so rather than listing what an annual would have
+        # had. Recognised from what the row CARRIES, not from a flag alone, so
+        # a tree saved by an agent that knew only its chill figure still reads
+        # as one.
+        perennial = bool(
+            planting.get("perennial")
+            or planting.get("chill_hours") is not None
+            or planting.get("hardy_to_f") is not None
+        )
         return {"crop": name, "gdd_target": target, "set_out": None,
                 "base_temp_f": base_f, "presence_only": True,
-                "missing": missing}
+                "missing": missing,
+                **({"perennial": True} if perennial else {})}
     try:
         set_out = date.fromisoformat(str(set_out_raw))
     except ValueError as exc:
