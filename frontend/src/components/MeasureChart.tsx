@@ -8,6 +8,7 @@
 
 import { useMemo } from "react";
 import type { Measure } from "../lib/mcp";
+import { dateTicks } from "../lib/dateTicks";
 import { useChartZoom, windowToDomain } from "../lib/useChartZoom";
 import ZoomControls, { AxisZoom } from "./ZoomControls";
 
@@ -62,16 +63,12 @@ export default function MeasureChart({
       bandPath = `M${up.join(" L")} L${dn.join(" L")} Z`;
     }
 
-    const ticks: { i: number; label: string }[] = [];
+    // Months, then weeks, then days, chosen by how much is on screen. This
+    // used to emit month labels only, so a six-week window showed two labels
+    // and nothing between them — the closer you looked, the less it said.
     const combined = [...dates, ...forecastDates];
-    let lastM = "";
-    combined.forEach((iso, i) => {
-      const m = iso.slice(0, 7);
-      if (m !== lastM && i >= dLo - 1 && i <= dHi + 1) {
-        lastM = m;
-        ticks.push({ i, label: new Date(iso + "T12:00:00").toLocaleString("en-US", { month: "short" }).toUpperCase() });
-      } else if (m !== lastM) { lastM = m; }
-    });
+    const ticks = dateTicks(dLo, dHi, (d) => combined[d] ?? null)
+      .map((t) => ({ i: t.d, label: t.label, major: t.major }));
 
     const mid = (vLo + vHi) / 2;
     const gridVals = [vLo + (vHi - vLo) * 0.15, mid, vHi - (vHi - vLo) * 0.15];
@@ -140,8 +137,13 @@ export default function MeasureChart({
           )}
         </g>
 
+        {/* A month boundary is drawn darker than the days inside it, so the
+            coarse structure survives the detail — a ruler shows centimetres
+            without hiding the millimetres. */}
         {ticks.map((t) => (
-          <text key={t.i} x={x(t.i) + 2} y={B + 14} fontSize={9} fill="var(--color-ink-soft)" fontFamily="var(--font-data)">
+          <text key={t.i} x={x(t.i) + 2} y={B + 14} fontSize={9}
+            fill={t.major ? "var(--color-ink)" : "var(--color-ink-soft)"}
+            fontFamily="var(--font-data)">
             {t.label}
           </text>
         ))}
