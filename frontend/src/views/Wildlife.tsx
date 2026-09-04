@@ -439,23 +439,14 @@ export default function Wildlife({
           )}
 
           <Note>
-            {cat.species_total} species recorded within about {cat.search_span_km} km,
-            {" "}{cat.with_habits} of them with life-cycle data. Ranked
-            by how often each has been seen — which measures where people walk as much as
-            where animals live. Species are a landscape fact and one field holds almost no
-            records, which is why this looks wider than your ground.
-            {(cat.unavailable ?? []).length > 0 && ` ${(cat.unavailable ?? []).join(" and ")} did not load, so that group is missing rather than empty.`}
-            {" "}Tapping one names the animal and nothing else: when it arrives on your
-            ground is yours to set, and Good Earth does not publish natural history.
+            {cat.species_total} species within about {cat.search_span_km} km ·{" "}
+            {cat.with_habits} with life-cycle data. Ranked by sightings.
+            {(cat.unavailable ?? []).length > 0 && ` ${(cat.unavailable ?? []).join(" and ")} did not load.`}{" "}
+            Timings are yours to set.
           </Note>
         </>
       ) : (
-        <Note>
-          Which animals are actually recorded around here, from iNaturalist — owls, bats,
-          coyotes and the rest of what you hear at dusk, rather than a handful of species
-          written into this app. What comes back is a name and how often it has been seen;
-          the threshold that times it stays yours.
-        </Note>
+        <Note>Animals recorded around here, from iNaturalist.</Note>
       )}
     </>
   );

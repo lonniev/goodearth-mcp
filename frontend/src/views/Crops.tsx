@@ -412,12 +412,8 @@ export default function Crops({
         </p>
       )}
 
-      <Note>
-        Tap any crop to add it to the ledger, dated today. These are starting
-        figures, not published agronomy — a corn hybrid is sold by its relative
-        maturity precisely because "corn" has no single number. Edit against
-        your own seed packet, and let field reports teach your ground its own.
-      </Note>
+      <Note>Tap to add, dated today. Starting figures — edit against your own
+            seed packet.</Note>
 
       {/* ── Sowing ─────────────────────────────────────────────────── */}
       <Section emoji="🌱" title="Sowing">
