@@ -34,15 +34,30 @@ interface Props {
 const BTN =
   "flex h-11 w-11 items-center justify-center rounded border border-rule bg-panel text-ink active:bg-band focus-visible:outline-2 focus-visible:outline-honey";
 
-/// A magnifier with a plus, and one with a minus. One concept, one icon.
-const GLASS = "M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19z";
-const IN = <><path d={GLASS} /><path d="M12 10H10V8H9v2H7v1h2v2h1v-2h2z" /></>;
-const OUT = <><path d={GLASS} /><path d="M7 10h5v1H7z" /></>;
+// Material Symbols `zoom_in` and `zoom_out`, as paths rather than as the icon
+// font.
+//
+// The font would be a network request to fonts.googleapis.com on every load,
+// for two glyphs, on a page a grower may open in a field on a bad connection —
+// and a webfont that has not arrived yet renders as the literal text
+// "zoom_in", which is worse than no icon at all.
+//
+// The first attempt at these was hand-drawn and shipped a real bug: the
+// magnifier was a SOLID disc — the Material `search` glyph — with a plus or
+// minus drawn on top of it, so both symbols were invisible and the two buttons
+// were indistinguishable blobs. These are the real thing: the lens is a ring,
+// which is what leaves room inside it for the sign that distinguishes them.
+const LENS = "M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 "
+  + "5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 "
+  + "11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z";
+const PLUS = "M12 10h-2V8H9v2H7v1h2v2h1v-2h2z";
+const MINUS = "M7 9h5v1H7z";
 
 function Glass({ kind }: { kind: "in" | "out" }) {
   return (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true">
-      {kind === "in" ? IN : OUT}
+      <path d={LENS} />
+      <path d={kind === "in" ? PLUS : MINUS} />
     </svg>
   );
 }

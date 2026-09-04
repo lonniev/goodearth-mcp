@@ -22,6 +22,7 @@ import { dateFor, dayNumber, timelineDomain } from "../lib/seasonDays";
 import { regionImageUrl } from "../lib/basemapImage";
 import { TIMESCALES, useChartZoom, windowToDomain } from "../lib/useChartZoom";
 import ZoomControls, { AxisZoom } from "./ZoomControls";
+import { dateTicks } from "../lib/dateTicks";
 
 const W = 740, H = 268, L = 46, R = 716, T = 16, B = 232;
 
@@ -202,37 +203,14 @@ export default function SeasonChart({
     const projPts: [number, number][] = proj.length
       ? [projStart, ...proj.map((g, i) => [projStart[0] + 1 + i, g] as [number, number])] : [];
 
-    // Month ticks, thinned to whatever fits the visible window. Zoomed in far
-    // enough, fall back to day ticks — a one-week window with no labels is
-    // just a squiggle.
-    const ticks: { d: number; label: string }[] = [];
-    const visDays = dHi - dLo;
-    if (visDays > 45) {
-      // Walked in DAYS across the visible window rather than over the recorded
-      // dates. The old loop iterated `curve.dates`, so the forecast and
-      // projection thirds of the axis carried no labels at all — and a
-      // timeline that reaches past the curve would have been a wholly
-      // unlabelled void out there, which is no use to scroll into.
-      let lastM = "";
-      for (let d = Math.floor(dLo) - 1; d <= Math.ceil(dHi) + 1; d++) {
-        const iso = dateFor(d, origin);
-        if (!iso) continue;
-        const m = iso.slice(0, 7);
-        if (m === lastM) continue;
-        lastM = m;
-        const label = new Date(iso + "T12:00:00Z")
-          .toLocaleString("en-US", { month: "short", timeZone: "UTC" }).toUpperCase();
-        // A January tick says which year, because a timeline that runs past
-        // the season is otherwise ambiguous about which one you are reading.
-        ticks.push({ d, label: iso.slice(5, 7) === "01" ? `${label} ${iso.slice(0, 4)}` : label });
-      }
-    } else {
-      const stride = Math.max(Math.round(visDays / 6), 1);
-      for (let i = Math.max(Math.ceil(dLo), 0); i <= Math.min(Math.floor(dHi), dates.length - 1); i += stride) {
-        ticks.push({ d: i, label: new Date(dates[i] + "T12:00:00")
-          .toLocaleString("en-US", { month: "short", day: "numeric" }) });
-      }
-    }
+    // Months, then weeks, then days, chosen by how much is on screen — the
+    // same scale the Almanac's charts use, so one axis is learned once.
+    //
+    // Walked in DAYS across the visible window rather than over the recorded
+    // dates: the forecast and projection thirds carried no labels when it
+    // iterated `curve.dates`, and a timeline reaching past the curve would be
+    // an unlabelled void out there, which is no use to scroll into.
+    const ticks = dateTicks(dLo, dHi, (d) => dateFor(d, origin) || null);
 
     const step = niceStep(gHi - gLo);
     const gridLines: number[] = [];
@@ -493,10 +471,15 @@ export default function SeasonChart({
         <rect x={0} y={T} width={L - 8} height={B - T} fill="var(--color-band)" opacity={0.35} rx={2} />
         <rect x={L} y={B + 6} width={R - L} height={H - B - 8} fill="var(--color-band)" opacity={0.35} rx={2} />
 
+        {/* A month boundary is taller and darker than the days inside it, so
+            the coarse structure survives the detail. */}
         {ticks.map((t) => (
           <g key={t.d}>
-            <line x1={x(t.d)} x2={x(t.d)} y1={B} y2={B + 4} stroke="var(--color-ink-soft)" />
-            <text x={x(t.d) + 2} y={B + 16} fontSize={9} fill="var(--color-ink-soft)" fontFamily="var(--font-data)" letterSpacing="1">
+            <line x1={x(t.d)} x2={x(t.d)} y1={B} y2={B + (t.major ? 7 : 4)}
+              stroke={t.major ? "var(--color-ink)" : "var(--color-ink-soft)"} />
+            <text x={x(t.d) + 2} y={B + 16} fontSize={9}
+              fill={t.major ? "var(--color-ink)" : "var(--color-ink-soft)"}
+              fontFamily="var(--font-data)" letterSpacing="1">
               {t.label}
             </text>
           </g>
