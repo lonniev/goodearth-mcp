@@ -1,6 +1,7 @@
 // Active-region picker. Switching re-scopes the whole app, so it sits in the
 // top bar beside the sat chip rather than inside any one view.
 
+import { useUnits } from "./Units";
 import { useEffect, useRef, useState } from "react";
 import {
   deleteRegion, listRegions, parsePastedGeoJSON, pinRegion, saveRegion,
@@ -13,6 +14,7 @@ export default function RegionPicker({
   active: SavedRegion;
   onPick: (r: SavedRegion) => void;
 }) {
+  const u = useUnits();
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState<"pin" | "poly" | null>(null);
   const [regions, setRegions] = useState<SavedRegion[]>(() => listRegions());
@@ -104,7 +106,7 @@ export default function RegionPicker({
                 commit(pinRegion(
                   String(f.get("name") ?? ""),
                   Number(f.get("lat")), Number(f.get("lon")), Number(f.get("r")),
-                  Number(f.get("base")) || 50,
+                  f.get("base") ? u.toF(Number(f.get("base"))) : 50,
                 ));
               }}
             >
@@ -115,7 +117,8 @@ export default function RegionPicker({
               </div>
               <div className="flex gap-1.5">
                 <Field name="r" label="Radius (m)" placeholder="800" />
-                <Field name="base" label="Base °F" placeholder="50" />
+                <Field name="base" label={`Base${u.tempUnit}`}
+                  placeholder={String(Math.round(u.temp(50)))} />
               </div>
               <button className="min-h-11 w-full rounded bg-ink text-[13px] font-semibold text-paper">Save block</button>
             </form>
@@ -128,7 +131,8 @@ export default function RegionPicker({
                 e.preventDefault();
                 const f = new FormData(e.currentTarget);
                 commit(parsePastedGeoJSON(
-                  String(f.get("json") ?? ""), String(f.get("name") ?? ""), Number(f.get("base")) || 50,
+                  String(f.get("json") ?? ""), String(f.get("name") ?? ""),
+                  f.get("base") ? u.toF(Number(f.get("base"))) : 50,
                 ));
               }}
             >
@@ -139,7 +143,8 @@ export default function RegionPicker({
                   placeholder='{"type":"Polygon","coordinates":[[[-73.24,44.44], …]]}'
                   className="data mt-0.5 w-full rounded border border-rule bg-white px-2 py-2 text-[16px] focus:border-honey focus:outline-none" />
               </label>
-              <Field name="base" label="Base °F" placeholder="50" />
+              <Field name="base" label={`Base${u.tempUnit}`}
+                  placeholder={String(Math.round(u.temp(50)))} />
               <button className="min-h-11 w-full rounded bg-ink text-[13px] font-semibold text-paper">Save block</button>
             </form>
           )}

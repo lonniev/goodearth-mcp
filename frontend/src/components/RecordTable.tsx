@@ -14,6 +14,8 @@
 
 import type { ReactNode } from "react";
 
+import Term from "./Term";
+
 export interface Column<K extends string> {
   /// The sort key the server knows this column by, or undefined for a column
   /// that cannot be sorted — an actions cell, or a computed value the record
@@ -22,6 +24,10 @@ export interface Column<K extends string> {
   /// looks like a header that quietly does nothing.
   key?: K;
   label: string;
+  /// What this column means, revealed by a ⓘ beside the header. For the
+  /// headings that are terms of art — a grower should not have to already
+  /// know what a biofix is to read the row under it.
+  info?: ReactNode;
   /// Column width as a CSS value, for the one or two that need it.
   width?: string;
 }
@@ -51,6 +57,7 @@ export function SortHeaders<K extends string>({
           >
             {c.label}
             {active && <span aria-hidden="true">{dir === "asc" ? " ▲" : " ▼"}</span>}
+            {c.info && <Term>{c.info}</Term>}
           </th>
         );
       })}

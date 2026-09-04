@@ -136,9 +136,76 @@ def test_a_stage_far_out_is_not():
     assert pests.scouting_priority(a, TODAY) == []
 
 
-def test_a_model_past_its_last_stage_is_still_reported():
-    a = [{"pest": "X", "state": "active", "current_stage": "peak flight", "next_stage": None}]
-    assert pests.scouting_priority(a, TODAY) == ["X — past peak flight"]
+def test_a_stage_crossed_this_week_is_worth_walking():
+    a = [{"pest": "X", "state": "active", "current_stage": "peak flight", "next_stage": None,
+          "stages": [{"stage": "peak flight", "reached": True,
+                      "crossed_on": (TODAY - timedelta(days=3)).isoformat()}]}]
+    assert pests.scouting_priority(a, TODAY) == ["X — peak flight 3 days ago"]
+
+
+def test_a_stage_crossed_in_june_is_not_something_to_watch_for_now():
+    """THE LOAD-BEARING NEGATIVE ASSERTION.
+
+    `state == "active"` never expires. This list is headed "active now", and a
+    cabbage maggot that cleared its last stage four months ago is not.
+    """
+    a = [{"pest": "X", "state": "active", "current_stage": "peak flight", "next_stage": None,
+          "stages": [{"stage": "peak flight", "reached": True,
+                      "crossed_on": (TODAY - timedelta(days=120)).isoformat()}]}]
+    assert pests.scouting_priority(a, TODAY) == []
+
+
+def test_a_pest_both_just_past_and_nearly_due_gets_ONE_line():
+    """The count under this list is a count of pests, so a pest is one line."""
+    a = [{"pest": "X", "state": "active", "current_stage": "first flight",
+          "next_stage": {"stage": "second flight",
+                         "projected_date": (TODAY + timedelta(days=6)).isoformat()},
+          "stages": [{"stage": "first flight", "reached": True,
+                      "crossed_on": (TODAY - timedelta(days=1)).isoformat()}]}]
+    assert pests.scouting_priority(a, TODAY) == [
+        "X — first flight yesterday · second flight in about 6 days"]
+
+
+def test_the_latest_crossing_is_the_one_named():
+    a = [{"pest": "X", "state": "active", "next_stage": None, "stages": [
+        {"stage": "first flight", "reached": True,
+         "crossed_on": (TODAY - timedelta(days=9)).isoformat()},
+        {"stage": "second flight", "reached": True,
+         "crossed_on": (TODAY - timedelta(days=2)).isoformat()},
+    ]}]
+    assert pests.scouting_priority(a, TODAY) == ["X — second flight 2 days ago"]
+
+
+def test_a_watch_row_with_no_stages_is_never_listed():
+    """A vole has no degree-day stage to cross, and inventing one for it is
+    exactly what `watch: true` exists to avoid."""
+    a = [{"pest": "Vole", "state": "before_first_stage", "next_stage": None, "stages": []}]
+    assert pests.scouting_priority(a, TODAY) == []
+
+
+# ── Crossing dates ───────────────────────────────────────────────────────
+
+
+def test_a_reached_stage_carries_the_day_it_arrived():
+    """Without a date, "reached" reads the same on the day it happens and four
+    months later — which is the whole bug the scouting list had."""
+    m = pests.validate_model(model(stages=[{"stage": "second flight", "gdd": 1850}]))
+    a = pests.assess(m, DS, CUM, rate=10.0)
+    # CUM is 10 GDD/day from Jan 1, so 1850 lands on day 185.
+    assert a["stages"][0]["crossed_on"] == DS[185]
+
+
+def test_an_unreached_stage_has_no_crossing_date():
+    m = pests.validate_model(model(stages=[{"stage": "flight", "gdd": 5000}]))
+    assert pests.assess(m, DS, CUM, rate=10.0)["stages"][0]["crossed_on"] is None
+
+
+def test_a_crossing_is_dated_from_the_biofix_not_from_january():
+    """The biofix rebases the count, so it must rebase the date too."""
+    m = pests.validate_model(model(biofix="2026-05-01",
+                                   stages=[{"stage": "flight", "gdd": 100}]))
+    a = pests.assess(m, DS, CUM, rate=10.0)
+    assert a["stages"][0]["crossed_on"] == "2026-05-11"  # ten days at 10/day
 
 
 def test_nothing_pending_is_an_empty_list_not_none():

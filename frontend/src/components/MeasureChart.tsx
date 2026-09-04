@@ -6,6 +6,7 @@
 // read. Each keeps the same shape so the eye learns it once: grey band behind
 // is the normal range, the solid line is this season, dashed is the forecast.
 
+import { useUnits } from "./Units";
 import { useMemo } from "react";
 import type { Measure } from "../lib/mcp";
 import { dateTicks } from "../lib/dateTicks";
@@ -25,6 +26,7 @@ export default function MeasureChart({
   color?: string;
   zoomable?: boolean;
 }) {
+  const u = useUnits();
   const { zoom, zoomX, zoomY, reset, isZoomed, svgRef } = useChartZoom();
 
   const view = useMemo(() => {
@@ -86,6 +88,12 @@ export default function MeasureChart({
 
   const { x, y, path, bandPath, ticks, gridVals, act, fc } = view;
   const decimals = measure.unit === "in" ? 2 : measure.unit === "hours" ? 1 : 0;
+  // Inches, hours and mph mean the same thing in both scales; only a degree
+  // series is converted, and its axis says which scale it is in. The shape is
+  // untouched — a linear rescale of the labels, not of the data.
+  const degrees = measure.unit === "°F";
+  const show = (v: number) => (degrees ? u.temp(v) : v).toFixed(decimals);
+  const unitLabel = degrees ? u.tempUnit.trim() : measure.unit;
 
   return (
     <div className="rounded-md border border-rule bg-panel px-2.5 pt-2.5 pb-1.5">
@@ -95,13 +103,13 @@ export default function MeasureChart({
         </span>
         {measure.accumulates ? (
           <span className="text-[12.5px] text-ink-soft">
-            <b className="figure text-ink">{measure.actual_total?.toFixed(2)} {measure.unit}</b> so far
+            <b className="figure text-ink">{measure.actual_total?.toFixed(2)} {unitLabel}</b> so far
             {measure.normal_total != null && ` · normally ${measure.normal_total.toFixed(2)} by now`}
           </span>
         ) : (
           <span className="text-[12.5px] text-ink-soft">
-            <b className="figure text-ink">{measure.latest?.toFixed(decimals)} {measure.unit}</b> latest
-            {measure.normal_today && ` · normal ${measure.normal_today.mean.toFixed(decimals)}`}
+            <b className="figure text-ink">{measure.latest != null ? show(measure.latest) : "—"} {unitLabel}</b> latest
+            {measure.normal_today && ` · normal ${show(measure.normal_today.mean)}`}
           </span>
         )}
       </div>
@@ -110,7 +118,7 @@ export default function MeasureChart({
           a button in the row below labelled "GDD" — on a chart of degrees,
           inches or hours. */}
       <div className="flex items-stretch">
-      {zoomable && <AxisZoom onZoom={zoomY} label={measure.unit || label} />}
+      {zoomable && <AxisZoom onZoom={zoomY} label={unitLabel || label} />}
       <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`}
         className={`ge-chart block h-auto w-full min-w-[520px] touch-none select-none ${isZoomed ? "cursor-grab" : ""}`}
         role="img" aria-label={`${label}, this season against the normal range`}>
@@ -124,7 +132,7 @@ export default function MeasureChart({
           <g key={i}>
             <line x1={L} x2={R} y1={y(g)} y2={y(g)} stroke="var(--color-rule)" strokeWidth={1} strokeDasharray="1 4" />
             <text x={L - 6} y={y(g) + 3} textAnchor="end" fontSize={9} fill="var(--color-ink-soft)" fontFamily="var(--font-data)">
-              {g.toFixed(decimals)}
+              {show(g)}
             </text>
           </g>
         ))}

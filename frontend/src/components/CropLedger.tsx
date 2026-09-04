@@ -21,6 +21,7 @@
 // rather than the ones on this page, which is the difference between "your
 // earliest set-out" and "the earliest set-out among these twenty".
 
+import { useUnits } from "./Units";
 import type { PlantingStatus } from "../lib/mcp";
 import { emojiFor, type Planting } from "../lib/plantings";
 import { SortHeaders, type Column } from "./RecordTable";
@@ -80,6 +81,7 @@ export default function CropLedger({
   saving: boolean;
   onDelete: (id: string) => void;
 }) {
+  const u = useUnits();
   return (
     <div className="overflow-x-auto overscroll-x-contain rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">
       <table className="w-full border-collapse text-[13px]">
@@ -100,9 +102,9 @@ export default function CropLedger({
                   {p.crop}
                   <small className="block text-[11px] font-normal text-ink-soft">
                     {p.gddTarget != null
-                      ? `target ${p.gddTarget.toLocaleString()} GDD`
+                      ? `target ${u.showDD(p.gddTarget)}`
                       : "on the record"}
-                    {p.baseTempF != null && ` · base ${p.baseTempF}°F`}
+                    {p.baseTempF != null && ` · base ${u.showTemp(p.baseTempF)}`}
                   </small>
                 </td>
                 <td onClick={() => onEdit(p)} className="cursor-text px-3 py-2.5 whitespace-nowrap">
@@ -208,6 +210,7 @@ function Editor({ draft, onChange, onCommit, onCancel, saving }: {
   onCancel: () => void;
   saving: boolean;
 }) {
+  const u = useUnits();
   const set = (patch: Partial<Planting>) => onChange({ ...draft, ...patch });
   // Enter saves and Escape abandons: a row editor that can only be dismissed
   // with the mouse is slower than the form it replaced.
@@ -216,6 +219,16 @@ function Editor({ draft, onChange, onCommit, onCancel, saving }: {
     if (e.key === "Escape") onCancel();
   };
   const num = (v: string) => (v.trim() === "" ? undefined : Number(v));
+  // Shown in the reader's scale, held in Fahrenheit. A base temperature is a
+  // POINT on the scale and a GDD target is an INTERVAL along it, so they
+  // convert differently — see lib/units.ts.
+  const baseToF = (v: string) => { const n = num(v); return n == null ? undefined : u.toF(n); };
+  const gddToF = (v: string) => {
+    const n = num(v);
+    return n == null ? undefined : (u.unit === "C" ? n * (9 / 5) : n);
+  };
+  const base = draft.baseTempF == null ? "" : String(Math.round(u.temp(draft.baseTempF)));
+  const target = draft.gddTarget == null ? "" : String(Math.round(u.degreeDays(draft.gddTarget)));
 
   return (
     <tr className="border-b border-rule bg-band/40 last:border-b-0">
@@ -229,14 +242,14 @@ function Editor({ draft, onChange, onCommit, onCancel, saving }: {
           onChange={(e) => set({ setOut: e.target.value })} />
       </td>
       <td className="px-3 py-2 align-top" colSpan={2}>
-        <input inputMode="numeric" value={draft.gddTarget ?? ""} className={CELL}
-          onKeyDown={keys} placeholder="GDD target — leave blank for a perennial"
-          onChange={(e) => set({ gddTarget: num(e.target.value) })} />
+        <input inputMode="numeric" defaultValue={target} className={CELL}
+          onKeyDown={keys} placeholder={`${u.ddUnit.trim()} target — leave blank for a perennial`}
+          onChange={(e) => set({ gddTarget: gddToF(e.target.value) })} />
       </td>
       <td className="px-3 py-2 align-top">
-        <input inputMode="numeric" value={draft.baseTempF ?? ""} className={CELL}
-          onKeyDown={keys} placeholder="base °F"
-          onChange={(e) => set({ baseTempF: num(e.target.value) })} />
+        <input inputMode="numeric" defaultValue={base} className={CELL}
+          onKeyDown={keys} placeholder={`base${u.tempUnit}`}
+          onChange={(e) => set({ baseTempF: baseToF(e.target.value) })} />
       </td>
       <td className="px-2 py-2 text-right align-top whitespace-nowrap">
         <RowActions onCommit={onCommit} onCancel={onCancel} saving={saving} what="planting" />

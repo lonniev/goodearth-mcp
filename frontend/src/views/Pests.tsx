@@ -13,6 +13,8 @@ import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
 import { Pager, SortHeaders, type Column } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
+import Term from "../components/Term";
+import { useUnits } from "../components/Units";
 import {
   CELL, Chiclet, Empty, ErrorBox, FIELD, ICON, IconButton, Note, PageTitle, Pill,
   RowActions, Section, StatusChip,
@@ -27,21 +29,45 @@ import type { SavedRegion } from "../lib/regions";
 const d = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
-/// Sort keys mirror the server's whitelist. Heat-so-far and the stage chips
-/// are computed for the page in hand, not held in the record, so they are not
-/// offered as columns to order by — a header that quietly does nothing is
-/// worse than one that is plainly inert.
-const COLS: Column<ItemSort>[] = [
-  { key: "name", label: "Pest" },
-  { key: "starts_on", label: "Biofix" },
-  { label: "Heat so far" },
-  { label: "Stages", width: "44%" },
-  { label: "" },
-];
+/// Sort keys mirror the server's whitelist. The accumulation and the stage
+/// chips are computed for the page in hand, not held in the record, so they
+/// are not offered as columns to order by — a header that quietly does
+/// nothing is worse than one that is plainly inert.
+///
+/// Three of these four headings are terms of art, and a grower should not have
+/// to already know them to read the row underneath. The definition sits behind
+/// a ⓘ rather than on the page.
+function columns(ddLabel: string): Column<ItemSort>[] {
+  return [
+    { key: "name", label: "Pest" },
+    {
+      key: "starts_on", label: "Biofix",
+      info: <>The day the count starts for this pest — usually the first
+        sustained trap catch, sometimes just the first of January. Everything
+        in the row is measured from it.</>,
+    },
+    {
+      label: ddLabel,
+      info: <>Growing degree days banked since the biofix: each day contributes
+        the degrees its mean temperature ran above this pest&rsquo;s base. It is
+        a running total, not a stage.</>,
+    },
+    {
+      label: "Stages", width: "44%",
+      info: <>Your thresholds. A stage is a life-cycle event — first flight,
+        egg hatch — paired with the degree-day total it arrives at. Filled when
+        it has been reached, otherwise showing the date it is due.</>,
+    },
+    { label: "" },
+  ];
+}
 
 export default function Pests({
   region, onCost,
 }: { region: SavedRegion; onCost: (sats: number) => void }) {
+  // Degrees are read in whatever scale this browser is set to. The record
+  // stays Fahrenheit — a base of 50 °F is still 50 °F, shown as 10 °C.
+  const u = useUnits();
   // Order, search and paging belong to the database — it sorts every pest on
   // the block, not the twenty in hand. Search runs on submit: a read costs sats.
   const [sort, setSort] = useState<ItemSort>("name");
@@ -112,6 +138,11 @@ export default function Pests({
     ),
   }));
 
+  /// Rows the server could not evaluate, by name. A pest saved with no
+  /// stages, no published model and no watch flag is one of these — it is not
+  /// slow to load, there is simply nothing to compute against it.
+  const skipped = new Map((data?.skipped ?? []).map((s) => [s.name, s.reason]));
+
   async function commitRow() {
     if (!draft) return;
     setSavingRow(true); setFormErr("");
@@ -126,8 +157,12 @@ export default function Pests({
   function add(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
+    // Blank means "this block's base". Typed means what was typed, in the
+    // scale on screen, converted back to the Fahrenheit the record keeps.
+    const typed = String(f.get("base") ?? "").trim();
     const made = makePest(
-      String(f.get("pest") ?? ""), Number(f.get("base") || 50),
+      String(f.get("pest") ?? ""),
+      typed ? u.toF(Number(typed)) : region.baseTempF,
       String(f.get("stages") ?? ""), region.id,
       String(f.get("biofix") ?? "") || undefined,
     );
@@ -156,7 +191,7 @@ export default function Pests({
 
       {data && data.scout_now.length > 0 && (
         <div className="mb-5 rounded-md border border-rule border-l-4 border-l-honey bg-panel px-4 py-3">
-          <span className="eyebrow">Watch for these now</span>
+          <span className="eyebrow">Active now</span>
           <ul className="mt-1.5 space-y-1 text-[13px]">
             {data.scout_now.map((s) => <li key={s}>{s}</li>)}
           </ul>
@@ -174,11 +209,30 @@ export default function Pests({
             <input name="pest" placeholder="Aster leafhopper"
               value={pestName} onChange={(e) => setPestName(e.target.value)}
               className={FIELD} /></label>
-          <label className="block text-[11px] text-ink-soft">Base °F
-            <input name="base" inputMode="numeric" placeholder="50" className={FIELD} /></label>
-          <label className="block text-[11px] text-ink-soft">Biofix <span className="opacity-60">(optional)</span>
+          {/* The block's own base is the placeholder rather than a hardcoded
+              50: it is the number this ground's season curve is accumulated
+              from, so leaving the field alone now agrees with the chart
+              instead of quietly disagreeing with it. */}
+          <label className="block text-[11px] text-ink-soft">
+            Base{u.tempUnit}
+            <Term>Development stops below this temperature, and it belongs to
+              the creature rather than to your ground — a codling moth counts
+              from 50&nbsp;°F and a cabbage maggot from 40&nbsp;°F on the same
+              acre. Left blank it takes {region.name}&rsquo;s{" "}
+              {u.showTemp(region.baseTempF)}.</Term>
+            <input name="base" inputMode="numeric"
+              placeholder={String(Math.round(u.temp(region.baseTempF)))}
+              className={FIELD} /></label>
+          <label className="block text-[11px] text-ink-soft">
+            <Term label="Biofix">The day the count starts. For most published
+              models it is the first sustained trap catch; leave it empty and
+              the count runs from the first of January.</Term>{" "}
+            <span className="opacity-60">(optional)</span>
             <input name="biofix" type="date" className={FIELD} /></label>
-          <label className="block text-[11px] text-ink-soft">Stages
+          <label className="block text-[11px] text-ink-soft">
+            <Term label="Stages">A life-cycle event and the degree-day total it
+              arrives at, comma separated. These are yours — Good Earth times
+              them against this ground and does not publish entomology.</Term>
             <input name="stages" placeholder="first flight 375, second flight 1400"
               className={FIELD} /></label>
         </div>
@@ -209,7 +263,8 @@ export default function Pests({
           <div className="overflow-x-auto overscroll-x-contain rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">
             <table className="w-full border-collapse text-[13px]">
               <thead>
-                <SortHeaders cols={COLS} sort={sort} dir={dir} onSort={sortBy} />
+                <SortHeaders cols={columns(`${u.ddUnit.trim()} to date`)}
+                  sort={sort} dir={dir} onSort={sortBy} />
               </thead>
               <tbody>
                 {watched.map(({ model: m, assessed: a }) => (
@@ -222,40 +277,62 @@ export default function Pests({
                       <td onClick={() => { setEditing(m.id); setDraft(m); }}
                         className="cursor-text px-3 py-2.5 font-semibold">
                         <span className="mr-1.5 text-[15px]" aria-hidden="true">
-                          {(a?.stages ?? []).some((x) => !x.reached) ? "🥚" : "🐛"}
+                          {m.watch ? "👁️"
+                            : (a?.stages ?? []).some((x) => !x.reached) ? "🥚" : "🐛"}
                         </span>
                         {m.pest}
-                        <small className="block text-[11px] font-normal text-ink-soft">
-                          base {m.base_temp ?? 50}°F
-                        </small>
+                        {/* A vole has no development threshold, so it is not
+                            given one. Printing "base 50 °F" under a creature
+                            with no heat model states a fact that isn't. */}
+                        {!m.watch && (
+                          <small className="block text-[11px] font-normal text-ink-soft">
+                            base {u.showTemp(m.base_temp ?? region.baseTempF)}
+                          </small>
+                        )}
                       </td>
                       <td onClick={() => { setEditing(m.id); setDraft(m); }}
                         className="cursor-text px-3 py-2.5 whitespace-nowrap">
-                        {m.biofix ? d(m.biofix) : "Jan 1"}
+                        {m.watch ? "—" : m.biofix ? d(m.biofix) : "Jan 1"}
                       </td>
                       <td className="data px-3 py-2.5 whitespace-nowrap text-[12px] text-ink-soft">
-                        {a ? `${a.gdd_accumulated?.toLocaleString()} GDD` : "—"}
+                        {a && !m.watch && a.gdd_accumulated != null
+                          ? u.showDD(a.gdd_accumulated, 1) : "—"}
                       </td>
                       <td className="px-3 py-2.5">
-                        {a ? (
+                        {(a?.stages ?? []).length ? (
                           <div className="flex flex-wrap gap-1.5">
-                            {(a.stages ?? []).map((st) => (
+                            {(a?.stages ?? []).map((st) => (
                               <StatusChip key={st.stage} tone={st.reached ? "reached" : "pending"}>
                                 {/* The remaining-GDD figure was in a title
                                     attribute, which is unreachable with a finger. */}
-                                <span>{st.stage} <span className="data text-[10.5px] text-ink-soft">{st.gdd.toLocaleString()}</span></span>
+                                <span>{st.stage} <span className="data text-[10.5px] text-ink-soft">{u.degreeDays(st.gdd).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></span>
                                 {st.reached
-                                  ? <span className="text-honey">✓</span>
+                                  ? <span className="text-honey">
+                                      {st.crossed_on ? d(st.crossed_on) : "✓"}
+                                    </span>
                                   : <span className="data text-[10.5px] text-ink-soft">
-                                      · {st.projected_date ? d(st.projected_date) : `${Math.round(st.gdd_remaining)} to go`}
+                                      · {st.projected_date ? d(st.projected_date) : `${Math.round(u.degreeDays(st.gdd_remaining))} to go`}
                                     </span>}
                               </StatusChip>
                             ))}
                           </div>
-                        ) : (
+                        ) : m.watch ? (
+                          <span className="data text-[11px] text-ink-soft">watched all season</span>
+                        ) : m.model ? (
                           <span className="data text-[11px] text-ink-soft">
-                            {m.watch ? "watched all season — no stages to date" : "not yet read"}
+                            {m.model.toUpperCase()} model · no dated stage for this ground yet
                           </span>
+                        ) : (
+                          /* The server refused this row and said why. Until
+                             now the page printed "not yet read", which reads
+                             as a load that has not finished rather than as a
+                             pest with nothing to compute against. */
+                          <button
+                            onClick={() => { setEditing(m.id); setDraft(m); }}
+                            className="data text-left text-[11px] text-clay underline decoration-dotted underline-offset-2"
+                          >
+                            {skipped.get(m.pest) ? "no thresholds — tap to set" : "not yet read"}
+                          </button>
                         )}
                       </td>
                       <td className="px-2 py-2.5 text-right">
@@ -318,14 +395,12 @@ export default function Pests({
               </div>
             </>
           )}
-          {/* Provenance and counts, not an explanation of them. */}
+          {/* Provenance, and the one instruction. How many of NPN's layers
+              answered with a heat total rather than a date is this service's
+              own bookkeeping — it changes nothing the grower does. */}
           <Note>
             Dated stages from USA-NPN · sightings from iNaturalist within{" "}
-            {cat.search_span_km} km.{" "}
-            {cat.models_unreadable
-              ? `${cat.models_unreadable} of ${cat.models_published} forecasts give a heat total, not a date. `
-              : ""}
-            Thresholds are yours to set.
+            {cat.search_span_km} km. Edit a pest to set its thresholds.
           </Note>
         </>
       ) : (
@@ -347,7 +422,12 @@ function Editor({ draft, onChange, onCommit, onCancel, saving }: {
   onCancel: () => void;
   saving: boolean;
 }) {
+  const u = useUnits();
   const set = (patch: Partial<SavedPest>) => onChange({ ...draft, ...patch });
+  /// Shown in the reader's scale, held in Fahrenheit. `defaultValue` rather
+  /// than `value`: rounding a converted figure on every keystroke would fight
+  /// the person typing it.
+  const base = draft.base_temp == null ? "" : String(Math.round(u.temp(draft.base_temp)));
   const keys = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") { e.preventDefault(); onCommit(); }
     if (e.key === "Escape") onCancel();
@@ -365,9 +445,11 @@ function Editor({ draft, onChange, onCommit, onCancel, saving }: {
       <td className="px-3 py-2 align-top">
         <input autoFocus value={draft.pest} className={CELL} onKeyDown={keys}
           onChange={(e) => set({ pest: e.target.value })} />
-        <input inputMode="numeric" value={draft.base_temp ?? ""} className={`${CELL} mt-1`}
-          placeholder="base °F" onKeyDown={keys}
-          onChange={(e) => set({ base_temp: e.target.value.trim() === "" ? undefined : Number(e.target.value) })} />
+        <input inputMode="numeric" defaultValue={base} className={`${CELL} mt-1`}
+          placeholder={`base${u.tempUnit}`} onKeyDown={keys}
+          onChange={(e) => set({
+            base_temp: e.target.value.trim() === "" ? undefined : u.toF(Number(e.target.value)),
+          })} />
       </td>
       <td className="px-3 py-2 align-top">
         <input type="date" value={draft.biofix ?? ""} className={CELL} onKeyDown={keys}

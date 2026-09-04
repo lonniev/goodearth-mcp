@@ -14,6 +14,7 @@
 // where the server returned no band or forecast, that element is absent rather
 // than guessed at.
 
+import { useUnits } from "./Units";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SeasonCurveResult } from "../lib/mcp";
 import type { LedgerFlag } from "../lib/ledgerFlags";
@@ -98,6 +99,7 @@ function niceStep(span: number): number {
 export default function SeasonChart({
   data, frostDayIndex = null, flags = [], onFlag, showGround = true, overlay = null,
 }: Props) {
+  const u = useUnits();
   const { zoom, zoomX, zoomY, reset, showSpan, isZoomed, svgRef } = useChartZoom();
   const [span, setSpan] = useState<string | null>("season");
   const clipId = "ge-plot-clip";
@@ -222,7 +224,7 @@ export default function SeasonChart({
     // once the timeline can reach into next year.
     const rangeLabel = origin
       ? `${dateFor(Math.round(dLo), origin) ?? ""} → ${dateFor(Math.round(dHi), origin) ?? ""} · ${
-          Math.round(gLo).toLocaleString()}–${Math.round(gHi).toLocaleString()} GDD`
+          Math.round(u.degreeDays(gLo)).toLocaleString()}–${Math.round(u.degreeDays(gHi)).toLocaleString()}${u.ddUnit}`
       : "";
 
     return { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, rangeLabel, totalDays, placement, dayOf, endDayOf, domLo, domHi, seriesHi, extended };
@@ -266,7 +268,7 @@ export default function SeasonChart({
           one chart in the app that actually plots GDD, which is why the shared
           row could not go on calling its vertical button "GDD". */}
       <div className="flex items-stretch">
-      <AxisZoom onZoom={zoomY} label="GDD" />
+      <AxisZoom onZoom={zoomY} label={u.ddUnit.trim()} />
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
@@ -313,7 +315,7 @@ export default function SeasonChart({
             <line x1={L} x2={R} y1={y(g)} y2={y(g)} stroke="var(--color-rule)" strokeWidth={1} strokeDasharray="1 4" />
             <text x={L - 6} y={y(g) + 3} textAnchor="end" fontSize={9.5} fill="var(--color-ink-soft)" fontFamily="var(--font-data)"
               paintOrder="stroke" stroke="var(--color-paper)" strokeWidth={3} strokeLinejoin="round">
-              {g.toLocaleString()}
+              {Math.round(u.degreeDays(g)).toLocaleString()}
             </text>
           </g>
         ))}
@@ -453,7 +455,7 @@ export default function SeasonChart({
         <circle cx={x(last)} cy={y(todayGdd)} r={4.5} fill="var(--color-ink)" />
           <text x={x(last) + 7} y={y(todayGdd) + 4} fontSize={10.5} fontWeight={700} fill="var(--color-ink)"
             paintOrder="stroke" stroke="var(--color-panel)" strokeWidth={3.5} strokeLinejoin="round">
-            today · {Math.round(todayGdd).toLocaleString()}
+            today · {Math.round(u.degreeDays(todayGdd)).toLocaleString()}
           </text>
         </g>
 

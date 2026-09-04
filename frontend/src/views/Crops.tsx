@@ -7,6 +7,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import CropLedger, { type LedgerRow } from "../components/CropLedger";
+import Term from "../components/Term";
+import { useUnits } from "../components/Units";
 import Provenance from "../components/Provenance";
 import { Pager } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
@@ -29,6 +31,7 @@ export default function Crops({
   region: SavedRegion;
   onCost: (sats: number) => void;
 }) {
+  const u = useUnits();
   // The grower's record, read from the server under their npub — not from
   // this browser. What they saved on the laptop is what the phone shows.
   // Order, search and paging are the database's — it sorts every planting on
@@ -184,7 +187,8 @@ export default function Crops({
   function add(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    const base = f.get("base") ? Number(f.get("base")) : undefined;
+    // Typed in the scale on screen, held in the Fahrenheit the record keeps.
+    const base = f.get("base") ? u.toF(Number(f.get("base"))) : undefined;
     const made = makePlanting(
       String(f.get("crop") ?? ""), Number(f.get("target")),
       String(f.get("setout") ?? ""), region.id, base,
@@ -242,24 +246,24 @@ export default function Crops({
             Planted <span className="opacity-60">(set out or sown)</span>
             <input name="setout" type="date" className={FIELD} />
           </label>
+          {/* The explanation used to be a sixty-word paragraph under the
+              form. It is a definition, not a control, so it moved behind the
+              word it defines — the page shows the field and says what it is
+              only when asked. */}
           <label className="block text-[11px] text-ink-soft">
-            Base °F <span className="opacity-60">(optional)</span>
-            <input name="base" inputMode="numeric" placeholder={String(region.baseTempF)}
+            <Term label={`Base${u.tempUnit}`}>The temperature below which this
+              plant does no growing — its own threshold, not the field&rsquo;s.
+              Heat is counted as the degrees each day spends above it. Winter
+              wheat counts from 32&nbsp;°F and field corn from 50&nbsp;°F on the
+              same acre, which is why it sits on the planting rather than on the
+              block. Blank takes {region.name}&rsquo;s{" "}
+              {u.showTemp(region.baseTempF)}.</Term>{" "}
+            <span className="opacity-60">(optional)</span>
+            <input name="base" inputMode="numeric"
+              placeholder={String(Math.round(u.temp(region.baseTempF)))}
               className={FIELD} />
           </label>
         </div>
-
-        {/* The field nobody could interpret. It is not a property of the
-            ground — it belongs to the PLANT, and the presets prove it: winter
-            wheat counts from 32 °F and field corn from 50 °F on the same acre. */}
-        <p className="mt-2 text-[11.5px] text-ink-soft">
-          <b>Base °F</b> is the temperature below which this plant does no
-          growing — its own threshold, not the field's. Heat is counted as the
-          degrees each day spends above it. Winter wheat counts from 32 °F and
-          field corn from 50 °F on the same acre, which is why it sits on the
-          planting rather than on the block. Leave it blank to use{" "}
-          {region.name}&rsquo;s default of {region.baseTempF} °F.
-        </p>
         <datalist id="ge-crop-presets">
           {CROP_PRESETS.map((c) => <option key={c.crop} value={c.crop} />)}
         </datalist>
@@ -387,12 +391,12 @@ export default function Crops({
               title={[
                 row?.note,
                 w && `Seed ${w.start_seed_indoors ? short(w.start_seed_indoors) : "direct"} · out ${w.earliest_out ? short(w.earliest_out) : "—"}`,
-                `${c.gddTarget} GDD ${c.note}, base ${c.baseTempF}°F`,
+                `${u.showDD(c.gddTarget)} ${c.note}, base ${u.showTemp(c.baseTempF)}`,
               ].filter(Boolean).join(" — ")}
               className={`flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-[12.5px] active:border-ink ${tone}`}>
               <span>{c.emoji}</span>
               <span className="font-medium">{c.crop}</span>
-              <span className="data text-[10.5px] text-ink-soft">{c.gddTarget}</span>
+              <span className="data text-[10.5px] text-ink-soft">{Math.round(u.degreeDays(c.gddTarget))}</span>
               {v === "comfortable" && <span className="text-[11px] text-growth">✓</span>}
               {(v === "tight" || v === "marginal") && <span className="text-[11px] text-honey">⚠</span>}
               {v === "too_short" && <span className="text-[11px] text-clay">✕</span>}
@@ -438,7 +442,7 @@ export default function Crops({
                 Soil reaches{" "}
                 {Object.entries(when.soil_warming)
                   .sort(([a], [b]) => Number(a) - Number(b))
-                  .map(([t, d]) => `${Math.round(Number(t))}°F on ${short(d)}`)
+                  .map(([t, d]) => `${u.showTemp(Number(t))} on ${short(d)}`)
                   .join(" · ")}
               </p>
             )}

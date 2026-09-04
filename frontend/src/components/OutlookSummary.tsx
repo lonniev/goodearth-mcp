@@ -11,16 +11,18 @@
 import { useEffect, useRef, useState } from "react";
 import type { AlmanacResult } from "../lib/mcp";
 import { compareOutlook, outlookText } from "../lib/outlookSummary";
+import { useUnits } from "./Units";
 
 export default function OutlookSummary({ data, place, onClose }: {
   data: AlmanacResult;
   place: string;
   onClose: () => void;
 }) {
+  const u = useUnits();
   const box = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
-  const lines = compareOutlook(data);
-  const text = outlookText(data, place);
+  const lines = compareOutlook(data, u.unit);
+  const text = outlookText(data, place, u.unit);
 
   useEffect(() => { box.current?.focus(); }, []);
   useEffect(() => {

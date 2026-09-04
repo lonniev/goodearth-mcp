@@ -5,6 +5,7 @@
 // visible rather than asserted: this is the region abstraction paying off in
 // one sentence.
 
+import { useUnits } from "./Units";
 import { useState } from "react";
 import type { FrostLevel, FrostNight, FrostWindowResult } from "../lib/mcp";
 
@@ -19,6 +20,7 @@ const day = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
 
 export default function FrostCard({ data }: { data: FrostWindowResult }) {
+  const u = useUnits();
   const w = data.worst_night;
   const tone = TONE[w?.level ?? "clear"];
   const offset = data.across_region.coldest_ground_offset_f;
@@ -36,16 +38,19 @@ export default function FrostCard({ data }: { data: FrostWindowResult }) {
 
       {w && w.level !== "clear" ? (
         <p className="mt-1.5 text-[13px] leading-relaxed">
-          Forecast low <b>{Math.round(w.forecast_low_f)}°F</b>, but the coldest ground on your
-          land sits near <b>{Math.round(w.low_ground_f)}°F</b> — {w.reason}.
+          Forecast low <b>{u.showTemp(w.forecast_low_f)}</b>, but the coldest ground on your
+          land sits near <b>{u.showTemp(w.low_ground_f)}</b> — {w.reason}.
+          {/* An offset is a DIFFERENCE between two temperatures, so it converts
+              without the 32-degree shift — the same arithmetic a degree-day
+              gets, which is why it borrows that helper. */}
           {offset > 0 && (
-            <> Low ground runs about {offset.toFixed(1)}°F under the forecast on a night like this.</>
+            <> Low ground runs about {u.degreeDays(offset).toFixed(1)}{u.tempUnit} under the forecast on a night like this.</>
           )}
         </p>
       ) : (
         <p className="mt-1.5 text-[13px] leading-relaxed">
           Nothing within reach of freezing in the next {data.nights.length} nights.
-          {w && <> The coldest is {Math.round(w.low_ground_f)}°F on low ground, {day(w.date)}.</>}
+          {w && <> The coldest is {u.showTemp(w.low_ground_f)} on low ground, {day(w.date)}.</>}
         </p>
       )}
 
@@ -78,6 +83,7 @@ export default function FrostCard({ data }: { data: FrostWindowResult }) {
 /// the wind and sky that decide whether frost actually forms — somewhere a
 /// finger can never reach, which on a tablet means nowhere at all.
 function NightStrip({ nights }: { nights: FrostNight[] }) {
+  const u = useUnits();
   const [open, setOpen] = useState<string | null>(null);
   const lows = nights.map((n) => n.low_ground_f);
   const min = Math.min(...lows, 28), max = Math.max(...lows, 60);
@@ -116,11 +122,11 @@ function NightStrip({ nights }: { nights: FrostNight[] }) {
 
       {shown && (
         <p className="mt-1.5 rounded bg-band/60 px-3 py-2 text-[12.5px] leading-relaxed">
-          <b>{day(shown.date)}</b> — coldest ground {Math.round(shown.low_ground_f)}°F,
-          forecast {Math.round(shown.forecast_low_f)}°F. {shown.reason}.
+          <b>{day(shown.date)}</b> — coldest ground {u.showTemp(shown.low_ground_f)},
+          forecast {u.showTemp(shown.forecast_low_f)}. {shown.reason}.
           {shown.wind_mph != null && ` Wind ${Math.round(shown.wind_mph)} mph`}
           {shown.cloud_pct != null && `, ${Math.round(shown.cloud_pct)}% cloud`}
-          {shown.dew_point_f != null && `, dew point ${Math.round(shown.dew_point_f)}°F`}.
+          {shown.dew_point_f != null && `, dew point ${u.showTemp(shown.dew_point_f)}`}.
         </p>
       )}
     </>

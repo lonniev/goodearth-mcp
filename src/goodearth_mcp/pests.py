@@ -142,13 +142,35 @@ def accumulated_from_biofix(
     return None
 
 
+def crossed_on(
+    dates: list[str],
+    cumulative: list[float],
+    baseline: float,
+    from_index: int,
+    target: float,
+) -> str | None:
+    """The first day the count reached `target` — the date a stage arrived.
+
+    A stage carries a `reached` flag, and a flag says nothing about WHEN. The
+    season record holds the answer already: walk it forward from the biofix and
+    report the first day the accumulation cleared the threshold. Without this,
+    "past second flight" reads the same on the day it happens and four months
+    later, which is how a pest that finished in June ends up on a list headed
+    "watch for these now".
+    """
+    for i in range(from_index, len(dates)):
+        if cumulative[i] - baseline >= target:
+            return dates[i]
+    return None
+
+
 def assess(
     model: dict[str, Any],
     dates: list[str],
     cumulative: list[float],
     rate: float,
 ) -> dict[str, Any]:
-    """Which stages this pest has reached, and when the next one arrives."""
+    """Which stages this pest has reached, when each arrived, and what is next."""
     acc = accumulated_from_biofix(dates, cumulative, model["biofix"])
     if acc is None:
         return {
@@ -158,6 +180,12 @@ def assess(
         }
 
     accumulated, counted_from = acc
+    # Where the count starts on the series, so a crossing can be dated. With no
+    # biofix the count is the season's own and the baseline is zero, which is
+    # what `accumulated_from_biofix` already assumed.
+    from_index = dates.index(counted_from)
+    baseline = cumulative[from_index] if model["biofix"] else 0.0
+
     stages: list[dict[str, Any]] = []
     crossed_idx = -1
 
@@ -177,6 +205,10 @@ def assess(
             "reached": reached,
             "gdd_remaining": remaining if not reached else 0.0,
             "projected_date": projected,
+            "crossed_on": (
+                crossed_on(dates, cumulative, baseline, from_index, s["gdd"])
+                if reached else None
+            ),
         })
 
     next_stage = stages[crossed_idx + 1] if crossed_idx + 1 < len(stages) else None
@@ -208,19 +240,42 @@ def scouting_priority(
     today: date,
     within_days: int = 10,
 ) -> list[str]:
-    """Which pests crossed a stage recently or cross one soon.
+    """Which pests are ACTIVE now: a stage just crossed, or one arriving soon.
 
-    This is the answer a grower acts on: not the whole table, but which few
-    to go and look for this week.
+    "Now" is the whole of the promise this list makes, so it is enforced by a
+    date rather than by a state flag. It used to report any model past its last
+    stage, and `state == "active"` never expires: a cabbage maggot that cleared
+    its second flight in June still headed the page in September, under a
+    heading telling the grower to go and look for it.
+
+    One line per pest, so the count beneath it is the count of pests.
     """
     out: list[str] = []
     for a in assessments:
+        parts: list[str] = []
+
+        # The most recent crossing, if it happened lately. Later stages
+        # overwrite earlier ones, so what is named is where the pest is now.
+        for s in a.get("stages") or []:
+            on = s.get("crossed_on")
+            if not s.get("reached") or not on:
+                continue
+            ago = (today - date.fromisoformat(on)).days
+            if 0 <= ago <= within_days:
+                parts = [f"{s['stage']} {_ago(ago)}"]
+
         nxt = a.get("next_stage")
-        if a.get("state") == "active" and (not nxt or not nxt.get("projected_date")):
-            out.append(f"{a['pest']} — past {a.get('current_stage')}")
-            continue
         if nxt and nxt.get("projected_date"):
             days = (date.fromisoformat(nxt["projected_date"]) - today).days
             if 0 <= days <= within_days:
-                out.append(f"{a['pest']} — {nxt['stage']} in about {days} days")
+                parts.append(f"{nxt['stage']} in about {days} days")
+
+        if parts:
+            out.append(f"{a['pest']} — {' · '.join(parts)}")
     return out
+
+
+def _ago(days: int) -> str:
+    if days == 0:
+        return "today"
+    return "yesterday" if days == 1 else f"{days} days ago"
