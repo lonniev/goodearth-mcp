@@ -318,23 +318,18 @@ export default function Pests({
               </div>
             </>
           )}
+          {/* Provenance and counts, not an explanation of them. */}
           <Note>
-            Dated stages come from USA-NPN's degree-day forecasts for this region, and
-            the sightings from iNaturalist within about {cat.search_span_km} km — species
-            are a landscape fact, and one field holds almost no records.{" "}
-            {cat.models_unreadable ? `${cat.models_unreadable} of ${cat.models_published} published forecasts give a heat total or a risk level rather than a date, so they are left out rather than guessed at. ` : ""}
-            Tapping one names the pest and nothing else. The heat numbers that say
-            when it arrives are yours to set against your own extension bulletin —
-            Good Earth does not publish entomology or recommend a treatment.
+            Dated stages from USA-NPN · sightings from iNaturalist within{" "}
+            {cat.search_span_km} km.{" "}
+            {cat.models_unreadable
+              ? `${cat.models_unreadable} of ${cat.models_published} forecasts give a heat total, not a date. `
+              : ""}
+            Thresholds are yours to set.
           </Note>
         </>
       ) : (
-        <Note>
-          USA-NPN models a set of pests nationally and Good Earth reads them for this
-          ground, so the answer here is not the answer for an orchard two states south.
-          What comes back is a date for the region, not the numbers that time it on
-          your ground. Those stay yours.
-        </Note>
+        <Note>Plot-specific pests from USA-NPN.</Note>
       )}
     </>
   );
