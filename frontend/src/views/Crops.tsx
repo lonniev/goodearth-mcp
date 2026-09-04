@@ -13,9 +13,10 @@ import Provenance from "../components/Provenance";
 import { Pager } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
 import QuoteScroller from "../components/QuoteScroller";
-import { cropGddStatus, cropSuitability, plantingWindow, treeSuitability,
+import { cropGddStatus, cropSuitability, plantingWindow, treeSuitability, treeYear,
   type CropLedgerResult, type PlantingWindowResult, type SuitabilityResult,
-  type TreeAssessment, type TreeSuitabilityResult, type Verdict } from "../lib/mcp";
+  type TreeAssessment, type TreeSuitabilityResult, type TreeYearResult,
+  type Verdict } from "../lib/mcp";
 import {
   CROP_CATEGORIES, CROP_PRESETS, HEAT_RATED, makePlanting, plantingCodec,
   WINTER_RATED,
@@ -109,6 +110,9 @@ export default function Crops({
   const [treeFit, setTreeFit] = useState<TreeSuitabilityResult | null>(null);
   const [treeAt, setTreeAt] = useState<Date | null>(null);
   const [treeBusy, setTreeBusy] = useState(false);
+  const [year, setYear] = useState<TreeYearResult | null>(null);
+  const [yearAt, setYearAt] = useState<Date | null>(null);
+  const [yearBusy, setYearBusy] = useState(false);
   const [cat, setCat] = useState<CropPreset["category"] | "all">("all");
   const [when, setWhen] = useState<PlantingWindowResult | null>(null);
   const [whenAt, setWhenAt] = useState<Date | null>(null);
@@ -229,6 +233,18 @@ export default function Crops({
 
   const verdictOf = (crop: string): Verdict | null =>
     fit?.crops.find((r) => r.crop === crop)?.verdict ?? null;
+
+  // The tree year: when spring reached this ground, and what the sap did.
+  // Read from the block's own record, so nothing is passed to it.
+  const checkYear = useCallback(async () => {
+    setYearBusy(true); setError("");
+    try {
+      const r = await treeYear(region.id);
+      if (!r.success) { setError(r.error || "The tree year could not be read."); return; }
+      setYear(r); setYearAt(new Date());
+    } catch (e) { setError((e as Error).message); }
+    finally { setYearBusy(false); }
+  }, [region]);
 
   const treeOf = (crop: string): TreeAssessment | null =>
     treeFit?.trees.find((r) => r.tree === crop) ?? null;
@@ -420,8 +436,58 @@ export default function Crops({
           </Pill>
         )}
         {fit && <Provenance tool="goodearth_crop_suitability" at={fitAt} onCost={onCost} />}
+        {!year && (
+          <Pill onClick={checkYear} disabled={yearBusy}>
+            {yearBusy ? "🍁 Reading…" : "🍁 This year?"}
+          </Pill>
+        )}
         {treeFit && <Provenance tool="goodearth_tree_suitability" at={treeAt} onCost={onCost} />}
+        {year && <Provenance tool="goodearth_tree_year" at={yearAt} onCost={onCost} />}
       </Section>
+
+      {/* The tree year: spring dated for this block, and the sap. Stats, in
+          the shape the Almanac uses — a date and what it is measured against,
+          not a paragraph about the Spring Index. */}
+      {year && (
+        <div className="mb-3 rounded-md border border-rule border-l-4 border-l-honey bg-panel px-4 py-3">
+          <p className="text-[13px]">{year.summary}</p>
+          <div className="mt-2 flex flex-wrap gap-x-6 gap-y-2">
+            {year.spring && ([
+              ["🌱", "first leaf", year.spring.first_leaf],
+              ["🌸", "first bloom", year.spring.first_bloom],
+            ] as const).map(([emoji, label, s]) => s?.on && (
+              <span key={label} className="text-[12.5px]">
+                <span className="mr-1">{emoji}</span>
+                <b className="figure text-[14px]">{short(s.on)}</b>
+                <span className="data ml-1.5 text-[11px] text-ink-soft">
+                  {label}
+                  {s.days_from_normal != null && (
+                    <> · {s.days_from_normal === 0 ? "on its normal"
+                      : `${Math.abs(s.days_from_normal)}d ${s.days_from_normal < 0 ? "early" : "late"}`}</>
+                  )}
+                </span>
+              </span>
+            ))}
+            {year.sap && year.sap.cycles > 0 && (
+              <span className="text-[12.5px]">
+                <span className="mr-1">🍁</span>
+                <b className="figure text-[14px]">{year.sap.cycles}</b>
+                <span className="data ml-1.5 text-[11px] text-ink-soft">
+                  sap days{year.sap.started_on && <> from {short(year.sap.started_on)}</>}
+                  {year.sap.state === "over" && " · run over"}
+                </span>
+              </span>
+            )}
+          </div>
+          {/* Which trees brought the sap section up, so it is obvious why it
+              is here and why a neighbouring block has none. */}
+          {year.tapped.length > 0 && (
+            <p className="data mt-1.5 text-[11px] text-ink-soft">
+              tapped: {year.tapped.join(" · ")}
+            </p>
+          )}
+        </div>
+      )}
 
       {treeFit && (
         <div className="mb-3 rounded-md border border-rule border-l-4 border-l-growth bg-panel px-4 py-3">
