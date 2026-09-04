@@ -20,6 +20,7 @@ import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
 import { Pager, SortHeaders, type Column } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
+import UndoBar, { remembered } from "../components/UndoBar";
 import {
   CELL, Empty, ErrorBox, FIELD, ICON, IconButton, Pill, RowActions, Section,
 } from "../components/ui";
@@ -169,6 +170,8 @@ export default function TodoView({
 
       {err && <ErrorBox>{err}</ErrorBox>}
 
+      <UndoBar kinds={["task"]} onRestored={() => { refreshFeed.soon(); void load(); }} />
+
       {/* ── Write it down ──────────────────────────────────────────────── */}
       {/* No section heading: the button below names the act, and a heading
           plus a full-width submit was two rows spent saying "add". */}
@@ -262,7 +265,25 @@ export default function TodoView({
                       {t.reminder_only ? "reminder" : `${hhmm(t.starts_at)}–${hhmm(t.ends_at)}`}
                     </td>
                     <td className="px-3 py-2.5 text-right">
-                      <button onClick={async () => { await taskDelete(t.id); refreshFeed.soon(); void load(); }}
+                      <button onClick={async () => {
+                        // A task is the one row the record really deletes.
+                        // `task_save` takes the id back, so an undo returns it
+                        // under the id it had rather than as a new task — but
+                        // everything needed to rebuild it has to be kept here,
+                        // because after the delete there is nothing to read.
+                        remembered({
+                          kind: "task", blockId: region.id, label: t.title,
+                          item: {
+                            task_id: t.id, title: t.title,
+                            ...(t.note ? { note: t.note } : {}),
+                            ...(t.due ? { due: t.due } : {}),
+                            ...(t.starts_at ? { starts_at: t.starts_at } : {}),
+                            ...(t.ends_at ? { ends_at: t.ends_at } : {}),
+                            reminder_only: t.reminder_only, done: t.done,
+                          },
+                        });
+                        await taskDelete(t.id); refreshFeed.soon(); void load();
+                      }}
                         aria-label={`Remove ${t.title}`}
                         className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>
                     </td>

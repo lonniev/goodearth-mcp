@@ -6,6 +6,7 @@
 
 import { useUnits } from "../components/Units";
 import { useState } from "react";
+import { blockSave } from "../lib/mcp";
 import { deleteRegion, listRegions, type SavedRegion } from "../lib/regions";
 
 export default function Favorites({
@@ -20,6 +21,38 @@ export default function Favorites({
 }) {
   const u = useUnits();
   const [regions, setRegions] = useState<SavedRegion[]>(() => listRegions());
+  /// The block a confirm is open for. Retiring ground is the one act on this
+  /// site whose blast radius is bigger than the thing tapped — it takes every
+  /// crop, pest, watch and report recorded on it out of every view at once —
+  /// so it asks first where a row does not.
+  const [confirming, setConfirming] = useState<SavedRegion | null>(null);
+  const [forgetting, setForgetting] = useState(false);
+  const [err, setErr] = useState("");
+
+  /// Retire the block on the RECORD, not just in this browser.
+  ///
+  /// "Forget" used to call `deleteRegion` alone, which drops the block from
+  /// localStorage — and the next sign-in calls `hydrate()` with whatever the
+  /// server still holds, which put it straight back. The button did nothing
+  /// that survived a reload. Retiring it server-side is what `block_list`
+  /// then filters out, and it is soft: `retired_at` is stamped, nothing is
+  /// deleted, and the ground can be restored by saving it again.
+  async function forget(r: SavedRegion) {
+    setForgetting(true); setErr("");
+    try {
+      const res = await blockSave({
+        block: r.id, name: r.name, geometry: r.region,
+        base_temp: r.baseTempF, retired: true,
+      });
+      if (!res.success) { setErr(res.error || "The block could not be retired."); return; }
+      setRegions(deleteRegion(r.id));
+      setConfirming(null);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setForgetting(false);
+    }
+  }
 
   return (
     <>
@@ -68,7 +101,7 @@ export default function Favorites({
                 )}
                 {r.id !== "example-champlain" && (
                   <button
-                    onClick={() => setRegions(deleteRegion(r.id))}
+                    onClick={() => { setConfirming(r); setErr(""); }}
                     className="min-h-11 rounded px-3 text-[13px] text-ink-soft active:text-clay"
                   >
                     Forget
@@ -79,6 +112,41 @@ export default function Favorites({
           );
         })}
       </div>
+
+      {confirming && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink/40 px-5">
+          <div className="w-full max-w-sm rounded-xl border border-rule bg-paper p-5 shadow-xl">
+            <h2 className="figure text-[17px] font-semibold">
+              Forget {confirming.name}?
+            </h2>
+            {/* What actually happens, in the order it matters. A row can be
+                undone from the bar on its page; a block cannot, which is the
+                whole reason this asks first. */}
+            <p className="mt-2 text-[13px] leading-relaxed">
+              The ground and everything recorded on it — crops, pests, watches,
+              reports — stop appearing anywhere. Nothing is deleted: the record
+              keeps it, and saving the block again brings it back.
+            </p>
+            {err && <p className="mt-2 text-[12.5px] text-clay">{err}</p>}
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setConfirming(null)}
+                disabled={forgetting}
+                className="min-h-11 rounded-full border border-rule px-4 text-[13px] font-medium text-ink-soft disabled:opacity-40 active:bg-band"
+              >
+                Keep it
+              </button>
+              <button
+                onClick={() => void forget(confirming)}
+                disabled={forgetting}
+                className="min-h-11 rounded-full border-[1.5px] border-clay bg-clay px-4 text-[13px] font-semibold text-paper disabled:opacity-40"
+              >
+                {forgetting ? "Forgetting…" : "Forget it"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <p className="mt-5 text-[13px] leading-relaxed text-ink-soft">
         Add ground with the region picker in the top bar — a pin with a radius,

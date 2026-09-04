@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import CropLedger, { type LedgerRow } from "../components/CropLedger";
+import UndoBar, { remembered } from "../components/UndoBar";
 import Term from "../components/Term";
 import { useUnits } from "../components/Units";
 import Provenance from "../components/Provenance";
@@ -70,7 +71,7 @@ export default function Crops({
   const [pageNo, setPageNo] = useState(0);
   const [search, setSearch] = useState("");
 
-  const { items: plantings, save: storePlanting, retire: retirePlanting,
+  const { items: plantings, save: storePlanting, retire: retirePlanting, reload: reloadPlantings,
           loading: plantingsLoading, error: plantingsError,
           unknownBlock: plantingsUnknown, total, page, pages } =
     useBlockItems<Planting>(region.id, "planting", plantingCodec, undefined, {
@@ -333,8 +334,18 @@ export default function Crops({
     return { planting, status, reason: missed?.reason };
   });
 
-  const remove = (id: string) =>
+  /// Remove a row, and remember it. The record retires the row rather than
+  /// deleting it, so the undo below restores the row that was there — this
+  /// keeps a copy of what it looked like so the bar can name it and the
+  /// restore can re-save it under the same id.
+  const remove = (id: string) => {
+    const p = plantings.find((x) => x.id === id);
+    if (p) remembered({
+      kind: "planting", blockId: region.id, label: p.crop,
+      item: plantingCodec.to(p) as Record<string, unknown>,
+    });
     void retirePlanting(id).catch((e) => setFormErr(String(e.message ?? e)));
+  };
 
   return (
     <>
@@ -348,6 +359,8 @@ export default function Crops({
       {error && (
         <ErrorBox>{error}</ErrorBox>
       )}
+
+      <UndoBar kinds={["planting"]} onRestored={() => void reloadPlantings()} />
 
       {/* ── Add a planting ─────────────────────────────────────────────── */}
       <form id="new-planting" onSubmit={add} className="mb-4 rounded-md border border-rule bg-panel p-4">

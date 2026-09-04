@@ -14,6 +14,7 @@ import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
 import { Pager, SortHeaders, type Column } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
+import UndoBar, { remembered } from "../components/UndoBar";
 import { wildlifeCalendar, type WildlifeResult } from "../lib/mcp";
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
 import {
@@ -62,7 +63,7 @@ export default function Wildlife({
   const [draft, setDraft] = useState<SavedWildlife | null>(null);
   const [savingRow, setSavingRow] = useState(false);
 
-  const { items: models, save: storeWildlife, retire: retireWildlife,
+  const { items: models, save: storeWildlife, retire: retireWildlife, reload: reloadWildlife,
           loading: modelsLoading, error: modelsError,
           unknownBlock: modelsUnknown, total, page, pages } =
     useBlockItems<SavedWildlife>(region.id, "wildlife", wildlifeCodec, undefined, {
@@ -185,6 +186,8 @@ export default function Wildlife({
 
       {error && <ErrorBox>{error}</ErrorBox>}
 
+      <UndoBar kinds={["wildlife"]} onRestored={() => void reloadWildlife()} />
+
       {data && data.due_soon.length > 0 && (
         <div className="mb-5 rounded-md border border-rule border-l-4 border-l-honey bg-panel px-4 py-3">
           <span className="eyebrow">Watch for these</span>
@@ -264,7 +267,14 @@ export default function Wildlife({
                           past ? "bg-growth/12 text-growth" : "bg-band text-ink-soft"}`}>
                           {past ? "seen" : "ahead"}
                         </span>
-                        <button onClick={() => void retireWildlife(m.id)}
+                        <button onClick={() => {
+                          remembered({
+                            kind: "wildlife", blockId: region.id,
+                            label: [m.species, m.event].filter(Boolean).join(" · "),
+                            item: wildlifeCodec.to(m) as Record<string, unknown>,
+                          });
+                          void retireWildlife(m.id);
+                        }}
                           aria-label={`Remove ${m.species} ${m.event}`}
                           className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>
                       </td>

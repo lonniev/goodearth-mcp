@@ -1486,7 +1486,11 @@ async def tree_year(
     """
     parsed, found = await _block_region(npub, block)
 
-    plants = await _stored_items(npub, found["block_id"], "crop") if found else []
+    # "planting", not "crop". The item kind is `planting` everywhere the
+    # record is written — `block_item_save` takes it, the ledger reads it, and
+    # the Crops page saves it — so asking for "crop" matched nothing and the
+    # sap run could never appear however many maples were on the block.
+    plants = await _stored_items(npub, found["block_id"], "planting") if found else []
 
     try:
         return await tree_year_impl(parsed, plants)
