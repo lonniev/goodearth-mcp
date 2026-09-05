@@ -15,7 +15,8 @@ import {
   areaM2, formatArea, geoJSONToRing, isDrawable, ringToGeoJSON, searchPlace,
   type LatLng, type Place,
 } from "../lib/geo";
-import { listRegions, saveRegion, type SavedRegion } from "../lib/regions";
+import { listRegions, type SavedRegion } from "../lib/regions";
+import { saveBlock } from "../lib/saveBlock";
 
 const EMPTY: MapValue = { mode: "polygon", ring: [], centre: null, radiusM: 400 };
 
@@ -109,9 +110,17 @@ export default function MapView({
       region,
       baseTempF: baseTemp,
     };
-    saveRegion(saved);
-    onSaved(saved);       // switching to it re-scopes the whole app
-    setValue(EMPTY); setName(""); setMsg(`Saved ${trimmed}. Every view is now scoped to it.`);
+    // To the RECORD, then the cache. Saving only here is what lost a block:
+    // the server reported the patron had none, and the cache was cleared to
+    // match. See `saveBlock`.
+    setMsg("Saving…");
+    void saveBlock(saved)
+      .then((measured) => {
+        onSaved(measured);   // switching to it re-scopes the whole app
+        setValue(EMPTY); setName("");
+        setMsg(`Saved ${trimmed}. Every view is now scoped to it.`);
+      })
+      .catch((e: Error) => setMsg(e.message));
   }
 
   const ready =

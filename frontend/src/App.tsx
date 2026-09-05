@@ -17,6 +17,7 @@ import Preferences from "./components/Preferences";
 import AccountSummary from "./components/AccountSummary";
 import CalendarFeed from "./components/CalendarFeed";
 import { readPrefs, writePrefs, type Prefs } from "./lib/prefs";
+import FirstRun from "./components/FirstRun";
 import ForgetMe from "./components/ForgetMe";
 import GuestShell from "./components/GuestShell";
 import { UnitProvider } from "./components/Units";
@@ -43,7 +44,8 @@ import {
   type BlockRow, type FrostWindowResult,
 } from "./lib/mcp";
 import {
-  getActiveRegionId, hydrate, listRegions, setActiveRegionId, type SavedRegion,
+  EXAMPLE_REGION, getActiveRegionId, hydrate, listRegions, setActiveRegionId,
+  type SavedRegion,
 } from "./lib/regions";
 import { migrateToBlocks } from "./lib/migrateBlocks";
 
@@ -119,6 +121,9 @@ export default function App() {
   /// the Favorites empty state and MapView's save button — and threaded no
   /// further, because everything else reads the cache and does not care.
   const [blocksSynced, setBlocksSynced] = useState(false);
+  /// Whether the grower has asked to see the worked example. Until they do, a
+  /// patron with no ground is ASKED for some rather than handed Vermont.
+  const [showingExample, setShowingExample] = useState(false);
 
   const [region, setRegion] = useState<SavedRegion>(() => {
     const all = listRegions();
@@ -246,7 +251,18 @@ export default function App() {
         hive={prefs.bees ? <Hive mood={hiveMood(todayHigh(frost), frostWatchLive(frost))} /> : undefined}
       >
         {view === "ledger" && (
-          <HeatLedger region={region} onCost={onCost} onFrost={setFrost} onView={setView} />
+          // A patron with no ground of their own is asked for some. The
+          // example is one tap away and says what it is; it used to be the
+          // whole first impression, unlabelled and 500 miles from most people.
+          blocksSynced && region.id === EXAMPLE_REGION.id && !showingExample ? (
+            <FirstRun
+              onSaved={(r) => { pickRegion(r); setShowingExample(false); }}
+              onDraw={() => setView("map")}
+              onExample={() => setShowingExample(true)}
+            />
+          ) : (
+            <HeatLedger region={region} onCost={onCost} onFrost={setFrost} onView={setView} />
+          )
         )}
         {view === "map" && <MapView active={region} onSaved={(r) => { pickRegion(r); setView("ledger"); }} />}
         {view === "almanac" && <Almanac region={region} onCost={onCost} />}

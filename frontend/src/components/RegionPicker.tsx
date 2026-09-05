@@ -1,10 +1,11 @@
 // Active-region picker. Switching re-scopes the whole app, so it sits in the
 // top bar beside the sat chip rather than inside any one view.
 
+import { saveBlock } from "../lib/saveBlock";
 import { useUnits } from "./Units";
 import { useEffect, useRef, useState } from "react";
 import {
-  deleteRegion, listRegions, parsePastedGeoJSON, pinRegion, saveRegion,
+  deleteRegion, listRegions, parsePastedGeoJSON, pinRegion,
   type SavedRegion,
 } from "../lib/regions";
 
@@ -30,16 +31,38 @@ export default function RegionPicker({
     return () => document.removeEventListener("mousedown", away);
   }, [open]);
 
-  function commit(result: SavedRegion | string) {
+  const [saving, setSaving] = useState(false);
+
+  /// Ground goes to the RECORD first. Saving only to this browser is the state
+  /// that lost a block: the server then reported the patron had none, and the
+  /// cache was cleared to match. See `saveBlock`.
+  async function commit(result: SavedRegion | string) {
     if (typeof result === "string") { setErr(result); return; }
-    setRegions(saveRegion(result));
-    onPick(result);
-    setAdding(null); setOpen(false); setErr("");
+    setSaving(true); setErr("");
+    try {
+      const saved = await saveBlock(result);
+      setRegions(listRegions());
+      onPick(saved);
+      setAdding(null); setOpen(false);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
   }
 
-  const detail = active.sampleCount
-    ? `${active.areaHa ? active.areaHa.toFixed(1) + " ha · " : ""}${active.sampleCount} samples`
-    : "not measured yet";
+  /// The worked example, marked as one. It renders exactly like a real block
+  /// — name, area, satellite ground — and nothing said otherwise, so a
+  /// first-time reader could take it for a guess at where they are.
+  const EXAMPLE = "example-champlain";
+
+  const detail = active.id === EXAMPLE
+    // Said in the one place a reader always sees, because the example is
+    // otherwise indistinguishable from ground they drew.
+    ? "worked example — not your ground"
+    : active.sampleCount
+      ? `${active.areaHa ? active.areaHa.toFixed(1) + " ha · " : ""}${active.sampleCount} samples`
+      : "not measured yet";
 
   return (
     <div className="relative" ref={box}>
@@ -69,11 +92,16 @@ export default function RegionPicker({
                   }`}
                 >
                   {r.name}
+                  {r.id === EXAMPLE && (
+                    <span className="ml-2 rounded-full bg-band px-1.5 py-0.5 text-[10px] font-semibold text-ink-soft">
+                      example
+                    </span>
+                  )}
                   <span className="data ml-2 text-[10px] text-ink-soft">
                     {"lat" in r.region ? `pin ${r.region.radius_m} m` : "polygon"}
                   </span>
                 </button>
-                {r.id !== "example-champlain" && (
+                {r.id !== EXAMPLE && (
                   <button
                     onClick={() => setRegions(deleteRegion(r.id))}
                     aria-label={`Forget ${r.name}`}
@@ -103,7 +131,7 @@ export default function RegionPicker({
               onSubmit={(e) => {
                 e.preventDefault();
                 const f = new FormData(e.currentTarget);
-                commit(pinRegion(
+                void commit(pinRegion(
                   String(f.get("name") ?? ""),
                   Number(f.get("lat")), Number(f.get("lon")), Number(f.get("r")),
                   f.get("base") ? u.toF(Number(f.get("base"))) : 50,
@@ -120,7 +148,9 @@ export default function RegionPicker({
                 <Field name="base" label={`Base${u.tempUnit}`}
                   placeholder={String(Math.round(u.temp(50)))} />
               </div>
-              <button className="min-h-11 w-full rounded bg-ink text-[13px] font-semibold text-paper">Save block</button>
+              <button disabled={saving}
+                className="min-h-11 w-full rounded bg-ink text-[13px] font-semibold text-paper disabled:opacity-40">
+                {saving ? "Saving…" : "Save block"}</button>
             </form>
           )}
 
@@ -130,7 +160,7 @@ export default function RegionPicker({
               onSubmit={(e) => {
                 e.preventDefault();
                 const f = new FormData(e.currentTarget);
-                commit(parsePastedGeoJSON(
+                void commit(parsePastedGeoJSON(
                   String(f.get("json") ?? ""), String(f.get("name") ?? ""),
                   f.get("base") ? u.toF(Number(f.get("base"))) : 50,
                 ));
@@ -145,7 +175,9 @@ export default function RegionPicker({
               </label>
               <Field name="base" label={`Base${u.tempUnit}`}
                   placeholder={String(Math.round(u.temp(50)))} />
-              <button className="min-h-11 w-full rounded bg-ink text-[13px] font-semibold text-paper">Save block</button>
+              <button disabled={saving}
+                className="min-h-11 w-full rounded bg-ink text-[13px] font-semibold text-paper disabled:opacity-40">
+                {saving ? "Saving…" : "Save block"}</button>
             </form>
           )}
 
