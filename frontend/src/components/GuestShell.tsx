@@ -22,8 +22,11 @@ const LABEL: Record<string, string> = {
   references: "Sources",
 };
 
-export default function GuestShell({ view, onView, onSignIn, children }: {
+export default function GuestShell({ view, signingIn, onView, onSignIn, children }: {
   view: ViewKey;
+  /// The gate is showing. No page is current then — the reader is at the door,
+  /// not on one of these — and the Sign in button is what marks where they are.
+  signingIn?: boolean;
   onView: (v: ViewKey) => void;
   onSignIn: () => void;
   children: ReactNode;
@@ -40,17 +43,19 @@ export default function GuestShell({ view, onView, onSignIn, children }: {
           <nav className="flex flex-1 flex-wrap items-center gap-x-1 gap-y-1">
             {PUBLIC_VIEWS.map((k) => (
               <button key={k} onClick={() => onView(k)}
-                aria-current={view === k ? "page" : undefined}
+                aria-current={!signingIn && view === k ? "page" : undefined}
                 className={`min-h-9 rounded-full px-3 text-[12.5px] font-medium ${
-                  view === k ? "bg-ink text-paper" : "text-ink-soft active:bg-band"
+                  !signingIn && view === k ? "bg-ink text-paper" : "text-ink-soft active:bg-band"
                 }`}>
                 {LABEL[k] ?? k}
               </button>
             ))}
           </nav>
 
-          <button onClick={onSignIn}
-            className="min-h-9 shrink-0 rounded-full border-[1.5px] border-ink px-4 text-[12.5px] font-semibold">
+          <button onClick={onSignIn} aria-current={signingIn ? "page" : undefined}
+            className={`min-h-9 shrink-0 rounded-full border-[1.5px] border-ink px-4 text-[12.5px] font-semibold ${
+              signingIn ? "bg-ink text-paper" : ""
+            }`}>
             Sign in
           </button>
         </div>

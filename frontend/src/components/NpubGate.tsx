@@ -21,15 +21,21 @@ import { setSessionNsec } from "../lib/sessionNsec";
 
 type Stage = "begin" | "awaiting" | "checking";
 
-const card = "rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900";
+const card = "rounded-xl border border-rule bg-panel";
 const input =
-  "w-full rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-zinc-950 border border-stone-300 dark:border-zinc-700 focus:outline-hidden focus:border-amber-400 dark:focus:border-amber-500 font-mono";
+  "w-full rounded-lg px-3 py-2.5 text-sm bg-panel border border-rule focus:outline-hidden focus:border-honey font-mono";
 const primary =
-  "w-full bg-amber-600 hover:bg-amber-500 text-white text-sm py-2.5 rounded-lg disabled:opacity-40 transition-colors";
+  // A disabled primary at 40% is grey text on grey and reads as broken rather
+  // than as waiting. Disabled, it becomes an outline — plainly not ready, and
+  // still legible.
+  "w-full text-sm py-2.5 rounded-lg font-semibold transition-colors " +
+  "bg-ink text-paper hover:bg-ink " +
+  "disabled:bg-transparent disabled:text-ink-soft disabled:border disabled:border-rule";
 const ghost =
-  "w-full text-sm py-2 rounded-lg border border-stone-300 dark:border-zinc-700 text-stone-600 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 disabled:opacity-40 transition-colors";
+  "w-full text-sm py-2 rounded-lg border border-rule text-ink hover:bg-band " +
+  "disabled:text-ink-soft disabled:border-rule/50 transition-colors";
 const errBox =
-  "rounded-lg p-3 text-xs bg-red-50 border border-red-200 text-red-700 dark:bg-red-500/10 dark:border-red-500/30 dark:text-red-400";
+  "rounded-lg p-3 text-xs bg-red-50 border border-red-200 text-red-700";
 
 export default function NpubGate({
   onLogin,
@@ -169,22 +175,22 @@ export default function NpubGate({
   return (
     <div className="max-w-md mx-auto mt-16 px-4">
       <div className="flex items-center gap-2 mb-1">
-        <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+        <span className="w-2.5 h-2.5 rounded-full bg-ink" />
         <h1 className="text-lg font-semibold">Sign in to Good Earth</h1>
       </div>
-      <p className="text-sm text-stone-500 dark:text-zinc-400 mb-5">
+      <p className="text-sm text-ink-soft mb-5">
         Your Nostr npub is your identity. No email, no password, no KYC.
       </p>
 
       {notice && (
-        <div className="mb-5 rounded-lg p-3 text-xs bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300">
+        <div className="mb-5 rounded-lg p-3 text-xs bg-honey/10 border border-honey/40 text-ink">
           {notice}
         </div>
       )}
 
       {stage === "begin" && recents.length > 0 && (
         <div className="mb-5">
-          <div className="text-xs uppercase tracking-wider text-stone-400 dark:text-zinc-500 mb-2">
+          <div className="text-xs uppercase tracking-wider text-ink-soft mb-2">
             Recent identities
           </div>
           <div className="space-y-1.5">
@@ -194,12 +200,12 @@ export default function NpubGate({
                   onClick={() => reuseRecent(e)}
                   disabled={busy}
                   title={`Re-enter as ${e.npub} on the cached proof`}
-                  className={`${card} flex-1 flex items-center justify-between px-3 py-2.5 text-left hover:border-amber-300 dark:hover:border-amber-500/40 transition-colors`}
+                  className={`${card} flex-1 flex items-center justify-between px-3 py-2.5 text-left hover:border-honey/50 transition-colors`}
                 >
                   <span className="font-mono text-xs truncate">
                     {e.npub.slice(0, 12)}…{e.npub.slice(-6)}
                   </span>
-                  <span className="text-xs text-amber-600 dark:text-amber-400 shrink-0 ml-2">
+                  <span className="text-xs text-honey shrink-0 ml-2">
                     {ttl(e.expiresAt)} left
                   </span>
                 </button>
@@ -207,7 +213,7 @@ export default function NpubGate({
                   onClick={() => forget(e.npub)}
                   disabled={busy}
                   title="Forget this identity"
-                  className="w-9 rounded-lg border border-stone-300 dark:border-zinc-700 text-stone-400 dark:text-zinc-500 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors"
+                  className="w-9 rounded-lg border border-rule text-ink-soft hover:bg-band transition-colors"
                 >
                   ×
                 </button>
@@ -220,7 +226,7 @@ export default function NpubGate({
       <div className={`${card} p-4 space-y-3`}>
         {stage === "begin" ? (
           <>
-            <label className="block text-xs uppercase tracking-wider text-stone-400 dark:text-zinc-500">
+            <label className="block text-xs uppercase tracking-wider text-ink-soft">
               Paste your npub or nsec
             </label>
             <input
@@ -241,7 +247,7 @@ export default function NpubGate({
               className={input}
             />
             {generatedHint && (
-              <div className="rounded-lg p-2.5 text-xs bg-amber-50 border border-amber-200 text-stone-600 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-zinc-300">
+              <div className="rounded-lg p-2.5 text-xs bg-honey/10 border border-honey/40 text-ink-soft">
                 New key generated. <b>Save this nsec</b> somewhere safe — it's the only
                 copy and it lives only in this browser.
               </div>
@@ -253,7 +259,7 @@ export default function NpubGate({
             >
               {busy ? "Sending…" : isNsec ? "Sign in" : isNpub ? "Send proof DM" : "Sign in"}
             </button>
-            <p className="text-xs text-stone-500 dark:text-zinc-400">
+            <p className="text-xs text-ink-soft">
               {isNsec
                 ? "Your nsec stays in this browser and signs each call inline."
                 : "We send a Secure Courier DM to your npub. Reply from your Nostr client — your signature is the proof."}
@@ -264,27 +270,27 @@ export default function NpubGate({
           </>
         ) : (
           <>
-            <div className="rounded-lg p-3 text-xs bg-amber-50 border border-amber-200 text-stone-600 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-zinc-300 space-y-1.5">
-              <div className="font-medium text-amber-700 dark:text-amber-400">
+            <div className="rounded-lg p-3 text-xs bg-honey/10 border border-honey/40 text-ink-soft space-y-1.5">
+              <div className="font-medium text-ink">
                 DM sent — check your Nostr client.
               </div>
               <div>Reply with any text. Your signature on that DM is the proof.</div>
               {operatorHash && (
                 <div>
                   Verify the sender — operator fingerprint:{" "}
-                  <span className="font-mono text-amber-700 dark:text-amber-400">🔒 {operatorHash}</span>
+                  <span className="font-mono text-ink">🔒 {operatorHash}</span>
                 </div>
               )}
             </div>
             {pendingProof && (
-              <div className="rounded-lg p-3 text-xs bg-white dark:bg-zinc-950 border border-amber-300 dark:border-amber-500/40 space-y-2">
-                <div className="uppercase tracking-wider text-[10px] text-stone-400 dark:text-zinc-500">
+              <div className="rounded-lg p-3 text-xs bg-panel border border-honey/50 space-y-2">
+                <div className="uppercase tracking-wider text-[10px] text-ink-soft">
                   Confirmation code
                 </div>
-                <div className="font-mono text-base text-amber-700 dark:text-amber-400 select-all">
+                <div className="font-mono text-base text-ink select-all">
                   {pendingProof}
                 </div>
-                <div className="text-stone-500 dark:text-zinc-400 leading-relaxed">
+                <div className="text-ink-soft leading-relaxed">
                   This same code appears in the DM. <b>Approve the DM only if the
                   code there matches the one shown here.</b> If they differ — or the
                   DM points you somewhere other than this site — do not reply.
@@ -300,7 +306,7 @@ export default function NpubGate({
             <button
               onClick={reset}
               disabled={busy}
-              className="w-full text-xs py-1.5 text-stone-400 dark:text-zinc-500 hover:text-stone-700 dark:hover:text-zinc-200 transition-colors"
+              className="w-full text-xs py-1.5 text-ink-soft hover:text-ink transition-colors"
             >
               Use a different npub
             </button>
@@ -309,7 +315,7 @@ export default function NpubGate({
 
         {error && <div className={errBox}>{error}</div>}
         {note && (
-          <div className="text-xs text-center text-stone-400 dark:text-zinc-500 italic">{note}</div>
+          <div className="text-xs text-center text-ink-soft italic">{note}</div>
         )}
       </div>
     </div>

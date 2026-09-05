@@ -218,17 +218,26 @@ export default function App() {
   // rather than bouncing.
   if (!signedIn) {
     const login = () => { setSignedIn(true); setNotice(undefined); };
-    if (asking || !isPublic(view)) {
-      return <NpubGate onLogin={login} notice={notice} />;
-    }
+    // The gate goes INSIDE the shell rather than replacing it. Returning it
+    // bare meant a visitor who tapped Sign in — or arrived on a bookmarked
+    // page — lost every way back: no nav, no wordmark, and the free explainers
+    // they had been told about a moment earlier were unreachable.
+    const signingIn = asking || !isPublic(view);
     return (
-      <GuestShell view={view} onView={setView} onSignIn={() => setAsking(true)}>
-        {view === "welcome" && <Welcome onView={setView} onSignIn={() => setAsking(true)} />}
-        {view === "plant" && <LifeOfAPlant />}
-        {view === "pest" && <LifeOfAPest />}
-        {view === "tree" && <LifeOfATree />}
-        {view === "about" && <About />}
-        {view === "references" && <References />}
+      <GuestShell
+        view={view}
+        signingIn={signingIn}
+        // Leaving the gate is just navigating away from it.
+        onView={(v) => { setAsking(false); setView(v); }}
+        onSignIn={() => setAsking(true)}
+      >
+        {signingIn && <NpubGate onLogin={login} notice={notice} />}
+        {!signingIn && view === "welcome" && <Welcome onView={setView} onSignIn={() => setAsking(true)} />}
+        {!signingIn && view === "plant" && <LifeOfAPlant />}
+        {!signingIn && view === "pest" && <LifeOfAPest />}
+        {!signingIn && view === "tree" && <LifeOfATree />}
+        {!signingIn && view === "about" && <About />}
+        {!signingIn && view === "references" && <References />}
       </GuestShell>
     );
   }
