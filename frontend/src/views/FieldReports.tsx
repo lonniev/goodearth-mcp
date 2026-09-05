@@ -369,7 +369,11 @@ export default function FieldReports({
               </div>
             )}
           </label>
-          <IconButton path={ICON.search} label={inatBusy ? "Fetching…" : "Import"}
+          {/* Search, not Import. This writes nothing: it fetches and lists,
+              and the record is only touched by "Import n selected" below,
+              after the grower has picked. A button that claims to import and
+              does not is worse than one with a duller name. */}
+          <IconButton path={ICON.search} label={inatBusy ? "Searching…" : "Search"}
             onClick={pullINat} disabled={inatBusy || !inatUser.trim()} />
         </div>
         <p className="mt-2 text-[12px] leading-relaxed text-ink-soft">
