@@ -19,6 +19,20 @@ export default function RegionPicker({
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState<"pin" | "poly" | null>(null);
   const [regions, setRegions] = useState<SavedRegion[]>(() => listRegions());
+
+  /// Re-read the list, because a block can be saved from OUTSIDE this
+  /// component and this held a snapshot taken when it mounted.
+  ///
+  /// `AppShell` mounts once, so the snapshot was taken at first paint — before
+  /// the server's blocks arrive, and before a first-run grower saves the block
+  /// proposed around them. Both wrote to the store and neither could tell this
+  /// list about it, so the dropdown went on offering the worked example alone
+  /// while the bar above it named the ground they had just drawn.
+  ///
+  /// Two moments are enough to catch every writer: the active block changing
+  /// (which is what `pickRegion` and the server sync both do) and the dropdown
+  /// being opened (which is the only time the list is read).
+  useEffect(() => { setRegions(listRegions()); }, [active.id, open]);
   const [err, setErr] = useState("");
   const box = useRef<HTMLDivElement>(null);
 

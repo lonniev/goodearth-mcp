@@ -5,7 +5,7 @@
 // temperature its crops are counted against.
 
 import { useUnits } from "../components/Units";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { blockSave } from "../lib/mcp";
 import { deleteRegion, listRegions, type SavedRegion } from "../lib/regions";
 
@@ -21,6 +21,12 @@ export default function Favorites({
 }) {
   const u = useUnits();
   const [regions, setRegions] = useState<SavedRegion[]>(() => listRegions());
+
+  /// Same snapshot hazard as the region picker. This view is remounted when
+  /// it is navigated to, so it is usually fresh — but a grower sitting on it
+  /// when the server's blocks land would keep reading the list as it was
+  /// before. `synced` is exactly that moment.
+  useEffect(() => { setRegions(listRegions()); }, [synced]);
   /// The block a confirm is open for. Retiring ground is the one act on this
   /// site whose blast radius is bigger than the thing tapped — it takes every
   /// crop, pest, watch and report recorded on it out of every view at once —
