@@ -19,18 +19,45 @@
 
 import type { Region } from "./mcp";
 
-const KEY = "goodearth:regions:v1";
+/// `KEY_BASE` alone — with no npub appended — is the UNSCOPED pile every
+/// patron on this browser wrote to before the scoping below. It is
+/// `migrateBlocks`'s source and nothing else reads it: whose ground is in it
+/// cannot be known, so it is lifted to the server and never shown.
+const KEY_BASE = "goodearth:regions:v1";
 const ACTIVE_KEY_BASE = "goodearth:active-region:v1";
+
+/// Which npub this browser is signed in as, read straight from storage rather
+/// than through `mcp` — importing it here would be a cycle, since `mcp` needs
+/// this module's `Region`.
+function patron(): string {
+  try {
+    return window.localStorage.getItem("goodearth:patron_npub:v1") ?? "";
+  } catch {
+    return "";
+  }
+}
 
 /// Scoped to the patron, because two npubs in one browser sharing one active
 /// id means the second signs in pointing at ground the server will not resolve
 /// for them.
 function activeKey(): string {
-  try {
-    return `${ACTIVE_KEY_BASE}:${window.localStorage.getItem("goodearth:patron_npub:v1") ?? ""}`;
-  } catch {
-    return ACTIVE_KEY_BASE;
-  }
+  return `${ACTIVE_KEY_BASE}:${patron()}`;
+}
+
+/// The blocks cache, scoped the same way — and it was NOT, which is the bug
+/// this comment exists for.
+///
+/// The reasoning above was written for the active id and never applied to the
+/// blocks themselves, so a second npub on one browser read the first's cache:
+/// a new patron signed in and saw a farm's name, its town, its acreage and
+/// tonight's conditions for ground they have never seen, and every paid call
+/// they made was about it. Reported 2026-09-05 with a screenshot of exactly
+/// that.
+///
+/// The suffix is appended even when there is no npub, so a signed-out reader
+/// gets its own empty scope rather than falling back to the shared pile.
+function key(): string {
+  return `${KEY_BASE}:${patron()}`;
 }
 
 export interface SavedRegion {
@@ -71,7 +98,7 @@ function read<T>(key: string, fallback: T): T {
 }
 
 export function listRegions(): SavedRegion[] {
-  const saved = read<SavedRegion[]>(KEY, []);
+  const saved = read<SavedRegion[]>(key(), []);
   // The example is always available but never persisted, so it cannot be
   // orphaned by a schema change or clutter an established grower's list once
   // they have their own ground saved.
@@ -85,16 +112,16 @@ export function listRegions(): SavedRegion[] {
 /// know about has either been migrated already or was never saved.
 export function hydrate(rows: SavedRegion[]): SavedRegion[] {
   try {
-    window.localStorage.setItem(KEY, JSON.stringify(rows));
+    window.localStorage.setItem(key(), JSON.stringify(rows));
   } catch { /* private window / quota — this session still works from memory */ }
   return rows;
 }
 
 export function saveRegion(r: SavedRegion): SavedRegion[] {
-  const all = read<SavedRegion[]>(KEY, []).filter((x) => x.id !== r.id);
+  const all = read<SavedRegion[]>(key(), []).filter((x) => x.id !== r.id);
   const next = [...all, r];
   try {
-    window.localStorage.setItem(KEY, JSON.stringify(next));
+    window.localStorage.setItem(key(), JSON.stringify(next));
   } catch {
     /* private window / quota — the region is still usable this session */
   }
@@ -102,9 +129,9 @@ export function saveRegion(r: SavedRegion): SavedRegion[] {
 }
 
 export function deleteRegion(id: string): SavedRegion[] {
-  const next = read<SavedRegion[]>(KEY, []).filter((x) => x.id !== id);
+  const next = read<SavedRegion[]>(key(), []).filter((x) => x.id !== id);
   try {
-    window.localStorage.setItem(KEY, JSON.stringify(next));
+    window.localStorage.setItem(key(), JSON.stringify(next));
   } catch { /* noop */ }
   return next;
 }

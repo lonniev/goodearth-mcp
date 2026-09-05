@@ -168,10 +168,14 @@ export default function App() {
       await migrateToBlocks();
       const res = await blockList().catch(() => null);
       if (!live || !res?.success) return;
-      // Seeded means the grower has saved nothing yet; the worked example is
-      // already what the cache shows, so there is nothing to overwrite.
-      if (res.seeded) { setBlocksSynced(true); return; }
-      const rows: SavedRegion[] = res.blocks.map((b: BlockRow) => ({
+      // Seeded means the grower has saved NOTHING, and that is a fact to write
+      // down rather than a reason to skip the write.
+      //
+      // This used to return early on the assumption that "the worked example
+      // is already what the cache shows". It was not: the cache could hold
+      // another patron's blocks, and returning here left them standing. A new
+      // npub signed in and kept looking at a farm that was not theirs.
+      const rows: SavedRegion[] = res.seeded ? [] : res.blocks.map((b: BlockRow) => ({
         id: b.block_id,
         name: b.name,
         region: b.geometry,
@@ -180,7 +184,11 @@ export default function App() {
         sampleCount: b.sample_count ?? undefined,
       }));
       hydrate(rows);
-      setRegion((cur) => rows.find((r) => r.id === cur.id) ?? rows[0] ?? cur);
+      // Through `listRegions` rather than `rows`, so an empty record lands on
+      // the worked example. `rows[0] ?? cur` kept the stale block precisely
+      // when there was nothing to replace it with.
+      const shown = listRegions();
+      setRegion((cur) => shown.find((r) => r.id === cur.id) ?? shown[0] ?? cur);
       setBlocksSynced(true);
     })();
     return () => { live = false; };
