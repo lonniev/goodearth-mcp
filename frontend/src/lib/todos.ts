@@ -10,7 +10,8 @@
 // already sent, and it does not clear the local copy until every task has
 // been acknowledged by the server.
 
-import { taskSave } from "./mcp";
+import { claimLegacy } from "./legacyOwner";
+import { getStoredNpub, taskSave } from "./mcp";
 
 const KEY = "goodearth:todos:v1";
 const DONE_KEY = "goodearth:todos:migrated:v1";
@@ -36,6 +37,12 @@ function readLegacy(): LegacyTodo[] {
 export async function migrateLocalTodos(regionId: string): Promise<number> {
   try {
     if (window.localStorage.getItem(DONE_KEY)) return 0;
+    // Same unscoped pile, same hazard as `migrateBlocks`: this store predates
+    // npub keying, and lifting it is a WRITE into whichever account is signed
+    // in. Its global sentinel happens to stop a SECOND npub once anyone has
+    // migrated — but the first patron never to finish would have left the pile
+    // for whoever signed in next.
+    if (!claimLegacy(getStoredNpub())) return 0;
   } catch { return 0; }
 
   const mine = readLegacy().filter((t) => t.regionId === regionId);

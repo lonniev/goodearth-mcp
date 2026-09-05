@@ -19,6 +19,7 @@
 // and the ids that landed are recorded, so a run that dies halfway resumes
 // instead of re-sending what already arrived.
 
+import { claimLegacy } from "./legacyOwner";
 import {
   blockItemSave, blockSave, getStoredNpub, type ItemKind, type Region,
 } from "./mcp";
@@ -86,6 +87,9 @@ export async function migrateToBlocks(): Promise<MigrationReport> {
   const npub = getStoredNpub();
   const out: MigrationReport = { ran: false, blocks: 0, items: 0, failed: [] };
   if (!npub) return out;
+  // Not ours to lift. A second npub on this browser reads nothing — see
+  // `legacyOwner.ts` for the account transfer this stops.
+  if (!claimLegacy(npub)) return out;
 
   const regions = read<LegacyRegion[]>(LEGACY.regions, [])
     .filter((r) => r && r.id && r.id !== EXAMPLE_ID);
