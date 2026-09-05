@@ -21,6 +21,11 @@ import { VIEW_KEYS, type ViewKey } from "./views.ts";
 
 export const DEFAULT_VIEW: ViewKey = "ledger";
 
+/// Where someone with no npub starts. A stranger arriving at the bare domain
+/// wants to know what this is; the ledger is a page about a farm they do not
+/// have. Kept beside the default it replaces so the pair is read together.
+export const GUEST_VIEW: ViewKey = "welcome";
+
 function isView(v: string): v is ViewKey {
   return (VIEW_KEYS as readonly string[]).includes(v);
 }
@@ -64,8 +69,14 @@ export function writeView(view: ViewKey): void {
   }
 }
 
-export function onRouteChange(cb: (view: ViewKey) => void): () => void {
-  const handler = () => cb(readView());
+/// `fallback` is what an EMPTY hash means, and it differs by who is asking:
+/// a grower pressing back to the bare domain means their farm, a visitor
+/// means the front door. Reading `DEFAULT_VIEW` for both sent a signed-out
+/// visitor from `#/plant` to the sign-in gate on a press of the back button.
+export function onRouteChange(
+  cb: (view: ViewKey) => void, fallback: ViewKey = DEFAULT_VIEW,
+): () => void {
+  const handler = () => cb(viewFromHash(window.location.hash) ?? fallback);
   window.addEventListener("hashchange", handler);
   return () => window.removeEventListener("hashchange", handler);
 }
