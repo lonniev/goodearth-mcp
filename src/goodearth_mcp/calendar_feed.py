@@ -162,6 +162,14 @@ async def build_feed(
     dates: list[str] = []
     curves: dict[float, list[float]] = {}
     frost_summary: dict[str, Any] | None = None
+    # The three series a grower-defined trigger reads. Empty unless something
+    # asks for them, and read from the ALMANAC record rather than the season
+    # one, because that is the feed that carries rainfall.
+    wx_max: list[float | None] = []
+    wx_min: list[float | None] = []
+    wx_rain: list[float | None] = []
+    wx_dates: list[str] = []
+    wx_error = ""
 
     # The season and the frost record are read unconditionally. Frost dates
     # belong on any farm calendar, so even a feed of nothing but to-dos is
@@ -192,6 +200,31 @@ async def build_feed(
             curves = {b: gdd.accumulate(tmax, tmin, b) for b in sorted(bases)}
         except sources.UpstreamError:
             pass
+
+    # A condition event is dated day by day off the almanac record — the
+    # night's low, the day's high, whether it rained. One extra read, taken
+    # only when something on this block actually defines a trigger, and it is
+    # a cache key the almanac tool already warms.
+    if any(e["driver"] == "condition" for e in parsed_wild):
+        try:
+            alm = await record_cache.almanac_history(
+                region.centroid.lat, region.centroid.lon,
+                start.isoformat(), today.isoformat(),
+            )
+            block = sources.daily_block(alm)
+            wx_dates = [str(d) for d in (block.get("time") or [])]
+
+            def _num(v: Any) -> float | None:
+                return float(v) if isinstance(v, (int, float)) else None
+
+            wx_max = [_num(v) for v in (block.get("temperature_2m_max") or [])]
+            wx_min = [_num(v) for v in (block.get("temperature_2m_min") or [])]
+            wx_rain = [_num(v) for v in (block.get("precipitation_sum") or [])]
+        except (sources.UpstreamError, OSError) as exc:
+            # Said out loud rather than left to look like "the trigger has not
+            # fired". Not being able to check and having checked and found
+            # nothing are different answers.
+            wx_error = f"could not read this season's weather to check it: {exc}"
 
     if record:
         try:
@@ -332,6 +365,21 @@ async def build_feed(
             r = wildlife.calendar_event(e, today)
             d = ical.as_date(r.get("reached_on") or r.get("projected_date"))
             detail = r["threshold"]
+        elif e["driver"] == "condition":
+            if wx_error or not wx_dates:
+                skipped.append({"kind": "wildlife", "name": e["species"], "item_id": None,
+                                "reason": wx_error or "no season record to check it against"})
+                continue
+            r = wildlife.condition_event(e, wx_dates, wx_max, wx_min, wx_rain, today)
+            d = ical.as_date(r.get("reached_on"))
+            detail = r["threshold"]
+            if not d:
+                # A trigger the season has not met yet has no date to publish,
+                # and there is no forecasting a wet night. Named rather than
+                # dropped, so a grower who defined it can see it is waiting.
+                skipped.append({"kind": "wildlife", "name": e["species"],
+                                "item_id": None, "reason": r["note"]})
+                continue
         elif e["driver"] == "daylight":
             from goodearth_mcp.almanac import next_daylight_crossing
             iso = next_daylight_crossing(

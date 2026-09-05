@@ -1228,7 +1228,7 @@ export async function almanacFor(block: string): Promise<AlmanacResult> {
 export interface WildlifeEventInput {
   species: string;
   event: string;
-  driver: "heat" | "daylight" | "interval" | "calendar";
+  driver: "heat" | "daylight" | "interval" | "calendar" | "condition";
   emoji?: string;
   note?: string;
   gdd?: number;
@@ -1240,6 +1240,18 @@ export interface WildlifeEventInput {
   /// event is this — gestation, incubation, days to point of lay.
   days?: number;
   from?: string;
+  /// A grower-defined trigger, dated by what this ground's weather did. The
+  /// salamanders' "Big Night" is the case: the first mild wet night after the
+  /// ground thaws, which no catalogue holds and no heat total finds. Stored in
+  /// the record, so it belongs to the grower and re-dates itself each season.
+  trigger?: {
+    /// MM-DD. The earliest the season will look, so a February thaw is not
+    /// mistaken for the thing itself.
+    after?: string;
+    min_night_f?: number;
+    min_day_f?: number;
+    wet?: boolean;
+  };
 }
 
 export interface WildlifeRow {
@@ -1248,7 +1260,7 @@ export interface WildlifeRow {
   /// separates them with certainty.
   ref?: string;
   species: string; event: string; emoji: string | null; note: string | null;
-  driver: "heat" | "daylight" | "interval" | "calendar";
+  driver: "heat" | "daylight" | "interval" | "calendar" | "condition";
   threshold: string;
   reached_on: string | null;
   projected_date: string | null;

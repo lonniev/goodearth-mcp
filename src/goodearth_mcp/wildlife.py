@@ -43,7 +43,18 @@ from typing import Any
 
 from goodearth_mcp import almanac
 
-DRIVERS = {"heat", "daylight", "interval", "calendar"}
+#: The Fahrenheit range any temperature in this module must fall inside. Named
+#: once because the trigger check and the base-temperature check are the same
+#: claim about the same scale.
+MIN_BASE_F = 20.0
+MAX_BASE_F = 80.0
+
+DRIVERS = {"heat", "daylight", "interval", "calendar", "condition"}
+
+#: What a `condition` trigger may ask about. Deliberately short: each of these
+#: is a field the block's own daily record already carries, so a trigger is
+#: always answerable from data this service has rather than from a promise.
+TRIGGER_KEYS = {"after", "min_night_f", "min_day_f", "wet"}
 
 
 class WildlifeError(ValueError):
@@ -94,7 +105,7 @@ def validate_event(ev: Any) -> dict[str, Any]:
             base_f = float(base)
         except (TypeError, ValueError) as exc:
             raise WildlifeError(f"{species}: base_temp must be a number in °F") from exc
-        if not 20.0 <= base_f <= 80.0:
+        if not MIN_BASE_F <= base_f <= MAX_BASE_F:
             raise WildlifeError(f"{species}: base_temp must be 20–80 °F — Good Earth works in Fahrenheit")
         out.update({"gdd": g, "base_temp_f": base_f})
 
@@ -131,6 +142,17 @@ def validate_event(ev: Any) -> dict[str, Any]:
             raise WildlifeError(f"{species}: `from` must be YYYY-MM-DD, got {raw!r}") from exc
         out.update({"days": days, "from": frm})
 
+    elif driver == "condition":
+        # A grower-defined event: real, unmodelled, and dated by what the
+        # weather does rather than by a date or a heat sum.
+        #
+        # The salamanders' "Big Night" is the case that asked for this — the
+        # first mild wet night after the ground thaws, which no catalogue
+        # contains and no degree-day total finds. The definition is stored in
+        # the RECORD, so it belongs to the grower and re-dates itself every
+        # season, rather than being remembered by whichever agent last helped.
+        out.update({"trigger": validate_trigger(species, ev.get("trigger"))})
+
     else:  # calendar
         raw = ev.get("typical_on")
         if not raw:
@@ -143,6 +165,129 @@ def validate_event(ev: Any) -> dict[str, Any]:
         out.update({"month": month, "day": day})
 
     return out
+
+
+def validate_trigger(species: str, raw: Any) -> dict[str, Any]:
+    """Check one grower-defined trigger. Tool input is adversarial."""
+    if not isinstance(raw, dict):
+        raise WildlifeError(
+            f"{species}: a condition event needs a `trigger` object, e.g. "
+            '{"after": "03-01", "min_night_f": 40, "wet": true}'
+        )
+
+    unknown = sorted(set(raw) - TRIGGER_KEYS)
+    if unknown:
+        # Named rather than ignored. A trigger silently missing the condition
+        # that was the whole point would date the wrong night and look right.
+        raise WildlifeError(
+            f"{species}: a trigger cannot ask about {', '.join(unknown)} — "
+            f"only {', '.join(sorted(TRIGGER_KEYS))}"
+        )
+
+    out: dict[str, Any] = {}
+
+    after = raw.get("after")
+    if after not in (None, ""):
+        try:
+            month, day = (int(x) for x in str(after).split("-")[-2:])
+            date(2000, month, day)
+        except (ValueError, TypeError) as exc:
+            raise WildlifeError(
+                f"{species}: a trigger's `after` must be MM-DD, got {after!r}"
+            ) from exc
+        out["after"] = f"{month:02d}-{day:02d}"
+
+    for key in ("min_night_f", "min_day_f"):
+        v = raw.get(key)
+        if v in (None, ""):
+            continue
+        try:
+            f = float(v)
+        except (TypeError, ValueError) as exc:
+            raise WildlifeError(f"{species}: a trigger's {key} must be a number in °F") from exc
+        if not MIN_BASE_F <= f <= MAX_BASE_F:
+            raise WildlifeError(
+                f"{species}: {key} must be {MIN_BASE_F:.0f}–{MAX_BASE_F:.0f} °F — "
+                "Good Earth works in Fahrenheit"
+            )
+        out[key] = f
+
+    if raw.get("wet") is not None:
+        out["wet"] = bool(raw["wet"])
+
+    # A trigger with only a date is a calendar event wearing a costume, and it
+    # would report the day after `after` every year whatever the weather did.
+    if not (set(out) - {"after"}):
+        raise WildlifeError(
+            f"{species}: a trigger needs something the weather decides — "
+            "min_night_f, min_day_f or wet. A date alone is a calendar event."
+        )
+    return out
+
+
+def _says(trigger: dict[str, Any]) -> str:
+    """The trigger in the grower's own terms, for the row it dates."""
+    parts = []
+    if "min_night_f" in trigger:
+        parts.append(f"night at or above {trigger['min_night_f']:g}°F")
+    if "min_day_f" in trigger:
+        parts.append(f"day at or above {trigger['min_day_f']:g}°F")
+    if trigger.get("wet"):
+        parts.append("rain")
+    said = " and ".join(parts) or "a condition"
+    return f"{said}, after {trigger['after']}" if "after" in trigger else said
+
+
+def condition_event(
+    ev: dict[str, Any],
+    dates: list[str],
+    tmax: list[float | None],
+    tmin: list[float | None],
+    precip: list[float | None],
+    today: date,
+) -> dict[str, Any]:
+    """The first day this ground met the grower's own conditions.
+
+    Answered from the season record, so it re-dates itself every year rather
+    than repeating what it said last time. A season that has not met them yet
+    reports that plainly — there is no projecting a wet night, and inventing
+    one would be worse than saying it has not happened.
+    """
+    trigger = ev["trigger"]
+    said = _says(trigger)
+    after = trigger.get("after")
+
+    for i, iso in enumerate(dates):
+        if after and iso[5:] < after:
+            continue
+        night = tmin[i] if i < len(tmin) else None
+        day = tmax[i] if i < len(tmax) else None
+        rain = precip[i] if i < len(precip) else None
+
+        if "min_night_f" in trigger and (night is None or night < trigger["min_night_f"]):
+            continue
+        if "min_day_f" in trigger and (day is None or day < trigger["min_day_f"]):
+            continue
+        # A day the record could not report is not a dry day. Skipping it is
+        # the honest reading; calling it dry would move the date later and
+        # calling it wet would move it earlier.
+        if trigger.get("wet") and (rain is None or rain <= 0):
+            continue
+
+        return {
+            "driver": "condition", "threshold": said,
+            "reached_on": iso, "projected_date": None,
+            "note": f"The first day this ground met it: {said}. Your own definition.",
+        }
+
+    return {
+        "driver": "condition", "threshold": said,
+        "reached_on": None, "projected_date": None,
+        "note": (
+            f"Not met yet this season — {said}. There is no forecasting a wet "
+            "night, so this waits for the day rather than guessing at it."
+        ),
+    }
 
 
 def heat_event(

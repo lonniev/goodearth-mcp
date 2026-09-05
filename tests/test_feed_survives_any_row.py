@@ -161,6 +161,8 @@ def test_every_driver_the_validator_accepts_can_be_dated():
         {"species": "B", "event": "e", "driver": "calendar", "typical_on": "05-01"},
         {"species": "C", "event": "e", "driver": "interval", "days": 30, "from": "2026-04-01"},
         {"species": "D", "event": "e", "driver": "daylight", "daylight_hours": 13, "rising": True},
+        {"species": "E", "event": "e", "driver": "condition",
+         "trigger": {"after": "03-01", "min_night_f": 40}},
     ]
     assert {r["driver"] for r in rows} == calendar_feed.wildlife.DRIVERS
     out = build(rows)
