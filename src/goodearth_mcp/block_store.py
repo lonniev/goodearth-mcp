@@ -839,3 +839,19 @@ async def list_items(
         "sort_col": sort_col if sort_col in SORTABLE else "",
         "sort_dir": "desc" if str(sort_dir).lower() == "desc" else "asc",
     }
+
+
+async def forget_everything(npub: str) -> dict[str, int]:
+    """DELETE every block and item this patron has. Not a retirement.
+
+    Every other removal here stamps `retired_at` and keeps the row, because
+    "what did this block grow in June" is worth being able to answer. This is
+    the one place that is wrong: a grower who asks to be forgotten and is soft
+    deleted has been told something untrue.
+    """
+    v = await _vault_for()
+    out: dict[str, int] = {}
+    for table in (ITEMS, BLOCKS):   # items first: they point at the blocks
+        r = await v._execute(_t(f"DELETE FROM {table} WHERE npub = $1"), [npub])
+        out[table] = int(r.get("rowCount") or r.get("rowcount") or 0)
+    return out
