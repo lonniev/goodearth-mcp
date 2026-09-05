@@ -7,7 +7,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import AppShell, { type ViewKey } from "./components/AppShell";
-import { onRouteChange, readView, writeView } from "./lib/route";
+import { DEFAULT_VIEW, GUEST_VIEW, onRouteChange, viewFromHash, writeView } from "./lib/route";
+import { isPublic } from "./lib/views";
 import Hive, { hiveMood } from "./components/Hive";
 import Bees from "./components/Bees";
 import NpubGate from "./components/NpubGate";
@@ -16,7 +17,12 @@ import Preferences from "./components/Preferences";
 import AccountSummary from "./components/AccountSummary";
 import CalendarFeed from "./components/CalendarFeed";
 import { readPrefs, writePrefs, type Prefs } from "./lib/prefs";
+import GuestShell from "./components/GuestShell";
 import { UnitProvider } from "./components/Units";
+import LifeOfAPest from "./views/LifeOfAPest";
+import LifeOfAPlant from "./views/LifeOfAPlant";
+import LifeOfATree from "./views/LifeOfATree";
+import Welcome from "./views/Welcome";
 import { showTemp, type Unit } from "./lib/units";
 import HeatLedger from "./views/HeatLedger";
 import Crops from "./views/Crops";
@@ -92,13 +98,22 @@ export default function App() {
   const [signedIn, setSignedIn] = useState(isLoggedIn);
   const [notice, setNotice] = useState<string | undefined>();
   // The URL owns the view, so a refresh keeps the tab the reader was on.
-  const [view, setView] = useState<ViewKey>(() => readView());
+  // A hash that NAMES a view wins for everyone — a bookmark of `#/ledger`
+  // should still take a returning grower there, and take a stranger to the
+  // gate and then there. It is the empty hash that differs: the bare domain
+  // means "show me what this is" to a visitor and "my farm" to a grower.
+  const [view, setView] = useState<ViewKey>(
+    () => viewFromHash(window.location.hash) ?? (isLoggedIn() ? DEFAULT_VIEW : GUEST_VIEW),
+  );
   const [avatar, setAvatar] = useState(() => avatarFor(getStoredNpub()));
   const [displayName, setDisplayName] = useState("");
   const [balance, setBalance] = useState<number | null>(null);
   const [spent, setSpent] = useState(0);
   const [frost, setFrost] = useState<FrostWindowResult | null>(null);
   const [prefs, setPrefs] = useState<Prefs>(() => readPrefs());
+  /// Whether a visitor has asked to sign in. Separate from `signedIn` so the
+  /// gate is somewhere they CHOSE to go rather than the wall they hit.
+  const [asking, setAsking] = useState(false);
   /// Whether the server's blocks have arrived. Used in exactly two places —
   /// the Favorites empty state and MapView's save button — and threaded no
   /// further, because everything else reads the cache and does not care.
@@ -114,7 +129,7 @@ export default function App() {
   // when a tab is picked, and follows it when the reader uses back, forward,
   // or opens a link.
   useEffect(() => { writeView(view); }, [view]);
-  useEffect(() => onRouteChange(setView), []);
+  useEffect(() => onRouteChange(setView, signedIn ? DEFAULT_VIEW : GUEST_VIEW), [signedIn]);
 
   // A paid call can bounce for an expired proof from anywhere; the gate
   // re-arms rather than stranding the grower on a page that will not load.
@@ -180,8 +195,28 @@ export default function App() {
     if (sats > 0) { setSpent((s) => s + sats); void refreshBalance(); }
   }, [refreshBalance]);
 
+  // A visitor gets the front door, not a password box.
+  //
+  // The gate still guards everything that names a grower or spends their
+  // sats — `isPublic` is the list, and it holds only pages that read no block
+  // and bill nothing. What changed is that a stranger can now read what this
+  // is before being asked who they are, and `#/plant` in a shared link opens
+  // rather than bouncing.
   if (!signedIn) {
-    return <NpubGate onLogin={() => { setSignedIn(true); setNotice(undefined); }} notice={notice} />;
+    const login = () => { setSignedIn(true); setNotice(undefined); };
+    if (asking || !isPublic(view)) {
+      return <NpubGate onLogin={login} notice={notice} />;
+    }
+    return (
+      <GuestShell view={view} onView={setView} onSignIn={() => setAsking(true)}>
+        {view === "welcome" && <Welcome onView={setView} onSignIn={() => setAsking(true)} />}
+        {view === "plant" && <LifeOfAPlant />}
+        {view === "pest" && <LifeOfAPest />}
+        {view === "tree" && <LifeOfATree />}
+        {view === "about" && <About />}
+        {view === "references" && <References />}
+      </GuestShell>
+    );
   }
 
   return (
@@ -214,6 +249,12 @@ export default function App() {
         {view === "todo" && <TodoView region={region} onCost={onCost} onView={setView} />}
         {view === "references" && <References />}
         {view === "about" && <About />}
+        {/* Free reading, and not only for strangers — a grower who wants to
+            know what a biofix is should not have to sign out to find out. */}
+        {view === "welcome" && <Welcome onView={setView} onSignIn={() => {}} />}
+        {view === "plant" && <LifeOfAPlant />}
+        {view === "pest" && <LifeOfAPest />}
+        {view === "tree" && <LifeOfATree />}
         {view === "account" && (
           <>
             <h1 className="figure mb-4 text-[26px] font-bold">Account</h1>
