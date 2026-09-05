@@ -23,6 +23,7 @@ import GuestShell from "./components/GuestShell";
 import { UnitProvider } from "./components/Units";
 import LifeOfAPest from "./views/LifeOfAPest";
 import LifeOfAPlant from "./views/LifeOfAPlant";
+import LifeOfAnAnimal from "./views/LifeOfAnAnimal";
 import LifeOfATree from "./views/LifeOfATree";
 import Welcome from "./views/Welcome";
 import { showTemp, type Unit } from "./lib/units";
@@ -235,6 +236,7 @@ export default function App() {
         {view === "plant" && <LifeOfAPlant />}
         {view === "pest" && <LifeOfAPest />}
         {view === "tree" && <LifeOfATree />}
+        {view === "animal" && <LifeOfAnAnimal />}
         {view === "about" && <About />}
         {view === "references" && <References />}
       </GuestShell>
@@ -288,6 +290,7 @@ export default function App() {
         {view === "plant" && <LifeOfAPlant />}
         {view === "pest" && <LifeOfAPest />}
         {view === "tree" && <LifeOfATree />}
+        {view === "animal" && <LifeOfAnAnimal />}
         {view === "account" && (
           <>
             <h1 className="figure mb-4 text-[26px] font-bold">Account</h1>

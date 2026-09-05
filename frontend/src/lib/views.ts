@@ -13,7 +13,7 @@ export const VIEW_KEYS = [
   "map", "ledger", "almanac", "crops", "pests", "wildlife", "todo",
   "reports", "favorites", "references", "about", "account",
   // The front door and what it opens onto. Reachable without an npub.
-  "welcome", "plant", "pest", "tree",
+  "welcome", "plant", "pest", "tree", "animal",
 ] as const;
 
 export type ViewKey = (typeof VIEW_KEYS)[number];
@@ -30,7 +30,7 @@ export type ViewKey = (typeof VIEW_KEYS)[number];
 /// are static. That is the test for adding to this list — not "is it
 /// harmless" but "does it name a patron or spend their sats".
 export const PUBLIC_VIEWS = [
-  "welcome", "plant", "pest", "tree", "about", "references",
+  "welcome", "plant", "pest", "tree", "animal", "about", "references",
 ] as const;
 
 export type PublicView = (typeof PUBLIC_VIEWS)[number];
