@@ -29,7 +29,22 @@ import type { ItemKind } from "./mcp.ts";
 /// ago is to type it again.
 export const MAX_ENTRIES = 5;
 
-const KEY = "goodearth:undo:v1";
+const KEY_BASE = "goodearth:undo:v1";
+
+/// Scoped to the patron, because an entry here is a ROW — a crop's name, its
+/// target, the block it sat on — and the Undo button writes it back.
+///
+/// Unscoped, a new npub on this browser was offered "Removed Zinnia ·
+/// succession 4" from the patron before them, and pressing Undo would have
+/// saved that row into their own record. A leak that writes is worse than one
+/// that only shows.
+function key(): string {
+  try {
+    return `${KEY_BASE}:${window.localStorage.getItem("goodearth:patron_npub:v1") ?? ""}`;
+  } catch {
+    return KEY_BASE;
+  }
+}
 
 export type UndoKind = ItemKind | "task";
 
@@ -51,7 +66,7 @@ export interface UndoEntry {
 
 function read(): UndoEntry[] {
   try {
-    const raw = window.localStorage.getItem(KEY);
+    const raw = window.localStorage.getItem(key());
     if (!raw) return [];
     const v = JSON.parse(raw) as unknown;
     return Array.isArray(v) ? (v as UndoEntry[]).filter(isEntry) : [];
@@ -69,7 +84,7 @@ function isEntry(e: unknown): e is UndoEntry {
 function write(entries: UndoEntry[]): UndoEntry[] {
   const kept = entries.slice(0, MAX_ENTRIES);
   try {
-    window.localStorage.setItem(KEY, JSON.stringify(kept));
+    window.localStorage.setItem(key(), JSON.stringify(kept));
   } catch { /* private window or quota — this session still works from memory */ }
   return kept;
 }

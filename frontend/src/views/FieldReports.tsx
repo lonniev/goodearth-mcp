@@ -34,6 +34,16 @@ const CONFIDENCE: Record<string, string> = {
   settled: "bg-growth/15 text-growth",
 };
 
+/// The iNaturalist handle, per patron. See `regions.ts` for why every store
+/// holding a person's own data carries their npub in its key.
+function inatKey(): string {
+  try {
+    return `goodearth:inat-user:${window.localStorage.getItem("goodearth:patron_npub:v1") ?? ""}`;
+  } catch {
+    return "goodearth:inat-user";
+  }
+}
+
 export default function FieldReports({
   region, onCost,
 }: { region: SavedRegion; onCost: (sats: number) => void }) {
@@ -51,7 +61,9 @@ export default function FieldReports({
   const [msg, setMsg] = useState("");
   const [here, setHere] = useState<{ lat: number; lng: number } | null>(null);
   const [inatUser, setInatUser] = useState(() => {
-    try { return window.localStorage.getItem("goodearth:inat-user") ?? ""; } catch { return ""; }
+    // Scoped: an iNaturalist handle names a person, and the next npub on this
+    // browser is not them.
+    try { return window.localStorage.getItem(inatKey()) ?? ""; } catch { return ""; }
   });
   const [inat, setInat] = useState<INatObservation[] | null>(null);
   const [inatBusy, setInatBusy] = useState(false);
@@ -129,7 +141,7 @@ export default function FieldReports({
   async function pullINat() {
     setInatBusy(true); setErr(""); setMsg("");
     try {
-      try { window.localStorage.setItem("goodearth:inat-user", inatUser.trim()); } catch { /* noop */ }
+      try { window.localStorage.setItem(inatKey(), inatUser.trim()); } catch { /* noop */ }
       const rows = await fetchObservations({
         user: inatUser,
         bounds: regionBounds(),
