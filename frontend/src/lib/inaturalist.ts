@@ -37,11 +37,66 @@ function isFlowering(o: Record<string, unknown>): boolean {
   return anns.some((a) => a.controlled_attribute_id === 12 && a.controlled_value_id === 13);
 }
 
+/// What actually went wrong, in the grower's terms.
+///
+/// This used to report `iNaturalist replied 422.` — a number, and the reader
+/// left to guess. The number was always the same thing: an email address typed
+/// into a field that wants a handle, because the browser offers to autofill
+/// one. iNaturalist says so in the body it returns
+/// (`{"error":"Unknown user_id …","status":422}`); nothing was reading it.
+async function reasonFor(r: Response, user: string): Promise<string> {
+  if (r.status === 404 || r.status === 422) {
+    if (user.includes("@")) {
+      return `iNaturalist does not know "${user}". That looks like an email `
+        + "address, and this field wants your iNaturalist handle — the name in "
+        + "your profile URL, which is usually shorter and has no @ in it.";
+    }
+    return `No iNaturalist user called "${user}".`;
+  }
+  // Anything else is theirs, not the grower's. Pass on what they said rather
+  // than translating a server fault into a user error.
+  let said = "";
+  try { said = String(((await r.json()) as { error?: unknown }).error ?? ""); }
+  catch { /* a status with no body is still a status */ }
+  return said
+    ? `iNaturalist could not answer: ${said}`
+    : `iNaturalist replied ${r.status}. That is on their side — try again shortly.`;
+}
+
+/// Handles that look like what has been typed so far, so a grower who does not
+/// remember their own login can pick it instead of guessing at it.
+export async function searchUsers(
+  q: string, signal?: AbortSignal,
+): Promise<{ login: string; name: string | null; observations: number }[]> {
+  const text = q.trim().replace(/^@/, "");
+  if (text.length < 2) return [];
+  const r = await fetch(
+    `https://api.inaturalist.org/v1/users/autocomplete?q=${encodeURIComponent(text)}&per_page=5`,
+    { signal, headers: { Accept: "application/json" } },
+  );
+  if (!r.ok) return [];
+  const d = (await r.json()) as { results?: Record<string, unknown>[] };
+  return (d.results ?? [])
+    .map((u) => ({
+      login: String(u.login ?? ""),
+      name: (u.name as string) ?? null,
+      observations: Number(u.observations_count ?? 0),
+    }))
+    .filter((u) => u.login);
+}
+
+/// iNaturalist's own ceiling on a page. Asking for more is refused, so this
+/// is the size of a REQUEST and never a limit on what comes back.
+const PAGE = 200;
+
 export async function fetchObservations(opts: {
   user: string;
   bounds?: Bounds;
   since?: string;
-  perPage?: number;
+  /// A ceiling on requests, not on observations — a runaway guard for a query
+  /// that somehow matches half of iNaturalist, never a cap on a grower's own
+  /// record. At 200 an page this is 40,000 observations from one block.
+  maxPages?: number;
   signal?: AbortSignal;
 }): Promise<INatObservation[]> {
   const user = opts.user.trim().replace(/^@/, "");
@@ -49,7 +104,7 @@ export async function fetchObservations(opts: {
 
   const q = new URLSearchParams({
     user_login: user,
-    per_page: String(Math.min(opts.perPage ?? 50, 200)),
+    per_page: String(PAGE),
     order_by: "observed_on",
     order: "desc",
   });
@@ -63,12 +118,30 @@ export async function fetchObservations(opts: {
     q.set("nelng", String(opts.bounds.nelng));
   }
 
-  const r = await fetch(`${API}?${q}`, { signal: opts.signal, headers: { Accept: "application/json" } });
-  if (r.status === 404) throw new Error(`No iNaturalist user called "${user}".`);
-  if (!r.ok) throw new Error(`iNaturalist replied ${r.status}.`);
+  // Paged to exhaustion. This used to ask for 60 and return them, so a grower
+  // with more than sixty sightings on one block was quietly handed a slice and
+  // told nothing — the page size standing in for an answer. The size of a
+  // request is ours to choose; how much a grower has recorded is not.
+  const raw: Record<string, unknown>[] = [];
+  const cap = opts.maxPages ?? 200;
+  for (let page = 1; page <= cap; page++) {
+    q.set("page", String(page));
+    const r = await fetch(`${API}?${q}`, {
+      signal: opts.signal, headers: { Accept: "application/json" },
+    });
+    if (!r.ok) throw new Error(await reasonFor(r, user));
+    const d = (await r.json()) as {
+      results?: Record<string, unknown>[]; total_results?: number;
+    };
+    const got = d.results ?? [];
+    raw.push(...got);
+    // Short page, or everything the service says there is. Both are the end;
+    // trusting only one of them loops forever if the other is what arrives.
+    if (got.length < PAGE) break;
+    if (typeof d.total_results === "number" && raw.length >= d.total_results) break;
+  }
 
-  const d = (await r.json()) as { results?: Record<string, unknown>[] };
-  return (d.results ?? []).map((o) => {
+  return raw.map((o) => {
     const taxon = (o.taxon ?? {}) as Record<string, unknown>;
     const geo = (o.geojson ?? null) as { coordinates?: [number, number] } | null;
     return {

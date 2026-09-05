@@ -13,8 +13,9 @@ import { useCallback, useEffect, useState } from "react";
 import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
 import { calibration, type CalibrationResult } from "../lib/mcp";
-import { boundsFrom, fetchObservations, type INatObservation } from "../lib/inaturalist";
-import { geoJSONToRing } from "../lib/geo";
+import { boundsFrom, fetchObservations, searchUsers,
+  type INatObservation } from "../lib/inaturalist";
+import { geoJSONToRing, lonScaleAt, withinRing } from "../lib/geo";
 import { useBlockItems } from "../lib/blockItems";
 import {
   makeReport, reportCodec, TAGS,
@@ -65,6 +66,29 @@ export default function FieldReports({
     // browser is not them.
     try { return window.localStorage.getItem(inatKey()) ?? ""; } catch { return ""; }
   });
+  /// Handles matching what is typed, so a grower who half-remembers their
+  /// login can pick it rather than guess and be told 422.
+  const [handles, setHandles] = useState<
+    { login: string; name: string | null; observations: number }[]>([]);
+  useEffect(() => {
+    const q = inatUser.trim();
+    // Nothing to suggest once the field already holds an exact handle, and
+    // nothing to suggest for an email — the message on the failed fetch says
+    // more about that than a silent empty list would.
+    if (q.length < 2 || q.includes("@") || handles.some((h) => h.login === q)) {
+      setHandles([]);
+      return;
+    }
+    const ac = new AbortController();
+    const t = setTimeout(() => {
+      void searchUsers(q, ac.signal)
+        .then((r) => { if (!ac.signal.aborted) setHandles(r); })
+        .catch(() => { /* a suggestion is a convenience, never an error */ });
+    }, 250);
+    return () => { ac.abort(); clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inatUser]);
+
   const [inat, setInat] = useState<INatObservation[] | null>(null);
   const [inatBusy, setInatBusy] = useState(false);
   const [picked, setPicked] = useState<Set<number>>(new Set());
@@ -123,9 +147,13 @@ export default function FieldReports({
   function regionBounds() {
     if ("lat" in region.region) {
       const d = region.region.radius_m / 111_320;
+      // Longitude narrows toward the poles, so the box has to widen. This was
+      // a hardcoded 1.4 — which is 1/cos(44.45°), the latitude of one farm in
+      // Vermont, and a third wrong in either direction anywhere else.
+      const w = d * lonScaleAt(region.region.lat);
       return {
-        swlat: region.region.lat - d, swlng: region.region.lon - d * 1.4,
-        nelat: region.region.lat + d, nelng: region.region.lon + d * 1.4,
+        swlat: region.region.lat - d, swlng: region.region.lon - w,
+        nelat: region.region.lat + d, nelng: region.region.lon + w,
       };
     }
     const ring = geoJSONToRing(region.region);
@@ -142,16 +170,32 @@ export default function FieldReports({
     setInatBusy(true); setErr(""); setMsg("");
     try {
       try { window.localStorage.setItem(inatKey(), inatUser.trim()); } catch { /* noop */ }
-      const rows = await fetchObservations({
+      const fetched = await fetchObservations({
         user: inatUser,
         bounds: regionBounds(),
         since: `${new Date().getFullYear() - 1}-01-01`,
-        perPage: 60,
       });
+
+      // The fetch is bounded by a BOX and the block is a polygon. On an
+      // L-shaped or a diagonal farm the difference is a lot of somebody
+      // else's ground, so the ring has the last word. An observation with no
+      // coordinates is kept: the grower asked for their own records, and a
+      // location they chose to obscure is not grounds for dropping one.
+      const ring = "lat" in region.region ? [] : geoJSONToRing(region.region);
+      const rows = ring.length >= 3
+        ? fetched.filter((o) =>
+            o.lat == null || o.lng == null || withinRing({ lat: o.lat, lng: o.lng }, ring))
+        : fetched;
+      const outside = fetched.length - rows.length;
+
       setInat(rows);
       setPicked(new Set(rows.filter((r) => r.flowering).map((r) => r.id)));
       if (!rows.length) {
-        setMsg(`No observations from ${inatUser} inside ${region.name}. The box is your ground — a wider search would bring back the whole world.`);
+        setMsg(outside > 0
+          ? `${outside} of your observations are near ${region.name} but outside its boundary.`
+          : `No observations from ${inatUser} inside ${region.name}.`);
+      } else if (outside > 0) {
+        setMsg(`${rows.length} inside ${region.name}. ${outside} nearby fell outside its boundary.`);
       }
     } catch (e) { setErr((e as Error).message); }
     finally { setInatBusy(false); }
@@ -299,11 +343,31 @@ export default function FieldReports({
       <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold">🔭 Import from iNaturalist</h2>
       <div className="rounded-md border border-rule bg-panel p-4">
         <div className="flex flex-wrap items-end gap-2">
-          <label className="block flex-1 text-[11px] text-ink-soft" style={{ minWidth: 180 }}>
-            iNaturalist username
-            <input value={inatUser} onChange={(e) => setInatUser(e.target.value)}
-              placeholder="your-login"
+          <label className="relative block flex-1 text-[11px] text-ink-soft" style={{ minWidth: 180 }}>
+            iNaturalist handle <span className="opacity-60">(not your email)</span>
+            {/* `autoComplete="off"` and a name that says nothing about email,
+                because the browser will otherwise offer one — and iNaturalist
+                answers an email address with a 422 that used to reach the
+                grower as a bare number. */}
+            <input value={inatUser} name="inat-handle" autoComplete="off"
+              onChange={(e) => setInatUser(e.target.value)}
+              placeholder="your-handle"
               className={FIELD} />
+            {handles.length > 0 && (
+              <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-md border border-rule bg-panel shadow-lg">
+                {handles.map((h) => (
+                  <button key={h.login} type="button"
+                    onClick={() => { setInatUser(h.login); setHandles([]); }}
+                    className="flex w-full items-center gap-2 border-b border-rule px-2.5 py-2 text-left last:border-b-0 active:bg-band">
+                    <b className="text-[13px] text-ink">{h.login}</b>
+                    {h.name && <span className="truncate text-[11px]">{h.name}</span>}
+                    <span className="data ml-auto shrink-0 text-[10.5px]">
+                      {h.observations.toLocaleString()}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </label>
           <button onClick={pullINat} disabled={inatBusy || !inatUser.trim()}
             className="min-h-11 rounded border-[1.5px] border-ink px-4 text-[13px] font-semibold active:bg-ink active:text-paper disabled:opacity-40">

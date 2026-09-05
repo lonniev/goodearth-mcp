@@ -112,3 +112,100 @@ describe("response reading", () => {
     await assert.rejects(() => fetchObservations({ user: "g" }), /503/);
   });
 });
+
+describe("a refusal is explained, not numbered", () => {
+  // The owner typed an email into the handle field — the browser offered it —
+  // and got "iNaturalist replied 422." iNaturalist had said exactly what was
+  // wrong in the body it returned, and nothing was reading it.
+  it("names the email as the problem, because that is what it is", async () => {
+    stub({ error: "Unknown user_id lonniev@gmail.com", status: 422 }, 422);
+    await assert.rejects(
+      () => fetchObservations({ user: "someone@example.com" }),
+      (e: Error) => {
+        assert.match(e.message, /email address/);
+        assert.match(e.message, /handle/);
+        // The bare status must not be what the grower is left holding.
+        assert.doesNotMatch(e.message, /^iNaturalist replied 422\.$/);
+        return true;
+      },
+    );
+  });
+
+  it("treats 422 and 404 alike, since both mean no such user", async () => {
+    for (const status of [404, 422]) {
+      stub({ error: "Unknown user_id nobody", status }, status);
+      await assert.rejects(
+        () => fetchObservations({ user: "nobody" }),
+        (e: Error) => {
+          assert.match(e.message, /No iNaturalist user called "nobody"/);
+          return true;
+        },
+      );
+    }
+  });
+
+  it("passes on a server fault as theirs rather than blaming the grower", async () => {
+    stub({ error: "upstream timeout" }, 503);
+    await assert.rejects(
+      () => fetchObservations({ user: "lonniev" }),
+      (e: Error) => {
+        assert.match(e.message, /upstream timeout/);
+        assert.doesNotMatch(e.message, /No iNaturalist user/);
+        return true;
+      },
+    );
+  });
+});
+
+describe("a grower's own record is not capped by our page size", () => {
+  /// Pages of `n` observations, so the reader has to ask more than once.
+  function pages(total: number) {
+    const calls: string[] = [];
+    globalThis.fetch = (async (url: string | URL) => {
+      const u = new URL(String(url));
+      calls.push(u.searchParams.get("page") ?? "1");
+      const per = Number(u.searchParams.get("per_page"));
+      const page = Number(u.searchParams.get("page") ?? 1);
+      const start = (page - 1) * per;
+      const results = Array.from(
+        { length: Math.max(0, Math.min(per, total - start)) },
+        (_, i) => ({ id: start + i, observed_on: "2026-05-01", taxon: {}, geojson: null }),
+      );
+      return { ok: true, status: 200,
+        json: async () => ({ results, total_results: total }) } as Response;
+    }) as typeof fetch;
+    return calls;
+  }
+
+  it("keeps asking until it has them all", async () => {
+    // 450 observations at 200 a page is three requests. The old code asked for
+    // 60 once and handed back a slice with nothing said about the rest.
+    const calls = pages(450);
+    const rows = await fetchObservations({ user: "lonniev" });
+    assert.equal(rows.length, 450);
+    assert.deepEqual(calls, ["1", "2", "3"]);
+  });
+
+  it("stops on a short page rather than asking forever", async () => {
+    const calls = pages(30);
+    const rows = await fetchObservations({ user: "lonniev" });
+    assert.equal(rows.length, 30);
+    assert.equal(calls.length, 1);
+  });
+
+  it("stops when the service says that is all, even on a full last page", async () => {
+    // An exactly-full final page has no short page to signal the end. Without
+    // the total this loops until the runaway guard.
+    const calls = pages(400);
+    const rows = await fetchObservations({ user: "lonniev" });
+    assert.equal(rows.length, 400);
+    assert.deepEqual(calls, ["1", "2"]);
+  });
+
+  it("has a runaway guard that is a request ceiling, not a record cap", async () => {
+    const calls = pages(10_000);
+    const rows = await fetchObservations({ user: "lonniev", maxPages: 2 });
+    assert.equal(calls.length, 2);
+    assert.equal(rows.length, 400);
+  });
+});

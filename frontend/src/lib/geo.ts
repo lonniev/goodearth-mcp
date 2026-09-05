@@ -67,6 +67,48 @@ export function geoJSONToRing(g: { coordinates: number[][][] }): LatLng[] {
 }
 
 /// A polygon needs three distinct corners to enclose anything.
+/// Is this point inside the ring?
+///
+/// A bounding box is not a farm. An L-shaped block, or a long one lying
+/// diagonally, has a box that covers a great deal of ground somebody else
+/// owns — so a fetch bounded by the box has to be filtered by the ring, or it
+/// reports the neighbour's field as yours.
+///
+/// Ray casting, counting crossings of a horizontal line running east from the
+/// point. Over a single farm the earth is flat enough that treating degrees as
+/// plane coordinates is exact for this purpose; the one thing it cannot handle
+/// is a ring crossing the antimeridian, which no block does.
+///
+/// A point exactly on an edge may fall either way. That is inherent to the
+/// method and it does not matter here: a sighting on the fence line is on the
+/// farm by any reading a grower would accept.
+export function withinRing(p: LatLng, ring: LatLng[]): boolean {
+  if (ring.length < 3) return false;
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const a = ring[i], b = ring[j];
+    // Does the edge straddle the point's latitude? Exactly one endpoint above
+    // it, so a vertex touched by two edges is counted once rather than twice.
+    if ((a.lat > p.lat) === (b.lat > p.lat)) continue;
+    const x = a.lng + ((p.lat - a.lat) / (b.lat - a.lat)) * (b.lng - a.lng);
+    if (p.lng < x) inside = !inside;
+  }
+  return inside;
+}
+
+/// How much wider a degree of longitude has to be to cover the same ground as
+/// a degree of latitude, here.
+///
+/// A pin block used a hardcoded 1.4, which is 1/cos(44.45°) — the latitude of
+/// one farm in Vermont. It is 1.0 at the equator and 2.0 at 60°N, so the same
+/// pin drew a box a third too wide in the tropics and a third too narrow in
+/// Alaska. Clamped, because the factor runs to infinity at the pole and a
+/// block there would ask for the whole world.
+export function lonScaleAt(lat: number): number {
+  const c = Math.cos((lat * Math.PI) / 180);
+  return c > 0.05 ? 1 / c : 20;
+}
+
 export function isDrawable(ring: LatLng[]): boolean {
   return ring.length >= 3 && areaM2(ring) > 1;
 }
