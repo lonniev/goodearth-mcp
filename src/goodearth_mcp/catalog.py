@@ -437,3 +437,59 @@ async def resolve_referenced_models(
             events.append({**e, "pest": name, "via": p["model"]})
     events.sort(key=lambda e: e["date"])
     return events, unresolved
+
+
+async def species_phenophases(
+    names: list[str], today: date | None = None,
+) -> list[dict[str, Any]]:
+    """The phenophases USA-NPN tracks for each of these plants, by name.
+
+    The Spring Index dates ONE leaf-out and ONE bloom for a whole block,
+    because it is computed from cloned lilac and honeysuckle standing in for
+    spring itself. That is the right instrument for "is spring early here" and
+    the wrong one for an orchard: a birch and an oak on the same acre do not
+    shed in the same week. This is the per-species half — what each plant is
+    tracked doing, in NPN's own words, so a grower knows what to watch for and
+    sets the date themselves.
+
+    Names come off the saved planting, put there by the crop preset and
+    resolved once by `scripts/resolve_species.py`. A plant NPN does not track
+    comes back with `tracked: false` and no list, which is not the same claim
+    as an empty one.
+    """
+    today = today or datetime.now(UTC).date()
+    wanted = list(dict.fromkeys(n.strip() for n in names if (n or "").strip()))
+    if not wanted:
+        return []
+
+    index = await _species_index()
+    entries = [index.get(n.lower()) for n in wanted]
+    askable = [(n, e) for n, e in zip(wanted, entries, strict=True) if e]
+
+    got = await asyncio.gather(
+        *(biota.fetch_species_habits(int(e["species_id"]), today.isoformat())
+          for _, e in askable),
+        return_exceptions=True,
+    )
+    habits = dict(zip((n for n, _ in askable), got, strict=True))
+
+    out: list[dict[str, Any]] = []
+    for name, entry in zip(wanted, entries, strict=True):
+        if entry is None:
+            out.append({"scientific_name": name, "tracked": False})
+            continue
+        h = habits.get(name)
+        row: dict[str, Any] = {
+            "scientific_name": name,
+            "common_name": entry.get("common_name"),
+            "tracked": True,
+        }
+        # A failed call is not an absence. Saying "no phenophases" because the
+        # network dropped would be the same fault as reporting a cold vault
+        # read as "never authorized".
+        if isinstance(h, BaseException):
+            row["unreadable"] = True
+        else:
+            row["habits"] = drop_mortality(h or [])
+        out.append(row)
+    return out

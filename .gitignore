@@ -206,3 +206,4 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 # uv.lock is COMMITTED — Horizon deploys from it and CI runs `uv sync --locked`.
+scripts/resolved.json
