@@ -60,10 +60,17 @@ async def region_wildlife(
 
     needs_heat = any(e["driver"] == "heat" for e in parsed)
     needs_light = any(e["driver"] == "daylight" for e in parsed)
+    # A grower-defined trigger reads the season day by day: the night's low,
+    # the day's high, whether it rained. All three come off the same almanac
+    # record the heat path already reads, so this costs no extra call.
+    needs_weather = any(e["driver"] == "condition" for e in parsed)
 
     dates: list[str] = []
     curves: dict[float, list[float]] = {}
     daylight: list[float | None] = []
+    tmax: list[float | None] = []
+    tmin: list[float | None] = []
+    precip: list[float | None] = []
     # Bound here, not only inside the branch below. A roster of nothing but
     # calendar and interval events needs no weather at all — "swallows arrive
     # about 20 April", a gestation count — and that is an ordinary list, not a
@@ -72,7 +79,7 @@ async def region_wildlife(
     # creature they track because none of them happened to need heat.
     record: Any = None
 
-    if needs_heat or needs_light:
+    if needs_heat or needs_light or needs_weather:
         start = gdd.season_start(today)
         try:
             record = await record_cache.almanac_history(
@@ -96,6 +103,11 @@ async def region_wildlife(
             for b in sorted({e["base_temp_f"] for e in parsed if e["driver"] == "heat"}):
                 curves[b] = gdd.accumulate(tmax, tmin, b)
 
+        if needs_weather:
+            tmax = tmax or [num(v) for v in (block.get("temperature_2m_max") or [])]
+            tmin = tmin or [num(v) for v in (block.get("temperature_2m_min") or [])]
+            precip = [num(v) for v in (block.get("precipitation_sum") or [])]
+
         if needs_light:
             daylight = [
                 (v / 3600.0) if isinstance(v, (int, float)) else None
@@ -113,6 +125,8 @@ async def region_wildlife(
             )
         elif e["driver"] == "interval":
             detail = wildlife.interval_event(e, today)
+        elif e["driver"] == "condition":
+            detail = wildlife.condition_event(e, dates, tmax, tmin, precip, today)
         else:
             detail = wildlife.calendar_event(e, today)
         rows.append({

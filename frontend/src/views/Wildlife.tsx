@@ -29,11 +29,22 @@ import {
 import { speciesHabits, wildlifeCatalog, type SpeciesHabitsResult, type WildlifeCatalogResult } from "../lib/mcp";
 
 const CLOCK: Record<string, { label: string; cls: string }> = {
-  heat:     { label: "heat",     cls: "bg-growth/12 text-growth" },
-  daylight: { label: "daylight", cls: "bg-honey/15 text-honey" },
-  interval: { label: "days from", cls: "bg-clay/12 text-clay" },
-  calendar: { label: "your record", cls: "bg-band text-ink-soft" },
+  heat:      { label: "heat",       cls: "bg-growth/12 text-growth" },
+  daylight:  { label: "daylight",   cls: "bg-honey/15 text-honey" },
+  interval:  { label: "days from",  cls: "bg-clay/12 text-clay" },
+  calendar:  { label: "your record", cls: "bg-band text-ink-soft" },
+  condition: { label: "conditions", cls: "bg-growth/12 text-growth" },
 };
+
+/// A driver this page has no chip for is still a row worth showing.
+///
+/// `CLOCK[m.driver]` returning undefined would take out the whole table on the
+/// next render — the same fault, in the same week, that a missing branch in
+/// the calendar's driver dispatch caused server-side. A record may legitimately
+/// hold a driver this build has never heard of: an agent writes it through the
+/// MCP, or the browser is a version behind the service.
+const clockOf = (driver: string) =>
+  CLOCK[driver] ?? { label: driver, cls: "bg-band text-ink-soft" };
 
 const day = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -226,7 +237,7 @@ export default function Wildlife({
               </thead>
               <tbody>
                 {watched.map(({ model: m, seen: e }) => {
-                  const clock = CLOCK[m.driver];
+                  const clock = clockOf(m.driver);
                   const when = e?.reached_on ?? e?.projected_date;
                   const past = !!e?.reached_on;
                   const open = () => { setEditing(m.id); setDraft(m); };
