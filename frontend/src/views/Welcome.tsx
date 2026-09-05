@@ -27,7 +27,7 @@ export default function Welcome({ onView, onSignIn }: {
   return (
     <div className="max-w-3xl">
       <h1 className="figure text-[30px] leading-tight font-bold">
-        Climate analytics for the ground you actually farm.
+        Natural phenomena for your Acreage.
       </h1>
 
       <Claim>A farm is not a point.</Claim>
