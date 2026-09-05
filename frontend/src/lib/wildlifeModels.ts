@@ -29,27 +29,18 @@ export const DRIVER_HELP: Record<string, string> = {
   calendar: "A date from your own record, for events with no clean driver.",
 };
 
-/// Livestock intervals. A ewe's gestation does not care what the season is
-/// doing — it is a count of days from the day she was bred, so these are
-/// arithmetic rather than weather.
-///
-/// Figures are typical and breed-dependent; edit them to your own stock.
-export const HUSBANDRY_INTERVALS: { species: string; event: string; days: number; emoji: string; from_label: string }[] = [
-  { species: "Ewes", event: "lambing", days: 147, emoji: "🐑", from_label: "bred" },
-  { species: "Does · goat", event: "kidding", days: 150, emoji: "🐐", from_label: "bred" },
-  { species: "Cows", event: "calving", days: 283, emoji: "🐄", from_label: "bred" },
-  { species: "Sows", event: "farrowing", days: 114, emoji: "🐖", from_label: "bred" },
-  { species: "Mares", event: "foaling", days: 340, emoji: "🐴", from_label: "bred" },
-  { species: "Rabbits", event: "kindling", days: 31, emoji: "🐰", from_label: "bred" },
-  { species: "Hen eggs", event: "hatch", days: 21, emoji: "🐣", from_label: "set" },
-  { species: "Duck eggs", event: "hatch", days: 28, emoji: "🦆", from_label: "set" },
-  { species: "Turkey eggs", event: "hatch", days: 28, emoji: "🦃", from_label: "set" },
-  { species: "Goose eggs", event: "hatch", days: 30, emoji: "🪿", from_label: "set" },
-  { species: "Pullets", event: "point of lay", days: 140, emoji: "🐔", from_label: "hatched" },
-  { species: "Broilers", event: "processing weight", days: 56, emoji: "🍗", from_label: "hatched" },
-  { species: "Lambs", event: "weaning", days: 60, emoji: "🐑", from_label: "born" },
-  { species: "Calves", event: "weaning", days: 205, emoji: "🐄", from_label: "born" },
-];
+// ── No table of animals ──────────────────────────────────────────────────
+//
+// There was one: fourteen rows pairing a species with a day count — ewe 147,
+// cow 283, hen egg 21. It capped the feature to the livestock somebody had
+// thought of, and the figures are breed-dependent, which the note under it
+// admitted by telling growers to edit them.
+//
+// Good Earth does the arithmetic instead. The grower names the animal from
+// the same catalogue everything else is named from, says how many days, and
+// picks the day it started. Counting forward is the part this service is
+// actually good for; knowing that a particular ewe carries 147 days is the
+// part the shepherd knows.
 
 /// Validate the way the server does, so the grower is corrected in the form.
 export function makeWildlife(

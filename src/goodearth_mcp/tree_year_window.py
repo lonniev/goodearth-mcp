@@ -35,7 +35,7 @@ async def region_tree_year(
     names = [
         str(p.get("crop") or p.get("tree") or p.get("name") or "") for p in rows
     ]
-    tapped = tree_year.taps([n for n in names if n])
+    tapped = tree_year.taps(rows)
 
     # The binomial the crop preset carried in, which is the only key USA-NPN
     # answers to — it has no row for "Maple · sugar". Rows without one are

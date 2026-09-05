@@ -17,8 +17,10 @@ import SearchBox from "../components/SearchBox";
 import UndoBar, { remembered } from "../components/UndoBar";
 import { wildlifeCalendar, type WildlifeResult } from "../lib/mcp";
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
+import SpeciesPicker from "../components/SpeciesPicker";
+import type { SpeciesHit } from "../lib/species";
 import {
-  DRIVER_HELP, HUSBANDRY_INTERVALS, makeWildlife,
+  DRIVER_HELP, makeWildlife,
   wildlifeCodec, type SavedWildlife,
 } from "../lib/wildlifeModels";
 import type { SavedRegion } from "../lib/regions";
@@ -86,6 +88,11 @@ export default function Wildlife({
   const [ranAt, setRanAt] = useState<Date | null>(null);
   const [driver, setDriver] = useState<"heat" | "daylight" | "interval" | "calendar">("daylight");
   const [husbandryFrom, setHusbandryFrom] = useState(() => new Date().toISOString().slice(0, 10));
+  /// The animal, the event and the count — all the grower's, because the
+  /// figure moves with the breed and their own records beat any average.
+  const [stock, setStock] = useState<SpeciesHit | null>(null);
+  const [stockEvent, setStockEvent] = useState("");
+  const [stockDays, setStockDays] = useState("");
   const [cat, setCat] = useState<WildlifeCatalogResult | null>(null);
   const [catBusy, setCatBusy] = useState(false);
   const [catAt, setCatAt] = useState<Date | null>(null);
@@ -374,35 +381,64 @@ export default function Wildlife({
 
       <Section emoji="🐄" title="Livestock" />
       <div>
-        <span className="eyebrow">Pick a date and it counts forward</span>
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          <label className="text-[11px] text-ink-soft">
-            <input type="date" value={husbandryFrom}
-              onChange={(e) => setHusbandryFrom(e.target.value)}
-              className="min-h-11 rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" />
-          </label>
-          {HUSBANDRY_INTERVALS.map((h) => (
-            <button key={h.species + h.event}
-              onClick={() => {
-                const made = makeWildlife({
-                  species: h.species, event: h.event, driver: "interval",
-                  days: h.days, from: husbandryFrom, emoji: h.emoji,
-                }, region.id);
-                if (typeof made === "string") setError(made);
-                else void storeWildlife(made);
+        <span className="eyebrow">Name the animal, say the count, pick the day</span>
+        <div className="mt-1.5 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="block text-[11px] text-ink-soft sm:col-span-2">
+            Animal
+            <SpeciesPicker
+              kingdom="animals"
+              value={stock && {
+                commonName: stock.commonName ?? undefined,
+                scientificName: stock.scientificName,
+                thumb: stock.thumb,
               }}
-              title={`${h.days} days from ${h.from_label}`}
-              className="data min-h-11 rounded-full border border-rule bg-panel px-3.5 text-[12px] text-ink-soft active:border-ink active:text-ink">
-              {h.emoji} {h.species} · {h.event}
-              <span className="ml-1.5 opacity-60">{h.days}d</span>
-            </button>
-          ))}
+              onPick={setStock}
+              onClear={() => setStock(null)}
+              placeholder="ewe, dairy cow, muscovy duck…" />
+          </label>
+          <label className="block text-[11px] text-ink-soft">
+            What happens
+            <input value={stockEvent} onChange={(e) => setStockEvent(e.target.value)}
+              placeholder="lambing, hatch, weaning" className={FIELD} />
+          </label>
+          <label className="block text-[11px] text-ink-soft">
+            Days
+            <input value={stockDays} onChange={(e) => setStockDays(e.target.value)}
+              inputMode="numeric" placeholder="147" className={FIELD} />
+          </label>
+          <label className="block text-[11px] text-ink-soft">
+            Counting from
+            <input type="date" value={husbandryFrom}
+              onChange={(e) => setHusbandryFrom(e.target.value)} className={FIELD} />
+          </label>
+          <div className="flex items-end">
+            <Pill
+              onClick={() => {
+                if (!stock) { setError("Which animal?"); return; }
+                const days = Number(stockDays);
+                if (!Number.isFinite(days) || days < 1) {
+                  setError("How many days does it count?"); return;
+                }
+                const made = makeWildlife({
+                  species: stock.commonName ?? stock.scientificName,
+                  event: stockEvent.trim(), driver: "interval",
+                  days, from: husbandryFrom,
+                }, region.id);
+                if (typeof made === "string") { setError(made); return; }
+                setError("");
+                void storeWildlife(made);
+                setStock(null); setStockEvent(""); setStockDays("");
+              }}
+              active>
+              Count it forward
+            </Pill>
+          </div>
         </div>
         <p className="mt-1.5 text-[12px] leading-relaxed text-ink-soft">
-          A ewe's gestation does not care what the season is doing — it is a
-          count of days from the day she was bred, so these are arithmetic
-          rather than weather. Set the date above, then tap. Figures are typical
-          and breed-dependent; edit them to your own stock.
+          A ewe&rsquo;s gestation does not care what the season is doing — it is
+          a count of days from the day she was bred, so this is arithmetic
+          rather than weather. The count is yours: it moves with the breed, and
+          your own records are better than any average.
         </p>
       </div>
 
