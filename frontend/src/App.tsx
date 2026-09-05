@@ -16,7 +16,7 @@ import NostrProfilePanel from "./components/NostrProfilePanel";
 import Preferences from "./components/Preferences";
 import AccountSummary from "./components/AccountSummary";
 import CalendarFeed from "./components/CalendarFeed";
-import { readPrefs, writePrefs, type Prefs } from "./lib/prefs";
+import { readPrefs, themeOf, writePrefs, type Prefs } from "./lib/prefs";
 import FirstRun from "./components/FirstRun";
 import ForgetMe from "./components/ForgetMe";
 import GuestShell from "./components/GuestShell";
@@ -135,6 +135,14 @@ export default function App() {
   // when a tab is picked, and follows it when the reader uses back, forward,
   // or opens a link.
   useEffect(() => { writeView(view); }, [view]);
+
+  // One attribute on the root, and every token follows — including inside the
+  // SVG charts, which read the same custom properties the buttons do. Set here
+  // rather than in a provider because the guest shell and the app shell both
+  // need it and neither is the other's parent.
+  useEffect(() => {
+    document.documentElement.dataset.theme = themeOf(prefs);
+  }, [prefs]);
   useEffect(() => onRouteChange(setView, signedIn ? DEFAULT_VIEW : GUEST_VIEW), [signedIn]);
 
   // A paid call can bounce for an expired proof from anywhere; the gate

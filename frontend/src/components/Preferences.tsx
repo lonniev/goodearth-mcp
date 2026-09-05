@@ -1,6 +1,7 @@
 // Viewing preferences, on the Account page beside the Nostr profile.
 
-import type { Prefs } from "../lib/prefs";
+import type { Prefs, ThemeChoice } from "../lib/prefs";
+import { SEASONS, seasonOf } from "../lib/season";
 import { showTemp, type Unit } from "../lib/units";
 
 export default function Preferences({
@@ -16,6 +17,28 @@ export default function Preferences({
         Kept on this device — a preference for the tablet in the shed need not
         follow you to the laptop.
       </p>
+
+      {/* The seasons shift hue and never polarity — this is a change of light,
+          not a dark mode. "Follow the season" is the default because a farm
+          calendar that did not would be a strange thing. */}
+      <div className="mb-4">
+        <div className="mb-1.5 text-[13.5px]">🍂 Season</div>
+        <div className="flex flex-wrap gap-1.5">
+          {(["follow", ...SEASONS] as ThemeChoice[]).map((s) => (
+            <button
+              key={s}
+              onClick={() => onChange({ ...prefs, theme: s })}
+              className={`min-h-11 shrink-0 rounded-full border px-4 text-[12.5px] font-medium capitalize ${
+                prefs.theme === s
+                  ? "border-ink bg-ink text-paper"
+                  : "border-rule text-ink-soft active:bg-band"
+              }`}
+            >
+              {s === "follow" ? `Follow · ${seasonOf()}` : s}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Fahrenheit is what the record is kept in, and switching this does
           not rewrite it — a threshold entered as 50 °F is still 50 °F, shown

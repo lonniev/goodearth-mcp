@@ -3,8 +3,18 @@
 @import "tailwindcss";
 
 /* Design tokens from frontend/design/heat-ledger-mock.html — the almanac
-   palette. Field paper is green-tinted, never warm cream: this is a tool for
-   people who work outside, and warm cream reads as a receipt. */
+   palette, and the SUMMER default of four seasons.
+   
+   The seasons shift HUE, never polarity. `ink` stays dark and `paper` stays
+   light in every one of them, because 44 places use `bg-ink` to mean "the dark
+   thing" — the rail, a primary button, an active pill — and a palette that
+   inverted would turn the rail into a white slab. This is a change of light,
+   not a dark mode.
+   
+   Field paper is green-tinted, never warm cream: this is a tool for people who
+   work outside, and warm cream reads as a receipt. Autumn is the one season
+   allowed to break that, because by then the field IS the colour of a
+   receipt. */
 @theme {
   --color-paper:    #F1F2E8;
   --color-panel:    #FAFAF3;
@@ -92,4 +102,51 @@
 .ge-bee-in  { animation: ge-arrive 9s ease-in-out infinite; transform-origin: center; }
 @media (prefers-reduced-motion: reduce) {
   .ge-bee, .ge-bee-in { animation: none; }
+}
+
+/* ── The seasons ──────────────────────────────────────────────────────────
+   Redefined on the root rather than swapped in JS, so a theme change is one
+   attribute and every token follows — including inside an SVG chart, which
+   reads the same custom properties the buttons do. */
+
+:root[data-theme="spring"] {
+  --color-paper:    #EEF3E9;  /* washed new green */
+  --color-panel:    #F8FBF4;
+  --color-ink:      #1E3320;
+  --color-ink-soft: #55694F;
+  --color-rule:     #C3D3BC;
+  --color-growth:   #4E8C3F;  /* the loudest green of the four — it is spring */
+  --color-honey:    #D9A21A;
+  --color-frost:    #5B93C4;  /* still earning its keep: a late frost is spring's */
+  --color-clay:     #B0533A;
+  --color-band:     #D8E7D0;
+  --color-rail-ink: #DBEBD3;
+}
+
+:root[data-theme="autumn"] {
+  --color-paper:    #F4EFE4;  /* the field gone to stubble */
+  --color-panel:    #FBF7EF;
+  --color-ink:      #33261A;
+  --color-ink-soft: #6B5842;
+  --color-rule:     #D6C6AC;
+  --color-growth:   #7A7A33;  /* olive: growth is winding down, not gone */
+  --color-honey:    #C67B14;  /* deeper — the honey is in the jar by now */
+  --color-frost:    #5C7E9B;
+  --color-clay:     #A8442A;
+  --color-band:     #E7DAC4;
+  --color-rail-ink: #EFE3CE;
+}
+
+:root[data-theme="winter"] {
+  --color-paper:    #F2F4F6;  /* snow light, which is blue and not warm */
+  --color-panel:    #FCFDFE;
+  --color-ink:      #1B2530;
+  --color-ink-soft: #5A6874;
+  --color-rule:     #C6CFD8;
+  --color-growth:   #3E7A5E;  /* what stays green in January is a conifer */
+  --color-honey:    #C79017;
+  --color-frost:    #3F7EB5;  /* the one season where this is the loud colour */
+  --color-clay:     #A8462F;
+  --color-band:     #E1E7ED;
+  --color-rail-ink: #DCE4EC;
 }
