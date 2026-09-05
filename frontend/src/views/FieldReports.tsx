@@ -22,7 +22,7 @@ import {
   toObservations, type FieldReport, type ReportTag,
 } from "../lib/reports";
 import type { SavedRegion } from "../lib/regions";
-import { ErrorBox, FIELD, Note } from "../components/ui";
+import { ErrorBox, FIELD, ICON, IconButton, Note } from "../components/ui";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const nice = (iso: string) =>
@@ -369,13 +369,11 @@ export default function FieldReports({
               </div>
             )}
           </label>
-          <button onClick={pullINat} disabled={inatBusy || !inatUser.trim()}
-            className="min-h-11 rounded border-[1.5px] border-ink px-4 text-[13px] font-semibold active:bg-ink active:text-paper disabled:opacity-40">
-            {inatBusy ? "Fetching…" : "Find observations"}
-          </button>
+          <IconButton path={ICON.search} label={inatBusy ? "Fetching…" : "Import"}
+            onClick={pullINat} disabled={inatBusy || !inatUser.trim()} />
         </div>
         <p className="mt-2 text-[12px] leading-relaxed text-ink-soft">
-          Read-only, and bounded to {region.name}. Good Earth never posts as you.
+          iNaturalist observations that are within the current boundaries.
         </p>
 
         {inat && inat.length > 0 && (
