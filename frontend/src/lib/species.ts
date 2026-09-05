@@ -26,6 +26,15 @@
 
 const TAXA = "https://api.inaturalist.org/v1/taxa";
 
+/// Kingdom ids, used to constrain a search to the thing being named.
+///
+/// **`iconic_taxa=Plantae` does not filter this endpoint.** Asking it for
+/// "Sweet William" returns *Mustelus antarcticus* — a shark — ranked above the
+/// pink, because the parameter is accepted and ignored. The ancestor id does
+/// filter, so it is what every call here passes.
+export const KINGDOM = { plants: 47126, animals: 1, fungi: 47170 } as const;
+export type Kingdom = keyof typeof KINGDOM;
+
 export interface SpeciesInfo {
   id: number;
   scientificName: string;
@@ -46,13 +55,17 @@ function stripTags(html: string): string {
 /// Look a name up. Returns null when nothing matches — a miss is reported as a
 /// miss rather than as a guess at a neighbouring species.
 export async function lookupSpecies(
-  name: string, signal?: AbortSignal,
+  name: string, signal?: AbortSignal, kingdom?: Kingdom,
 ): Promise<SpeciesInfo | null> {
-  const key = name.trim().toLowerCase();
-  if (!key) return null;
+  const q0 = name.trim().toLowerCase();
+  if (!q0) return null;
+  // Scoped by kingdom: the same word means a plant in one call and an insect
+  // in another, and one cache holding both would answer the wrong page.
+  const key = `${kingdom ?? "any"}:${q0}`;
   if (cache.has(key)) return cache.get(key) ?? null;
 
   const q = new URLSearchParams({ q: name.trim(), per_page: "1" });
+  if (kingdom) q.set("taxon_id", String(KINGDOM[kingdom]));
   const r = await fetch(`${TAXA}?${q}`, { signal, headers: { Accept: "application/json" } });
   if (!r.ok) throw new Error(`Species lookup failed (${r.status}).`);
   const d = (await r.json()) as { results?: Record<string, unknown>[] };
@@ -138,6 +151,114 @@ export function guidanceLinks(
       url: `https://www.ipmcenters.org/`,
       note: "Integrated pest management guidance by region.",
     });
+  }
+  return out;
+}
+
+
+// ── The picker ───────────────────────────────────────────────────────────
+//
+// Good Earth holds no list of plants. A grower names what they grow by
+// searching the same catalogue an ecologist uses, and what gets saved is the
+// taxon id — a pointer to a record somebody else maintains — rather than a row
+// copied out of it.
+//
+// This is a SEARCH the grower reads, and that matters for correctness rather
+// than only for taste. iNaturalist ranks by how often a thing is observed, so
+// a bare shelf word lands on the wild cousin: "apple" leads with Solanum
+// (bitter-apples) and "fig" with a prickly pear. Ranked answers are safe when
+// a person picks from them and dangerous when code takes the first one.
+
+/// One candidate, as the picker draws it.
+export interface SpeciesHit {
+  id: number;
+  scientificName: string;
+  commonName: string | null;
+  rank: string | null;
+  /// What matched the query — often a name other than the one displayed, which
+  /// is why it is shown when it differs.
+  matched: string | null;
+  thumb: string | null;
+  observations: number;
+}
+
+function toHit(t: Record<string, unknown>): SpeciesHit {
+  const photo = (t.default_photo ?? null) as { square_url?: string } | null;
+  return {
+    id: Number(t.id),
+    scientificName: String(t.name ?? ""),
+    commonName: (t.preferred_common_name as string) ?? null,
+    rank: (t.rank as string) ?? null,
+    matched: (t.matched_term as string) ?? null,
+    thumb: photo?.square_url ?? null,
+    observations: Number(t.observations_count ?? 0),
+  };
+}
+
+/// Candidates for what the grower has typed so far, most-recorded first.
+///
+/// A genus is a real answer and is offered as one: somebody planting an
+/// Asiatic lily has planted a Lilium and nothing narrower, and forcing a
+/// species on them would be inventing precision.
+export async function searchSpecies(
+  q: string, kingdom: Kingdom, signal?: AbortSignal,
+): Promise<SpeciesHit[]> {
+  const text = q.trim();
+  if (text.length < 2) return [];
+  const p = new URLSearchParams({
+    q: text,
+    taxon_id: String(KINGDOM[kingdom]),
+    rank: "species,subspecies,variety,genus",
+    per_page: "8",
+  });
+  const r = await fetch(`${TAXA}/autocomplete?${p}`, {
+    signal, headers: { Accept: "application/json" },
+  });
+  if (!r.ok) throw new Error(`Species search failed (${r.status}).`);
+  const d = (await r.json()) as { results?: Record<string, unknown>[] };
+  return (d.results ?? []).map(toHit).filter((h) => h.id && h.scientificName);
+}
+
+const byId = new Map<number, SpeciesHit | null>();
+
+/// Look several taxa up at once, for a page that has a list of saved ids and
+/// wants a picture beside each. One request for the whole ledger rather than
+/// one per row.
+export async function speciesByIds(
+  ids: number[], signal?: AbortSignal,
+): Promise<Map<number, SpeciesHit>> {
+  const out = new Map<number, SpeciesHit>();
+  const missing: number[] = [];
+  for (const id of new Set(ids.filter((n) => Number.isFinite(n) && n > 0))) {
+    const hit = byId.get(id);
+    if (hit) out.set(id, hit);
+    else if (!byId.has(id)) missing.push(id);
+  }
+  if (!missing.length) return out;
+
+  // The endpoint takes a comma-joined path segment. Chunked so a grower with a
+  // large orchard does not build a URL nobody will accept.
+  for (let i = 0; i < missing.length; i += 30) {
+    const chunk = missing.slice(i, i + 30);
+    try {
+      const r = await fetch(`${TAXA}/${chunk.join(",")}`, {
+        signal, headers: { Accept: "application/json" },
+      });
+      if (!r.ok) throw new Error(String(r.status));
+      const d = (await r.json()) as { results?: Record<string, unknown>[] };
+      const seen = new Set<number>();
+      for (const t of d.results ?? []) {
+        const hit = toHit(t);
+        byId.set(hit.id, hit);
+        out.set(hit.id, hit);
+        seen.add(hit.id);
+      }
+      // An id the catalogue no longer knows is remembered as a miss, so the
+      // page does not ask again on every render.
+      for (const id of chunk) if (!seen.has(id)) byId.set(id, null);
+    } catch {
+      // A picture is decoration. Failing to fetch one must not empty a ledger.
+    }
   }
   return out;
 }

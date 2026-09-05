@@ -5,43 +5,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { CROP_PRESETS, emojiFor, HEAT_RATED, makePlanting, plantingCodec, plantingDateFor,
-  WINTER_RATED } from "./plantings.ts";
-
-describe("emojiFor — marks a row without guessing", () => {
-  it("matches a preset by name", () => {
-    assert.equal(emojiFor("Potato"), "🥔");
-    assert.equal(emojiFor("Lisianthus"), "💐");
-  });
-
-  it("ignores case and surrounding space", () => {
-    assert.equal(emojiFor("  potato "), "🥔");
-  });
-
-  it("finds the crop inside a succession a grower typed", () => {
-    // The real shape of the field: nobody writes the preset key back.
-    assert.equal(emojiFor("Zinnia · succession 4"), "🌼");
-    assert.equal(emojiFor("Sunflower · ProCut, second sowing"), "🌻");
-  });
-
-  it("matches whole words only", () => {
-    // "corn" inside "cornflower" must not claim a corn row. No preset head is
-    // the bare word, so the seedling is the honest answer here.
-    assert.equal(emojiFor("Cornflower"), "🌱");
-  });
-
-  it("falls back to a seedling rather than guessing", () => {
-    assert.equal(emojiFor("Fiddlehead fern"), "🌱");
-    assert.equal(emojiFor(""), "🌱");
-    assert.equal(emojiFor("   "), "🌱");
-  });
-
-  it("prefers the longer head when two could match", () => {
-    // "Field corn" and "Silage corn" both end in corn; the row says which.
-    assert.equal(emojiFor("Silage corn"), "🌽");
-    assert.equal(emojiFor("Field corn · long season"), "🌽");
-  });
-});
+import { makePlanting, plantingCodec, plantingDateFor } from "./plantings.ts";
 
 describe("plantingDateFor — never backdates the heat", () => {
   const today = "2026-08-31";
@@ -67,148 +31,6 @@ describe("plantingDateFor — never backdates the heat", () => {
     assert.equal(plantingDateFor(today, today), today);
   });
 });
-
-describe("CROP_PRESETS — invariants the UI relies on", () => {
-  it("has no duplicate crop name", () => {
-    // The name is the React key AND the join key against the tool's rows.
-    // A duplicate shadows silently: one chiclet renders, the other's verdict
-    // is quietly the first one's.
-    const seen = new Map<string, number>();
-    for (const c of CROP_PRESETS) seen.set(c.crop, (seen.get(c.crop) ?? 0) + 1);
-    const dupes = [...seen].filter(([, n]) => n > 1).map(([k]) => k);
-    assert.deepEqual(dupes, []);
-  });
-
-  it("pairs a heat target with a base temperature, both ways", () => {
-    // One without the other is unusable: a target with no base cannot be
-    // accumulated, and a base with no target has nothing to count toward.
-    for (const c of CROP_PRESETS) {
-      assert.equal(c.gddTarget != null, c.baseTempF != null,
-        `${c.crop} carries one of target/base without the other`);
-    }
-  });
-
-  it("gives every preset an icon and a note field", () => {
-    for (const c of CROP_PRESETS) {
-      assert.ok(c.emoji, `${c.crop} has no icon`);
-      assert.equal(typeof c.note, "string", `${c.crop} has no note`);
-    }
-  });
-
-  it("gives every preset a resolved scientific name", () => {
-    // Not decoration. USA-NPN is keyed on the binomial and has no row for
-    // "Maple · sugar", so this field is the only thing that lets Good Earth
-    // ask what a tree is tracked doing through its year. A preset added
-    // without one silently loses its phenophases, which is why this reads the
-    // shipped list rather than a count of it.
-    for (const c of CROP_PRESETS) {
-      assert.ok(c.scientificName, `${c.crop} has no scientific name`);
-    }
-  });
-
-  it("shapes every scientific name like a name and not a shelf label", () => {
-    // "Acer saccharum" or the bare genus "Malus". Anything with a middle dot,
-    // a digit or a lowercase first letter is a retail string that got pasted
-    // into the wrong field.
-    for (const c of CROP_PRESETS) {
-      assert.match(c.scientificName!, /^[A-Z][a-z]+(?: [a-z][a-z-]+| x [a-z-]+)?$/,
-        `${c.crop}: ${c.scientificName} is not shaped like a scientific name`);
-    }
-  });
-
-  it("gives every perennial the hardiness figure it is judged on", () => {
-    for (const c of WINTER_RATED) {
-      assert.ok(c.hardyToF != null, `${c.crop} has no hardiness figure`);
-    }
-  });
-
-  it("gives winter figures to NOTHING that is not a perennial", () => {
-    // A chill requirement on a zinnia would be sent to a tool that rates it
-    // across winters it does not live through.
-    for (const c of CROP_PRESETS) {
-      if (c.perennial) continue;
-      assert.equal(c.chillHours, undefined, `${c.crop} carries chill hours`);
-      assert.equal(c.hardyToF, undefined, `${c.crop} carries a hardiness figure`);
-    }
-  });
-
-  it("lets the two ratings OVERLAP rather than partition the library", () => {
-    // The error that kept perennials out in the first place was assuming a
-    // plant could only be one kind of thing. Alfalfa is a perennial stand that
-    // also answers 750 GDD per cutting, and both are true of it.
-    const both = CROP_PRESETS.filter((c) => c.perennial && c.gddTarget != null);
-    assert.ok(both.length > 0, "nothing is rated on both heat and winter");
-    for (const c of both) {
-      assert.ok(HEAT_RATED.includes(c), `${c.crop} is not asked its heat question`);
-      assert.ok(WINTER_RATED.includes(c), `${c.crop} is not asked its winter question`);
-    }
-  });
-
-  it("sends nothing to a call that would have to invent its figure", () => {
-    for (const c of HEAT_RATED) assert.ok(c.gddTarget != null && c.baseTempF != null, c.crop);
-    for (const c of WINTER_RATED) assert.ok(c.perennial, c.crop);
-  });
-
-  it("carries perennials in every category a grower browses, not a ghetto", () => {
-    // The whole correction. They were absent from the catalogue on a rule that
-    // was one afternoon's working decision; they belong wherever the plant
-    // belongs, beside the annuals a grower is choosing between.
-    const cats = new Set(WINTER_RATED.map((c) => c.category));
-    for (const want of ["flower", "vegetable", "herb", "orchard", "forest", "field", "cover"]) {
-      assert.ok(cats.has(want as never), `no perennial in ${want}`);
-    }
-  });
-
-  it("gives every fruit tree and bush the two figures it is judged on", () => {
-    const fruit = WINTER_RATED.filter((c) => c.category === "orchard");
-    assert.ok(fruit.length >= 25, `only ${fruit.length} fruit entries`);
-    for (const c of fruit) {
-      assert.ok(c.chillHours != null, `${c.crop} has no chill figure`);
-      assert.ok(c.hardyToF != null, `${c.crop} has no hardiness figure`);
-    }
-  });
-
-  it("gives every forest tree a hardiness figure and no chill one", () => {
-    // A forest tree is not being asked to set fruit, so a chill requirement
-    // for it would be a number invented to fill a column.
-    const forest = WINTER_RATED.filter((c) => c.category === "forest");
-    assert.ok(forest.length >= 10, `only ${forest.length} forest trees`);
-    for (const c of forest) {
-      assert.ok(c.hardyToF != null, `${c.crop} has no hardiness figure`);
-      assert.equal(c.chillHours, undefined, `${c.crop} carries a chill requirement`);
-    }
-  });
-
-  it("keeps every perennial figure inside what the server will accept", () => {
-    // The server validates -60..40 °F and 0..2000 hours. A preset outside
-    // those is refused on the wire, which reads as a broken page.
-    for (const c of WINTER_RATED) {
-      if (c.hardyToF != null) assert.ok(c.hardyToF >= -60 && c.hardyToF <= 40, c.crop);
-      if (c.chillHours != null) assert.ok(c.chillHours >= 0 && c.chillHours <= 2000, c.crop);
-    }
-  });
-
-  it("never marks a crop both frost-hardy and warm-soil", () => {
-    // Contradictory flags would put a crop out before the last frost and then
-    // hold it back for 60°F soil — two rules that cannot both be the answer.
-    for (const c of CROP_PRESETS) {
-      if (c.frostHardy) {
-        assert.ok((c.minSoilF ?? 0) <= 55,
-          `${c.crop} is frost-hardy but waits on ${c.minSoilF}°F soil`);
-      }
-    }
-  });
-
-  it("keeps the flower bench worth calling a bench", () => {
-    // It shipped with six, which said more about who wrote the list than
-    // about what grows in a cold-climate cut garden.
-    const flowers = CROP_PRESETS.filter((c) => c.category === "flower");
-    assert.ok(flowers.length >= 20, `only ${flowers.length} flowers`);
-    assert.ok(flowers.some((c) => c.frostHardy), "no hardy annuals");
-    assert.ok(flowers.some((c) => !c.frostHardy), "no tender annuals");
-  });
-});
-
 
 describe("makePlanting — a perennial is a planting too", () => {
   it("refuses an annual with no target, as it always has", () => {
@@ -252,19 +74,6 @@ describe("makePlanting — a perennial is a planting too", () => {
   });
 });
 
-describe("the tree library reads as a grower would name it", () => {
-  it("finds an icon for every perennial by name", () => {
-    for (const c of WINTER_RATED) assert.equal(emojiFor(c.crop), c.emoji);
-  });
-
-  it("does not let one head term claim an unrelated plant", () => {
-    // "Cherry · black" is a forest tree and "Cherry · sweet" an orchard one;
-    // the head-term match must not collapse them into whichever came first.
-    assert.ok(CROP_PRESETS.every((c) => c.crop !== "Cherry"));
-  });
-});
-
-
 describe("the scientific name survives the round trip to the record", () => {
   // A name held only in the browser is a name the server never sees, and the
   // server is where USA-NPN gets asked. Assert the wire shape, not the object
@@ -296,5 +105,64 @@ describe("the scientific name survives the round trip to the record", () => {
     assert.equal(plantingCodec.from({
       item_id: "pl-2", block_id: "b1", crop: "Honeycrisp",
     }).scientificName, undefined);
+  });
+});
+
+
+describe("no catalogue of living things comes back", () => {
+  // This fault has now happened twice: a list of plants typed into a source
+  // file, capping what a grower may grow to what one afternoon of research
+  // thought of, and stating agronomy this service is in no position to state.
+  // It is cheap to reintroduce and invisible in review, so it gets a test
+  // rather than a comment.
+  //
+  // Reads the shipped modules rather than a count of them, because a test that
+  // restates a number goes green while the file it describes drifts.
+  it("ships no array of named organisms", async () => {
+    // Guarding on the SHAPE of the fault, not on the look of a word. An
+    // earlier version of this test grepped for "Genus species" and flagged
+    // almanac.py, whose WMO table holds "Light drizzle" — same shape, not a
+    // species. What actually went wrong was an array of rows each naming a
+    // living thing, so that is what this counts.
+    const { readdir, readFile } = await import("node:fs/promises");
+    // The key must be followed by a quoted VALUE. `crop: string` is an
+    // interface declaring a field; `crop: "Tomato"` is a row of a catalogue,
+    // and only the second is the fault.
+    const KEYS = /\b(crop|species|tree|pest|plant|scientificName|scientific_name|commonName)\s*:\s*["'`]/g;
+    const offenders: string[] = [];
+
+    for (const root of ["src/lib", "src/views", "src/components"]) {
+      let names: string[];
+      try { names = await readdir(root); } catch { continue; }
+      for (const f of names) {
+        if (!/\.(ts|tsx)$/.test(f) || f.includes(".test.")) continue;
+        const txt = await readFile(`${root}/${f}`, "utf8");
+        // Object literals in this file that name a living thing. A handful is
+        // a type, a fixture or a worked example; dozens is a catalogue.
+        const rows = (txt.match(KEYS) ?? []).length;
+        if (rows > 12) offenders.push(`${root}/${f} (${rows})`);
+      }
+    }
+    assert.deepEqual(offenders, [],
+      `these look like a species catalogue typed into a source file: ${offenders.join(", ")}`);
+  });
+
+  it("bakes no literal year into a fallback", async () => {
+    // `curve.season_start ?? "2026-01-01"` dated every calendar event into
+    // 2026 for any later season that reached it.
+    const { readdir, readFile } = await import("node:fs/promises");
+    const offenders: string[] = [];
+    for (const root of ["src/lib", "src/views", "src/components"]) {
+      let names: string[];
+      try { names = await readdir(root); } catch { continue; }
+      for (const f of names) {
+        if (!/\.(ts|tsx)$/.test(f) || f.includes(".test.")) continue;
+        const txt = await readFile(`${root}/${f}`, "utf8");
+        for (const m of txt.match(/\?\?\s*["'](19|20)\d{2}-/g) ?? []) {
+          offenders.push(`${root}/${f}: ${m.trim()}`);
+        }
+      }
+    }
+    assert.deepEqual(offenders, []);
   });
 });

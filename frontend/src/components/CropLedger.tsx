@@ -23,7 +23,7 @@
 
 import { useUnits } from "./Units";
 import type { PlantingStatus } from "../lib/mcp";
-import { emojiFor, type Planting } from "../lib/plantings";
+import { SEEDLING, type Planting } from "../lib/plantings";
 import { SortHeaders, type Column } from "./RecordTable";
 import { CELL, RowActions } from "./ui";
 import type { ItemSort } from "../lib/blockItems";
@@ -98,7 +98,7 @@ export default function CropLedger({
                 <td onClick={() => onEdit(p)} className="cursor-text px-3 py-2.5 font-semibold">
                   {/* The same icon the chiclet carried, so a row and the
                       chiclet that created it read as the one crop. */}
-                  <span className="mr-1.5 text-[15px]" aria-hidden="true">{emojiFor(p.crop)}</span>
+                  <span className="mr-1.5 text-[15px]" aria-hidden="true">{SEEDLING}</span>
                   {p.crop}
                   <small className="block text-[11px] font-normal text-ink-soft">
                     {/* A tree is described by the figures it IS judged on.

@@ -26,7 +26,7 @@ PANTON = {
     "normal_bloom": 135.20741271972656,
 }
 
-MAPLE = {"crop": "Maple · sugar"}
+MAPLE = {"crop": "Maple · sugar", "taps": True}
 APPLE = {"crop": "Apple"}
 
 
@@ -186,7 +186,8 @@ def test_the_sap_run_reads_the_kind_the_record_actually_uses():
 # ── Per-species, which is where pollen and leaf colour actually live ──────
 
 
-MAPLE_NAMED = {"crop": "Maple · sugar", "scientific_name": "Acer saccharum"}
+MAPLE_NAMED = {"crop": "Maple · sugar", "scientific_name": "Acer saccharum",
+               "taps": True}
 OAK_NAMED = {"crop": "Oak · red", "scientific_name": "Quercus rubra"}
 
 

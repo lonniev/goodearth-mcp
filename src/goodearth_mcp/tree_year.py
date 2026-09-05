@@ -182,12 +182,22 @@ def sap_run(
     }
 
 
-#: Which saved plants make the sap run worth reporting. A block with no maple
-#: on it gets no sap section — the arithmetic would be just as true and would
-#: be answering a question nobody on that ground asked.
-TAPPED = ("maple", "birch", "walnut")
+def taps(plants: list[dict[str, Any]]) -> list[str]:
+    """The saved plants the grower says they tap.
 
+    This used to test whether a saved name contained "maple", "birch" or
+    "walnut". That is wrong twice over. It read a Japanese maple in a front
+    garden as a sugarbush, and it read nothing at all on a row saved as
+    `Acer saccharum` — the binomial the rest of this service now runs on.
 
-def taps(names: list[str]) -> list[str]:
-    """The saved plants a sugarmaker would actually tap."""
-    return [n for n in names if any(t in n.lower() for t in TAPPED)]
+    It was also the wrong question. A sugar maple in a hedgerow is not tapped
+    and a sugar maple in a sugarbush is, and no catalogue anywhere knows which
+    of those a grower has. The one party who knows is the one with the buckets,
+    so they say, and the sap section follows what they said.
+    """
+    return [
+        str(p.get("crop") or p.get("tree") or p.get("name") or "")
+        for p in plants
+        if isinstance(p, dict) and p.get("taps") is True
+        and (p.get("crop") or p.get("tree") or p.get("name"))
+    ]

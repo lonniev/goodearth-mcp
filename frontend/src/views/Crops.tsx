@@ -19,10 +19,10 @@ import { cropGddStatus, cropSuitability, plantCatalog, plantingWindow,
   type CropLedgerResult, type PlantingWindowResult, type SuitabilityResult,
   type PlantCatalogResult, type TreeAssessment, type TreeSuitabilityResult,
   type TreeYearResult, type Verdict } from "../lib/mcp";
-import {
-  CROP_CATEGORIES, CROP_PRESETS, HEAT_RATED, makePlanting, plantingCodec,
-  WINTER_RATED,
-  type CropPreset, type Planting, plantingDateFor } from "../lib/plantings";
+import { makePlanting, plantingCodec, SEEDLING,
+  type Planting } from "../lib/plantings";
+import SpeciesPicker from "../components/SpeciesPicker";
+import { speciesByIds, type SpeciesHit } from "../lib/species";
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
 import type { SavedRegion } from "../lib/regions";
 import { Chiclet, Empty, ErrorBox, FIELD, ICON, IconButton, Note, Pill,
@@ -106,6 +106,7 @@ export default function Crops({
   const [ranAt, setRanAt] = useState<Date | null>(null);
   const [formErr, setFormErr] = useState("");
   /// What the last row-click put on the ledger, so a tap is not silent.
+  /// What the last add put on the ledger, so the act is not silent.
   const [added, setAdded] = useState("");
   const [fit, setFit] = useState<SuitabilityResult | null>(null);
   const [fitAt, setFitAt] = useState<Date | null>(null);
@@ -121,8 +122,36 @@ export default function Crops({
   const [nearBusy, setNearBusy] = useState(false);
   /// The add form's crop field, held here so a chiclet can fill it. The
   /// species is a fact about this country; what you do with it is yours.
-  const [cropName, setCropName] = useState("");
-  const [cat, setCat] = useState<CropPreset["category"] | "all">("all");
+  /// A name handed to the picker from elsewhere on the page.
+  const [seed, setSeed] = useState("");
+  /// A planting is rated on heat if it carries a target, and on winter if it
+  /// is a perennial, and **these overlap**: alfalfa is a perennial that also
+  /// answers "750 GDD per cutting". Membership is by what a row carries, never
+  /// by a category, so nothing reaches a call that would have to invent the
+  /// figure it is missing.
+  const heatRated = plantings.filter((p) => p.gddTarget != null);
+  const winterRated = plantings.filter(
+    (p) => p.perennial || p.chillHours != null || p.hardyToF != null);
+
+  /// iNaturalist's own photograph for each saved taxon, one request for the
+  /// whole ledger. Decoration: a row that cannot get one still draws.
+  const [thumbs, setThumbs] = useState<Map<number, SpeciesHit>>(new Map());
+  const taxonKey = plantings.map((p) => p.taxonId ?? 0).sort().join(",");
+  useEffect(() => {
+    const ids = plantings.map((p) => p.taxonId).filter((n): n is number => !!n);
+    if (!ids.length) return;
+    const ac = new AbortController();
+    void speciesByIds(ids, ac.signal).then((m) => {
+      if (!ac.signal.aborted) setThumbs(m);
+    });
+    return () => ac.abort();
+    // Keyed on the ids themselves: re-fetching because a set-out date changed
+    // would spend a request to be handed the same pictures.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taxonKey]);
+
+  /// What the picker has chosen but the form has not yet saved.
+  const [picked, setPicked] = useState<SpeciesHit | null>(null);
   const [when, setWhen] = useState<PlantingWindowResult | null>(null);
   const [whenAt, setWhenAt] = useState<Date | null>(null);
   const [whenBusy, setWhenBusy] = useState(false);
@@ -164,7 +193,13 @@ export default function Crops({
   useEffect(() => { void run(plantings); }, [run, plantings]);
 
   // "What can I grow here" is not a lookup — it is this block's own frost-free
-  // heat budget against each crop's need. One call rates the whole library.
+  // heat budget against each crop's need.
+  //
+  // It used to rate a bundled library of 146 plants. It rates the ledger now:
+  // the grower's own choices, against their own figures. A shorter answer, and
+  // the only one this service is in a position to give — nobody publishes a
+  // cultivar's heat target, so a number we did not get from the grower would
+  // be a number we made up.
   const checkFit = useCallback(async () => {
     setFitBusy(true); setError("");
     try {
@@ -174,9 +209,10 @@ export default function Crops({
         // question a peony is not asked, and sending one would mean inventing
         // the number it deliberately does not have. This is NOT "annuals":
         // alfalfa is a perennial and belongs in both calls.
-        HEAT_RATED.map((c) => ({
-          crop: c.crop, gdd_target: c.gddTarget!, base_temp: c.baseTempF!,
-          frost_hardy: c.frostHardy ?? false, category: c.category, emoji: c.emoji,
+        heatRated.map((c) => ({
+          crop: c.crop, gdd_target: c.gddTarget!,
+          base_temp: c.baseTempF ?? region.baseTempF,
+          frost_hardy: c.frostHardy ?? false,
         })),
       );
       if (!r.success) { setError(r.error || "Suitability could not be read."); return; }
@@ -185,42 +221,6 @@ export default function Crops({
     finally { setFitBusy(false); }
   }, [region]);
 
-  /// Add straight from a chiclet. The set-out defaults to today, which is
-  /// right far more often than an empty field is — a grower tapping a crop is
-  /// usually putting it in now.
-  /// Add straight from a sowing row. See plantingDateFor for the date rule.
-  function addFromWindow(row: { crop: string; earliest_out?: string | null }) {
-    const c = CROP_PRESETS.find((x) => x.crop === row.crop);
-    if (!c) return;
-    const on = plantingDateFor(row.earliest_out, new Date().toISOString().slice(0, 10));
-    const made = makePlanting(c.crop, c.gddTarget, on, region.id, c.baseTempF,
-      { scientificName: c.scientificName });
-    if (typeof made === "string") { setFormErr(made); return; }
-    setFormErr("");
-    void storePlanting(made).catch((e) => setFormErr(String(e.message ?? e)));
-    setAdded(`${c.emoji} ${c.crop} — on the ledger, dated ${short(on)}.`);
-  }
-
-  function addPreset(c: CropPreset) {
-    // A perennial goes on the record undated. "Planted today" is right for a
-    // tray of zinnias and usually wrong for a tree, which was here before this
-    // page was — and a fabricated set-out would propagate into every answer.
-    const made = makePlanting(
-      c.crop,
-      c.gddTarget,
-      c.perennial ? "" : new Date().toISOString().slice(0, 10),
-      region.id,
-      c.baseTempF,
-      c.perennial
-        ? { perennial: true, chillHours: c.chillHours, hardyToF: c.hardyToF,
-            scientificName: c.scientificName }
-        : { scientificName: c.scientificName },
-    );
-    if (typeof made === "string") { setFormErr(made); return; }
-    setFormErr("");
-    void storePlanting(made).catch((e) => setFormErr(String(e.message ?? e)));
-  }
-
   // "How much heat does it need" and "when does it go in" are different
   // questions. This is the second one, from the block's own frost and soil.
   const checkWhen = useCallback(async () => {
@@ -228,12 +228,10 @@ export default function Crops({
     try {
       const r = await plantingWindow(
         region.id,
-        HEAT_RATED.map((c) => ({
-          crop: c.crop, gdd_target: c.gddTarget!, base_temp: c.baseTempF!,
-          frost_hardy: c.frostHardy ?? false, direct_sow: c.directSow ?? false,
-          emoji: c.emoji,
-          ...(c.minSoilF != null ? { min_soil_f: c.minSoilF } : {}),
-          ...(c.startIndoorsWeeks != null ? { start_indoors_weeks: c.startIndoorsWeeks } : {}),
+        heatRated.map((c) => ({
+          crop: c.crop, gdd_target: c.gddTarget!,
+          base_temp: c.baseTempF ?? region.baseTempF,
+          frost_hardy: c.frostHardy ?? false,
         })),
       );
       if (!r.success) { setError(r.error || "The planting window could not be read."); return; }
@@ -273,22 +271,22 @@ export default function Crops({
   /// form and goes there — the same move the Pests page makes, and without it
   /// the tap looks like it did nothing because the field is off screen.
   function nameOnForm(name: string) {
-    setCropName(name);
+    setSeed(name);
     document.getElementById("new-planting")?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   const treeOf = (crop: string): TreeAssessment | null =>
     treeFit?.trees.find((r) => r.tree === crop) ?? null;
 
-  // "Will it live here?" — the perennial half of "what can I grow". One call
-  // rates the whole tree library against every winter on record.
+  // "Will it live here?" — the perennial half of "what can I grow", against
+  // every winter on record. Rates the perennials on the ledger.
   const checkTrees = useCallback(async () => {
     setTreeBusy(true); setError("");
     try {
       const r = await treeSuitability(
         region.id,
-        WINTER_RATED.map((c) => ({
-          tree: c.crop, category: c.category, emoji: c.emoji,
+        winterRated.map((c) => ({
+          tree: c.crop,
           ...(c.chillHours != null ? { chill_hours: c.chillHours } : {}),
           ...(c.hardyToF != null ? { hardy_to_f: c.hardyToF } : {}),
         })),
@@ -302,29 +300,36 @@ export default function Crops({
 
   function add(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!picked) { setFormErr("Search for the plant and pick it from the list."); return; }
     const f = new FormData(e.currentTarget);
     // Typed in the scale on screen, held in the Fahrenheit the record keeps.
     const base = f.get("base") ? u.toF(Number(f.get("base"))) : undefined;
     const target = String(f.get("target") ?? "").trim();
+    const label = String(f.get("label") ?? "").trim();
+
     const made = makePlanting(
-      String(f.get("crop") ?? ""),
+      // The grower's own label wins when they gave one — "Zinnia · succession
+      // 4" is how they will find the row again — and the catalogue's common
+      // name stands in when they did not.
+      label || picked.commonName || picked.scientificName,
       target ? u.ddToF(Number(target)) : undefined,
       String(f.get("setout") ?? ""), region.id, base,
-      // Blank on both counts is how a perennial is entered by hand: it is on
-      // the record, and it is not being paced. A typed name that happens to
-      // BE a preset gets that preset's binomial; anything else carries none,
-      // because guessing at "Honeycrisp" would put a name on the record that
-      // nothing resolved.
       {
+        // Blank on both counts is how a perennial is entered: it is on the
+        // record, and it is not being paced.
         ...(target ? {} : { perennial: true }),
-        scientificName: CROP_PRESETS.find(
-          (x) => x.crop === String(f.get("crop") ?? "").trim())?.scientificName,
+        ...(f.get("hardy") ? { frostHardy: true } : {}),
+        ...(f.get("taps") ? { taps: true } : {}),
+        taxonId: picked.id,
+        scientificName: picked.scientificName,
+        commonName: picked.commonName ?? undefined,
       },
     );
     if (typeof made === "string") { setFormErr(made); return; }
     setFormErr("");
     void storePlanting(made).catch((err) => setFormErr(String(err.message ?? err)));
-    setCropName("");
+    setAdded(`${picked.commonName ?? picked.scientificName} — on the ledger.`);
+    setPicked(null);
     e.currentTarget.reset();
   }
 
@@ -374,14 +379,31 @@ export default function Crops({
       {/* ── Add a planting ─────────────────────────────────────────────── */}
       <form id="new-planting" onSubmit={add} className="mb-4 rounded-md border border-rule bg-panel p-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="block text-[11px] text-ink-soft">
-            Crop
-            <input name="crop" list="ge-crop-presets" placeholder="Zinnia · succession 4"
-              value={cropName} onChange={(e) => setCropName(e.target.value)}
-              className={FIELD} />
+          <label className="block text-[11px] text-ink-soft sm:col-span-2">
+            Plant
+            <SpeciesPicker
+              kingdom="plants"
+              value={picked && {
+                commonName: picked.commonName ?? undefined,
+                scientificName: picked.scientificName,
+                thumb: picked.thumb,
+              }}
+              seed={seed}
+              onPick={(h) => { setPicked(h); setSeed(""); }}
+              onClear={() => setPicked(null)}
+              placeholder="sugar maple, zinnia, haskap…" />
           </label>
           <label className="block text-[11px] text-ink-soft">
-            GDD target <span className="opacity-60">(optional)</span>
+            Your name for it <span className="opacity-60">(optional)</span>
+            <input name="label" placeholder="succession 4, north lot" className={FIELD} />
+          </label>
+          <label className="block text-[11px] text-ink-soft">
+            <Term label="GDD target">The heat this plant needs from set-out to
+              the stage you care about. Nobody publishes it — it is a cultivar
+              figure, so it comes off your seed packet or your extension
+              bulletin, and Good Earth counts your ground against it. Leave it
+              blank for a tree or anything you are not pacing.</Term>{" "}
+            <span className="opacity-60">(optional)</span>
             <input name="target" inputMode="numeric" placeholder="780" className={FIELD} />
           </label>
           <label className="block text-[11px] text-ink-soft">
@@ -405,11 +427,19 @@ export default function Crops({
               placeholder={String(Math.round(u.temp(region.baseTempF)))}
               className={FIELD} />
           </label>
+          <div className="flex flex-wrap items-end gap-4 text-[12px] sm:col-span-2">
+            <label className="flex min-h-11 items-center gap-2">
+              <input type="checkbox" name="hardy" className="size-4" />
+              Takes a light frost
+            </label>
+            <label className="flex min-h-11 items-center gap-2">
+              <input type="checkbox" name="taps" className="size-4" />
+              I tap this for sap
+            </label>
+          </div>
         </div>
-        <datalist id="ge-crop-presets">
-          {CROP_PRESETS.map((c) => <option key={c.crop} value={c.crop} />)}
-        </datalist>
         {formErr && <p className="mt-2 text-[12px] text-clay">{formErr}</p>}
+        {added && !formErr && <p className="mt-2 text-[12px] text-growth">{added}</p>}
       </form>
 
       <Section emoji="📒" title="Crop ledger" first>
@@ -573,67 +603,43 @@ export default function Crops({
         </p>
       )}
 
-      {/* ── The library ────────────────────────────────────────────────
-          This IS the answer to "what grows here": every chiclet's colour and
-          its ✓/⚠/✕ come from `fit` and nothing else, and the legend below is
-          gated on it. It used to sit under the sowing table, which left the
-          summary above — "34 finish comfortably, 1 tight, 2 will not" — with
-          no referent, and put its own answer two screens away behind a table
-          about a different question. The category filter travels with it and
-          still governs the sowing table below. */}
-      <div className="mb-2.5 flex flex-wrap gap-1.5">
-        {([{ key: "all", label: "All" }, ...CROP_CATEGORIES] as const).map((c) => (
-          <button key={c.key} onClick={() => setCat(c.key as typeof cat)}
-            className={`min-h-11 rounded-full border px-3.5 text-[12.5px] font-medium ${
-              cat === c.key ? "border-ink bg-ink text-paper" : "border-rule active:bg-band"}`}>
-            {c.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap gap-1.5">
-        {CROP_PRESETS.filter((c) => cat === "all" || c.category === cat).map((c) => {
-          // Two libraries in one grid. An annual is marked by whether it
-          // finishes before frost; a perennial by whether it survives the
-          // winter here — different question, different call, same chiclet.
-          const t = c.perennial ? treeOf(c.crop) : null;
-          const v = c.perennial ? null : verdictOf(c.crop);
-          const mark =
-            c.perennial
-              ? t && MARK_TREE[t.hardiness.verdict]
-              : v && MARK_CROP[v];
-          const tone = mark?.tone ?? "border-rule bg-panel";
-          const row = fit?.crops.find((r) => r.crop === c.crop);
-          const w = when?.crops.find((r) => r.crop === c.crop);
-          // The figure a chiclet carries is the number that decides it: heat
-          // for an annual, the chill it wants for a tree.
-          const figure = c.perennial
-            ? (c.chillHours != null ? `${c.chillHours} h` : "")
-            : String(Math.round(u.degreeDays(c.gddTarget ?? 0)));
-          return (
-            <button key={c.crop} onClick={() => addPreset(c)}
-              title={[
-                c.perennial ? t?.hardiness.note : row?.note,
-                c.perennial ? t?.chill.note : undefined,
-                w && `Seed ${w.start_seed_indoors ? short(w.start_seed_indoors) : "direct"} · out ${w.earliest_out ? short(w.earliest_out) : "—"}`,
-                c.perennial
-                  ? [c.note, c.chillHours != null && `${c.chillHours} chill hours`,
-                     c.hardyToF != null && `hardy to ${u.showTemp(c.hardyToF)}`]
-                      .filter(Boolean).join(", ")
-                  : `${u.showDD(c.gddTarget ?? 0)} ${c.note}, base ${u.showTemp(c.baseTempF ?? region.baseTempF)}`,
-              ].filter(Boolean).join(" — ")}
-              className={`flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-[12.5px] active:border-ink ${tone}`}>
-              <span>{c.emoji}</span>
-              <span className="font-medium">{c.crop}</span>
-              {figure && <span className="data text-[10.5px] text-ink-soft">{figure}</span>}
-              {mark && <span className={`text-[11px] ${mark.ink}`}>{mark.glyph}</span>}
-              {w?.sow_now && (
-                <span className="rounded-full bg-growth/15 px-1.5 text-[10px] font-semibold text-growth">now</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      {/* ── What the ledger came back rated ─────────────────────────────
+          This IS the answer to "what grows here", and it is now about the
+          grower's own rows rather than a bundled library. A chiclet per saved
+          planting, its ✓/⚠/✕ from `fit` for an annual and from `treeFit` for a
+          perennial — different question, different call, same glyph. */}
+      {(fit || treeFit || when) && plantings.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {plantings.map((pl) => {
+            const t = treeOf(pl.crop);
+            const v = verdictOf(pl.crop);
+            const mark = t ? MARK_TREE[t.hardiness.verdict] : v ? MARK_CROP[v] : null;
+            const tone = mark?.tone ?? "border-rule bg-panel";
+            const row = fit?.crops.find((r) => r.crop === pl.crop);
+            const w = when?.crops.find((r) => r.crop === pl.crop);
+            const thumb = pl.taxonId ? thumbs.get(pl.taxonId)?.thumb : null;
+            return (
+              <span key={pl.id}
+                title={[
+                  pl.scientificName,
+                  t?.hardiness.note, t?.chill.note, row?.note,
+                  w && `out ${w.earliest_out ? short(w.earliest_out) : "—"}`,
+                ].filter(Boolean).join(" — ")}
+                className={`flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-[12.5px] ${tone}`}>
+                {thumb
+                  ? <img src={thumb} alt="" width={20} height={20}
+                      className="size-5 rounded-full object-cover" />
+                  : <span aria-hidden="true">{SEEDLING}</span>}
+                <span className="font-medium">{pl.crop}</span>
+                {mark && <span className={`text-[11px] ${mark.ink}`}>{mark.glyph}</span>}
+                {w?.sow_now && (
+                  <span className="rounded-full bg-growth/15 px-1.5 text-[10px] font-semibold text-growth">now</span>
+                )}
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       {fit && (
         <p className="data mt-2 text-[10.5px] text-ink-soft">
@@ -642,9 +648,6 @@ export default function Crops({
           <span className="text-clay">✕ will not finish outdoors here</span>
         </p>
       )}
-
-      <Note>Tap to add, dated today. Starting figures — edit against your own
-            seed packet.</Note>
 
       {/* ── Sowing ─────────────────────────────────────────────────── */}
       <Section emoji="🌱" title="Sowing">
@@ -687,19 +690,15 @@ export default function Crops({
                 ))}
               </tr></thead>
               <tbody>
-                {when.crops.filter((r) => cat === "all" ||
-                  CROP_PRESETS.find((c) => c.crop === r.crop)?.category === cat).map((r) => (
+                {/* Every row here is already on the ledger, so there is
+                    nothing to add and no filter to apply — the table answers
+                    for what the grower chose rather than offering a catalogue
+                    to choose from. */}
+                {when.crops.map((r) => (
                   <tr key={r.crop}
-                    onClick={() => addFromWindow(r)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); addFromWindow(r); }
-                    }}
-                    tabIndex={0}
-                    role="button"
-                    title={`Add ${r.crop} to the ledger`}
-                    className={`cursor-pointer border-b border-rule last:border-b-0 hover:bg-band/60 focus:bg-band/60 focus:outline-none ${
+                    className={`border-b border-rule last:border-b-0 ${
                       r.state === "will_not_fit" ? "opacity-50" : ""}`}>
-                    <td className="px-3 py-2.5 font-semibold whitespace-nowrap">{r.emoji} {r.crop}</td>
+                    <td className="px-3 py-2.5 font-semibold whitespace-nowrap">{r.crop}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap">{r.start_seed_indoors ? short(r.start_seed_indoors) : <span className="text-ink-soft">direct sow</span>}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap">{r.earliest_out ? short(r.earliest_out) : "—"}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap">{r.latest_out ? short(r.latest_out) : "—"}</td>
@@ -717,7 +716,8 @@ export default function Crops({
             </table>
           </div>
           <p className="mb-2 text-[12px] text-ink-soft">
-            {added || "Tap a row to put that crop on the ledger at its own out date."}
+            Dates are this block&rsquo;s own frost and soil, against the figures
+            on each planting.
           </p>
           <p className="mb-4 text-[12px] leading-relaxed text-ink-soft">
             A tender crop's "out" date is the <b>median</b> last frost — half of
@@ -754,23 +754,23 @@ export default function Crops({
         <>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {(near.plants_recorded ?? []).map((pl) => {
-              // A recorded plant the library also knows can go straight on the
-              // ledger; one it does not is still worth naming, and taps into
-              // the add form by name rather than doing nothing.
-              const known = CROP_PRESETS.find(
-                (c) => c.crop.toLowerCase() === pl.name.toLowerCase()
-                  || c.crop.split("·")[0].trim().toLowerCase() === pl.name.toLowerCase(),
+              // Already on the ledger, matched on the taxon rather than on a
+              // spelling — this list and the record now name the same thing
+              // the same way.
+              const mine = plantings.some(
+                (x) => x.scientificName
+                  && x.scientificName.toLowerCase() === (pl.scientific_name ?? "").toLowerCase(),
               );
               return (
                 <Chiclet key={pl.scientific_name ?? pl.name}
-                  emoji={known?.emoji ?? "🌿"} name={pl.name}
+                  emoji="🌿" name={pl.name}
                   figure={pl.observations.toLocaleString()}
-                  tone={known ? "border-growth/50 bg-growth/8" : "border-rule bg-panel"}
+                  tone={mine ? "border-growth/50 bg-growth/8" : "border-rule bg-panel"}
                   title={[pl.scientific_name,
                     `${pl.observations.toLocaleString()} sightings near here`,
-                    known ? "In the library — tap to add it." : "Tap to name it on the form above.",
+                    mine ? "On your ledger." : "Tap to look it up on the form above.",
                   ].filter(Boolean).join(" — ")}
-                  onClick={() => { if (known) addPreset(known); else nameOnForm(pl.name); }} />
+                  onClick={() => nameOnForm(pl.scientific_name || pl.name)} />
               );
             })}
           </div>

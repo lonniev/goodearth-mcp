@@ -182,7 +182,11 @@ export function buildFlags(
     // throw here unmounts the whole page: the chart, the ledger, everything.
     for (const st of Array.isArray(m.stages) ? m.stages : []) {
       if (st == null || typeof st.gdd !== "number") continue;
-      push("pest", `${m.pest} · ${st.stage}`, st.gdd, "🐛", m.base_temp ?? 50);
+      // The block's own base when the model states none, exactly as the
+      // plantings loop above does. It used to be a literal 50, which is a
+      // figure nobody supplied: on a block counting from 42 it raised a
+      // `baseMismatch` against a threshold the model never claimed.
+      push("pest", `${m.pest} · ${st.stage}`, st.gdd, "🐛", m.base_temp ?? base);
     }
   }
 
@@ -191,10 +195,17 @@ export function buildFlags(
     // to place on a curve. It belongs on the Wildlife page, not on this chart.
     if (!w || !w.driver) continue;
     if (w.driver === "heat" && w.gdd) {
-      push("wildlife", `${w.species} · ${w.event}`, w.gdd, w.emoji || "🦋", w.base_temp ?? 50);
+      push("wildlife", `${w.species} · ${w.event}`, w.gdd, w.emoji || "🦋", w.base_temp ?? base);
     } else if (w.driver === "calendar" && w.typical_on) {
       const [m, d] = w.typical_on.split("-");
-      const iso = `${(curve.season_start ?? "2026-01-01").slice(0, 4)}-${m}-${d}`;
+      // The season the curve is actually about. This used to fall back to a
+      // literal "2026-01-01", which dated every calendar event into 2026 for
+      // any later season that reached it — green all through the year it was
+      // written in, and silently wrong the next. The dates the curve carries
+      // are the only honest source, and with none there is no event to place.
+      const year = (curve.season_start ?? dates[0] ?? "").slice(0, 4);
+      if (!/^\d{4}$/.test(year)) continue;
+      const iso = `${year}-${m}-${d}`;
       const idx = indexOfDate(dates, iso);
       if (idx != null) {
         out.push({

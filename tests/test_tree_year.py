@@ -190,12 +190,30 @@ def test_a_missing_reading_is_skipped_rather_than_read_as_freezing():
 # ── Who has anything to tap ──────────────────────────────────────────────
 
 
-def test_only_the_trees_a_sugarmaker_taps_bring_up_the_sap_section():
-    assert tree_year.taps(["Maple · sugar", "Apple", "Birch · paper"]) == [
-        "Maple · sugar", "Birch · paper"]
+def test_only_the_trees_the_grower_says_they_tap_bring_up_the_sap_section():
+    assert tree_year.taps([
+        {"crop": "Maple · sugar", "taps": True},
+        {"crop": "Apple"},
+        {"crop": "Birch · paper", "taps": True},
+    ]) == ["Maple · sugar", "Birch · paper"]
 
 
 def test_a_block_with_no_tappable_tree_gets_no_sap_answer():
     """The arithmetic would be just as true and would answer a question
     nobody on that ground asked."""
-    assert tree_year.taps(["Apple", "Pear · European", "Peony"]) == []
+    assert tree_year.taps([{"crop": "Apple"}, {"crop": "Peony"}]) == []
+
+
+def test_a_sugar_maple_nobody_taps_is_not_a_sugarbush():
+    """The old rule matched the NAME, so a Japanese maple in a front garden
+    got a sap run and a row saved as `Acer saccharum` got none. Neither is
+    something a catalogue can know."""
+    assert tree_year.taps([
+        {"crop": "Maple · sugar", "scientific_name": "Acer saccharum"},
+    ]) == []
+
+
+def test_a_row_saved_by_its_binomial_still_taps():
+    assert tree_year.taps([
+        {"crop": "Acer saccharum", "taps": True},
+    ]) == ["Acer saccharum"]

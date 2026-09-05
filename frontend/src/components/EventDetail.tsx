@@ -73,7 +73,10 @@ export default function EventDetail({
     const ac = new AbortController();
     setLooking(true);
     setInfo(null);
-    lookupSpecies(subject, ac.signal)
+    // Constrained to the kingdom the flag is about. Unconstrained, iNaturalist
+    // ranks by observation count across all life and a plant can lose its own
+    // name to an insect or a fish that shares it.
+    lookupSpecies(subject, ac.signal, flag.kind === "crop" ? "plants" : "animals")
       .then((r) => { if (!ac.signal.aborted) setInfo(r); })
       .catch(() => { /* identity is a bonus; the timing stands without it */ })
       .finally(() => { if (!ac.signal.aborted) setLooking(false); });
