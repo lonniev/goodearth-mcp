@@ -85,11 +85,18 @@ export async function searchUsers(
     .filter((u) => u.login);
 }
 
+/// iNaturalist's own ceiling on a page. Asking for more is refused, so this
+/// is the size of a REQUEST and never a limit on what comes back.
+const PAGE = 200;
+
 export async function fetchObservations(opts: {
   user: string;
   bounds?: Bounds;
   since?: string;
-  perPage?: number;
+  /// A ceiling on requests, not on observations — a runaway guard for a query
+  /// that somehow matches half of iNaturalist, never a cap on a grower's own
+  /// record. At 200 an page this is 40,000 observations from one block.
+  maxPages?: number;
   signal?: AbortSignal;
 }): Promise<INatObservation[]> {
   const user = opts.user.trim().replace(/^@/, "");
@@ -97,7 +104,7 @@ export async function fetchObservations(opts: {
 
   const q = new URLSearchParams({
     user_login: user,
-    per_page: String(Math.min(opts.perPage ?? 50, 200)),
+    per_page: String(PAGE),
     order_by: "observed_on",
     order: "desc",
   });
@@ -111,11 +118,30 @@ export async function fetchObservations(opts: {
     q.set("nelng", String(opts.bounds.nelng));
   }
 
-  const r = await fetch(`${API}?${q}`, { signal: opts.signal, headers: { Accept: "application/json" } });
-  if (!r.ok) throw new Error(await reasonFor(r, user));
+  // Paged to exhaustion. This used to ask for 60 and return them, so a grower
+  // with more than sixty sightings on one block was quietly handed a slice and
+  // told nothing — the page size standing in for an answer. The size of a
+  // request is ours to choose; how much a grower has recorded is not.
+  const raw: Record<string, unknown>[] = [];
+  const cap = opts.maxPages ?? 200;
+  for (let page = 1; page <= cap; page++) {
+    q.set("page", String(page));
+    const r = await fetch(`${API}?${q}`, {
+      signal: opts.signal, headers: { Accept: "application/json" },
+    });
+    if (!r.ok) throw new Error(await reasonFor(r, user));
+    const d = (await r.json()) as {
+      results?: Record<string, unknown>[]; total_results?: number;
+    };
+    const got = d.results ?? [];
+    raw.push(...got);
+    // Short page, or everything the service says there is. Both are the end;
+    // trusting only one of them loops forever if the other is what arrives.
+    if (got.length < PAGE) break;
+    if (typeof d.total_results === "number" && raw.length >= d.total_results) break;
+  }
 
-  const d = (await r.json()) as { results?: Record<string, unknown>[] };
-  return (d.results ?? []).map((o) => {
+  return raw.map((o) => {
     const taxon = (o.taxon ?? {}) as Record<string, unknown>;
     const geo = (o.geojson ?? null) as { coordinates?: [number, number] } | null;
     return {

@@ -15,7 +15,7 @@ import QuoteScroller from "../components/QuoteScroller";
 import { calibration, type CalibrationResult } from "../lib/mcp";
 import { boundsFrom, fetchObservations, searchUsers,
   type INatObservation } from "../lib/inaturalist";
-import { geoJSONToRing } from "../lib/geo";
+import { geoJSONToRing, lonScaleAt, withinRing } from "../lib/geo";
 import { useBlockItems } from "../lib/blockItems";
 import {
   makeReport, reportCodec, TAGS,
@@ -147,9 +147,13 @@ export default function FieldReports({
   function regionBounds() {
     if ("lat" in region.region) {
       const d = region.region.radius_m / 111_320;
+      // Longitude narrows toward the poles, so the box has to widen. This was
+      // a hardcoded 1.4 — which is 1/cos(44.45°), the latitude of one farm in
+      // Vermont, and a third wrong in either direction anywhere else.
+      const w = d * lonScaleAt(region.region.lat);
       return {
-        swlat: region.region.lat - d, swlng: region.region.lon - d * 1.4,
-        nelat: region.region.lat + d, nelng: region.region.lon + d * 1.4,
+        swlat: region.region.lat - d, swlng: region.region.lon - w,
+        nelat: region.region.lat + d, nelng: region.region.lon + w,
       };
     }
     const ring = geoJSONToRing(region.region);
@@ -166,16 +170,32 @@ export default function FieldReports({
     setInatBusy(true); setErr(""); setMsg("");
     try {
       try { window.localStorage.setItem(inatKey(), inatUser.trim()); } catch { /* noop */ }
-      const rows = await fetchObservations({
+      const fetched = await fetchObservations({
         user: inatUser,
         bounds: regionBounds(),
         since: `${new Date().getFullYear() - 1}-01-01`,
-        perPage: 60,
       });
+
+      // The fetch is bounded by a BOX and the block is a polygon. On an
+      // L-shaped or a diagonal farm the difference is a lot of somebody
+      // else's ground, so the ring has the last word. An observation with no
+      // coordinates is kept: the grower asked for their own records, and a
+      // location they chose to obscure is not grounds for dropping one.
+      const ring = "lat" in region.region ? [] : geoJSONToRing(region.region);
+      const rows = ring.length >= 3
+        ? fetched.filter((o) =>
+            o.lat == null || o.lng == null || withinRing({ lat: o.lat, lng: o.lng }, ring))
+        : fetched;
+      const outside = fetched.length - rows.length;
+
       setInat(rows);
       setPicked(new Set(rows.filter((r) => r.flowering).map((r) => r.id)));
       if (!rows.length) {
-        setMsg(`No observations from ${inatUser} inside ${region.name}. The box is your ground — a wider search would bring back the whole world.`);
+        setMsg(outside > 0
+          ? `${outside} of your observations are near ${region.name} but outside its boundary.`
+          : `No observations from ${inatUser} inside ${region.name}.`);
+      } else if (outside > 0) {
+        setMsg(`${rows.length} inside ${region.name}. ${outside} nearby fell outside its boundary.`);
       }
     } catch (e) { setErr((e as Error).message); }
     finally { setInatBusy(false); }

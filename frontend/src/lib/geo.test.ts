@@ -5,9 +5,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import {
-  areaM2, acres, distanceM, formatArea, geoJSONToRing, isDrawable, ringToGeoJSON,
-} from "./geo.ts";
+import { acres, areaM2, distanceM, formatArea, geoJSONToRing, isDrawable, lonScaleAt, ringToGeoJSON, withinRing } from "./geo.ts";
 
 /// A square of `side` metres, anchored at `lat`.
 function square(lat: number, lng: number, side: number) {
@@ -104,5 +102,69 @@ describe("isDrawable", () => {
     assert.equal(isDrawable([
       { lat: 44.0, lng: -73.0 }, { lat: 44.1, lng: -73.0 }, { lat: 44.2, lng: -73.0 },
     ]), false);
+  });
+});
+
+describe("a box is not a farm", () => {
+  /// An L. Its bounding box covers the notch, which is somebody else's.
+  const L = [
+    { lat: 0, lng: 0 }, { lat: 0, lng: 10 }, { lat: 4, lng: 10 },
+    { lat: 4, lng: 4 }, { lat: 10, lng: 4 }, { lat: 10, lng: 0 },
+  ];
+
+  it("keeps a point in the block", () => {
+    assert.equal(withinRing({ lat: 2, lng: 2 }, L), true);
+    assert.equal(withinRing({ lat: 8, lng: 2 }, L), true);
+  });
+
+  it("rejects the notch, which the bounding box would have kept", () => {
+    // Inside min/max on both axes, outside the ring. This is the whole point:
+    // an L-shaped farm's box holds a great deal of the neighbour's ground.
+    const p = { lat: 8, lng: 8 };
+    assert.equal(p.lat >= 0 && p.lat <= 10 && p.lng >= 0 && p.lng <= 10, true);
+    assert.equal(withinRing(p, L), false);
+  });
+
+  it("rejects a point well outside", () => {
+    assert.equal(withinRing({ lat: 20, lng: 20 }, L), false);
+    assert.equal(withinRing({ lat: -1, lng: 2 }, L), false);
+  });
+
+  it("counts a vertex once rather than twice", () => {
+    // A ray leaving exactly at a vertex's latitude crosses two edges there. A
+    // naive test flips twice and reports a point inside as outside.
+    const tri = [{ lat: 0, lng: 0 }, { lat: 5, lng: 10 }, { lat: 10, lng: 0 }];
+    assert.equal(withinRing({ lat: 5, lng: 2 }, tri), true);
+  });
+
+  it("is false for anything that is not a ring", () => {
+    assert.equal(withinRing({ lat: 1, lng: 1 }, []), false);
+    assert.equal(withinRing({ lat: 1, lng: 1 }, [{ lat: 0, lng: 0 }, { lat: 1, lng: 1 }]), false);
+  });
+});
+
+describe("a degree of longitude is not a fixed width", () => {
+  it("is one to one at the equator", () => {
+    assert.ok(Math.abs(lonScaleAt(0) - 1) < 0.001);
+  });
+
+  it("is two to one at sixty degrees", () => {
+    assert.ok(Math.abs(lonScaleAt(60) - 2) < 0.001);
+  });
+
+  it("gives the hardcoded 1.4 back at the latitude it was written for", () => {
+    // 1.4 was right for Panton VT and wrong everywhere else, which is exactly
+    // why it could sit in the code unnoticed.
+    assert.ok(Math.abs(lonScaleAt(44.45) - 1.4) < 0.01);
+  });
+
+  it("does not run away at the pole", () => {
+    // Unclamped this is infinity, and a block there would ask for the world.
+    assert.ok(Number.isFinite(lonScaleAt(90)));
+    assert.ok(lonScaleAt(90) <= 20);
+  });
+
+  it("is symmetric across the equator", () => {
+    assert.equal(lonScaleAt(-44.45), lonScaleAt(44.45));
   });
 });
