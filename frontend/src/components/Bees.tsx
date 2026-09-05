@@ -39,6 +39,7 @@
 
 import { useEffect, useRef } from "react";
 import type { HiveMood } from "./Hive";
+import { aimBee } from "../lib/beeAim";
 
 type Phase = "leaving" | "foraging" | "returning" | "resting";
 
@@ -281,14 +282,15 @@ export default function Bees({
         const jx = amp * Math.sin(t * rate + b.buzz);
         const jy = amp * Math.cos(t * rate * 1.37 + b.buzz);
 
-        // Face the flight path; a bee never flies backwards.
+        // Face the flight path. The physics is untouched — this only decides
+        // which way the drawing points along a vector it did not choose.
         const tilt = speed > 0.004 ? Math.atan2(b.vy, b.vx) * (180 / Math.PI) : 0;
-        const facing = Math.abs(tilt) > 90 ? -1 : 1;   // flip rather than upside down
+        const aim = aimBee(tilt);
 
         nodes[i].style.transform =
           `translate(${(b.x + jx) * 100}vw, ${(b.y + jy) * 100}vh) ` +
-          `rotate(${facing === 1 ? tilt : tilt - 180}deg) ` +
-          `scale(${b.scale * facing}, ${b.scale})`;
+          `rotate(${aim.rotate}deg) ` +
+          `scale(${aim.mirror ? -b.scale : b.scale}, ${b.scale})`;
       });
 
       raf.current = requestAnimationFrame(step);
