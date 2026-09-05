@@ -10,10 +10,14 @@ import {
 } from "../lib/regions";
 
 export default function RegionPicker({
-  active, onPick,
+  active, onPick, onMap,
 }: {
   active: SavedRegion;
   onPick: (r: SavedRegion) => void;
+  /// Leave for the map editor. The picker can take a pin's numbers or a
+  /// pasted polygon, and neither is how anyone actually knows where their
+  /// field is — so the third way out is the one with a map under it.
+  onMap: () => void;
 }) {
   const u = useUnits();
   const [open, setOpen] = useState(false);
@@ -128,7 +132,13 @@ export default function RegionPicker({
             ))}
           </ul>
 
-          <div className="mt-2 flex gap-2 border-t border-rule pt-2">
+          <div className="mt-2 flex flex-wrap gap-2 border-t border-rule pt-2">
+            {/* First, because it is the one that does not ask a grower to
+                already know their coordinates. */}
+            <button onClick={() => { setOpen(false); setAdding(null); setErr(""); onMap(); }}
+              className="min-h-11 flex-1 rounded border-[1.5px] border-ink bg-ink px-3 text-[12.5px] font-semibold text-paper">
+              🗺️ Draw on a map
+            </button>
             <button onClick={() => { setAdding("pin"); setErr(""); }}
               className="min-h-11 flex-1 rounded border-[1.5px] border-ink px-3 text-[12.5px] font-semibold active:bg-ink active:text-paper">
               Add a pin
