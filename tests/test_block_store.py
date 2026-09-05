@@ -72,10 +72,12 @@ def test_a_day_must_be_a_day():
         bs._clean_day("last tuesday", "observed_on")
 
 
-def test_aliases_are_bounded():
+def test_aliases_are_cleaned_but_not_counted():
+    """How many names a grower has for their own ground is theirs. The shape
+    is still checked — a string is not a list of aliases — and each one is
+    still trimmed to a sane length; what is gone is the cap at twelve."""
     assert bs._clean_aliases(["North", "  ", "north field"]) == ["North", "north field"]
-    with pytest.raises(bs.BlockError):
-        bs._clean_aliases(["a"] * (bs.MAX_ALIASES + 1))
+    assert len(bs._clean_aliases(["a"] * 50)) == 50
     with pytest.raises(bs.BlockError):
         bs._clean_aliases("not a list")
 

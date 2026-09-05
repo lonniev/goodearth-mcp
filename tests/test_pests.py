@@ -61,9 +61,11 @@ def test_bad_biofix_is_rejected():
         pests.validate_model(model(biofix="springtime"))
 
 
-def test_too_many_stages_are_rejected():
-    with pytest.raises(pests.PestError):
-        pests.validate_model(model(stages=[{"stage": f"s{i}", "gdd": i + 1} for i in range(20)]))
+def test_a_model_may_carry_as_many_stages_as_the_grower_tracks():
+    """How many life stages a pest model has is entomology and the grower's
+    own record, not this service's to cap. It refused at 13."""
+    m = pests.validate_model(model(stages=[{"stage": f"s{i}", "gdd": i + 1} for i in range(40)]))
+    assert len(m["stages"]) == 40
 
 
 # ── Biofix ───────────────────────────────────────────────────────────────

@@ -386,6 +386,28 @@ BLOCK_FIELD = Field(
 )
 
 
+async def _all_rows(npub: str, block_id: str, kind: str, season: int | None) -> list[dict[str, Any]]:
+    """Every row of one kind on a block — paged through, never truncated.
+
+    `MAX_PAGE_SIZE` bounds a REQUEST, which is the right thing for it to bound
+    and the wrong thing to answer a question with. Reading a single page and
+    computing against it would tell a grower with 250 pests what 200 of them
+    are doing, and say nothing about the other 50 — which is worse than the
+    refusal this replaced, because a wrong answer looks like a right one.
+    """
+    rows: list[dict[str, Any]] = []
+    page_no = 0
+    while True:
+        page = await block_store.list_items(
+            npub, block_id, kind, season_year=season,
+            page=page_no, page_size=block_store.MAX_PAGE_SIZE,
+        )
+        rows.extend(page["items"])
+        page_no += 1
+        if page_no >= int(page.get("pages") or 1):
+            return rows
+
+
 async def _stored_items(npub: str, block_id: str, kind: str, *, season: int | None = None) -> list[dict[str, Any]]:
     """One kind of the block's curated items, shaped as the impls expect them.
 
@@ -393,9 +415,7 @@ async def _stored_items(npub: str, block_id: str, kind: str, *, season: int | No
     validating a planting should not have to know that the record also tracks
     which row it came from.
     """
-    page = await block_store.list_items(
-        npub, block_id, kind, season_year=season, page_size=block_store.MAX_PAGE_SIZE,
-    )
+    page = {"items": await _all_rows(npub, block_id, kind, season)}
     # The row's id survives as `ref`, and only as `ref`. A computed answer has
     # to be able to say WHICH saved item it is about: a grower runs the same
     # crop as several successions and watches one bird for both its arrival and
@@ -1554,22 +1574,28 @@ async def calendar_dataset(
     region_name = found.get("name") or "My block"
 
     async def _items(kind: str) -> list[dict[str, Any]]:
-        page = await block_store.list_items(
-            npub, block_id, kind, season_year=year, page_size=block_store.MAX_PAGE_SIZE,
-        )
         return [
             {k: v for k, v in row.items() if k not in ("item_id", "kind", "retired", "source")}
-            for row in page["items"]
+            for row in await _all_rows(npub, block_id, kind, year)
         ]
 
     try:
         plantings = await _items("planting")
         pests = await _items("pest")
         wildlife_events = await _items("wildlife")
-        tasks = await task_store.listing(
-            npub, block_id, timeframe="season", page_size=task_store.MAX_PAGE_SIZE,
-        )
-        todos = tasks.get("rows") or []
+        # Paged through for the same reason as the block's rows: a season with
+        # 250 tasks in it must publish 250, not the first page of them.
+        todos: list[dict[str, Any]] = []
+        page_no = 0
+        while True:
+            tasks = await task_store.listing(
+                npub, block_id, timeframe="season",
+                page=page_no, page_size=task_store.MAX_PAGE_SIZE,
+            )
+            todos.extend(tasks.get("rows") or [])
+            page_no += 1
+            if page_no >= int(tasks.get("pages") or 1):
+                break
     except (block_store.BlockError, task_store.TaskError) as exc:
         return {"success": False, "error": str(exc), "error_code": "invalid_request"}
     except OSError as exc:

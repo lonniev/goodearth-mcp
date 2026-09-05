@@ -22,8 +22,6 @@ from __future__ import annotations
 
 from typing import Any
 
-MAX_CROPS = 60
-
 # How much of the season's heat should remain after a crop finishes for it to
 # count as comfortable rather than merely possible. A crop that finishes on the
 # last warm day of an average year fails in half of them.

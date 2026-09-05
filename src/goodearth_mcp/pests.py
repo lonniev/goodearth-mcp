@@ -20,9 +20,6 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any
 
-MAX_THRESHOLDS = 12
-
-
 #: Models a grower may reference rather than restate. Kept deliberately short:
 #: each entry is a published source this service already reads for the caller's
 #: own coordinates, so a name here is a promise that dates can be resolved.
@@ -99,8 +96,6 @@ def validate_model(model: Any) -> dict[str, Any]:
             "published forecast for your ground, or watch=true to note it as "
             "something you keep an eye on without dating it"
         )
-    if len(stages_raw) > MAX_THRESHOLDS:
-        raise PestError(f"{pest}: {len(stages_raw)} stages is more than one model should carry")
 
     stages: list[dict[str, Any]] = []
     for s in stages_raw:

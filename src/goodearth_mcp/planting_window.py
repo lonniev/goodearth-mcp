@@ -31,11 +31,6 @@ async def region_planting_window(
 
     if not isinstance(crops_in, list) or not crops_in:
         raise PlantingWindowError("crops must be a non-empty list")
-    if len(crops_in) > planting.MAX_CROPS:
-        raise PlantingWindowError(
-            f"{len(crops_in)} crops is more than one call should carry "
-            f"(limit {planting.MAX_CROPS})"
-        )
 
     parsed = [planting.validate(c) for c in crops_in]
     soil_wanted = sorted({c["min_soil_f"] for c in parsed if c["min_soil_f"] is not None})

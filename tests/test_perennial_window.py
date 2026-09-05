@@ -127,9 +127,16 @@ def test_an_empty_list_is_refused_rather_than_answered_emptily():
         run([])
 
 
-def test_more_trees_than_one_call_should_carry_is_refused():
-    with pytest.raises(perennial_window.PerennialWindowError):
-        run([APPLE] * 50)
+def test_however_many_trees_a_grower_has_are_all_answered():
+    """There is no cap on how many trees someone may own.
+
+    This once refused at 41 and the Trees chiclet shipped broken against its
+    own 89-entry library. The number was invented here, it constrained the
+    grower's orchard rather than this service's payload, and nothing justified
+    it — so the assertion is now that a big block is answered.
+    """
+    out = run([APPLE] * 250)
+    assert len(out["trees"]) == 250
 
 
 # ── Identity ─────────────────────────────────────────────────────────────

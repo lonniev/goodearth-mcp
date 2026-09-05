@@ -28,8 +28,6 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any
 
-MAX_CROPS = 60
-
 # How far before the last frost a hardy crop can reasonably go out. Hardy means
 # it survives a light frost, not that it ignores winter.
 HARDY_HEAD_START_DAYS = 14

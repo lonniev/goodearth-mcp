@@ -43,7 +43,6 @@ from typing import Any
 
 from goodearth_mcp import almanac
 
-MAX_EVENTS = 24
 DRIVERS = {"heat", "daylight", "interval", "calendar"}
 
 

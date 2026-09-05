@@ -15,8 +15,6 @@ from typing import Any
 from goodearth_mcp import crops, gdd, pests, record_cache, sources
 from goodearth_mcp.region import Region
 
-MAX_MODELS = 10
-
 
 class PestWindowError(ValueError):
     """The request cannot be answered as asked."""
@@ -45,10 +43,6 @@ async def region_pest_window(
 
     if not isinstance(models, list) or not models:
         raise PestWindowError("pests must be a non-empty list of models")
-    if len(models) > MAX_MODELS:
-        raise PestWindowError(
-            f"{len(models)} models is more than one call should carry (limit {MAX_MODELS})"
-        )
 
     # Validated one at a time. As a list comprehension, one unusable row raised
     # and the grower lost the whole page — a single roster entry hid seventeen

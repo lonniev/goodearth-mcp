@@ -29,7 +29,6 @@ from goodearth_mcp import crops, gdd, ical, pests, record_cache, sources, wildli
 from goodearth_mcp.frost import first_fall_frost, summarize_frost_dates
 from goodearth_mcp.region import Region
 
-MAX_TODOS = 200
 RECORD_SPAN_YEARS = 10
 
 
@@ -53,8 +52,6 @@ def validate_todos(raw: Any) -> list[dict[str, Any]]:
         return []
     if not isinstance(raw, list):
         raise CalendarError("todos must be a list")
-    if len(raw) > MAX_TODOS:
-        raise CalendarError(f"{len(raw)} to-dos is more than one feed should carry (limit {MAX_TODOS})")
 
     out: list[dict[str, Any]] = []
     for t in raw:
