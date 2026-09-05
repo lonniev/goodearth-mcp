@@ -1590,6 +1590,30 @@ export async function taskSetDone(taskId: string, done: boolean): Promise<{ succ
 // pests, wildlife, observations — is an item of one `kind`, written a row at a
 // time rather than as a document, so two tabs cannot overwrite each other.
 
+// ─── Forget me ───────────────────────────────────────────────────────────
+
+export interface ForgetResult {
+  success: boolean;
+  error?: string;
+  error_code?: string;
+  /// Rows removed per table, so "gone" is checkable rather than asserted.
+  forgotten?: Record<string, number>;
+  rows?: number;
+  note?: string;
+}
+
+/// The exact phrase the server requires. A sentence rather than a boolean,
+/// because this cannot be undone.
+export const FORGET_PHRASE = "FORGET MY GROUND";
+
+/// Delete every block and everything recorded on it. The npub stays a patron:
+/// balance and purchase history are the network's ledger, not this operator's
+/// record of a farm, and they are untouched.
+export async function forgetMyGround(confirm: string): Promise<ForgetResult> {
+  return callTool<ForgetResult>("forget_my_ground", { confirm });
+}
+
+
 export interface BlockRow {
   block_id: string;
   name: string;

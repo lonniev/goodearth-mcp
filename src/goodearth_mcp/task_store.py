@@ -273,3 +273,10 @@ async def set_done(npub: str, task_id: str, done: bool) -> bool:
         [task_id, npub, done],
     )
     return bool(r.get("rowCount") or r.get("rowcount") or 0)
+
+
+async def forget_everything(npub: str) -> dict[str, int]:
+    """DELETE every task this patron has."""
+    v = await _vault_for()
+    r = await v._execute(_qualify(f"DELETE FROM {TABLE} WHERE npub = $1"), [npub])
+    return {TABLE: int(r.get("rowCount") or r.get("rowcount") or 0)}

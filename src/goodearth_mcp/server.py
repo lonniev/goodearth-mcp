@@ -44,6 +44,8 @@ from goodearth_mcp.calibration import CalibrationError
 from goodearth_mcp.crop_status import LedgerError
 from goodearth_mcp.crop_status import region_crop_ledger as crop_ledger_impl
 from goodearth_mcp.crops import CropError
+from goodearth_mcp.forget import ForgetError
+from goodearth_mcp.forget import everything as forget_everything_impl
 from goodearth_mcp.frost_window import FrostError
 from goodearth_mcp.frost_window import region_frost_window as frost_window_impl
 from goodearth_mcp.perennial import PerennialError
@@ -139,6 +141,7 @@ CALENDAR_REVOKE_UUID       = "2a8310d1-f65d-56f3-bb99-6b77acd6252a"
 PEST_CATALOG_UUID          = "7101e6e8-40a9-58ef-8a2a-32bd2514ae1e"
 WILDLIFE_CATALOG_UUID      = "d066a193-3592-5fea-bab6-48aa8057e59c"
 PLANT_CATALOG_UUID         = "33c30fc5-9c1a-5ebb-9a3e-f5c854cbacb7"
+FORGET_MY_GROUND_UUID      = "b9c7f044-6ac3-512e-ad09-42da7b0c0fe6"
 TASK_SAVE_UUID             = "4c814e90-07c7-5944-b8cb-f05b619e6d2f"
 TASK_LIST_UUID             = "1be9b304-d895-5e80-995f-29838befc305"
 TASK_DELETE_UUID           = "87d174df-5cc7-5943-911f-cd41f7d2a000"
@@ -302,6 +305,14 @@ _DOMAIN_TOOLS = [
         capability="calendar_revoke",
         category="free",
         intent="Stop publishing a calendar feed",
+    ),
+    ToolIdentity(
+        tool_id=FORGET_MY_GROUND_UUID,
+        capability="forget_my_ground",
+        # Free, deliberately. Charging someone to leave is a toll on the door
+        # out, and the operator's own interest is not the one to serve here.
+        category="free",
+        intent="Delete every block and everything recorded on it for this patron — the ground, not the account",
     ),
     ToolIdentity(
         tool_id=BLOCK_SAVE_UUID,
@@ -1843,6 +1854,55 @@ async def planting_window(
 # existing `@tool` and its `@runtime.paid_tool` re-binds the orphaned `@tool` to
 # the new function and silently unregisters the old one — this repo lost two
 # shipped tools that way. New tools go here, at the bottom, always.
+
+
+@tool
+@runtime.paid_tool(FORGET_MY_GROUND_UUID)
+async def forget_my_ground(
+    confirm: Annotated[
+        str,
+        Field(
+            description=(
+                'Must be exactly "FORGET MY GROUND". A phrase rather than a '
+                "boolean, because this cannot be undone and confirm=true is "
+                "what gets sent by reflex."
+            ),
+        ),
+    ] = "",
+    npub: Annotated[
+        str,
+        Field(description="Required. Your Nostr public key (npub1...) — whose ground to forget."),
+    ] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """Delete every block you have here, and everything recorded on them.
+
+    Blocks, crops, plantings, pest models, wildlife watches, field reports,
+    tasks, published calendar feeds and the cached weather read for your
+    ground. A real delete, not a retirement: every other removal in this
+    service keeps the row as history, and this one does not, because a grower
+    who asks to be forgotten and is quietly kept has been told something
+    untrue. Any calendar feed you published stops resolving at once.
+
+    **You remain a patron.** Your balance and your purchase history are not
+    touched — those are the network's ledger rather than this operator's record
+    of your farm, and there is no name, email or KYC in this system to forget.
+    Sign in again with the same npub and you can start over on new ground.
+
+    Requires proof of the npub, like any call that reads your record. Free:
+    charging someone to leave is a toll on the door out.
+
+    Args:
+        confirm: The exact phrase "FORGET MY GROUND".
+    """
+    try:
+        return await forget_everything_impl(npub, confirm)
+    except ForgetError as exc:
+        return {"success": False, "error": str(exc), "error_code": "confirmation_required"}
+    except (block_store.BlockError, task_store.TaskError, OSError) as exc:
+        logger.warning("forget_my_ground failed: %s", exc)
+        return {"success": False, "error": f"The record could not be reached: {exc}",
+                "error_code": "upstream_unavailable"}
 
 
 @tool

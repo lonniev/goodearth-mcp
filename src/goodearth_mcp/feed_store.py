@@ -145,3 +145,15 @@ async def note_fetch(token: str) -> None:
         ),
         [token],
     )
+
+
+async def forget_everything(npub: str) -> dict[str, int]:
+    """DELETE every calendar feed this patron has.
+
+    A published feed URL stops resolving the moment this runs, which is the
+    point: a token left behind is a live link to a farm that asked to be
+    forgotten.
+    """
+    v = await _vault_for()
+    r = await v._execute(_qualify(f"DELETE FROM {TABLE} WHERE npub = $1"), [npub])
+    return {TABLE: int(r.get("rowCount") or r.get("rowcount") or 0)}

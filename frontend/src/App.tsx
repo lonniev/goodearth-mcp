@@ -17,6 +17,7 @@ import Preferences from "./components/Preferences";
 import AccountSummary from "./components/AccountSummary";
 import CalendarFeed from "./components/CalendarFeed";
 import { readPrefs, writePrefs, type Prefs } from "./lib/prefs";
+import ForgetMe from "./components/ForgetMe";
 import GuestShell from "./components/GuestShell";
 import { UnitProvider } from "./components/Units";
 import LifeOfAPest from "./views/LifeOfAPest";
@@ -273,6 +274,14 @@ export default function App() {
                 other settings rather than at the top of the working page. */}
             <CalendarFeed region={region} />
             <Preferences prefs={prefs} onChange={(p) => setPrefs(writePrefs(p))} />
+            {/* Last on the page, because it is the one control here that
+                cannot be taken back. */}
+            <ForgetMe onForgotten={() => {
+              setSignedIn(false);
+              setRegion(listRegions()[0]);
+              setView(GUEST_VIEW);
+              setNotice("Your ground is forgotten. You are still a patron here.");
+            }} />
           </>
         )}
       </AppShell>

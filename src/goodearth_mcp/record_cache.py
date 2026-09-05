@@ -383,3 +383,15 @@ async def soil_history(
     fresh = await sources.fetch_soil_history(lat, lon, archive_field, start, end)
     await _write("soil", subject, start, end, fresh)
     return fresh
+
+
+async def forget_everything(npub: str) -> dict[str, int]:
+    """DELETE this patron's cached weather.
+
+    Derived data, but derived FROM their coordinates — the cache key is a hash
+    of the ground they asked about, and rows keyed to a patron who asked to be
+    forgotten should not outlive them.
+    """
+    v = await _vault_for()
+    r = await v._execute(_t(f"DELETE FROM {CACHE} WHERE npub = $1"), [npub])
+    return {CACHE: int(r.get("rowCount") or r.get("rowcount") or 0)}
