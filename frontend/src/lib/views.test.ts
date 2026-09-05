@@ -22,7 +22,7 @@ describe("the public set", () => {
     // other side of the gate, and this is the assertion that says so out loud
     // rather than leaving it to whoever edits the array next.
     assert.deepEqual([...PUBLIC_VIEWS].sort(), [
-      "about", "pest", "plant", "references", "tree", "welcome",
+      "about", "animal", "pest", "plant", "references", "tree", "welcome",
     ]);
   });
 

@@ -18,6 +18,8 @@ const EXPLAINERS: { view: ViewKey; emoji: string; title: string; said: string }[
     said: "Why a pest is on the same clock, and how that tells you the week to walk the rows." },
   { view: "tree", emoji: "🌳", title: "The life of a tree",
     said: "Why a year that closes is a different question, and what chill and hardiness decide." },
+  { view: "animal", emoji: "🦌", title: "The life of an animal",
+    said: "Migration runs on day length. Hibernation asks two questions. Neither is heat." },
 ];
 
 export default function Welcome({ onView, onSignIn }: {
@@ -52,7 +54,7 @@ export default function Welcome({ onView, onSignIn }: {
       <h2 className="figure mt-8 mb-2.5 text-[18px] font-semibold">
         How the season is counted
       </h2>
-      <div className="grid gap-2.5 sm:grid-cols-3">
+      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
         {EXPLAINERS.map((e) => (
           <button key={e.view} onClick={() => onView(e.view)}
             className="rounded-md border border-rule bg-panel p-4 text-left active:border-ink">

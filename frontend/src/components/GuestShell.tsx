@@ -18,6 +18,9 @@ const LABEL: Record<string, string> = {
   plant: "Plants",
   pest: "Insects",
   tree: "Trees",
+  // "Animals" rather than "Wildlife": the signed-in rail already has a
+  // Wildlife page and the two are not the same thing.
+  animal: "Animals",
   about: "About",
   references: "Sources",
 };
