@@ -1254,6 +1254,16 @@ async def wildlife_catalog(
             ),
         ),
     ] = "",
+    with_events: Annotated[
+        bool,
+        Field(
+            description=(
+                "Include each species' known phenophases as `habit_events`, so a "
+                "roster can be written from the published vocabulary rather than "
+                "from memory. Costs one upstream call per species."
+            ),
+        ),
+    ] = False,
     npub: Annotated[
         str,
         Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
@@ -1282,17 +1292,31 @@ async def wildlife_catalog(
     empty list rather than a guess, because "not tracked" and "does nothing"
     are different claims.
 
+    Set `with_events` to get those phenophases for EVERY species in the list at
+    once, as `habit_events`. Ask for it before writing a roster: an agent left
+    to name events from memory writes "rut onset" and "southbound flights",
+    words this service has never used, where NPN says "Nest building" and
+    "Fledged young". It costs one upstream call per species, which is why it
+    is off by default.
+
+    **The event name is not load-bearing.** A wildlife row is dated by its
+    DRIVER — heat, daylight, an interval, a calendar date — and the label is
+    the grower's own words. `habit_events` is a courtesy to a caller looking
+    for the right word, never a list of the only acceptable ones: "Big Night
+    crossing" is a real thing a salamander does and no catalogue holds it.
+
     Good Earth times an event you set. It does not publish natural history.
 
     Args:
         block: The ground to answer for — its id, its name, or an alias.
         species: Optional scientific name, for that animal's habits.
+        with_events: Include each species' known phenophases in the list.
     """
     parsed, _found = await _block_region(npub, block)
     try:
         if species.strip():
             return await catalog.region_species_habits(species)
-        return await catalog.region_wildlife_catalog(parsed)
+        return await catalog.region_wildlife_catalog(parsed, with_events=with_events)
     except catalog.CatalogError as exc:
         return {"success": False, "error": str(exc), "error_code": "invalid_request"}
     except (biota.BiotaError, OSError) as exc:

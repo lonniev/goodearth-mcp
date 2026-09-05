@@ -258,12 +258,60 @@ async def region_plant_catalog(region: Region) -> dict[str, Any]:
     }
 
 
-async def region_wildlife_catalog(region: Region) -> dict[str, Any]:
+async def _attach_habit_events(
+    groups: list[dict[str, Any]], index: dict[str, Any], on: date,
+) -> None:
+    """Add each species' known phenophases, in place.
+
+    One upstream call per species, gathered rather than serialised. A species
+    whose call fails gets no `habit_events` key at all rather than an empty
+    list, because "we could not ask" and "NPN tracks nothing for it" are
+    different claims and only one of them is about the animal.
+    """
+    wanted = [
+        s for g in groups for s in g["species"]
+        if s.get("has_habits") and (s.get("scientific_name") or "").lower() in index
+    ]
+    if not wanted:
+        return
+
+    got = await asyncio.gather(
+        *(biota.fetch_species_habits(
+            int(index[(s["scientific_name"] or "").lower()]["species_id"]), on.isoformat())
+          for s in wanted),
+        return_exceptions=True,
+    )
+    for s, habits in zip(wanted, got, strict=True):
+        if isinstance(habits, BaseException):
+            continue
+        s["habit_events"] = drop_mortality(habits)
+
+
+async def region_wildlife_catalog(
+    region: Region, *, with_events: bool = False, today: date | None = None,
+) -> dict[str, Any]:
     """Which animals are actually recorded on this ground, by group.
 
     Ordered by how often each has been observed. That ordering is a fact
     about observers as much as about animals — a roadside is better recorded
     than a back field — so the counts travel with the answer.
+
+    ``with_events`` adds ``habit_events`` to every species that has them: the
+    phenophases USA-NPN tracks for it, in NPN's words. Off by default because
+    it costs one upstream call PER SPECIES, and most callers want the list.
+
+    It exists because an agent asked to record what a farm watches for will
+    otherwise invent the labels — which is exactly what `review_roster` warns
+    about for pests, and it happened here on 2026-09-04: rows arrived reading
+    "rut onset" and "southbound flights", words this service has never used.
+    Publishing the vocabulary lets a caller choose from what is known instead
+    of from what it remembers.
+
+    **The event name is not load-bearing.** Nothing resolves it — a wildlife
+    row is dated by its DRIVER, and the label is the grower's own words. So
+    this is a courtesy to a caller looking for the right word, never a list of
+    the only acceptable ones. "Big Night crossing" is a real thing a
+    salamander does and no catalogue will ever contain it.
     """
     box = search_box(region)
     results = await asyncio.gather(
@@ -295,6 +343,9 @@ async def region_wildlife_catalog(region: Region) -> dict[str, Any]:
                 for r in rows
             ],
         })
+
+    if with_events:
+        await _attach_habit_events(groups, index, today or datetime.now(UTC).date())
 
     return {
         "success": True,

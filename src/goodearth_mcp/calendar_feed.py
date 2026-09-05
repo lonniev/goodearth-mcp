@@ -137,6 +137,25 @@ async def build_feed(
     parsed_plantings, skipped = _each(plantings, crops.validate_planting, "planting")
     parsed_pests, _sp = _each(pest_models, pests.validate_model, "pest")
     parsed_wild, _sw = _each(wildlife_events, wildlife.validate_event, "wildlife")
+
+    # A ROSTER row is a creature recorded on the block with no event named —
+    # "the great blue heron is an ally here". `validate_event` accepts it on
+    # purpose and gives it the driver `roster`; `wildlife_window` has always
+    # filtered it out before computing, and this did not. It fell through the
+    # driver dispatch below to the daylight branch and raised
+    # KeyError('daylight_hours'), which the tool surfaced as
+    # "Tool execution failed" — one such row taking down the whole feed.
+    #
+    # It is named in `skipped` rather than dropped, because a grower looking
+    # for a heron on their calendar deserves to be told why it is not there.
+    roster = [e for e in parsed_wild if e.get("roster_only")]
+    parsed_wild = [e for e in parsed_wild if not e.get("roster_only")]
+    _sw = [
+        *_sw,
+        *({"kind": "wildlife", "name": e["species"], "item_id": None,
+           "reason": "recorded on this block, but names no event — nothing to date"}
+          for e in roster),
+    ]
     skipped.extend(_sp)
     skipped.extend(_sw)
 
@@ -313,13 +332,22 @@ async def build_feed(
             r = wildlife.calendar_event(e, today)
             d = ical.as_date(r.get("reached_on") or r.get("projected_date"))
             detail = r["threshold"]
-        else:  # daylight
+        elif e["driver"] == "daylight":
             from goodearth_mcp.almanac import next_daylight_crossing
             iso = next_daylight_crossing(
                 region.centroid.lat, today, e["daylight_hours"], e["rising"]
             )
             d = ical.as_date(iso)
             detail = f"{e['daylight_hours']:g} h and {'lengthening' if e['rising'] else 'shortening'}"
+        else:
+            # Named rather than assumed. This branch used to be `else: #
+            # daylight`, so ANY driver that was not heat, interval or calendar
+            # was handed to the daylight reader and asked for a field it had
+            # no reason to carry. A driver this loop does not know is a gap in
+            # this file, and it says so instead of crashing the feed.
+            skipped.append({"kind": "wildlife", "name": e["species"], "item_id": None,
+                            "reason": f"no way to date a {e['driver']!r} event yet"})
+            continue
         if not d:
             continue
         record("wildlife", f"{e['species']}-{e['event']}",
