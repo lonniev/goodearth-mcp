@@ -112,3 +112,47 @@ describe("response reading", () => {
     await assert.rejects(() => fetchObservations({ user: "g" }), /503/);
   });
 });
+
+describe("a refusal is explained, not numbered", () => {
+  // The owner typed an email into the handle field — the browser offered it —
+  // and got "iNaturalist replied 422." iNaturalist had said exactly what was
+  // wrong in the body it returned, and nothing was reading it.
+  it("names the email as the problem, because that is what it is", async () => {
+    stub({ error: "Unknown user_id lonniev@gmail.com", status: 422 }, 422);
+    await assert.rejects(
+      () => fetchObservations({ user: "someone@example.com" }),
+      (e: Error) => {
+        assert.match(e.message, /email address/);
+        assert.match(e.message, /handle/);
+        // The bare status must not be what the grower is left holding.
+        assert.doesNotMatch(e.message, /^iNaturalist replied 422\.$/);
+        return true;
+      },
+    );
+  });
+
+  it("treats 422 and 404 alike, since both mean no such user", async () => {
+    for (const status of [404, 422]) {
+      stub({ error: "Unknown user_id nobody", status }, status);
+      await assert.rejects(
+        () => fetchObservations({ user: "nobody" }),
+        (e: Error) => {
+          assert.match(e.message, /No iNaturalist user called "nobody"/);
+          return true;
+        },
+      );
+    }
+  });
+
+  it("passes on a server fault as theirs rather than blaming the grower", async () => {
+    stub({ error: "upstream timeout" }, 503);
+    await assert.rejects(
+      () => fetchObservations({ user: "lonniev" }),
+      (e: Error) => {
+        assert.match(e.message, /upstream timeout/);
+        assert.doesNotMatch(e.message, /No iNaturalist user/);
+        return true;
+      },
+    );
+  });
+});

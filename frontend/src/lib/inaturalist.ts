@@ -37,6 +37,54 @@ function isFlowering(o: Record<string, unknown>): boolean {
   return anns.some((a) => a.controlled_attribute_id === 12 && a.controlled_value_id === 13);
 }
 
+/// What actually went wrong, in the grower's terms.
+///
+/// This used to report `iNaturalist replied 422.` — a number, and the reader
+/// left to guess. The number was always the same thing: an email address typed
+/// into a field that wants a handle, because the browser offers to autofill
+/// one. iNaturalist says so in the body it returns
+/// (`{"error":"Unknown user_id …","status":422}`); nothing was reading it.
+async function reasonFor(r: Response, user: string): Promise<string> {
+  if (r.status === 404 || r.status === 422) {
+    if (user.includes("@")) {
+      return `iNaturalist does not know "${user}". That looks like an email `
+        + "address, and this field wants your iNaturalist handle — the name in "
+        + "your profile URL, which is usually shorter and has no @ in it.";
+    }
+    return `No iNaturalist user called "${user}".`;
+  }
+  // Anything else is theirs, not the grower's. Pass on what they said rather
+  // than translating a server fault into a user error.
+  let said = "";
+  try { said = String(((await r.json()) as { error?: unknown }).error ?? ""); }
+  catch { /* a status with no body is still a status */ }
+  return said
+    ? `iNaturalist could not answer: ${said}`
+    : `iNaturalist replied ${r.status}. That is on their side — try again shortly.`;
+}
+
+/// Handles that look like what has been typed so far, so a grower who does not
+/// remember their own login can pick it instead of guessing at it.
+export async function searchUsers(
+  q: string, signal?: AbortSignal,
+): Promise<{ login: string; name: string | null; observations: number }[]> {
+  const text = q.trim().replace(/^@/, "");
+  if (text.length < 2) return [];
+  const r = await fetch(
+    `https://api.inaturalist.org/v1/users/autocomplete?q=${encodeURIComponent(text)}&per_page=5`,
+    { signal, headers: { Accept: "application/json" } },
+  );
+  if (!r.ok) return [];
+  const d = (await r.json()) as { results?: Record<string, unknown>[] };
+  return (d.results ?? [])
+    .map((u) => ({
+      login: String(u.login ?? ""),
+      name: (u.name as string) ?? null,
+      observations: Number(u.observations_count ?? 0),
+    }))
+    .filter((u) => u.login);
+}
+
 export async function fetchObservations(opts: {
   user: string;
   bounds?: Bounds;
@@ -64,8 +112,7 @@ export async function fetchObservations(opts: {
   }
 
   const r = await fetch(`${API}?${q}`, { signal: opts.signal, headers: { Accept: "application/json" } });
-  if (r.status === 404) throw new Error(`No iNaturalist user called "${user}".`);
-  if (!r.ok) throw new Error(`iNaturalist replied ${r.status}.`);
+  if (!r.ok) throw new Error(await reasonFor(r, user));
 
   const d = (await r.json()) as { results?: Record<string, unknown>[] };
   return (d.results ?? []).map((o) => {
