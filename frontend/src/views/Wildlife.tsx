@@ -18,15 +18,14 @@ import UndoBar, { remembered } from "../components/UndoBar";
 import { wildlifeCalendar, type WildlifeResult } from "../lib/mcp";
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
 import SpeciesPicker from "../components/SpeciesPicker";
-import type { SpeciesHit } from "../lib/species";
+import { photosByName, type SpeciesHit } from "../lib/species";
 import {
   DRIVER_HELP, makeWildlife,
   wildlifeCodec, type SavedWildlife,
 } from "../lib/wildlifeModels";
 import type { SavedRegion } from "../lib/regions";
 import {
-  CELL, Empty, ErrorBox, FIELD, ICON, IconButton, Note, PageTitle, Pill,
-  RowActions, Section, SpeciesChiclet,
+  CELL, Empty, ErrorBox, FIELD, ICON, IconButton, Note, PageTitle, Pill, RowActions, Section, SpeciesChiclet, SpeciesMark,
 } from "../components/ui";
 import { speciesHabits, wildlifeCatalog, type SpeciesHabitsResult, type WildlifeCatalogResult } from "../lib/mcp";
 
@@ -93,6 +92,28 @@ export default function Wildlife({
   const [stock, setStock] = useState<SpeciesHit | null>(null);
   const [stockEvent, setStockEvent] = useState("");
   const [stockDays, setStockDays] = useState("");
+
+  /// iNaturalist's photograph for each creature on the table, by name.
+  ///
+  /// A row added from the roster carries no emoji and used to draw a bullet,
+  /// while the catalogue further down this same page showed a real photograph
+  /// of the same animal. One barred owl should not be a picture in one place
+  /// and a dot in another.
+  const [photos, setPhotos] = useState<Map<string, string>>(new Map());
+  // Both lists on the page: the saved rows AND whatever the season put in
+  // "watch for these", which is not always a subset of them.
+  const speciesKey = [...new Set([
+    ...models.map((m) => m.species),
+    ...(data?.due_soon ?? []).map((e) => e.species),
+  ].map((n) => (n ?? "").trim()).filter(Boolean))].sort().join("|");
+  useEffect(() => {
+    const names = speciesKey ? speciesKey.split("|") : [];
+    if (!names.length) return;
+    const ac = new AbortController();
+    void photosByName(names, "animals", ac.signal)
+      .then((m) => { if (!ac.signal.aborted) setPhotos(m); });
+    return () => ac.abort();
+  }, [speciesKey]);
   const [cat, setCat] = useState<WildlifeCatalogResult | null>(null);
   const [catBusy, setCatBusy] = useState(false);
   const [catAt, setCatAt] = useState<Date | null>(null);
@@ -212,7 +233,8 @@ export default function Wildlife({
           <ul className="mt-1.5 space-y-1 text-[13px]">
             {data.due_soon.map((e) => (
               <li key={e.species + e.event}>
-                {e.emoji} <b>{e.species}</b> — {e.event} in about {e.days_away} days
+                <SpeciesMark emoji={e.emoji} photo={photos.get(e.species)} />
+                <b>{e.species}</b> — {e.event} in about {e.days_away} days
               </li>
             ))}
           </ul>
@@ -255,7 +277,12 @@ export default function Wildlife({
                   ) : (
                     <tr key={m.id} className="border-b border-rule last:border-b-0">
                       <td onClick={open} className="cursor-text px-3 py-2.5 font-semibold">
-                        <span className="mr-1.5 text-[15px]" aria-hidden="true">{m.emoji || "•"}</span>
+                        {/* The grower's own emoji wins where they typed one:
+                            they chose it for this row and it is theirs. Then
+                            the taxon's photograph, and only then a seedling —
+                            never a bullet, which said nothing about the
+                            animal it stood for. */}
+                        <SpeciesMark emoji={m.emoji} photo={photos.get(m.species)} />
                         {m.species}
                       </td>
                       {/* The event, not the creature, is what tells two rows

@@ -6,7 +6,7 @@
 
 import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { guidanceLinks, lookupSpecies } from "./species.ts";
+import { guidanceLinks, lookupSpecies, photosByName } from "./species.ts";
 
 const realFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = realFetch; });
@@ -108,5 +108,75 @@ describe("guidanceLinks — routes, never advises", () => {
     const banned = /\b(spray|apply|dose|rates?|insecticide|fungicide|pesticide|ml\/|oz\/|per acre)\b/;
     const hit = all.match(banned);
     assert.equal(hit, null, `guidance must not read as a prescription, found "${hit?.[0]}"`);
+  });
+});
+
+describe("a picture is only shown when the answer admits to the name", () => {
+  const realFetch = globalThis.fetch;
+  afterEach(() => { globalThis.fetch = realFetch; });
+
+  function serve(results: Record<string, unknown>[]) {
+    globalThis.fetch = (async () => ({
+      ok: true, status: 200, json: async () => ({ results }),
+    })) as unknown as typeof fetch;
+  }
+
+  const photo = (id: number, name: string, common: string, rank = "species") => ({
+    id, name, rank, preferred_common_name: common, observations_count: 10,
+    default_photo: { square_url: `https://example.test/${id}.jpg` },
+  });
+
+  it("refuses a swallowtail for a bat", async () => {
+    // Battus is a genus of swallowtail butterflies. A substring test accepts
+    // it for "Bat" — the letters are right there — and the table then shows a
+    // butterfly beside a row about bats.
+    serve([photo(1, "Battus", "Pipevine Swallowtails")]);
+    const got = await photosByName(["Bat"], "animals");
+    assert.equal(got.size, 0);
+  });
+
+  it("refuses a butterflyfish for a butterfly", async () => {
+    serve([photo(2, "Chaetodon capistratus", "Four-eyed Butterflyfish")]);
+    const got = await photosByName(["Butterfly"], "animals");
+    assert.equal(got.size, 0);
+  });
+
+  it("lets a singular meet its plural, which is how a group is named", async () => {
+    // A different word from the refusal above on purpose: the resolver caches
+    // a miss, so re-asking "Bat" against a different stub would be testing the
+    // cache rather than the matcher.
+    serve([photo(3, "Lepidoptera", "Butterflies and Moths", "order")]);
+    const got = await photosByName(["Moth "], "animals");
+    assert.equal(got.get("Moth"), "https://example.test/3.jpg");
+  });
+
+  it("takes the plain match", async () => {
+    serve([photo(4, "Falco sparverius", "American Kestrel")]);
+    const got = await photosByName(["American kestrel"], "animals");
+    assert.equal(got.get("American kestrel"), "https://example.test/4.jpg");
+  });
+
+  it("skips the wrong hit and takes a later one that admits", async () => {
+    // What the live service actually does: species that outrank a group on
+    // observation count come first, and the right answer is further down.
+    serve([
+      photo(5, "Vulpes vulpes", "Red Fox"),
+      photo(6, "Canis latrans", "Coyote"),
+    ]);
+    const got = await photosByName(["Coyote"], "animals");
+    assert.equal(got.get("Coyote"), "https://example.test/6.jpg");
+  });
+
+  it("survives a name with regex punctuation in it", async () => {
+    // "Blue-spotted salamander" has a hyphen; an unescaped name would build a
+    // broken pattern or match the wrong thing.
+    serve([photo(7, "Ambystoma laterale", "Blue-spotted Salamander")]);
+    const got = await photosByName(["Blue-spotted salamander"], "animals");
+    assert.equal(got.get("Blue-spotted salamander"), "https://example.test/7.jpg");
+  });
+
+  it("returns nothing rather than throwing when the search fails", async () => {
+    globalThis.fetch = (async () => ({ ok: false, status: 503 })) as unknown as typeof fetch;
+    assert.equal((await photosByName(["Fisher"], "animals")).size, 0);
   });
 });

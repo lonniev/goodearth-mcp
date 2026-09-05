@@ -153,6 +153,32 @@ export function SpeciesChiclet({
   );
 }
 
+/// The small mark that stands for one creature or plant, in a list.
+///
+/// Three sources, in the order they deserve. The grower's own emoji, where
+/// they typed one for that row — they chose it and it is theirs. Then
+/// iNaturalist's photograph of the taxon, which is why a barred owl and a
+/// chickadee are no longer the same bird. Then a seedling.
+///
+/// Never a bullet. A row that carried no emoji used to draw "•", which says
+/// nothing about the animal it stands for and reads as an outline marker
+/// beside rows that have a picture.
+export function SpeciesMark({ emoji, photo }: {
+  emoji?: string | null; photo?: string | null;
+}) {
+  if (emoji) {
+    return <span className="mr-1.5 text-[15px]" aria-hidden="true">{emoji}</span>;
+  }
+  if (photo) {
+    return (
+      <img src={photo} alt="" loading="lazy" width={20} height={20}
+        className="mr-1.5 inline-block h-5 w-5 rounded-full object-cover align-[-4px]"
+        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+    );
+  }
+  return <span className="mr-1.5 text-[15px]" aria-hidden="true">{"\u{1F331}"}</span>;
+}
+
 /// A standalone chip that reports a state rather than inviting a tap.
 ///
 /// The site has two pill families: small borderless badges that annotate
