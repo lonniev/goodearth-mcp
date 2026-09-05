@@ -42,9 +42,9 @@ const SOURCES: {
   {
     name: "USA National Phenology Network",
     url: "https://www.usanpn.org/data/api",
-    role: "Degree-day pest forecasts read at your coordinates, and the life-cycle phenophases a species is tracked through — nest building, nestlings, fledged young, calls or song, emergence above ground.",
+    role: "Degree-day pest forecasts read at your coordinates; the Spring Index that dates first leaf and first bloom for a block; and the life-cycle phenophases a species is tracked through — nest building, nestlings and fledged young for an animal, breaking leaf buds, open flowers, pollen release and leaf colour for a tree.",
     resolution: "4 km (PRISM) for the forecasts",
-    note: "Its rasters carry three different encodings under one namespace; only layers measured to resolve to a date are shown as dates.",
+    note: "Its rasters carry three different encodings under one namespace; only layers measured to resolve to a date are shown as dates. The Spring Index is computed from cloned lilac and honeysuckle standing in for spring, so it dates one leaf-out for a whole block. Pollen and leaf colour are per-species and come from the phenophase table instead, keyed on the scientific name.",
   },
   {
     name: "Esri World Imagery",
@@ -70,9 +70,9 @@ const SOURCES: {
   {
     name: "iNaturalist",
     url: "https://api.inaturalist.org/v1/docs/",
-    role: "Which species are actually recorded around your ground, ranked by how often each has been seen — the Wildlife and Pests catalogues — plus the photograph shown for each, and importing your own observations into Field Reports.",
+    role: "Which species are actually recorded around your ground, ranked by how often each has been seen — the Wildlife and Pests catalogues — plus the photograph shown for each, and importing your own observations into Field Reports. It is also the dictionary that turns a shelf name into a scientific one: every plant in the crop library carries the binomial iNaturalist resolved for it, which is what lets USA-NPN be asked about that plant by name.",
     resolution: "observations, not a grid",
-    note: "Read-only. Species photographs are contributors' work under Creative Commons, credited on each image.",
+    note: "Read-only. Species photographs are contributors' work under Creative Commons, credited on each image. The names were resolved once and read by a person before they shipped — the search ranks by how often a thing is observed, so a common wildflower sharing a folk name will outrank the crop, and no answer was taken on trust.",
   },
 ];
 

@@ -5,7 +5,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { CROP_PRESETS, emojiFor, HEAT_RATED, makePlanting, plantingDateFor,
+import { CROP_PRESETS, emojiFor, HEAT_RATED, makePlanting, plantingCodec, plantingDateFor,
   WINTER_RATED } from "./plantings.ts";
 
 describe("emojiFor — marks a row without guessing", () => {
@@ -92,6 +92,27 @@ describe("CROP_PRESETS — invariants the UI relies on", () => {
     for (const c of CROP_PRESETS) {
       assert.ok(c.emoji, `${c.crop} has no icon`);
       assert.equal(typeof c.note, "string", `${c.crop} has no note`);
+    }
+  });
+
+  it("gives every preset a resolved scientific name", () => {
+    // Not decoration. USA-NPN is keyed on the binomial and has no row for
+    // "Maple · sugar", so this field is the only thing that lets Good Earth
+    // ask what a tree is tracked doing through its year. A preset added
+    // without one silently loses its phenophases, which is why this reads the
+    // shipped list rather than a count of it.
+    for (const c of CROP_PRESETS) {
+      assert.ok(c.scientificName, `${c.crop} has no scientific name`);
+    }
+  });
+
+  it("shapes every scientific name like a name and not a shelf label", () => {
+    // "Acer saccharum" or the bare genus "Malus". Anything with a middle dot,
+    // a digit or a lowercase first letter is a retail string that got pasted
+    // into the wrong field.
+    for (const c of CROP_PRESETS) {
+      assert.match(c.scientificName!, /^[A-Z][a-z]+(?: [a-z][a-z-]+| x [a-z-]+)?$/,
+        `${c.crop}: ${c.scientificName} is not shaped like a scientific name`);
     }
   });
 
@@ -240,5 +261,40 @@ describe("the tree library reads as a grower would name it", () => {
     // "Cherry · black" is a forest tree and "Cherry · sweet" an orchard one;
     // the head-term match must not collapse them into whichever came first.
     assert.ok(CROP_PRESETS.every((c) => c.crop !== "Cherry"));
+  });
+});
+
+
+describe("the scientific name survives the round trip to the record", () => {
+  // A name held only in the browser is a name the server never sees, and the
+  // server is where USA-NPN gets asked. Assert the wire shape, not the object
+  // in hand — the field is snake_case on the record and camelCase in the app,
+  // and a mismatch there loses it silently on the way out.
+  it("goes out as scientific_name", () => {
+    const wire = plantingCodec.to({
+      id: "pl-1", crop: "Maple · sugar", setOut: "", regionId: "b1",
+      perennial: true, hardyToF: -40, scientificName: "Acer saccharum",
+    });
+    assert.equal(wire.scientific_name, "Acer saccharum");
+  });
+
+  it("comes back from scientific_name", () => {
+    const row = plantingCodec.from({
+      item_id: "pl-1", block_id: "b1", crop: "Maple · sugar",
+      scientific_name: "Acer saccharum",
+    });
+    assert.equal(row.scientificName, "Acer saccharum");
+  });
+
+  it("stays absent rather than becoming an empty string", () => {
+    // A blank binomial would be asked about, and USA-NPN would be sent a
+    // query for nothing.
+    const wire = plantingCodec.to({
+      id: "pl-2", crop: "Honeycrisp", setOut: "", regionId: "b1",
+    });
+    assert.equal("scientific_name" in wire, false);
+    assert.equal(plantingCodec.from({
+      item_id: "pl-2", block_id: "b1", crop: "Honeycrisp",
+    }).scientificName, undefined);
   });
 });

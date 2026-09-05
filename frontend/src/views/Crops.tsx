@@ -193,7 +193,8 @@ export default function Crops({
     const c = CROP_PRESETS.find((x) => x.crop === row.crop);
     if (!c) return;
     const on = plantingDateFor(row.earliest_out, new Date().toISOString().slice(0, 10));
-    const made = makePlanting(c.crop, c.gddTarget, on, region.id, c.baseTempF);
+    const made = makePlanting(c.crop, c.gddTarget, on, region.id, c.baseTempF,
+      { scientificName: c.scientificName });
     if (typeof made === "string") { setFormErr(made); return; }
     setFormErr("");
     void storePlanting(made).catch((e) => setFormErr(String(e.message ?? e)));
@@ -211,8 +212,9 @@ export default function Crops({
       region.id,
       c.baseTempF,
       c.perennial
-        ? { perennial: true, chillHours: c.chillHours, hardyToF: c.hardyToF }
-        : undefined,
+        ? { perennial: true, chillHours: c.chillHours, hardyToF: c.hardyToF,
+            scientificName: c.scientificName }
+        : { scientificName: c.scientificName },
     );
     if (typeof made === "string") { setFormErr(made); return; }
     setFormErr("");
@@ -309,8 +311,15 @@ export default function Crops({
       target ? u.ddToF(Number(target)) : undefined,
       String(f.get("setout") ?? ""), region.id, base,
       // Blank on both counts is how a perennial is entered by hand: it is on
-      // the record, and it is not being paced.
-      target ? undefined : { perennial: true },
+      // the record, and it is not being paced. A typed name that happens to
+      // BE a preset gets that preset's binomial; anything else carries none,
+      // because guessing at "Honeycrisp" would put a name on the record that
+      // nothing resolved.
+      {
+        ...(target ? {} : { perennial: true }),
+        scientificName: CROP_PRESETS.find(
+          (x) => x.crop === String(f.get("crop") ?? "").trim())?.scientificName,
+      },
     );
     if (typeof made === "string") { setFormErr(made); return; }
     setFormErr("");
