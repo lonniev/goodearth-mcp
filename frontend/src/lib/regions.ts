@@ -60,6 +60,24 @@ function key(): string {
   return `${KEY_BASE}:${patron()}`;
 }
 
+/// Square metres in an acre. Named so the radius below shows its working.
+const M2_PER_ACRE = 4046.8564224;
+
+/// What a first block is proposed as: about 25 acres, centred on wherever the
+/// grower is standing.
+///
+/// A circle, because `parse_region` treats a pin as one — `area = πr²`, and a
+/// sample is inside if `hypot ≤ r`. So the radius falls out of the acreage
+/// rather than being picked: `√(25 · 4046.86 / π)` ≈ 180 m.
+///
+/// Ten acres was the first thought and is too small to say anything. The
+/// weather grid is 2 km, so a ten-acre block sits inside ONE cell and the
+/// spread across it — the whole claim this service makes — comes back nil on
+/// flat ground. Twenty-five is still plainly a small farm and stands a chance
+/// of crossing a contour. It is a proposal; the grower moves it.
+export const HOME_ACRES = 25;
+export const HOME_RADIUS_M = Math.round(Math.sqrt((HOME_ACRES * M2_PER_ACRE) / Math.PI));
+
 export interface SavedRegion {
   id: string;
   name: string;
@@ -146,6 +164,12 @@ export function setActiveRegionId(id: string): void {
 
 /// A pin region from plain numbers, validated the way the server validates it
 /// so the grower is told in the form rather than by a failed paid call.
+/// A first block, proposed around a point. Named for what it is rather than
+/// where: a grower renames it, and "Home block" is true until they do.
+export function proposeHomeBlock(lat: number, lon: number, name = "Home block"): SavedRegion | string {
+  return pinRegion(name, lat, lon, HOME_RADIUS_M);
+}
+
 export function pinRegion(name: string, lat: number, lon: number, radiusM: number, baseTempF = 50): SavedRegion | string {
   if (!name.trim()) return "Give your ground a name you'll recognise.";
   if (!Number.isFinite(lat) || lat < -90 || lat > 90) return "Latitude must be between -90 and 90.";
