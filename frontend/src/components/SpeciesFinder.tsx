@@ -17,7 +17,8 @@
 
 import { useEffect, useState } from "react";
 import { nearbySpecies, type NearbyItem } from "../lib/mcp";
-import { addLabel, clampPage, holds, toggle, type Chosen } from "../lib/basket";
+import { addLabel, clampPage, finderState, holds, toggle,
+  type Chosen } from "../lib/basket";
 import { FIELD, ICON, IconButton } from "./ui";
 
 /// Long enough not to search on every keystroke, short enough to feel live.
@@ -57,7 +58,13 @@ export default function SpeciesFinder({
       nearbySpecies(block, kingdom, q.trim(), page)
         .then((r) => {
           if (ac.signal.aborted) return;
-          if (!r.success) { setErr(r.error || "Nothing could be read."); return; }
+          if (!r.success) {
+            // Clear the page as well. Rows from the last good search sitting
+            // under an error about this one is the same lie in reverse.
+            setErr(r.error || "Nothing could be read.");
+            setRows([]); setTotal(0); setPages(1);
+            return;
+          }
           setErr("");
           setRows(r.items ?? []);
           setTotal(r.total ?? 0);
@@ -70,6 +77,7 @@ export default function SpeciesFinder({
   }, [block, kingdom, q, page]);
 
   const go = (to: number) => setPage(clampPage(to, total, 20));
+  const state = finderState({ busy, error: err, rows: rows.length, total, page, pages });
 
   return (
     <div>
@@ -90,14 +98,24 @@ export default function SpeciesFinder({
       {err && <p className="mt-2 text-[12.5px] text-clay">{err}</p>}
 
       {/* The count is the point. "20 of 3,542" is what the old catalogue never
-          said — it showed forty and left the rest unmentioned. */}
-      <p className="data mt-2 text-[11px] text-ink-soft">
-        {busy ? "Looking…"
-          : total === 0 ? "Nothing recorded by that name near here."
-          : `${rows.length} of ${total.toLocaleString()} · page ${page} of ${pages}`}
-        {basket.length > 0 && ` · ${basket.length} chosen`}
-      </p>
+          said — it showed forty and left the rest unmentioned.
 
+          `finderState` decides which of these is true, because they were
+          conflated: a call that FAILED still printed "Nothing recorded by
+          that name near here" under its own error. Nothing was found because
+          nothing was asked. */}
+      {state.kind !== "failed" && (
+        <p className="data mt-2 text-[11px] text-ink-soft">
+          {state.kind === "busy" ? "Looking…"
+            : state.kind === "empty" ? "Nothing recorded by that name near here."
+            : `${state.shown} of ${state.total.toLocaleString()} · page ${state.page} of ${state.pages}`}
+          {basket.length > 0 && ` · ${basket.length} chosen`}
+        </p>
+      )}
+
+      {/* No empty list frame behind an error: a bordered box with nothing in
+          it reads as an answer. */}
+      {state.kind !== "failed" && (
       <ul className="mt-1.5 divide-y divide-rule rounded-md border border-rule bg-panel">
         {rows.map((r) => {
           const id = Number(r.taxon_id);
@@ -132,15 +150,16 @@ export default function SpeciesFinder({
             </li>
           );
         })}
-        {!rows.length && !busy && (
+        {state.kind === "empty" && (
           <li className="px-3 py-4 text-[12.5px] text-ink-soft">
             Nothing here. Try a shorter word, or clear the search to see what is
             most recorded.
           </li>
         )}
       </ul>
+      )}
 
-      {pages > 1 && (
+      {state.kind === "results" && pages > 1 && (
         <div className="mt-2 flex items-center gap-2">
           <button onClick={() => go(page - 1)} disabled={page <= 1}
             className="min-h-11 rounded-full border border-rule px-3.5 text-[12.5px] disabled:opacity-40">

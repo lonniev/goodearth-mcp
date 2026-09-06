@@ -62,3 +62,29 @@ export function addLabel(basket: Chosen[], where: string): string {
   const n = basket.length;
   return `Add ${n} ${n === 1 ? "thing" : "things"} to ${where}`;
 }
+
+/// What the result line should say, given how the last call went.
+///
+/// Its own function because the three states got conflated on screen: a call
+/// that FAILED rendered "Nothing recorded by that name near here" and "Try a
+/// shorter word" underneath its own error, so an unpriced tool read as an
+/// empty countryside. Nothing was found because nothing was asked.
+export type FinderState =
+  | { kind: "busy" }
+  | { kind: "failed" }
+  | { kind: "empty" }
+  | { kind: "results"; shown: number; total: number; page: number; pages: number };
+
+export function finderState(
+  { busy, error, rows, total, page, pages }: {
+    busy: boolean; error: string; rows: number;
+    total: number; page: number; pages: number;
+  },
+): FinderState {
+  // Error first. A failed call knows nothing about how many things are out
+  // there, and every other branch here would be guessing on its behalf.
+  if (error) return { kind: "failed" };
+  if (busy) return { kind: "busy" };
+  if (total === 0) return { kind: "empty" };
+  return { kind: "results", shown: rows, total, page, pages };
+}

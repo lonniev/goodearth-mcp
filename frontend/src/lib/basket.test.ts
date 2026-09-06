@@ -2,7 +2,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { addLabel, clampPage, holds, markChosen, pageCount, toggle } from "./basket.ts";
+import { addLabel, clampPage, finderState, holds, markChosen, pageCount, toggle } from "./basket.ts";
 
 const bee = { taxonId: 1, name: "Common Eastern Bumble Bee" };
 const oak = { taxonId: 2, name: "northern red oak" };
@@ -76,5 +76,36 @@ describe("what the add button says", () => {
 
   it("counts several", () => {
     assert.equal(addLabel([bee, oak], "Frogdale Farm"), "Add 2 things to Frogdale Farm");
+  });
+});
+
+describe("a failed call is not an empty world", () => {
+  const base = { busy: false, error: "", rows: 0, total: 0, page: 1, pages: 1 };
+
+  it("reports a failure as a failure, not as nothing found", () => {
+    // THE BUG. `nearby_species` was deployed before it had a price, so the
+    // tool refused — and under its own red error the page also said "Nothing
+    // recorded by that name near here" and "Try a shorter word". Both untrue:
+    // nothing was found because nothing was asked.
+    const s = finderState({ ...base, error: "not yet in the pricing model" });
+    assert.equal(s.kind, "failed");
+  });
+
+  it("puts the error ahead of the spinner", () => {
+    // A call that failed is not still running, whatever the flags say.
+    assert.equal(finderState({ ...base, busy: true, error: "boom" }).kind, "failed");
+  });
+
+  it("says empty only when the search genuinely returned none", () => {
+    assert.equal(finderState(base).kind, "empty");
+  });
+
+  it("reports what it has", () => {
+    const s = finderState({ ...base, rows: 20, total: 3542, page: 1, pages: 178 });
+    assert.deepEqual(s, { kind: "results", shown: 20, total: 3542, page: 1, pages: 178 });
+  });
+
+  it("is busy only while it is actually running and fine", () => {
+    assert.equal(finderState({ ...base, busy: true }).kind, "busy");
   });
 });
