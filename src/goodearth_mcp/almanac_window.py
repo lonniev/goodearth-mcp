@@ -111,7 +111,16 @@ async def region_almanac(
                         aligned.append(None)
                         continue
                     pos = next((i for i in idxs if n_dates[i] == want), None)
-                    aligned.append(full[pos] if pos is not None else None)
+                    # `pos` indexes the DATE list and is used against the VALUE
+                    # list. They are the same length only while every measure's
+                    # field is present in the block — and the day humidity was
+                    # added, a cached span written before anyone asked for it
+                    # had ten years of dates and no humidity at all. The index
+                    # went straight off the end and took the whole Almanac with
+                    # it. A series that does not reach a day has no value for
+                    # that day, which is what None already means here.
+                    aligned.append(
+                        full[pos] if pos is not None and pos < len(full) else None)
                 if any(v is not None for v in aligned):
                     per_year.append(aligned)
             n_by_field[key] = almanac.normal_band(per_year)
