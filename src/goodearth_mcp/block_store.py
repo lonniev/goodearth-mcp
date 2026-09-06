@@ -493,8 +493,15 @@ async def save_block(
     key = lookup_key(npub, clean)
     clash = await _row_by_lookup(npub, key)
     if clash is not None and clash["block_id"] != bid:
+        # Name which block and say what to do. "Another of your blocks
+        # already answers to this" states the obstacle and leaves the grower
+        # to guess the way round it — and the way round is not obvious,
+        # because editing the other block is usually what they meant.
         raise AmbiguousBlock(
-            f"another of your blocks already answers to {clean!r}",
+            f"another of your blocks already answers to {clean!r} "
+            f"(id {clash['block_id']}). Give this one a different name, or "
+            f"edit that block instead — saving it with its own id updates it "
+            f"rather than clashing with it.",
             [clash["block_id"]],
         )
 
