@@ -11,13 +11,23 @@
 // explanation onto a dashboard behind them.
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { define } from "../lib/glossary";
 
-export default function Term({ label, children }: {
+export default function Term({ label, of, children }: {
   /// The word being defined. Omit for a bare ⓘ beside a label that is
   /// already there — a column header, say, which cannot hold a second word.
   label?: ReactNode;
-  children: ReactNode;
+  /// A key in `lib/glossary`. Preferred over prose children: the definitions
+  /// used to live as JSX inside whichever view happened to need one, so "base
+  /// temperature" was explained on the Crops page and nowhere else, and the
+  /// glossary would have been a second copy to drift from.
+  of?: string;
+  children?: ReactNode;
 }) {
+  // The shared definition first, then whatever this page adds to it. Both,
+  // because the general meaning belongs in one place and "left blank it takes
+  // Frogdale Farm's 50 °F" belongs on the form that has the blank.
+  const entry = of ? define(of) : undefined;
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLSpanElement>(null);
 
@@ -45,7 +55,7 @@ export default function Term({ label, children }: {
           ? "cursor-help border-b border-dotted border-ink-soft/70 text-left"
           : "ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full border border-rule text-[9px] leading-none text-ink-soft align-middle"}
       >
-        {label ?? "i"}
+        {label ?? entry?.term ?? "i"}
       </button>
       {open && (
         <span
@@ -54,7 +64,10 @@ export default function Term({ label, children }: {
           // the right edge, where a left-anchored panel runs off the screen.
           className="absolute top-full right-0 z-30 mt-1 w-64 rounded-md border border-rule bg-paper p-2.5 text-[12px] leading-snug font-normal normal-case tracking-normal text-ink shadow-lg"
         >
-          {children}
+          {entry && <span className="block">{entry.said}</span>}
+          {children && (
+            <span className={entry ? "mt-1.5 block" : undefined}>{children}</span>
+          )}
         </span>
       )}
     </span>

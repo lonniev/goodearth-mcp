@@ -61,6 +61,8 @@ export const RAIL: RailItem[] = [
   // free pages the app stopped offering the moment somebody had an npub.
   { key: "welcome", label: "Guides", ready: true,
     icon: I(<><path d="M3 5a2 2 0 0 1 2-2h5v16H5a2 2 0 0 0-2 2z" /><path d="M21 5a2 2 0 0 0-2-2h-5v16h5a2 2 0 0 1 2 2z" /></>) },
+  { key: "glossary", label: "Words", ready: true,
+    icon: I(<><path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2" /><path d="M9 20h6M12 4v16" /></>) },
   { key: "references", label: "References", ready: true,
     icon: I(<><path d="M4 5a2 2 0 0 1 2-2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" /><path d="M15 3v5h5M8 13h8M8 17h5" /></>) },
   { key: "about", label: "About", ready: true,

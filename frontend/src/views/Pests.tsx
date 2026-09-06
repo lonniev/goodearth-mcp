@@ -218,24 +218,26 @@ export default function Pests({
               instead of quietly disagreeing with it. */}
           <label className="block text-[11px] text-ink-soft">
             Base{u.tempUnit}
-            <Term>Development stops below this temperature, and it belongs to
-              the creature rather than to your ground — a codling moth counts
-              from 50&nbsp;°F and a cabbage maggot from 40&nbsp;°F on the same
-              acre. Left blank it takes {region.name}&rsquo;s{" "}
-              {u.showTemp(region.baseTempF)}.</Term>
+            <Term of="base_temp">
+              A codling moth counts from 50&nbsp;°F and a cabbage maggot from
+              40&nbsp;°F on the same acre. Left blank it takes{" "}
+              {region.name}&rsquo;s {u.showTemp(region.baseTempF)}.
+            </Term>
             <input name="base" inputMode="numeric"
               placeholder={String(Math.round(u.temp(region.baseTempF)))}
               className={FIELD} /></label>
           <label className="block text-[11px] text-ink-soft">
-            <Term label="Biofix">The day the count starts. For most published
-              models it is the first sustained trap catch; leave it empty and
-              the count runs from the first of January.</Term>{" "}
+            <Term label="Biofix" of="biofix">
+              Leave it empty and the count runs from the first of January.
+            </Term>{" "}
             <span className="opacity-60">(optional)</span>
             <input name="biofix" type="date" className={FIELD} /></label>
           <label className="block text-[11px] text-ink-soft">
-            <Term label="Stages">A life-cycle event and the degree-day total it
-              arrives at, comma separated. These are yours — Good Earth times
-              them against this ground and does not publish entomology.</Term>
+            <Term label="Stages" of="threshold">
+              A life-cycle event and the degree-day total it arrives at, comma
+              separated. Good Earth times them against this ground and does not
+              publish entomology.
+            </Term>
             <input name="stages" placeholder="first flight 375, second flight 1400"
               className={FIELD} /></label>
         </div>

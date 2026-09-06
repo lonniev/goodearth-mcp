@@ -398,11 +398,9 @@ export default function Crops({
             <input name="label" placeholder="succession 4, north lot" className={FIELD} />
           </label>
           <label className="block text-[11px] text-ink-soft">
-            <Term label="GDD target">The heat this plant needs from set-out to
-              the stage you care about. Nobody publishes it — it is a cultivar
-              figure, so it comes off your seed packet or your extension
-              bulletin, and Good Earth counts your ground against it. Leave it
-              blank for a tree or anything you are not pacing.</Term>{" "}
+            <Term label="GDD target" of="gdd_target">
+              Leave it blank for a tree, or for anything you are not pacing.
+            </Term>{" "}
             <span className="opacity-60">(optional)</span>
             <input name="target" inputMode="numeric" placeholder="780" className={FIELD} />
           </label>
@@ -415,13 +413,9 @@ export default function Crops({
               word it defines — the page shows the field and says what it is
               only when asked. */}
           <label className="block text-[11px] text-ink-soft">
-            <Term label={`Base${u.tempUnit}`}>The temperature below which this
-              plant does no growing — its own threshold, not the field&rsquo;s.
-              Heat is counted as the degrees each day spends above it. Winter
-              wheat counts from 32&nbsp;°F and field corn from 50&nbsp;°F on the
-              same acre, which is why it sits on the planting rather than on the
-              block. Blank takes {region.name}&rsquo;s{" "}
-              {u.showTemp(region.baseTempF)}.</Term>{" "}
+            <Term label={`Base${u.tempUnit}`} of="base_temp">
+              Blank takes {region.name}&rsquo;s {u.showTemp(region.baseTempF)}.
+            </Term>{" "}
             <span className="opacity-60">(optional)</span>
             <input name="base" inputMode="numeric"
               placeholder={String(Math.round(u.temp(region.baseTempF)))}

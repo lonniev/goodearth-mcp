@@ -26,6 +26,7 @@ import LifeOfAPlant from "./views/LifeOfAPlant";
 import LifeOfAnAnimal from "./views/LifeOfAnAnimal";
 import LifeOfATree from "./views/LifeOfATree";
 import Welcome from "./views/Welcome";
+import Glossary from "./views/Glossary";
 import { showTemp, type Unit } from "./lib/units";
 import HeatLedger from "./views/HeatLedger";
 import Crops from "./views/Crops";
@@ -237,6 +238,7 @@ export default function App() {
         {view === "pest" && <LifeOfAPest />}
         {view === "tree" && <LifeOfATree />}
         {view === "animal" && <LifeOfAnAnimal />}
+        {view === "glossary" && <Glossary />}
         {view === "about" && <About />}
         {view === "references" && <References />}
       </GuestShell>
@@ -301,6 +303,7 @@ export default function App() {
         {view === "pest" && <LifeOfAPest />}
         {view === "tree" && <LifeOfATree />}
         {view === "animal" && <LifeOfAnAnimal />}
+        {view === "glossary" && <Glossary />}
         {view === "account" && (
           <>
             <h1 className="figure mb-4 text-[26px] font-bold">Account</h1>
