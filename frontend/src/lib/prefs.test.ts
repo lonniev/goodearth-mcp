@@ -83,3 +83,39 @@ describe("the season the page wears", () => {
     assert.equal(readPrefs().theme, "follow");
   });
 });
+
+describe("the chart order", () => {
+  it("starts empty, meaning the order the charts ship in", () => {
+    assert.deepEqual(readPrefs().chartOrder, []);
+  });
+
+  it("round-trips an arrangement", () => {
+    writePrefs({ ...DEFAULTS, chartOrder: ["precip", "temp_max"] });
+    assert.deepEqual(readPrefs().chartOrder, ["precip", "temp_max"]);
+  });
+
+  it("is present for someone who saved before it existed", () => {
+    // The stored object predates the field entirely.
+    window.localStorage.setItem("goodearth:prefs:v1",
+      JSON.stringify({ bees: false, units: "C", theme: "winter" }));
+    const p = readPrefs();
+    assert.deepEqual(p.chartOrder, []);
+    assert.equal(p.bees, false);
+  });
+
+  it("refuses a stored value of the wrong shape", () => {
+    // A list is what sorts the charts. Anything else would be handed to code
+    // that expects to iterate names, and a preference file is not a thing this
+    // app controls the contents of.
+    for (const bad of ['"precip"', "42", "null", "{}", '{"a":1}']) {
+      window.localStorage.setItem("goodearth:prefs:v1", `{"chartOrder":${bad}}`);
+      assert.deepEqual(readPrefs().chartOrder, [], `chartOrder: ${bad}`);
+    }
+  });
+
+  it("drops entries that are not names", () => {
+    window.localStorage.setItem("goodearth:prefs:v1",
+      '{"chartOrder":["precip",7,null,"wind_max"]}');
+    assert.deepEqual(readPrefs().chartOrder, ["precip", "wind_max"]);
+  });
+});

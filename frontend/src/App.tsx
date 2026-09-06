@@ -275,7 +275,15 @@ export default function App() {
           )
         )}
         {view === "map" && <MapView active={region} onSaved={(r) => { pickRegion(r); setView("ledger"); }} />}
-        {view === "almanac" && <Almanac region={region} onCost={onCost} />}
+        {/* Prefs travel down rather than being read again inside the view.
+            A view writing localStorage on its own would be overwritten the
+            next time this component saved ITS copy — the chart order would
+            survive until someone changed the season, and then quietly not. */}
+        {view === "almanac" && (
+          <Almanac region={region} onCost={onCost}
+            chartOrder={prefs.chartOrder}
+            onChartOrder={(o) => setPrefs(writePrefs({ ...prefs, chartOrder: o }))} />
+        )}
         {view === "crops" && <Crops region={region} onCost={onCost} />}
         {view === "wildlife" && <Wildlife region={region} onCost={onCost} />}
         {view === "pests" && <Pests region={region} onCost={onCost} />}

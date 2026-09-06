@@ -27,11 +27,21 @@ export interface Prefs {
   /// decoration — but an animated overlay is exactly the kind of thing some
   /// people need gone, and asking them to fight it is not an answer.
   bees: boolean;
+
+  /// The order the season charts are stacked in, as measure keys.
+  ///
+  /// Per-device like the rest of this file, and empty by default meaning "the
+  /// order they ship in". It is a list of names rather than a full layout so
+  /// that a measure added later can join the end instead of vanishing — see
+  /// `mergeOrder`, which is where that is actually enforced.
+  chartOrder: string[];
 }
 
 const KEY = "goodearth:prefs:v1";
 
-export const DEFAULTS: Prefs = { bees: true, units: "F", theme: "follow" };
+export const DEFAULTS: Prefs = {
+  bees: true, units: "F", theme: "follow", chartOrder: [],
+};
 
 /// The season to actually paint, resolving "follow" against today.
 export function themeOf(p: Prefs, now?: Date): Season {
@@ -45,7 +55,14 @@ export function readPrefs(): Prefs {
     const v = JSON.parse(raw) as Partial<Prefs>;
     // Merge over the defaults so a preference added later is not missing for
     // anyone who saved before it existed.
-    return { ...DEFAULTS, ...v };
+    return {
+      ...DEFAULTS, ...v,
+      // A stored value of the wrong shape is worse than none: the chart list
+      // would try to sort itself by something that is not a list of names.
+      chartOrder: Array.isArray(v.chartOrder)
+        ? v.chartOrder.filter((k) => typeof k === "string")
+        : [],
+    };
   } catch {
     return { ...DEFAULTS };
   }
