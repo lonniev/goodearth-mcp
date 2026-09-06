@@ -335,3 +335,74 @@ export async function photosByName(
 }
 
 const photoCache = new Map<string, string | null>();
+
+// ── The card you read before you commit to a row ─────────────────────────
+
+export interface SpeciesDetail {
+  id: number;
+  scientificName: string;
+  commonName: string | null;
+  rank: string | null;
+  /// Plantae, Insecta, Fungi… The one word that settles most confusions.
+  kingdom: string | null;
+  /// Where it sits in the tree of life, coarse to fine.
+  lineage: string[];
+  summary: string | null;
+  wikipediaUrl: string | null;
+  inatUrl: string;
+  photo: string | null;
+  photoBy: string | null;
+  observations: number;
+}
+
+const details = new Map<number, SpeciesDetail | null>();
+
+/// Everything iNaturalist knows about one taxon, for the card.
+///
+/// A search for "maple" returns **box elder**, and a grower cannot tell from a
+/// name whether that is the Acer or the bug that lives on it. Both exist, both
+/// are called box elder, and one is a tree. The lineage settles it in a
+/// glance — "maples" against "Boxelder Bugs" — and the summary says it in
+/// words. That is a thing to read BEFORE putting a row on your ground.
+export async function speciesDetail(
+  taxonId: number, signal?: AbortSignal,
+): Promise<SpeciesDetail | null> {
+  if (!Number.isFinite(taxonId) || taxonId <= 0) return null;
+  const cached = details.get(taxonId);
+  if (cached !== undefined) return cached;
+
+  const r = await fetch(`${TAXA}/${taxonId}`, {
+    signal, headers: { Accept: "application/json" },
+  });
+  if (!r.ok) throw new Error(`iNaturalist replied ${r.status}.`);
+  const d = (await r.json()) as { results?: Record<string, unknown>[] };
+  const t = d.results?.[0];
+  if (!t) { details.set(taxonId, null); return null; }
+
+  const photo = (t.default_photo ?? null) as
+    { medium_url?: string; square_url?: string; attribution?: string } | null;
+  // The first two are "Life" and the kingdom, which tell a grower nothing.
+  const ancestors = (t.ancestors ?? []) as Record<string, unknown>[];
+  const wiki = t.wikipedia_url as string | undefined;
+
+  const out: SpeciesDetail = {
+    id: Number(t.id),
+    scientificName: String(t.name ?? ""),
+    commonName: (t.preferred_common_name as string) ?? null,
+    rank: (t.rank as string) ?? null,
+    kingdom: (t.iconic_taxon_name as string) ?? null,
+    lineage: ancestors.slice(2).map(
+      (a) => String(a.preferred_common_name ?? a.name ?? "")).filter(Boolean),
+    summary: t.wikipedia_summary ? stripTags(String(t.wikipedia_summary)) : null,
+    // iNaturalist hands these back with literal spaces in the path, which is
+    // not a URL. Encoding the title is the difference between a link and a
+    // 404 on some clients.
+    wikipediaUrl: wiki ? wiki.replace(/ /g, "_") : null,
+    inatUrl: `https://www.inaturalist.org/taxa/${t.id}`,
+    photo: photo?.medium_url ?? photo?.square_url ?? null,
+    photoBy: photo?.attribution ?? null,
+    observations: Number(t.observations_count ?? 0),
+  };
+  details.set(taxonId, out);
+  return out;
+}

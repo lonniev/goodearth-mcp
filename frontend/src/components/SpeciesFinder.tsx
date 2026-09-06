@@ -20,6 +20,8 @@ import { nearbySpecies, type NearbyItem } from "../lib/mcp";
 import { addLabel, clampPage, finderState, holds, toggle,
   type Chosen } from "../lib/basket";
 import { FIELD, ICON, IconButton } from "./ui";
+import SpeciesCard from "./SpeciesCard";
+import Term from "./Term";
 
 /// Long enough not to search on every keystroke, short enough to feel live.
 const DEBOUNCE_MS = 300;
@@ -46,10 +48,14 @@ export default function SpeciesFinder({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [basket, setBasket] = useState<Chosen[]>([]);
+  /// Which row is open for reading. A search for "maple" returns box elder,
+  /// and no name tells you whether that is the tree or the bug that lives on
+  /// it — so a row can be read before it is chosen.
+  const [reading, setReading] = useState<number | null>(null);
 
   // A new search starts at the beginning. Staying on page 40 while the result
   // shrinks to thirteen shows an empty page and no reason for it.
-  useEffect(() => { setPage(1); }, [q, kingdom]);
+  useEffect(() => { setPage(1); setReading(null); }, [q, kingdom]);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -95,6 +101,9 @@ export default function SpeciesFinder({
       </div>
 
       {hint && <p className="mt-1.5 text-[12px] leading-relaxed text-ink-soft">{hint}</p>}
+      <p className="data mt-1 text-[11px] text-ink-soft">
+        Tap a name to read what it is · <Term label="has a year" of="has_a_year" />
+      </p>
       {err && <p className="mt-2 text-[12.5px] text-clay">{err}</p>}
 
       {/* The count is the point. "20 of 3,542" is what the old catalogue never
@@ -122,31 +131,56 @@ export default function SpeciesFinder({
           const on = holds(basket, id);
           return (
             <li key={`${id}-${r.name}`}>
-              <label className="flex cursor-pointer items-center gap-2.5 px-2.5 py-2 active:bg-band">
+              {/* The checkbox chooses; the rest of the row opens what the row
+                  IS. They were one target, so the only way to find out what
+                  you were adding was to add it. */}
+              <div className="flex items-center gap-2.5 px-2.5 py-2">
                 <input type="checkbox" className="size-4 shrink-0" checked={on}
+                  aria-label={`Choose ${r.name}`}
                   onChange={() => setBasket((b) => toggle(b, {
                     taxonId: id, name: r.name,
                     scientificName: r.scientific_name, photo: r.photo,
                   }))} />
-                {r.photo
-                  ? <img src={r.photo} alt="" width={32} height={32} loading="lazy"
-                      className="size-8 shrink-0 rounded object-cover" />
-                  : <span className="size-8 shrink-0 rounded bg-band" aria-hidden="true" />}
-                <span className="min-w-0 flex-1 leading-tight">
-                  <b className="block truncate text-[13px]">{r.name}</b>
-                  {r.scientific_name && (
-                    <i className="block truncate text-[11px] text-ink-soft">
-                      {r.scientific_name}
-                    </i>
-                  )}
-                </span>
-                <span className="data shrink-0 text-right text-[10.5px] text-ink-soft">
-                  {(r.observations ?? 0).toLocaleString()}
-                  {/* USA-NPN tracks a year for this one. It is the signal that
-                      made the old grouped catalogue worth tapping. */}
-                  {r.has_habits && <span className="block text-honey">has a year</span>}
-                </span>
-              </label>
+                <button type="button"
+                  onClick={() => setReading((cur) => (cur === id ? null : id))}
+                  aria-expanded={reading === id}
+                  title={`What is ${r.name}?`}
+                  className="flex min-w-0 flex-1 items-center gap-2.5 text-left active:bg-band">
+                  {r.photo
+                    ? <img src={r.photo} alt="" width={32} height={32} loading="lazy"
+                        className="size-8 shrink-0 rounded object-cover" />
+                    : <span className="size-8 shrink-0 rounded bg-band" aria-hidden="true" />}
+                  <span className="min-w-0 flex-1 leading-tight">
+                    <b className="block truncate text-[13px]">{r.name}</b>
+                    {r.scientific_name && (
+                      <i className="block truncate text-[11px] text-ink-soft">
+                        {r.scientific_name}
+                      </i>
+                    )}
+                  </span>
+                  <span className="data shrink-0 text-right text-[10.5px] text-ink-soft">
+                    {(r.observations ?? 0).toLocaleString()}
+                    {r.has_habits && (
+                      <span className="block text-honey">has a year</span>
+                    )}
+                  </span>
+                </button>
+              </div>
+              {reading === id && (
+                <div className="px-2.5 pb-2">
+                  <SpeciesCard
+                    taxonId={id}
+                    fallbackName={r.name}
+                    nearby={r.observations}
+                    chosen={on}
+                    hasYear={r.has_habits}
+                    onToggle={() => setBasket((b) => toggle(b, {
+                      taxonId: id, name: r.name,
+                      scientificName: r.scientific_name, photo: r.photo,
+                    }))}
+                    onClose={() => setReading(null)} />
+                </div>
+              )}
             </li>
           );
         })}
@@ -170,7 +204,7 @@ export default function SpeciesFinder({
             More ›
           </button>
           <span className="data text-[11px] text-ink-soft">
-            counts are observations, which measure observers too
+            <Term label="counts are observations" of="observations" />
           </span>
         </div>
       )}

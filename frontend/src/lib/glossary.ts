@@ -145,6 +145,22 @@ export const GLOSSARY: Entry[] = [
       + "each arrives on your ground is yours to record.",
   },
   {
+    key: "has_a_year", term: "Has a year", group: "life",
+    said: "USA-NPN publishes a life cycle for this species — the stages it is "
+      + "tracked through, such as breaking leaf buds, open flowers, pollen "
+      + "release or coloured leaves. It means there is a year to look at, not "
+      + "that Good Earth knows when any of it happens on your ground. When "
+      + "each stage arrives here is yours to record.",
+  },
+  {
+    key: "observations", term: "Observations", group: "life",
+    said: "How many times somebody recorded this species near your ground, in "
+      + "iNaturalist. It measures observers as much as organisms: a roadside "
+      + "is better recorded than a back hayfield, so a high count is evidence "
+      + "that people were standing there — not that a thing is common on your "
+      + "land.",
+  },
+  {
     key: "phenology", term: "Phenology", group: "life",
     said: "The timing of natural events through the year, and the study of "
       + "what moves them. Everything on this site is phenology: not what the "
