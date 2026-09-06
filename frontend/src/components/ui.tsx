@@ -224,6 +224,7 @@ export function ChartFrame({ label, children }: {
       )}
     </div>
   );
+}
 
 /// The small mark that stands for one creature or plant, in a list.
 ///

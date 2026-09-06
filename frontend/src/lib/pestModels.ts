@@ -14,6 +14,10 @@ import type { PestModel } from "./mcp";
 export interface SavedPest extends PestModel {
   id: string;
   regionId: string;
+  /// The reference, when the row came from the finder rather than a typed
+  /// name. Keyed the way the scientific databases are keyed.
+  taxon_id?: number;
+  scientific_name?: string;
 }
 
 /// Starting shapes only. Every number here must be confirmed against a local
@@ -51,6 +55,27 @@ export function makePest(
     stages: stages as { stage: string; gdd: number }[],
     ...(biofix ? { biofix } : {}),
   };
+}
+
+/// A creature to watch, with no arithmetic attached.
+///
+/// The record has always had `watch`, the page renders watched rows in five
+/// places, and NOTHING could create one: `makePest` rejects empty stages, so
+/// the only way a watch row ever existed was through the MCP tool by hand. A
+/// grower watches voles, slugs and wasps — creatures with no degree-day model
+/// — and demanding thresholds for them is how invented numbers get into a
+/// record.
+export function makeWatch(
+  pest: string, regionId: string,
+  extra?: { taxonId?: number; scientificName?: string },
+): SavedPest | string {
+  if (!pest.trim()) return "Give the pest a name.";
+  return {
+    id: `pe-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`,
+    pest: pest.trim(), regionId, watch: true, stages: [],
+    ...(extra?.taxonId ? { taxon_id: extra.taxonId } : {}),
+    ...(extra?.scientificName ? { scientific_name: extra.scientificName } : {}),
+  } as SavedPest;
 }
 
 // ── The record ───────────────────────────────────────────────────────────

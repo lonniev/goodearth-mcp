@@ -20,14 +20,17 @@ import { useBlockItems, type ItemSort } from "../lib/blockItems";
 import SpeciesPicker from "../components/SpeciesPicker";
 import { photosByName, type SpeciesHit } from "../lib/species";
 import {
-  DRIVER_HELP, makeWildlife,
+  DRIVER_HELP, makeRoster, makeWildlife,
   wildlifeCodec, type SavedWildlife,
 } from "../lib/wildlifeModels";
+import SpeciesFinder from "../components/SpeciesFinder";
+import type { Chosen } from "../lib/basket";
 import type { SavedRegion } from "../lib/regions";
 import {
-  CELL, Empty, ErrorBox, FIELD, ICON, IconButton, Note, PageTitle, Pill, RowActions, Section, SpeciesChiclet, SpeciesMark,
+  CELL, Empty, ErrorBox, FIELD, ICON, IconButton, PageTitle, Pill, RowActions,
+  Section, SpeciesMark,
 } from "../components/ui";
-import { speciesHabits, wildlifeCatalog, type SpeciesHabitsResult, type WildlifeCatalogResult } from "../lib/mcp";
+import { speciesHabits, type SpeciesHabitsResult } from "../lib/mcp";
 
 const CLOCK: Record<string, { label: string; cls: string }> = {
   heat:      { label: "heat",       cls: "bg-growth/12 text-growth" },
@@ -75,7 +78,8 @@ export default function Wildlife({
   const [draft, setDraft] = useState<SavedWildlife | null>(null);
   const [savingRow, setSavingRow] = useState(false);
 
-  const { items: models, save: storeWildlife, retire: retireWildlife, reload: reloadWildlife,
+  const { items: models, save: storeWildlife, saveMany: storeMany,
+          retire: retireWildlife, reload: reloadWildlife,
           loading: modelsLoading, error: modelsError,
           unknownBlock: modelsUnknown, total, page, pages } =
     useBlockItems<SavedWildlife>(region.id, "wildlife", wildlifeCodec, undefined, {
@@ -114,9 +118,31 @@ export default function Wildlife({
       .then((m) => { if (!ac.signal.aborted) setPhotos(m); });
     return () => ac.abort();
   }, [speciesKey]);
-  const [cat, setCat] = useState<WildlifeCatalogResult | null>(null);
-  const [catBusy, setCatBusy] = useState(false);
-  const [catAt, setCatAt] = useState<Date | null>(null);
+
+/// Which kingdom the finder is looking through. Fungi are creatures a
+  /// grower watches too — 940 of them are recorded around one block — and
+  /// they have no other home in the app.
+  const [kingdom, setKingdom] = useState<"wildlife" | "fungi">("wildlife");
+
+  /// Put a basket of chosen creatures on the roster in ONE write.
+  ///
+  /// Named and undated. `makeWildlife` demands an event and a driver's figure,
+  /// which is right for a tracked event and wrong for "barred owls are here" —
+  /// and the chart has always skipped a driverless row on purpose.
+  const [addingMany, setAddingMany] = useState(false);
+  async function addChosen(chosen: Chosen[]) {
+    if (!chosen.length) return;
+    setAddingMany(true);
+    try {
+      const made = chosen.map((c) => makeRoster(c.name, region.id, {
+        taxonId: c.taxonId, scientificName: c.scientificName,
+      })).filter((m): m is SavedWildlife => typeof m !== "string");
+      await storeMany(made);
+    } catch (e) {
+      setError(String((e as Error).message ?? e));
+    } finally { setAddingMany(false); }
+  }
+  const [catAt] = useState<Date | null>(null);
   /// Tapping a species names it and leaves the clock blank. Which animals are
   /// here is a fact about the country; when they arrive on this farm is not.
   const [species, setSpecies] = useState("");
@@ -200,16 +226,6 @@ export default function Wildlife({
     setSpecies(""); setEventName("");
     e.currentTarget.reset();
   }
-
-  const loadCatalog = useCallback(async () => {
-    setCatBusy(true);
-    try {
-      const r = await wildlifeCatalog(region.id);
-      if (r.success) { setCat(r); setCatAt(new Date()); }
-      else setError(r.error || "The wildlife catalogue could not be read.");
-    } finally { setCatBusy(false); }
-  }, [region.id]);
-
   const openHabits = useCallback(async (common: string, sci?: string) => {
     setSpecies(common);
     if (!sci) return;
@@ -283,7 +299,17 @@ export default function Wildlife({
                             never a bullet, which said nothing about the
                             animal it stood for. */}
                         <SpeciesMark emoji={m.emoji} photo={photos.get(m.species)} />
-                        {m.species}
+                        {/* The name opens its year; the rest of the row opens
+                            the editor. The life cycle used to hang off the
+                            discovery chiclets, so it was reachable while
+                            browsing and never for a creature already on the
+                            roster — which is when a grower wants it. */}
+                        <button
+                          onClick={() => openHabits(m.species, m.scientific_name)}
+                          title={`What USA-NPN tracks ${m.species} doing in a year`}
+                          className="border-b border-dotted border-ink-soft/70 text-left">
+                          {m.species}
+                        </button>
                       </td>
                       {/* The event, not the creature, is what tells two rows
                           apart — a bird's arrival and its departure are two
@@ -469,33 +495,31 @@ export default function Wildlife({
         </p>
       </div>
 
+      {/* ── Sightings ───────────────────────────────────────────────────
+          Four labelled rows of chiclets, each capped at 24, of 377 creatures
+          recorded around one block — with no way to reach the rest. Scanning
+          is what that was good at and searching is what fits the numbers. */}
       <Section emoji="🔭" title="Sightings">
-        {!cat && (
-          <Pill onClick={loadCatalog} disabled={catBusy} active>
-            {catBusy ? "🧠 Reading…" : "🧠 Who's here?"}
-          </Pill>
-        )}
-        {cat && <Provenance tool="goodearth_wildlife_catalog" at={catAt} onCost={onCost} />}
+        <Provenance tool="goodearth_nearby_species" at={catAt} onCost={onCost} />
       </Section>
 
-      {cat ? (
-        <>
-          {(cat.groups ?? []).map((g) => (
-            <div key={g.taxon} className="mb-3">
-              <p className="eyebrow">{g.emoji} {g.group}</p>
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {g.species.slice(0, 24).map((sp) => (
-                  <SpeciesChiclet key={sp.name} photo={sp.photo} emoji={g.emoji}
-                    name={sp.name} figure={sp.observations.toLocaleString()}
-                    marked={sp.has_habits}
-                    title={`${sp.scientific_name ?? sp.name} — ${sp.observations.toLocaleString()} sightings near here.${sp.has_habits ? " Tap for what it does through the year." : " Tap to track it."}`}
-                    onClick={() => openHabits(sp.name, sp.scientific_name)} />
-                ))}
-              </div>
-            </div>
-          ))}
-          {habitsOf && (
-            <div className="mb-3 rounded-md border border-rule border-l-4 border-l-growth bg-panel px-4 py-3">
+      <SpeciesFinder
+        block={region.id}
+        blockName={region.name}
+        kingdom={kingdom}
+        adding={addingMany}
+        hint="Choose any number, keep searching, then add them all. They go on the roster named and undated — the clock and its figure are yours to set, and “has a year” marks the ones USA-NPN tracks a life cycle for."
+        onAdd={addChosen}
+      />
+
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {([["wildlife", "🦌 Wildlife"], ["fungi", "🍄 Fungi"]] as const).map(([k, label]) => (
+          <Pill key={k} active={kingdom === k} onClick={() => setKingdom(k)}>{label}</Pill>
+        ))}
+      </div>
+
+      {habitsOf && (
+        <div className="mb-3 rounded-md border border-rule border-l-4 border-l-growth bg-panel px-4 py-3">
               <div className="flex flex-wrap items-baseline gap-2">
                 <b className="figure text-[15px]">{habitsOf.name}</b>
                 <span className="data text-[10.5px] text-ink-soft">
@@ -523,18 +547,7 @@ export default function Wildlife({
               ) : habits && !habitsBusy ? (
                 <p className="mt-1.5 text-[12px] leading-relaxed text-ink-soft">{habits.note}</p>
               ) : null}
-            </div>
-          )}
-
-          <Note>
-            {cat.species_total} species within about {cat.search_span_km} km ·{" "}
-            {cat.with_habits} with life-cycle data. Ranked by sightings.
-            {(cat.unavailable ?? []).length > 0 && ` ${(cat.unavailable ?? []).join(" and ")} did not load.`}{" "}
-            Timings are yours to set.
-          </Note>
-        </>
-      ) : (
-        <Note>Animals recorded around here, from iNaturalist.</Note>
+        </div>
       )}
     </>
   );

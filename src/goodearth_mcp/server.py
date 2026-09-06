@@ -141,6 +141,7 @@ CALENDAR_REVOKE_UUID       = "2a8310d1-f65d-56f3-bb99-6b77acd6252a"
 PEST_CATALOG_UUID          = "7101e6e8-40a9-58ef-8a2a-32bd2514ae1e"
 WILDLIFE_CATALOG_UUID      = "d066a193-3592-5fea-bab6-48aa8057e59c"
 PLANT_CATALOG_UUID         = "33c30fc5-9c1a-5ebb-9a3e-f5c854cbacb7"
+NEARBY_SPECIES_UUID        = "ad20d75b-9f56-5a5b-9eb7-9cf2d1cb2588"
 FORGET_MY_GROUND_UUID      = "b9c7f044-6ac3-512e-ad09-42da7b0c0fe6"
 TASK_SAVE_UUID             = "4c814e90-07c7-5944-b8cb-f05b619e6d2f"
 TASK_LIST_UUID             = "1be9b304-d895-5e80-995f-29838befc305"
@@ -253,10 +254,10 @@ _DOMAIN_TOOLS = [
         intent="Which animals are actually recorded around this ground, by group and by how often they are seen",
     ),
     ToolIdentity(
-        tool_id=PLANT_CATALOG_UUID,
-        capability="plant_catalog",
+        tool_id=NEARBY_SPECIES_UUID,
+        capability="nearby_species",
         category="read",
-        intent="Which plants are actually recorded around this ground, most-observed first",
+        intent="Search what is recorded near this ground — plants, insects, wildlife or fungi — a page at a time",
     ),
     ToolIdentity(
         tool_id=CROP_SUITABILITY_UUID,
@@ -1210,45 +1211,63 @@ async def pest_catalog(
 
 
 @tool
-@runtime.paid_tool(PLANT_CATALOG_UUID)
-async def plant_catalog(
+@runtime.paid_tool(NEARBY_SPECIES_UUID)
+async def nearby_species(
     block: Annotated[str, BLOCK_FIELD],
+    kingdom: Annotated[
+        str,
+        Field(description=(
+            "What to look for: 'plants', 'insects' (which includes spiders), "
+            "'wildlife' (birds, mammals, amphibians, reptiles) or 'fungi'."
+        )),
+    ],
+    q: Annotated[
+        str,
+        Field(description=(
+            "Narrow by name — 'bumble', 'maple', 'Bombus'. Empty returns the "
+            "most-observed first."
+        )),
+    ] = "",
+    page: Annotated[int, Field(description="Which page. 20 to a page.")] = 1,
     npub: Annotated[
         str,
         Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
     ] = "",
     dpop_token: str = "",
 ) -> dict[str, Any]:
-    """Which plants are actually recorded around this ground.
+    """Search what is actually recorded near this ground, a page at a time.
 
-    The crop library a grower browses is hand-written and the same everywhere.
-    This is the ground's own: what people have actually observed growing near
-    here, most-observed first. It is how a woodlot gets an inventory without
-    anyone walking it, and how a farm finds it has bur oak and shagbark
-    hickory that no preset list was ever going to mention.
+    This replaces asking for a whole catalogue. There are more than three
+    thousand insect and spider species recorded around one Vermont block; the
+    old answer showed forty of them and said nothing about the rest, and
+    fetching all of them costs eleven round trips to build a list nobody
+    reads. So: search, twenty to a page, and the true total on every page.
 
-    Plants are a landscape fact, so the search widens to the surrounding
-    country the way the pest and wildlife catalogues do, and the answer says
-    how wide it looked.
+    **Species are a landscape fact, not a field one.** A nine-hectare hayfield
+    contains almost no observations, so the search widens to the surrounding
+    country and the answer says how wide it looked. Every other tool here
+    answers about the drawn ground and nothing outside it; this one cannot.
 
-    **The count measures observers as much as plants.** A roadside is better
-    recorded than a back hayfield; the number is evidence somebody saw it, not
-    that it is common here.
+    **The count measures observers as much as organisms.** A roadside is
+    better recorded than a back hayfield, so a high count is evidence somebody
+    was standing there — not that a thing is common on your ground.
 
-    No growth habit and no judgement. iNaturalist does not say which of these
-    is a tree and does not say which is a weed — the buckthorn and the
-    trillium come back the same way. Sorting them would be adding a claim to a
-    feed that made none.
+    No judgement of any kind. iNaturalist does not say which of these is a
+    pest, a weed, or worth planting, and sorting them into those would be
+    adding a claim the feed never made.
 
     Args:
         block: The ground to answer for — its id, its name, or an alias.
+        kingdom: plants, insects, wildlife or fungi.
+        q: Narrow by name. Empty returns the most-observed first.
+        page: Which page of twenty.
     """
     parsed, _found = await _block_region(npub, block)
 
     try:
-        return await catalog.region_plant_catalog(parsed)
+        return await catalog.region_nearby_species(parsed, kingdom, q=q, page=page)
     except catalog.CatalogError as exc:
-        return {"success": False, "error": str(exc), "error_code": "upstream_unavailable"}
+        return {"success": False, "error": str(exc), "error_code": "invalid_request"}
 
 
 @tool
