@@ -671,7 +671,16 @@ async def fetch_daymet_history(lat: float, lon: float, start: str, end: str) -> 
             resp = await client.get(_DAYMET, params=params)
             resp.raise_for_status()
         except httpx.HTTPStatusError as exc:
-            raise UpstreamError(f"Daymet returned HTTP {exc.response.status_code}") from exc
+            # Say WHICH point and WHICH span. A bare status is unfalsifiable:
+            # Daymet answers 400 for a coordinate it has no tile for, and
+            # without the coordinate there is no way to tell a point outside
+            # North America from one a few km too far out to sea from a fault
+            # of ours. Two decimal places is about a kilometre — the grid this
+            # feed works at, and coarser than the ground it describes.
+            raise UpstreamError(
+                f"Daymet returned HTTP {exc.response.status_code} "
+                f"for {lat:.2f},{lon:.2f} over {start}..{end}"
+            ) from exc
         except httpx.HTTPError as exc:
             raise UpstreamError(f"Daymet unreachable: {_why(exc)}") from exc
 

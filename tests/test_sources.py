@@ -333,3 +333,29 @@ async def test_a_season_does_not_go_to_daymet():
         [44.13], [-73.34], "2026-01-01", "2026-09-03",
     )
     assert sources.feed_of(records)["resolution_m"] == sources.HISTORY_RESOLUTION_M
+
+
+# ── A refusal that names the point ────────────────────────────────────────
+
+
+@respx.mock
+async def test_a_daymet_refusal_says_which_point_and_which_span():
+    """A bare status is unfalsifiable.
+
+    Daymet answers 400 for any coordinate it has no tile for. Told only
+    "HTTP 400", nobody can tell a block outside North America from one a few
+    kilometres too far out to sea from a fault of ours — which is exactly the
+    hour that was lost to it on 2026-09-06.
+    """
+    respx.get(sources._DAYMET).mock(return_value=httpx.Response(400))
+
+    with pytest.raises(sources.UpstreamError) as caught:
+        await sources.fetch_daymet_history(
+            43.6091, -69.5999, "2016-01-01", "2025-12-31")
+
+    said = str(caught.value)
+    assert "400" in said
+    # Rounded to about a kilometre: the grid this feed works at, and coarser
+    # than the ground it describes.
+    assert "43.61,-69.60" in said
+    assert "2016-01-01..2025-12-31" in said
