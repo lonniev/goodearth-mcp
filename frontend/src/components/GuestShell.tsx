@@ -21,6 +21,7 @@ const LABEL: Record<string, string> = {
   // "Animals" rather than "Wildlife": the signed-in rail already has a
   // Wildlife page and the two are not the same thing.
   animal: "Animals",
+  glossary: "Words",
   about: "About",
   references: "Sources",
 };

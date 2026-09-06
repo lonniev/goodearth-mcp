@@ -13,7 +13,7 @@ export const VIEW_KEYS = [
   "map", "ledger", "almanac", "crops", "pests", "wildlife", "todo",
   "reports", "favorites", "references", "about", "account",
   // The front door and what it opens onto. Reachable without an npub.
-  "welcome", "plant", "pest", "tree", "animal",
+  "welcome", "plant", "pest", "tree", "animal", "glossary",
 ] as const;
 
 export type ViewKey = (typeof VIEW_KEYS)[number];
@@ -30,7 +30,11 @@ export type ViewKey = (typeof VIEW_KEYS)[number];
 /// are static. That is the test for adding to this list — not "is it
 /// harmless" but "does it name a patron or spend their sats".
 export const PUBLIC_VIEWS = [
+  // `glossary` passes the test above: it is static, names no patron and spends
+  // no sats. It is also the page a stranger most needs — the words are the
+  // barrier before the farming is.
   "welcome", "plant", "pest", "tree", "animal", "about", "references",
+  "glossary",
 ] as const;
 
 export type PublicView = (typeof PUBLIC_VIEWS)[number];
