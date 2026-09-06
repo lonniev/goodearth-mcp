@@ -54,6 +54,13 @@ export const RAIL: RailItem[] = [
     icon: I(<><path d="M9 11l2 2 4-4" /><rect x="3" y="4" width="18" height="16" rx="2" /></>) },
   { key: "reports", label: "Field Reports", ready: true,
     icon: I(<><path d="M4 4h12l4 4v12H4z" /><path d="M8 12h8M8 16h8" /></>) },
+  // The four life-cycle guides. One rail entry rather than five, because the
+  // Welcome page already indexes them and "Plants, Insects, Trees, Animals"
+  // beside "Crops, Pests, Wildlife" would be two vocabularies for one rail.
+  // They were reachable by URL and by nothing else once a grower signed in —
+  // free pages the app stopped offering the moment somebody had an npub.
+  { key: "welcome", label: "Guides", ready: true,
+    icon: I(<><path d="M3 5a2 2 0 0 1 2-2h5v16H5a2 2 0 0 0-2 2z" /><path d="M21 5a2 2 0 0 0-2-2h-5v16h5a2 2 0 0 1 2 2z" /></>) },
   { key: "references", label: "References", ready: true,
     icon: I(<><path d="M4 5a2 2 0 0 1 2-2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" /><path d="M15 3v5h5M8 13h8M8 17h5" /></>) },
   { key: "about", label: "About", ready: true,

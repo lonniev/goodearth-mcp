@@ -22,36 +22,46 @@ const EXPLAINERS: { view: ViewKey; emoji: string; title: string; said: string }[
     said: "Migration runs on day length. Hibernation asks two questions. Neither is heat." },
 ];
 
-export default function Welcome({ onView, onSignIn }: {
+export default function Welcome({ onView, onSignIn, signedIn }: {
   onView: (v: ViewKey) => void;
   onSignIn: () => void;
+  /// Reading this from inside. The guides are the same pages either way —
+  /// they are the point of this view for a grower — but the pitch around them
+  /// is not: an invitation to sign in, and an argument for why the thing is
+  /// worth having, are both answered by the fact that they are here.
+  signedIn?: boolean;
 }) {
   return (
     <div className="max-w-3xl">
       <h1 className="figure text-[30px] leading-tight font-bold">
-        Natural phenomena for your Acreage.
+        {signedIn ? "Guides" : "Natural phenomena for your Acreage."}
       </h1>
 
-      <Claim>A farm is not a point.</Claim>
-      <p className="text-[14px] leading-relaxed">
-        A bench and a hollow on the same acreage do not share a frost date, and
-        every free weather calculator answers for a pin. Draw your block, and
-        every answer comes back with the spread across it — heat, frost, soil,
-        daylight and rain, measured for that ground rather than for a zone map.
-      </p>
+      {!signedIn && (
+        <>
+          <Claim>A farm is not a point.</Claim>
+          <p className="text-[14px] leading-relaxed">
+            A bench and a hollow on the same acreage do not share a frost date,
+            and every free weather calculator answers for a pin. Draw your
+            block, and every answer comes back with the spread across it — heat,
+            frost, soil, daylight and rain, measured for that ground rather than
+            for a zone map.
+          </p>
 
-      <div className="mt-5 flex flex-wrap items-center gap-2.5">
-        <button onClick={onSignIn}
-          className="min-h-11 rounded-full border-[1.5px] border-ink bg-ink px-5 text-[13.5px] font-semibold text-paper">
-          Sign in with a Nostr key
-        </button>
-        <span className="text-[12.5px] text-ink-soft">
-          No email, no password, no KYC. Pay per answer in Bitcoin Lightning.
-        </span>
-      </div>
+          <div className="mt-5 flex flex-wrap items-center gap-2.5">
+            <button onClick={onSignIn}
+              className="min-h-11 rounded-full border-[1.5px] border-ink bg-ink px-5 text-[13.5px] font-semibold text-paper">
+              Sign in with a Nostr key
+            </button>
+            <span className="text-[12.5px] text-ink-soft">
+              No email, no password, no KYC. Pay per answer in Bitcoin Lightning.
+            </span>
+          </div>
+        </>
+      )}
 
-      {/* The teaching, free and unsigned. Three pages, one idea each. */}
-      <h2 className="figure mt-8 mb-2.5 text-[18px] font-semibold">
+      {/* The teaching, free and unsigned. Four pages, one idea each. */}
+      <h2 className={`figure mb-2.5 text-[18px] font-semibold ${signedIn ? "mt-5" : "mt-8"}`}>
         How the season is counted
       </h2>
       <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
@@ -67,6 +77,8 @@ export default function Welcome({ onView, onSignIn }: {
         ))}
       </div>
 
+      {!signedIn && (
+        <>
       <h2 className="figure mt-8 mb-2.5 text-[18px] font-semibold">What it answers</h2>
       <ul className="grid gap-x-6 gap-y-2 text-[13.5px] leading-relaxed sm:grid-cols-2">
         {[
@@ -99,6 +111,8 @@ export default function Welcome({ onView, onSignIn }: {
         </button>{" "}
         are open before you sign in.
       </p>
+        </>
+      )}
     </div>
   );
 }

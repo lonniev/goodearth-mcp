@@ -60,3 +60,33 @@ describe("where an empty hash lands", () => {
     assert.equal(viewFromHash("#/Plant"), "plant");   // case is forgiven
   });
 });
+
+describe("a free page stays reachable after signing in", () => {
+  // The regression: the four life-cycle guides and the welcome page were in
+  // PUBLIC_VIEWS, dispatched in both branches of App, and listed in the guest
+  // nav — and in NO signed-in navigation at all. Reachable by typing a URL and
+  // by nothing else. Free pages the app stopped offering the moment somebody
+  // had an npub.
+  //
+  // Reads the shipped shell, because the rail is a .tsx and the invariant is
+  // about what it contains rather than about anything this module exports.
+  it("the rail offers a door to the guides", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const shell = await readFile("src/components/AppShell.tsx", "utf8");
+    assert.match(shell, /key:\s*"welcome"/,
+      "the signed-in rail has no entry for the guides");
+  });
+
+  it("every public view is dispatched for a signed-in grower too", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const app = await readFile("src/App.tsx", "utf8");
+    for (const v of PUBLIC_VIEWS) {
+      // Twice: once in the guest branch, once behind the gate. One occurrence
+      // means it renders for a stranger and 404s for a patron, which is the
+      // shape of the fault this guards.
+      const hits = app.match(new RegExp(`view === "${v}"`, "g")) ?? [];
+      assert.ok(hits.length >= 2,
+        `"${v}" is dispatched ${hits.length} time(s) — it needs both branches`);
+    }
+  });
+});

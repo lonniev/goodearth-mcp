@@ -294,7 +294,9 @@ export default function App() {
         {view === "about" && <About />}
         {/* Free reading, and not only for strangers — a grower who wants to
             know what a biofix is should not have to sign out to find out. */}
-        {view === "welcome" && <Welcome onView={setView} onSignIn={() => {}} />}
+        {view === "welcome" && (
+          <Welcome onView={setView} onSignIn={() => {}} signedIn />
+        )}
         {view === "plant" && <LifeOfAPlant />}
         {view === "pest" && <LifeOfAPest />}
         {view === "tree" && <LifeOfATree />}
