@@ -1080,6 +1080,9 @@ export interface PlantCatalogResult {
   /// Most-observed first. The count measures observers as much as plants —
   /// a roadside is better recorded than a back hayfield.
   plants_recorded: { name: string; scientific_name?: string; observations: number }[];
+  /// How many the feed says are there. Equal to the list now; it was 40 out of
+  /// however many before, and only the 40 were ever on screen.
+  plants_recorded_total?: number;
   search_span_km: number;
   note: string;
 }
@@ -1466,6 +1469,7 @@ export interface PestCatalogResult {
   error?: string;
   events?: PestCatalogEvent[];
   insects_recorded?: { name: string; scientific_name?: string; observations: number }[];
+  insects_recorded_total?: number;
   models_published?: number;
   models_unreadable?: number;
   search_span_km?: number;
@@ -1492,7 +1496,14 @@ export interface WildlifeSpecies {
 export interface WildlifeCatalogResult {
   success: boolean;
   error?: string;
-  groups?: { group: string; taxon: string; emoji: string; species: WildlifeSpecies[] }[];
+  groups?: {
+    group: string; taxon: string; emoji: string;
+    /// How many the feed says this group holds. Equal to `species.length` now;
+    /// it was 40 against 253 recorded birds before, with nothing on screen to
+    /// say the other 213 existed.
+    recorded?: number;
+    species: WildlifeSpecies[];
+  }[];
   species_total?: number;
   with_habits?: number;
   unavailable?: string[];

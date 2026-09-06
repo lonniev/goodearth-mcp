@@ -61,30 +61,66 @@ async def _json(client: httpx.AsyncClient, url: str, params: dict[str, Any]) -> 
 # ── Observed species ─────────────────────────────────────────────────────
 
 
+#: iNaturalist's own ceiling on one page. Asking for more is refused, so this
+#: is the size of a REQUEST and never a limit on what comes back.
+_INAT_PAGE = 200
+
+#: A ceiling on REQUESTS, so a query that somehow matches half the continent
+#: cannot loop. At 200 a page this is forty thousand species from one block —
+#: it is a runaway guard, not a limit on what a place holds.
+_INAT_MAX_PAGES = 200
+
+
 async def fetch_inat_species(
     bbox: tuple[float, float, float, float],
     iconic_taxa: str,
-    limit: int = 30,
-) -> list[dict[str, Any]]:
-    """Species observed inside ``bbox`` (min_lat, min_lon, max_lat, max_lon).
+    limit: int | None = None,
+) -> tuple[list[dict[str, Any]], int]:
+    """Species observed inside ``bbox``, and how many there are in total.
 
     Ordered by observation count, which is what makes this regional rather
     than a catalogue: the answer for a Vermont lakeshore is not the answer
     for a Georgia orchard.
+
+    **Paged to exhaustion, and the total always travels.** This used to ask
+    for one page of forty and return it. There are 2,196 insect species
+    recorded around one Vermont farm, so a grower was shown forty of them and
+    told nothing about the rest — the page size standing in for an answer.
+    ``limit`` is what the CALLER asked for, not a constant hidden in here, and
+    the total is returned either way so a shortened list is never a silent one.
     """
     min_lat, min_lon, max_lat, max_lon = bbox
     params = {
         "swlat": f"{min_lat:.5f}", "swlng": f"{min_lon:.5f}",
         "nelat": f"{max_lat:.5f}", "nelng": f"{max_lon:.5f}",
         "iconic_taxa": iconic_taxa,
-        "per_page": max(1, min(limit, 200)),
+        "per_page": _INAT_PAGE,
     }
-    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-        data = await _json(client, _INAT, params)
 
-    results = data.get("results") if isinstance(data, dict) else None
-    if not isinstance(results, list):
-        raise BiotaError("iNaturalist returned an unexpected shape")
+    results: list[Any] = []
+    total = 0
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        for page in range(1, _INAT_MAX_PAGES + 1):
+            data = await _json(client, _INAT, {**params, "page": page})
+            rows = data.get("results") if isinstance(data, dict) else None
+            if not isinstance(rows, list):
+                raise BiotaError("iNaturalist returned an unexpected shape")
+            if isinstance(data, dict) and isinstance(data.get("total_results"), int):
+                total = data["total_results"]
+            results.extend(rows)
+            # A short page, everything the service says there is, or as much as
+            # the caller asked for. Trusting only one of these loops forever
+            # when the other is what arrives.
+            if len(rows) < _INAT_PAGE:
+                break
+            if total and len(results) >= total:
+                break
+            if limit is not None and len(results) >= limit:
+                break
+
+    total = max(total, len(results))
+    if limit is not None:
+        results = results[:limit]
 
     out: list[dict[str, Any]] = []
     for row in results:
@@ -112,7 +148,7 @@ async def fetch_inat_species(
             "photo_licence": photo.get("license_code"),
             "source": "iNaturalist",
         })
-    return out
+    return out, total
 
 
 async def fetch_gbif_occurrences(

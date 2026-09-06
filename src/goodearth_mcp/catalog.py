@@ -25,17 +25,29 @@ from typing import Any
 from goodearth_mcp import biota, roster
 from goodearth_mcp.region import Region
 
-# Groups offered for the wildlife catalogue. This maps a taxon to an icon —
-# a rendering choice, not a species list; the species inside each come from
-# the feed.
+# Which groups the wildlife catalogue asks about.
+#
+# This said it was "a rendering choice, not a species list". It is not: the
+# loop below issues one iNaturalist query per entry, so this tuple decides
+# what can be catalogued at all, and anything absent from it is absent from
+# the page. Naming that is the difference between a caption and a contract.
+#
+# Insects and spiders are NOT here on purpose — they belong to the pest
+# catalogue, which is where a grower goes looking for them.
 WILDLIFE_GROUPS: tuple[tuple[str, str, str], ...] = (
     ("Aves", "Birds", "🐦"),
     ("Mammalia", "Mammals", "🦌"),
     ("Amphibia", "Amphibians", "🐸"),
     ("Reptilia", "Reptiles", "🐍"),
+    # Mushrooms are a thing growers watch, and the pathogens are the same
+    # kingdom. 780 species are recorded around one Vermont farm.
+    ("Fungi", "Fungi", "🍄"),
 )
 
-MAX_PER_GROUP = 40
+# The scouting catalogue. Spiders sit beside the insects because that is where
+# a grower meets them — a scout walking rows is looking at both, and most of
+# what they find is on their side.
+SCOUTING_TAXA: tuple[str, ...] = ("Insecta", "Arachnida")
 
 # Fauna is a landscape fact, not a field one.
 #
@@ -145,16 +157,27 @@ async def region_pest_catalog(region: Region, today: date | None = None) -> dict
     events.sort(key=lambda e: e["date"])
 
     box = search_box(region)
-    try:
-        insects = await biota.fetch_inat_species(box, "Insecta", MAX_PER_GROUP)
-    except biota.BiotaError:
-        insects = []
+    got = await asyncio.gather(
+        *(biota.fetch_inat_species(box, taxon) for taxon in SCOUTING_TAXA),
+        return_exceptions=True,
+    )
+    insects: list[dict[str, Any]] = []
+    recorded = 0
+    for answer in got:
+        if isinstance(answer, BaseException):
+            continue
+        rows, total = answer
+        insects.extend(rows)
+        recorded += total
+    # One list, most-observed first, whichever kingdom answered.
+    insects.sort(key=lambda r: r.get("observations") or 0, reverse=True)
 
     return {
         "success": True,
         "region": region.describe(),
         "events": events,
         "insects_recorded": insects,
+        "insects_recorded_total": recorded,
         "search_span_km": _search_km(box),
         "models_published": len(models),
         "models_unreadable": len(models) - len(datable),
@@ -239,7 +262,7 @@ async def region_plant_catalog(region: Region) -> dict[str, Any]:
     """
     box = search_box(region)
     try:
-        plants = await biota.fetch_inat_species(box, "Plantae", MAX_PER_GROUP)
+        plants, plants_total = await biota.fetch_inat_species(box, "Plantae")
     except biota.BiotaError as exc:
         raise CatalogError(f"iNaturalist did not answer: {exc}") from exc
 
@@ -247,6 +270,7 @@ async def region_plant_catalog(region: Region) -> dict[str, Any]:
         "success": True,
         "region": region.describe(),
         "plants_recorded": plants,
+        "plants_recorded_total": plants_total,
         "search_span_km": _search_km(box),
         "note": (
             "Plants recorded near this ground, most-observed first. The count "
@@ -315,7 +339,7 @@ async def region_wildlife_catalog(
     """
     box = search_box(region)
     results = await asyncio.gather(
-        *(biota.fetch_inat_species(box, taxon, MAX_PER_GROUP)
+        *(biota.fetch_inat_species(box, taxon)
           for taxon, _, _ in WILDLIFE_GROUPS),
         return_exceptions=True,
     )
@@ -326,14 +350,19 @@ async def region_wildlife_catalog(
 
     groups: list[dict[str, Any]] = []
     missing: list[str] = []
-    for (taxon, label, icon), rows in zip(WILDLIFE_GROUPS, results, strict=True):
-        if isinstance(rows, BaseException):
+    for (taxon, label, icon), answer in zip(WILDLIFE_GROUPS, results, strict=True):
+        if isinstance(answer, BaseException):
             missing.append(label)
             continue
+        rows, total = answer
         groups.append({
             "group": label,
             "taxon": taxon,
             "emoji": icon,
+            # What the feed says is there, beside what came back. They are the
+            # same number now; they were 40 and 253 before, and only one of
+            # them was on screen.
+            "recorded": total,
             "species": [
                 {
                     **r,
