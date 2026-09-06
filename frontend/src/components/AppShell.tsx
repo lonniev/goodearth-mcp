@@ -5,7 +5,8 @@
 // able to see where the app is going, and a dimmed row is honest where an
 // enabled row that leads to an empty page is not.
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { centreOn, scrolls } from "../lib/railScroll";
 import Avatar from "./Avatar";
 import Boundary from "./Boundary";
 import RegionPicker from "./RegionPicker";
@@ -99,11 +100,28 @@ export default function AppShell({
     writeOrder(next);
   }
 
+  // On a phone this rail is a bottom bar: thirteen items and 838 px of them in
+  // a 390 px window. It has always scrolled, so nothing was unreachable — but
+  // it always opened at the left, so a grower on Tasks or References was
+  // looking at a bar that did not contain the page they were on, with nothing
+  // to say which way to swipe.
+  const rail = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const nav = rail.current;
+    if (!nav || !scrolls(nav.clientWidth, nav.scrollWidth)) return;
+    const here = nav.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!here) return;
+    nav.scrollTo({
+      left: centreOn(here.offsetLeft, here.offsetWidth, nav.clientWidth, nav.scrollWidth),
+      behavior: "smooth",
+    });
+  }, [view, items]);
+
   return (
     <div className={`grid h-full grid-cols-1 grid-rows-[56px_1fr_56px] md:grid-rows-[56px_1fr] ${
       collapsed ? "md:grid-cols-[64px_1fr]" : "md:grid-cols-[200px_1fr]"
     }`}>
-      <nav aria-label="Views"
+      <nav ref={rail} aria-label="Views"
         className="row-start-3 flex gap-0.5 overflow-x-auto overscroll-x-contain bg-ink p-1.5 text-rail-ink [-webkit-overflow-scrolling:touch] md:row-span-2 md:row-start-1 md:flex-col md:p-4">
         <div className="hidden items-center justify-between pl-2 pt-1 pb-4 md:flex">
           {!collapsed && (
