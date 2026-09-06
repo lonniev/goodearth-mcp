@@ -145,9 +145,14 @@ async def region_pest_catalog(region: Region, today: date | None = None) -> dict
         when = biota.npn_event_date(int(value), today.year)
         if when is None:
             continue
+        creature, stage = roster.split_stage(_humanise(layer))
         events.append({
             "model": layer,
             "name": _humanise(layer),
+            # The two halves, so a caller adding one to a record puts the
+            # ANIMAL in the field that asks for an animal.
+            "pest": creature,
+            "stage": stage,
             "date": when,
             "passed": when < today.isoformat(),
             "source": "USA-NPN Pheno Forecast",

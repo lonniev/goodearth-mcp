@@ -1477,6 +1477,11 @@ export async function plantingWindow(
 export interface PestCatalogEvent {
   model: string;
   name: string;
+  /// The two halves of `name`. "Spotted lanternfly egg hatch" is a pest AND a
+  /// moment; a form asking for a pest wants only the first, or it puts the
+  /// whole phrase on the record as an animal.
+  pest?: string;
+  stage?: string;
   date: string;
   passed: boolean;
   source: string;

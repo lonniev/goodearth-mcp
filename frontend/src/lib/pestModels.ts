@@ -28,11 +28,40 @@ export interface SavedPest extends PestModel {
 // a Vermont lakeshore and a Georgia orchard. The Pests page now reads USA-NPN's
 // degree-day forecasts for the actual region — see `pestCatalog` in lib/mcp.
 
+/// A creature to watch, with no arithmetic attached.
+///
+/// The record has always had `watch`, the page renders watched rows in five
+/// places, and NOTHING could create one: `makePest` rejects empty stages, so
+/// the only way a watch row ever existed was through the MCP tool by hand. A
+/// grower watches voles, slugs and wasps — creatures with no degree-day model
+/// — and demanding thresholds for them is how invented numbers get into a
+/// record.
+export function makeWatch(
+  pest: string, regionId: string,
+  extra?: { taxonId?: number; scientificName?: string },
+): SavedPest | string {
+  if (!pest.trim()) return "Give the pest a name.";
+  return {
+    id: `pe-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`,
+    pest: pest.trim(), regionId, watch: true, stages: [],
+    ...(extra?.taxonId ? { taxon_id: extra.taxonId } : {}),
+    ...(extra?.scientificName ? { scientific_name: extra.scientificName } : {}),
+  } as SavedPest;
+}
+
 /// Validate the way the server does, so the grower is corrected in the form.
 export function makePest(
   pest: string, baseTemp: number, stagesRaw: string, regionId: string, biofix?: string,
+  extra?: { taxonId?: number; scientificName?: string },
 ): SavedPest | string {
   if (!pest.trim()) return "Give the pest a name.";
+
+  // No stages means WATCH IT, the same way a blank target and set-out on the
+  // Crops form mean a presence row. It used to be a rejection: tapping a
+  // modelled stage filled the name, "+ Pest" refused with a sentence about
+  // the format of a field the grower had never touched, and there was no way
+  // forward that did not involve inventing a threshold.
+  if (!stagesRaw.trim()) return makeWatch(pest, regionId, extra);
   if (!Number.isFinite(baseTemp) || baseTemp < 20 || baseTemp > 80)
     return "Base temperature must be between 20 and 80 °F.";
   if (biofix && (!/^\d{4}-\d{2}-\d{2}$/.test(biofix) || Number.isNaN(Date.parse(biofix))))
@@ -54,29 +83,11 @@ export function makePest(
     pest: pest.trim(), base_temp: baseTemp, regionId,
     stages: stages as { stage: string; gdd: number }[],
     ...(biofix ? { biofix } : {}),
+    ...(extra?.taxonId ? { taxon_id: extra.taxonId } : {}),
+    ...(extra?.scientificName ? { scientific_name: extra.scientificName } : {}),
   };
 }
 
-/// A creature to watch, with no arithmetic attached.
-///
-/// The record has always had `watch`, the page renders watched rows in five
-/// places, and NOTHING could create one: `makePest` rejects empty stages, so
-/// the only way a watch row ever existed was through the MCP tool by hand. A
-/// grower watches voles, slugs and wasps — creatures with no degree-day model
-/// — and demanding thresholds for them is how invented numbers get into a
-/// record.
-export function makeWatch(
-  pest: string, regionId: string,
-  extra?: { taxonId?: number; scientificName?: string },
-): SavedPest | string {
-  if (!pest.trim()) return "Give the pest a name.";
-  return {
-    id: `pe-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`,
-    pest: pest.trim(), regionId, watch: true, stages: [],
-    ...(extra?.taxonId ? { taxon_id: extra.taxonId } : {}),
-    ...(extra?.scientificName ? { scientific_name: extra.scientificName } : {}),
-  } as SavedPest;
-}
 
 // ── The record ───────────────────────────────────────────────────────────
 
