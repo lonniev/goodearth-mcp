@@ -499,7 +499,7 @@ export default function Wildlife({
           Four labelled rows of chiclets, each capped at 24, of 377 creatures
           recorded around one block — with no way to reach the rest. Scanning
           is what that was good at and searching is what fits the numbers. */}
-      <Section emoji="🔭" title="Sightings">
+      <Section emoji="🔭" title="Recorded nearby">
         <Provenance tool="goodearth_nearby_species" at={catAt} onCost={onCost} />
       </Section>
 
@@ -508,7 +508,7 @@ export default function Wildlife({
         blockName={region.name}
         kingdom={kingdom}
         adding={addingMany}
-        hint="Choose any number, keep searching, then add them all. They go on the roster named and undated — the clock and its figure are yours to set, and “has a year” marks the ones USA-NPN tracks a life cycle for."
+        hint="What people have actually seen near here. Choose any number, keep searching, then add them all. They go on the roster named and undated — the clock and its figure are yours to set, and “has a year” marks the ones USA-NPN tracks a life cycle for."
         onAdd={addChosen}
       />
 

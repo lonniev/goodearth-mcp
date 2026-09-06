@@ -395,7 +395,7 @@ export default function Pests({
         </Empty>
       )}
 
-      <Section emoji="🔭" title="Nearby">
+      <Section emoji="🐛" title="Modelled stages">
         {!cat && (
           <Pill onClick={loadCatalog} disabled={catBusy} active>
             {catBusy ? "🧠 Reading…" : "🧠 What's here?"}
@@ -406,7 +406,6 @@ export default function Pests({
 
       {cat ? (
         <>
-          <p className="eyebrow">Modelled stages</p>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {(cat.events ?? []).map((e) => (
               <Chiclet key={e.model} emoji={e.passed ? "🐛" : "🥚"} name={e.name}
@@ -420,7 +419,8 @@ export default function Pests({
               answered with a heat total rather than a date is this service's
               own bookkeeping — it changes nothing the grower does. */}
           <Note>
-            Dated stages from USA-NPN. Edit a pest to set its thresholds.
+            A published degree-day model, dated for this ground. Edit a pest
+            to set its own thresholds.
           </Note>
         </>
       ) : (
@@ -431,13 +431,13 @@ export default function Pests({
           The sightings list used to sit above, capped at eighteen with no way
           to see the rest — of 3,542 insects and spiders recorded around one
           block. Searching is the only shape that fits that. */}
-      <Section emoji="🔍" title="Sightings" />
+      <Section emoji="🔭" title="Recorded nearby" />
       <SpeciesFinder
         block={region.id}
         blockName={region.name}
         kingdom="insects"
         adding={addingMany}
-        hint="Insects and spiders recorded around this ground. Choose any number, keep searching, then add them all — they go on as watched, with no thresholds. A degree-day model is yours to add, and voles and slugs never get one."
+        hint="What people have actually seen near here, rather than what is modelled above. Choose any number, keep searching, then add them all — they go on as watched, with no thresholds. A degree-day model is yours to add, and voles and slugs never get one."
         onAdd={addChosen}
       />
     </>
