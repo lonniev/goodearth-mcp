@@ -91,7 +91,7 @@ _DAILY_ALMANAC_FORECAST = (
     "temperature_2m_max,temperature_2m_min,dew_point_2m_mean,precipitation_sum,"
     "rain_sum,snowfall_sum,sunrise,sunset,daylight_duration,sunshine_duration,"
     "wind_speed_10m_max,wind_direction_10m_dominant,weather_code,"
-    "precipitation_probability_max"
+    "precipitation_probability_max,relative_humidity_2m_mean"
 )
 _DAILY_ALMANAC_HISTORY = _DAILY_ALMANAC_FORECAST
 

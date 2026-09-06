@@ -30,6 +30,11 @@ MEASURES = {
     "sunshine":   {"field": "sunshine_duration",    "unit": "hours", "accumulate": False},
     "daylight":   {"field": "daylight_duration",    "unit": "hours", "accumulate": False},
     "wind_max":   {"field": "wind_speed_10m_max",   "unit": "mph",  "accumulate": False},
+    # Relative humidity is a percentage of a moving target: the same water in
+    # the air reads 90% at dawn and 50% by noon because the air warmed, not
+    # because anything dried. It sits beside the dew point deliberately —
+    # the dew point is the absolute figure and this is what the leaf feels.
+    "humidity":   {"field": "relative_humidity_2m_mean", "unit": "%", "accumulate": False},
 }
 SECONDS_FIELDS = {"sunshine_duration", "daylight_duration"}
 
@@ -157,6 +162,7 @@ async def region_almanac(
             "high_f": _num((f_block.get("temperature_2m_max") or [None])[0]),
             "low_f": _num((f_block.get("temperature_2m_min") or [None])[0]),
             "dew_point_f": _num((f_block.get("dew_point_2m_mean") or [None])[0]),
+            "humidity_pct": _num((f_block.get("relative_humidity_2m_mean") or [None])[0]),
             "precip_chance_pct": _num((f_block.get("precipitation_probability_max") or [None])[0]),
             "sunrise": (f_block.get("sunrise") or [None])[0],
             "sunset": (f_block.get("sunset") or [None])[0],
@@ -186,6 +192,7 @@ async def region_almanac(
             "high_f": at("temperature_2m_max", i),
             "low_f": at("temperature_2m_min", i),
             "dew_point_f": at("dew_point_2m_mean", i),
+            "humidity_pct": at("relative_humidity_2m_mean", i),
             "precip_in": at("precipitation_sum", i),
             "precip_chance_pct": at("precipitation_probability_max", i),
             "sunshine_hours": almanac.hours(at("sunshine_duration", i)),

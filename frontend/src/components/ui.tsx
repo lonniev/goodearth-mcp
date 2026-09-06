@@ -10,7 +10,7 @@
 // restate them. Where a difference remains it should be because the content
 // differs, not because someone typed the class list again.
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 /// One field style, for every text and date input on every page.
 ///
@@ -153,6 +153,79 @@ export function SpeciesChiclet({
   );
 }
 
+/// Any chart, with a corner that takes it full screen.
+///
+/// A season chart is 740 units wide by design and a phone is not, so the one
+/// on screen is always a compromise. This is the way out of it, and it is the
+/// same control on every chart on every page rather than a thing the Almanac
+/// happens to have.
+///
+/// **The children never remount.** Only this element's classes change, so a
+/// chart carries its zoom and pan into full screen and back out again. Swapping
+/// the subtree instead — rendering the chart in an overlay — would unmount it,
+/// and a grower who had zoomed into July would land back at the whole season
+/// for the crime of wanting a better look.
+export function ChartFrame({ label, children }: {
+  label: string; children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", esc);
+    // The page behind must not scroll under the overlay.
+    const had = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", esc);
+      document.body.style.overflow = had;
+    };
+  }, [open]);
+
+  return (
+    <div className={open
+      ? "fixed inset-0 z-50 flex flex-col gap-2 overflow-auto bg-paper p-3"
+      : "relative"}>
+      {open && (
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="figure text-[16px] font-semibold">{label}</span>
+          <span className="data text-[11px] text-ink-soft">Esc to close</span>
+          {/* Beside the title, not at the foot of the page. A close control
+              parked below a short chart sat alone in half a screen of nothing,
+              nowhere near where the eye goes to leave. */}
+          <button type="button" onClick={() => setOpen(false)}
+            title={`Close ${label}`} aria-label={`Close ${label}`}
+            className="ml-auto inline-flex h-11 w-11 items-center justify-center rounded text-ink-soft active:bg-band">
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true">
+              <path d={ICON.collapse} />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* Centred rather than stretched. These charts are drawn wide and short
+          — 740 units by 150 — so filling the height would either distort them
+          or run them off the sides. Full screen buys the WIDTH, which is the
+          axis a season is long in; the space it cannot use is shared top and
+          bottom instead of dumped underneath. */}
+      <div className={open ? "flex min-h-0 flex-1 items-center" : ""}>
+        <div className={open ? "w-full" : ""}>{children}</div>
+      </div>
+
+      {!open && (
+        <button type="button" onClick={() => setOpen(true)}
+          title={`${label} full screen`} aria-label={`${label} full screen`}
+          className="absolute right-1 top-1 z-10 inline-flex h-11 w-11 items-center justify-center rounded text-ink-soft active:bg-band">
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true">
+            <path d={ICON.expand} />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+}
+
 /// A standalone chip that reports a state rather than inviting a tap.
 ///
 /// The site has two pill families: small borderless badges that annotate
@@ -229,6 +302,8 @@ export function IconButton({
 /// they look like — so "one concept, one icon" is checkable by reading.
 export const ICON = {
   add: "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z",
+  expand: "M7 14H5v5h5v-2H7zm-2-4h2V7h3V5H5zm12 7h-3v2h5v-5h-2zM14 5v2h3v3h2V5z",
+  collapse: "M5 16h3v3h2v-5H5zm3-8H5v2h5V5H8zm6 11h2v-3h3v-2h-5zm2-11V5h-2v5h5V8z",
   settings:
     "M19.14 12.94a7.07 7.07 0 0 0 0-1.88l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7 7 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.58.24-1.13.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.65 8.84a.5.5 0 0 0 .12.64l2.03 1.58a7.07 7.07 0 0 0 0 1.88l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.4.31.6.22l2.39-.96c.5.39 1.05.7 1.63.94l.36 2.54c.04.24.25.42.5.42h3.84c.25 0 .46-.18.5-.42l.36-2.54c.58-.24 1.13-.55 1.63-.94l2.39.96c.22.09.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z",
   ask: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 17h-2v-2h2zm2.07-7.75-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26A1.95 1.95 0 0 0 12 7a2 2 0 0 0-2 2H8a4 4 0 1 1 8 0c0 .88-.36 1.68-.93 2.25z",

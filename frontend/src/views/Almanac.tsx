@@ -9,13 +9,15 @@
 // is identical across them so the eye learns it once.
 
 import { useUnits } from "../components/Units";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import MeasureChart from "../components/MeasureChart";
 import OutlookSummary from "../components/OutlookSummary";
 import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
 import { almanacFor, type AlmanacResult, type MeasureKey } from "../lib/mcp";
 import type { SavedRegion } from "../lib/regions";
+import { dropIndex, mergeOrder, moveItem } from "../lib/reorder";
+import { ChartFrame } from "../components/ui";
 
 const SERIES: { key: MeasureKey; label: string; emoji: string; color?: string }[] = [
   { key: "temp_max",  label: "Daily high",  emoji: "🌡️" },
@@ -25,6 +27,11 @@ const SERIES: { key: MeasureKey; label: string; emoji: string; color?: string }[
   { key: "sunshine",  label: "Sunshine",    emoji: "☀️", color: "var(--color-honey)" },
   { key: "daylight",  label: "Day length",  emoji: "🌅", color: "var(--color-honey)" },
   { key: "wind_max",  label: "Wind",        emoji: "🌬️" },
+  // Beside the dew point on purpose. The dew point is how much water the air
+  // holds; this is how close it is to holding all it can, which is what
+  // decides whether a leaf stays wet — and the same water reads 90% at dawn
+  // and 50% by noon because the air warmed, not because anything dried.
+  { key: "humidity",  label: "Humidity",    emoji: "💦", color: "var(--color-frost)" },
 ];
 
 const time = (iso: string | null) => (iso ? iso.slice(11, 16) : "—");
@@ -32,8 +39,14 @@ const day = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 
 export default function Almanac({
-  region, onCost,
-}: { region: SavedRegion; onCost: (sats: number) => void }) {
+  region, onCost, chartOrder, onChartOrder,
+}: {
+  region: SavedRegion;
+  onCost: (sats: number) => void;
+  /// Saved measure keys, left to right. Empty means the order they ship in.
+  chartOrder: string[];
+  onChartOrder: (order: string[]) => void;
+}) {
   const u = useUnits();
   const [data, setData] = useState<AlmanacResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -42,6 +55,54 @@ export default function Almanac({
   const [shown, setShown] = useState<Set<MeasureKey>>(
     () => new Set<MeasureKey>(["temp_max", "dew_point", "precip", "sunshine"]),
   );
+
+  /// The chiclets in their arranged order, which is also the order the charts
+  /// stack in. `mergeOrder` is what keeps a measure added after somebody
+  /// arranged their row — humidity, say — from vanishing for them.
+  const ordered = mergeOrder(chartOrder, SERIES.map((x) => x.key))
+    .map((k) => SERIES.find((x) => x.key === k))
+    .filter((x): x is (typeof SERIES)[number] => !!x);
+
+  /// The drag. A press that never travels is a tap and still toggles the
+  /// chiclet — the row keeps doing what it always did, and rearranging is
+  /// something the same gesture grows into.
+  const [dragging, setDragging] = useState<number | null>(null);
+  const row = useRef<HTMLDivElement | null>(null);
+  const grab = useRef<{ index: number; x: number; moved: boolean } | null>(null);
+
+  const centersOf = () => {
+    const kids = Array.from(row.current?.children ?? []) as HTMLElement[];
+    return kids.map((el) => el.getBoundingClientRect())
+      .map((r) => r.left + r.width / 2);
+  };
+
+  function onDown(e: React.PointerEvent, index: number) {
+    grab.current = { index, x: e.clientX, moved: false };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+
+  function onMove(e: React.PointerEvent) {
+    const g = grab.current;
+    if (!g) return;
+    // A few pixels of slack, so a tap with a shaky hand is still a tap.
+    if (!g.moved && Math.abs(e.clientX - g.x) < 6) return;
+    g.moved = true;
+    setDragging(g.index);
+    const to = dropIndex(centersOf(), e.clientX);
+    if (to !== g.index) {
+      onChartOrder(moveItem(ordered.map((x) => x.key), g.index, to));
+      g.index = to;
+      setDragging(to);
+    }
+  }
+
+  function onUp(e: React.PointerEvent, key: MeasureKey) {
+    const g = grab.current;
+    grab.current = null;
+    setDragging(null);
+    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+    if (!g?.moved) toggle(key);
+  }
 
   const run = useCallback(async () => {
     setBusy(true); setError("");
@@ -148,9 +209,19 @@ export default function Almanac({
                 {u.high_f != null ? Math.round(u.high_f) : "—"}°
                 <span className="text-ink-soft">/{u.low_f != null ? Math.round(u.low_f) : "—"}°</span>
               </span>
-              {!!u.precip_chance_pct && (
-                <span className="data text-[10.5px] text-frost">{Math.round(u.precip_chance_pct)}%</span>
-              )}
+              {/* The rain row is always drawn, blank when there is no chance
+                  of any. It used to be omitted, which lifted every row below
+                  it — so a dry Monday put its humidity where its neighbours
+                  put their rain, and fourteen cells stopped lining up. A
+                  reserved line costs nothing and keeps the strip readable
+                  across. */}
+              <span className="data text-[10.5px] text-frost">
+                {u.precip_chance_pct ? `${Math.round(u.precip_chance_pct)}%` : "\u00A0"}
+              </span>
+              <span className="data text-[10.5px] text-ink-soft"
+                title="Average relative humidity">
+                {u.humidity_pct != null ? `💦${Math.round(u.humidity_pct)}%` : "\u00A0"}
+              </span>
               <span className="data text-[10.5px] text-ink-soft">{u.wind.emoji}{u.wind.from ?? ""}</span>
             </div>
           ))}
@@ -163,15 +234,28 @@ export default function Almanac({
         <Provenance tool="goodearth_almanac" at={ranAt} onCost={onCost} />
       </h2>
 
-      <div className="mb-3 flex flex-wrap gap-1.5">
-        {SERIES.map((s) => (
-          <button key={s.key} onClick={() => toggle(s.key)}
-            className={`min-h-11 rounded-full border px-3.5 text-[12.5px] ${
+      {/* Left to right here is top to bottom below. Drag one along the row to
+          move its chart up or down the page; a tap still just shows or hides
+          it. The arrangement is remembered on this device, beside the season
+          and the units. */}
+      <div ref={row} className="mb-1.5 flex flex-wrap gap-1.5 select-none">
+        {ordered.map((s, i) => (
+          <button key={s.key}
+            onPointerDown={(e) => onDown(e, i)}
+            onPointerMove={onMove}
+            onPointerUp={(e) => onUp(e, s.key)}
+            onPointerCancel={() => { grab.current = null; setDragging(null); }}
+            title={`${s.label} — drag to move its chart up or down`}
+            className={`min-h-11 cursor-grab touch-none rounded-full border px-3.5 text-[12.5px] ${
+              dragging === i ? "scale-105 cursor-grabbing shadow-md" : ""} ${
               shown.has(s.key) ? "border-ink bg-ink text-paper" : "border-rule active:bg-band"}`}>
             {s.emoji} {s.label}
           </button>
         ))}
       </div>
+      <p className="data mb-3 text-[10.5px] text-ink-soft">
+        Tap to show or hide · drag to reorder
+      </p>
 
       {busy && !data ? (
         <div className="rounded-md border border-rule bg-panel">
@@ -179,10 +263,12 @@ export default function Almanac({
         </div>
       ) : data ? (
         <div className="space-y-3">
-          {SERIES.filter((s) => shown.has(s.key)).map((s) => (
-            <MeasureChart key={s.key} measure={data.measures[s.key]}
-              dates={data.dates} forecastDates={data.forecast_dates}
-              label={s.label} emoji={s.emoji} color={s.color} />
+          {ordered.filter((s) => shown.has(s.key)).map((s) => (
+            <ChartFrame key={s.key} label={s.label}>
+              <MeasureChart measure={data.measures[s.key]}
+                dates={data.dates} forecastDates={data.forecast_dates}
+                label={s.label} emoji={s.emoji} color={s.color} />
+            </ChartFrame>
           ))}
           <p className="data text-[10.5px] text-ink-soft">
             Grey band is the range across the last {data.normals_span_years} seasons ·

@@ -8,6 +8,7 @@
 import { useUnits } from "../components/Units";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import SeasonChart from "../components/SeasonChart";
+import { ChartFrame } from "../components/ui";
 import FrostCard from "../components/FrostCard";
 import EventDetail from "../components/EventDetail";
 import SoilCard from "../components/SoilCard";
@@ -262,9 +263,11 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
           <QuoteScroller heading={`Reading the season for ${region.name}`} />
         </div>
       ) : data ? (
-        <SeasonChart data={data} frostDayIndex={frostIndex(data, frost)}
-          flags={showFlags ? flags : []} onFlag={setOpenFlag} showGround={showGround}
-          overlay={overlay} />
+        <ChartFrame label="The season's heat">
+          <SeasonChart data={data} frostDayIndex={frostIndex(data, frost)}
+            flags={showFlags ? flags : []} onFlag={setOpenFlag} showGround={showGround}
+            overlay={overlay} />
+        </ChartFrame>
       ) : null}
 
       {data && flags.length > 0 && showFlags && (
