@@ -341,9 +341,24 @@ async def daily_history(
     return fresh
 
 
+#: A fingerprint of the fields the almanac asks for.
+#:
+#: It is part of the cache key because the answer is only reusable while the
+#: question is unchanged. Humidity was added to the request and every cached
+#: span still held the OLD field set — ten years of dates and no humidity —
+#: which is not a stale number but a missing column, and the code that read it
+#: indexed off the end of an empty list. Naming the field set means a span
+#: fetched under a different question simply never matches, and no future field
+#: needs anyone to remember to clear anything.
+def _field_fingerprint() -> str:
+    fields = ",".join(sorted(
+        f.strip() for f in sources._DAILY_ALMANAC_HISTORY.split(",") if f.strip()))
+    return hashlib.sha256(fields.encode()).hexdigest()[:8]
+
+
 async def almanac_history(lat: float, lon: float, start: str, end: str) -> dict[str, Any]:
     """The almanac's field set from the record, remembered."""
-    subject = f"{lat:.5f}/{lon:.5f}"
+    subject = f"{lat:.5f}/{lon:.5f}/{_field_fingerprint()}"
     found = await _read("almanac", subject, start, end)
     if found is not None:
         return found
@@ -361,8 +376,12 @@ async def normals_history(
     cached without expiry. The source name and resolution are remembered with
     the records, because provenance that names the preferred feed while showing
     the fallback's numbers is worse than none.
+
+    Without expiry makes the field fingerprint load-bearing rather than tidy:
+    this row would otherwise answer with the old field set for as long as the
+    ground exists.
     """
-    subject = f"{lat:.5f}/{lon:.5f}"
+    subject = f"{lat:.5f}/{lon:.5f}/{_field_fingerprint()}"
     found = await _read("normals", subject, start, end)
     if isinstance(found, list) and len(found) == 3:
         records, name, res = found
