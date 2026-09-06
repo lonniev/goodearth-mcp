@@ -20,6 +20,7 @@
 // instead of re-sending what already arrived.
 
 import { claimLegacy } from "./legacyOwner";
+import { liftVerdict } from "./liftVerdict";
 import {
   blockItemSave, blockSave, getStoredNpub, type ItemKind, type Region,
 } from "./mcp";
@@ -99,6 +100,9 @@ export async function migrateToBlocks(): Promise<MigrationReport> {
   if (!isDone("blocks", npub) && regions.length) {
     out.ran = true;
     let landed = 0;
+    /// Refused for a reason that will not change: a name another block already
+    /// holds, a name too long. Retrying these is not patience, it is a loop.
+    let refused = 0;
     for (const r of regions) {
       try {
         const res = await blockSave({
@@ -107,19 +111,23 @@ export async function migrateToBlocks(): Promise<MigrationReport> {
           block: r.id,
           base_temp: r.baseTempF ?? 50,
         });
-        // A name that already exists server-side is not a failure — the block
-        // is there, which is the outcome this pass wanted.
-        if (res?.success || res?.error_code === "ambiguous_block") landed += 1;
-        else out.failed.push(`${r.name}: ${res?.error ?? "unknown"}`);
+        if (res?.success) landed += 1;
+        else {
+          // This used to count `error_code === "ambiguous_block"` as landed.
+          // Nothing has ever sent that code, so the branch was inert — and its
+          // absence is why a clash meant `landed < regions.length` forever,
+          // which left the lift un-marked and re-attempted on EVERY load.
+          if (res?.error_code === "tool_input_invalid") refused += 1;
+          out.failed.push(`${r.name}: ${res?.error ?? "unknown"}`);
+        }
       } catch (e) {
         out.failed.push(`${r.name}: ${String(e)}`);
       }
     }
     out.blocks = landed;
-    if (landed === regions.length) {
-      markDone("blocks", npub);
-      forget(LEGACY.regions);
-    }
+    const verdict = liftVerdict(landed, refused, regions.length);
+    if (verdict !== "retry") markDone("blocks", npub);
+    if (verdict === "done") forget(LEGACY.regions);
   }
 
   // Items, one batch per block per kind. A partial pass leaves the local copy

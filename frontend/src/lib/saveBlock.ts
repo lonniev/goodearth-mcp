@@ -27,9 +27,16 @@ export async function saveBlock(r: SavedRegion): Promise<SavedRegion> {
     geometry: r.region,
     base_temp: r.baseTempF,
   });
-  // A name the record already holds is not a failure — the block is there,
-  // which is the outcome this wanted.
-  if (!res?.success && res?.error_code !== "ambiguous_block") {
+  // This used to make an exception for `error_code === "ambiguous_block"`, on
+  // the reasoning that a name the record already holds means the block is
+  // there. Two things were wrong with it. Nothing has ever sent that code —
+  // the server RAISES on a clash and the SDK reports every such refusal as
+  // `tool_input_invalid` — so the branch was inert and only looked like
+  // handling. And the reasoning was wrong anyway: a clash means a DIFFERENT
+  // block holds the name, so this one did not save, and swallowing it would
+  // leave the cache holding ground the record has never seen. Which is the
+  // exact state this module exists to prevent.
+  if (!res?.success) {
     throw new Error(res?.error || "The record would not take this block.");
   }
   // The server measures it — area and sample count come back on the row — so
