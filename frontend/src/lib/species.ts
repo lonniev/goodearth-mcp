@@ -262,3 +262,76 @@ export async function speciesByIds(
   }
   return out;
 }
+
+
+/// Does this taxon admit to the name that was asked for?
+///
+/// Whole word, and tolerant of a plural. A plain substring test is what made
+/// "Bat" come back as *Battus* — a swallowtail butterfly whose genus contains
+/// the letters — and "Butterfly" come back as a butterflyFISH. The word has to
+/// stand on its own, and "Bat" is then allowed to meet "Bats".
+function admits(name: string, t: SpeciesHit): boolean {
+  const q = name.trim().toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (!q) return false;
+  const word = new RegExp(`(?<![a-z])${q}e?s?(?![a-z])`);
+  return word.test(
+    `${t.commonName ?? ""} ${t.scientificName} ${t.matched ?? ""}`.toLowerCase());
+}
+
+/// A photograph for each of these creatures, by the names the grower saved.
+///
+/// Rows added from the roster carry no emoji, so the table drew a bullet
+/// beside them while the catalogue below showed real photographs of the same
+/// animals. The picture was available; nothing was fetching it.
+///
+/// **Unrestricted by rank, unlike the picker.** A grower planting something
+/// needs a species or a genus. A row that says "Bat" or "Butterfly" is naming
+/// a group, and the honest picture for it is the group's — Chiroptera, or
+/// Papilionoidea. Twenty candidates, because those sit well below the species
+/// that outrank them on observation count.
+///
+/// **A name is resolved only if the answer admits to it.** Nothing matching
+/// means no picture, and a row with no picture is not a wrong one.
+export async function photosByName(
+  names: string[], kingdom: Kingdom, signal?: AbortSignal,
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const queue = [...new Set(names.map((n) => n.trim()).filter(Boolean))];
+
+  async function worker() {
+    for (let n = queue.shift(); n; n = queue.shift()) {
+      if (signal?.aborted) return;
+      // Keyed by kingdom as well as name: the same word names a plant in one
+      // call and an animal in another, and one cache holding both would hand
+      // a page the picture from the other.
+      const key = `${kingdom}:${n.toLowerCase()}`;
+      const cached = photoCache.get(key);
+      if (cached !== undefined) {
+        if (cached) out.set(n, cached);
+        continue;
+      }
+      try {
+        const p = new URLSearchParams({
+          q: n, taxon_id: String(KINGDOM[kingdom]), per_page: "20",
+        });
+        const r = await fetch(`${TAXA}/autocomplete?${p}`, {
+          signal, headers: { Accept: "application/json" },
+        });
+        if (!r.ok) throw new Error(String(r.status));
+        const d = (await r.json()) as { results?: Record<string, unknown>[] };
+        const hit = (d.results ?? []).map(toHit).find((t) => admits(n, t));
+        photoCache.set(key, hit?.thumb ?? null);
+        if (hit?.thumb) out.set(n, hit.thumb);
+      } catch {
+        // A missing picture is a missing picture. It is never a reason to
+        // fail the table it decorates.
+      }
+    }
+  }
+  // Four at a time. Thirty rows is thirty requests on a cold page, and
+  // iNaturalist asks callers not to sprint.
+  await Promise.all(Array.from({ length: Math.min(4, queue.length) }, worker));
+  return out;
+}
+
+const photoCache = new Map<string, string | null>();

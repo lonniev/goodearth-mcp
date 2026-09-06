@@ -14,6 +14,11 @@ import type { WildlifeEventInput } from "./mcp";
 export interface SavedWildlife extends WildlifeEventInput {
   id: string;
   regionId: string;
+  /// The reference, when the row came from the finder rather than from a
+  /// typed name. USA-NPN is keyed on the binomial, so without it a creature
+  /// has no year to look up.
+  taxon_id?: number;
+  scientific_name?: string;
 }
 
 // The starter events that used to live here are gone. Twenty-two species
@@ -41,6 +46,26 @@ export const DRIVER_HELP: Record<string, string> = {
 // picks the day it started. Counting forward is the part this service is
 // actually good for; knowing that a particular ewe carries 147 days is the
 // part the shepherd knows.
+
+/// A creature on the roster, named and not yet dated.
+///
+/// `makeWildlife` demands an event before it looks at a driver, and every
+/// driver demands its figure — so a grower could not simply say "barred owls
+/// are here". The reader has always allowed it: `ledgerFlags` skips a row with
+/// no driver on purpose, with a test covering it. Supported downstream,
+/// unreachable from the form.
+export function makeRoster(
+  species: string, regionId: string,
+  extra?: { taxonId?: number; scientificName?: string },
+): SavedWildlife | string {
+  if (!species.trim()) return "Which creature?";
+  return {
+    id: `wl-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`,
+    species: species.trim(), event: "", regionId,
+    ...(extra?.taxonId ? { taxon_id: extra.taxonId } : {}),
+    ...(extra?.scientificName ? { scientific_name: extra.scientificName } : {}),
+  } as SavedWildlife;
+}
 
 /// Validate the way the server does, so the grower is corrected in the form.
 export function makeWildlife(

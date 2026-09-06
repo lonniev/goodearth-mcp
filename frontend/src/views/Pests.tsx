@@ -23,8 +23,10 @@ import {
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
 import { pestCatalog, pestThreshold, type PestCatalogResult, type PestWindowResult } from "../lib/mcp";
 import {
-  makePest, pestCodec, type SavedPest,
+  makePest, makeWatch, pestCodec, type SavedPest,
 } from "../lib/pestModels";
+import SpeciesFinder from "../components/SpeciesFinder";
+import type { Chosen } from "../lib/basket";
 import type { SavedRegion } from "../lib/regions";
 
 const d = (iso: string) =>
@@ -80,7 +82,8 @@ export default function Pests({
   const [savingRow, setSavingRow] = useState(false);
 
   // Read from the grower's record under their npub, not from this browser.
-  const { items: models, save: storePest, retire: retirePest, reload: reloadPests,
+  const { items: models, save: storePest, saveMany: storeMany,
+          retire: retirePest, reload: reloadPests,
           loading: modelsLoading, error: modelsError,
           unknownBlock: modelsUnknown, total, page, pages } =
     useBlockItems<SavedPest>(region.id, "pest", pestCodec, undefined, {
@@ -153,6 +156,25 @@ export default function Pests({
     } catch (e) {
       setFormErr(String((e as Error).message ?? e));
     } finally { setSavingRow(false); }
+  }
+
+  /// Put a basket of chosen creatures on the record in ONE write.
+  ///
+  /// They arrive WATCHED: named, with no base temperature and no stages. That
+  /// is the honest state for most of what a scout finds — a vole has no
+  /// degree-day model and demanding one is how invented numbers get in.
+  const [addingMany, setAddingMany] = useState(false);
+  async function addChosen(chosen: Chosen[]) {
+    if (!chosen.length) return;
+    setAddingMany(true);
+    try {
+      const made = chosen.map((c) => makeWatch(c.name, region.id, {
+        taxonId: c.taxonId, scientificName: c.scientificName,
+      })).filter((m): m is SavedPest => typeof m !== "string");
+      await storeMany(made);
+    } catch (e) {
+      setFormErr(String((e as Error).message ?? e));
+    } finally { setAddingMany(false); }
   }
 
   function add(e: React.FormEvent<HTMLFormElement>) {
@@ -394,29 +416,30 @@ export default function Pests({
                 onClick={() => nameFromCatalog(e.name)} />
             ))}
           </div>
-          {(cat.insects_recorded ?? []).length > 0 && (
-            <>
-              <p className="eyebrow mt-4">Sightings</p>
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {(cat.insects_recorded ?? []).slice(0, 18).map((i) => (
-                  <Chiclet key={i.name} emoji="🔍" name={i.name} figure={i.observations.toLocaleString()}
-                    title={`${i.observations.toLocaleString()} sightings near here. Tap to watch it.`}
-                    onClick={() => nameFromCatalog(i.name)} />
-                ))}
-              </div>
-            </>
-          )}
-          {/* Provenance, and the one instruction. How many of NPN's layers
+              {/* Provenance, and the one instruction. How many of NPN's layers
               answered with a heat total rather than a date is this service's
               own bookkeeping — it changes nothing the grower does. */}
           <Note>
-            Dated stages from USA-NPN · sightings from iNaturalist within{" "}
-            {cat.search_span_km} km. Edit a pest to set its thresholds.
+            Dated stages from USA-NPN. Edit a pest to set its thresholds.
           </Note>
         </>
       ) : (
         <Note>Plot-specific pests from USA-NPN.</Note>
       )}
+
+      {/* ── What is actually out there ──────────────────────────────────
+          The sightings list used to sit above, capped at eighteen with no way
+          to see the rest — of 3,542 insects and spiders recorded around one
+          block. Searching is the only shape that fits that. */}
+      <Section emoji="🔍" title="Sightings" />
+      <SpeciesFinder
+        block={region.id}
+        blockName={region.name}
+        kingdom="insects"
+        adding={addingMany}
+        hint="Insects and spiders recorded around this ground. Choose any number, keep searching, then add them all — they go on as watched, with no thresholds. A degree-day model is yours to add, and voles and slugs never get one."
+        onAdd={addChosen}
+      />
     </>
   );
 }

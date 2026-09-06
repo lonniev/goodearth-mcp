@@ -1072,25 +1072,47 @@ export interface TreeYearResult {
 export async function treeYear(block: string): Promise<TreeYearResult> {
   return callTool<TreeYearResult>("tree_year", { block });
 }
+/// One row of what is recorded near a block.
+export interface NearbyItem {
+  name: string;
+  scientific_name?: string;
+  observations?: number;
+  taxon_id?: number;
+  rank?: string;
+  photo?: string | null;
+  photo_by?: string;
+  photo_licence?: string;
+  /// USA-NPN tracks a life cycle for this one, so there is a year to look at.
+  has_habits?: boolean;
+}
 
-
-export interface PlantCatalogResult {
+export interface NearbyResult {
   success: boolean;
   error?: string;
-  /// Most-observed first. The count measures observers as much as plants —
-  /// a roadside is better recorded than a back hayfield.
-  plants_recorded: { name: string; scientific_name?: string; observations: number }[];
-  search_span_km: number;
-  note: string;
+  kingdom?: string;
+  looking_for?: string;
+  search?: string;
+  items?: NearbyItem[];
+  /// Every page carries it. The catalogue this replaced showed forty of 2,196
+  /// and said nothing about the rest.
+  total?: number;
+  page?: number;
+  pages?: number;
+  page_size?: number;
+  with_habits?: number;
+  search_span_km?: number;
+  note?: string;
 }
 
-/// Which plants are actually recorded around this ground, most-observed
-/// first. The library a grower browses is hand-written and the same
-/// everywhere; this is the ground's own.
-export async function plantCatalog(block: string): Promise<PlantCatalogResult> {
-  return callTool<PlantCatalogResult>("plant_catalog", { block });
+/// Search what is recorded near this ground — plants, insects, wildlife or
+/// fungi — twenty to a page. Replaces the three whole-catalogue reads: there
+/// are 3,542 insects and spiders around one Vermont block, and sweeping them
+/// cost eleven round trips to build a list nobody read.
+export async function nearbySpecies(
+  block: string, kingdom: string, q = "", page = 1,
+): Promise<NearbyResult> {
+  return callTool<NearbyResult>("nearby_species", { block, kingdom, q, page });
 }
-
 
 export interface PestModel {
   pest: string;
@@ -1466,6 +1488,7 @@ export interface PestCatalogResult {
   error?: string;
   events?: PestCatalogEvent[];
   insects_recorded?: { name: string; scientific_name?: string; observations: number }[];
+  insects_recorded_total?: number;
   models_published?: number;
   models_unreadable?: number;
   search_span_km?: number;
@@ -1492,7 +1515,14 @@ export interface WildlifeSpecies {
 export interface WildlifeCatalogResult {
   success: boolean;
   error?: string;
-  groups?: { group: string; taxon: string; emoji: string; species: WildlifeSpecies[] }[];
+  groups?: {
+    group: string; taxon: string; emoji: string;
+    /// How many the feed says this group holds. Equal to `species.length` now;
+    /// it was 40 against 253 recorded birds before, with nothing on screen to
+    /// say the other 213 existed.
+    recorded?: number;
+    species: WildlifeSpecies[];
+  }[];
   species_total?: number;
   with_habits?: number;
   unavailable?: string[];

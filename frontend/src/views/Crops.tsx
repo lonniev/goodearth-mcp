@@ -14,18 +14,20 @@ import Provenance from "../components/Provenance";
 import { Pager } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
 import QuoteScroller from "../components/QuoteScroller";
-import { cropGddStatus, cropSuitability, plantCatalog, plantingWindow,
+import { cropGddStatus, cropSuitability, plantingWindow,
   treeSuitability, treeYear,
   type CropLedgerResult, type PlantingWindowResult, type SuitabilityResult,
-  type PlantCatalogResult, type TreeAssessment, type TreeSuitabilityResult,
+  type TreeAssessment, type TreeSuitabilityResult,
   type TreeYearResult, type Verdict } from "../lib/mcp";
 import { makePlanting, plantingCodec, SEEDLING,
   type Planting } from "../lib/plantings";
 import SpeciesPicker from "../components/SpeciesPicker";
+import SpeciesFinder from "../components/SpeciesFinder";
+import type { Chosen } from "../lib/basket";
 import { speciesByIds, type SpeciesHit } from "../lib/species";
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
 import type { SavedRegion } from "../lib/regions";
-import { Chiclet, Empty, ErrorBox, FIELD, ICON, IconButton, Note, Pill,
+import { Empty, ErrorBox, FIELD, ICON, IconButton, Pill,
   Section } from "../components/ui";
 
 const short = (iso: string) =>
@@ -71,7 +73,8 @@ export default function Crops({
   const [pageNo, setPageNo] = useState(0);
   const [search, setSearch] = useState("");
 
-  const { items: plantings, save: storePlanting, retire: retirePlanting, reload: reloadPlantings,
+  const { items: plantings, save: storePlanting, saveMany: storeMany,
+          retire: retirePlanting, reload: reloadPlantings,
           loading: plantingsLoading, error: plantingsError,
           unknownBlock: plantingsUnknown, total, page, pages } =
     useBlockItems<Planting>(region.id, "planting", plantingCodec, undefined, {
@@ -117,9 +120,7 @@ export default function Crops({
   const [year, setYear] = useState<TreeYearResult | null>(null);
   const [yearAt, setYearAt] = useState<Date | null>(null);
   const [yearBusy, setYearBusy] = useState(false);
-  const [near, setNear] = useState<PlantCatalogResult | null>(null);
-  const [nearAt, setNearAt] = useState<Date | null>(null);
-  const [nearBusy, setNearBusy] = useState(false);
+  const [nearAt] = useState<Date | null>(null);
   /// The add form's crop field, held here so a chiclet can fill it. The
   /// species is a fact about this country; what you do with it is yours.
   /// A name handed to the picker from elsewhere on the page.
@@ -255,26 +256,6 @@ export default function Crops({
     finally { setYearBusy(false); }
   }, [region]);
 
-  // What is actually recorded growing around here. The library above is
-  // hand-written and identical for every farm; this is the ground's own.
-  const loadNear = useCallback(async () => {
-    setNearBusy(true); setError("");
-    try {
-      const r = await plantCatalog(region.id);
-      if (r.success) { setNear(r); setNearAt(new Date()); }
-      else setError(r.error || "The plant record could not be read.");
-    } catch (e) { setError((e as Error).message); }
-    finally { setNearBusy(false); }
-  }, [region]);
-
-  /// Naming a recorded plant the library has never heard of. It fills the add
-  /// form and goes there — the same move the Pests page makes, and without it
-  /// the tap looks like it did nothing because the field is off screen.
-  function nameOnForm(name: string) {
-    setSeed(name);
-    document.getElementById("new-planting")?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }
-
   const treeOf = (crop: string): TreeAssessment | null =>
     treeFit?.trees.find((r) => r.tree === crop) ?? null;
 
@@ -331,6 +312,33 @@ export default function Crops({
     setAdded(`${picked.commonName ?? picked.scientificName} — on the ledger.`);
     setPicked(null);
     e.currentTarget.reset();
+  }
+
+  /// Put a basket of chosen plants on the ledger in ONE write.
+  ///
+  /// They arrive as presence rows — a plant that is here, with no set-out and
+  /// no heat target. That is a real state the ledger already knows: an apple
+  /// planted in 2019 has neither, and inventing them would put fabricated
+  /// dates into every answer that follows.
+  const [addingMany, setAddingMany] = useState(false);
+  async function addChosen(chosen: Chosen[]) {
+    if (!chosen.length) return;
+    setAddingMany(true);
+    try {
+      const made = chosen.map((c) => makePlanting(
+        c.name, undefined, "", region.id, undefined,
+        {
+          perennial: true,
+          taxonId: c.taxonId,
+          scientificName: c.scientificName,
+          commonName: c.name,
+        },
+      )).filter((m): m is Planting => typeof m !== "string");
+      await storeMany(made);
+      setAdded(`${made.length} on the ledger. Dates and targets are yours to add.`);
+    } catch (e) {
+      setFormErr(String((e as Error).message ?? e));
+    } finally { setAddingMany(false); }
   }
 
   /// The record, decorated by whatever the season had to say about it.
@@ -732,50 +740,23 @@ export default function Crops({
       )}
 
       {/* ── Nearby ─────────────────────────────────────────────────────
-          The same shape Pests and Wildlife already have. The library above
-          is hand-written and the same for every farm; this is what people
-          have actually observed near this block. */}
+          One chooser, the same on every page. This was a grid of chiclets
+          where a tap filled a field and scrolled you back to a form — a
+          grower who wanted six plants did that six times. There are 2,267
+          plants recorded around one block, so a grid was never going to be
+          the shape of it. */}
       <Section emoji="🔭" title="Nearby">
-        {!near && (
-          <Pill onClick={loadNear} disabled={nearBusy} active>
-            {nearBusy ? "🧠 Reading…" : "🧠 What's here?"}
-          </Pill>
-        )}
-        {near && <Provenance tool="goodearth_plant_catalog" at={nearAt} onCost={onCost} />}
+        <Provenance tool="goodearth_nearby_species" at={nearAt} onCost={onCost} />
       </Section>
 
-      {near ? (
-        <>
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {(near.plants_recorded ?? []).map((pl) => {
-              // Already on the ledger, matched on the taxon rather than on a
-              // spelling — this list and the record now name the same thing
-              // the same way.
-              const mine = plantings.some(
-                (x) => x.scientificName
-                  && x.scientificName.toLowerCase() === (pl.scientific_name ?? "").toLowerCase(),
-              );
-              return (
-                <Chiclet key={pl.scientific_name ?? pl.name}
-                  emoji="🌿" name={pl.name}
-                  figure={pl.observations.toLocaleString()}
-                  tone={mine ? "border-growth/50 bg-growth/8" : "border-rule bg-panel"}
-                  title={[pl.scientific_name,
-                    `${pl.observations.toLocaleString()} sightings near here`,
-                    mine ? "On your ledger." : "Tap to look it up on the form above.",
-                  ].filter(Boolean).join(" — ")}
-                  onClick={() => nameOnForm(pl.scientific_name || pl.name)} />
-              );
-            })}
-          </div>
-          <Note>
-            Recorded within {near.search_span_km} km, most-seen first. Counts
-            measure observers as much as plants.
-          </Note>
-        </>
-      ) : (
-        <Note>Plants recorded around this ground, from iNaturalist.</Note>
-      )}
+      <SpeciesFinder
+        block={region.id}
+        blockName={region.name}
+        kingdom="plants"
+        adding={addingMany}
+        hint="Recorded around this ground, most-seen first. Choose any number, keep searching, then add them all. They land as plantings with no dates and no figures — those are yours to fill in."
+        onAdd={addChosen}
+      />
     </>
   );
 }

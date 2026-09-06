@@ -61,30 +61,91 @@ async def _json(client: httpx.AsyncClient, url: str, params: dict[str, Any]) -> 
 # ── Observed species ─────────────────────────────────────────────────────
 
 
+#: iNaturalist's own ceiling on one page. Asking for more is refused, so this
+#: is the size of a REQUEST and never a limit on what comes back.
+_INAT_PAGE = 200
+
+#: A ceiling on REQUESTS, so a query that somehow matches half the continent
+#: cannot loop. At 200 a page this is forty thousand species from one block —
+#: it is a runaway guard, not a limit on what a place holds.
+_INAT_MAX_PAGES = 200
+
+
 async def fetch_inat_species(
     bbox: tuple[float, float, float, float],
     iconic_taxa: str,
-    limit: int = 30,
-) -> list[dict[str, Any]]:
-    """Species observed inside ``bbox`` (min_lat, min_lon, max_lat, max_lon).
+    limit: int | None = None,
+    q: str = "",
+    page: int | None = None,
+) -> tuple[list[dict[str, Any]], int]:
+    """Species observed inside ``bbox``, and how many there are in total.
 
     Ordered by observation count, which is what makes this regional rather
     than a catalogue: the answer for a Vermont lakeshore is not the answer
     for a Georgia orchard.
+
+    **The total always travels**, so a shortened list is never a silent one.
+    This used to ask for one page of forty and return it: there are 2,196
+    insect species recorded around one Vermont farm, and a grower was shown
+    forty with nothing said about the rest — the page size standing in for an
+    answer.
+
+    Three ways to ask, and the caller picks:
+
+    - ``page`` with ``limit`` — ONE page of that size. What a paginated
+      chooser wants, and the reason this no longer sweeps the lot: 2,196
+      species is eleven round trips and five seconds to build a wall nobody
+      reads.
+    - ``limit`` alone — the first N, however many pages that takes.
+    - neither — everything, which is now only for a caller that genuinely
+      needs the whole list.
+
+    ``q`` narrows server-side over the species' own names. Verified live:
+    ``q="bumble"`` takes 2,196 insects to 13, which is the difference between
+    searching and scrolling.
     """
     min_lat, min_lon, max_lat, max_lon = bbox
+    # One page of exactly what was asked for, when a page was asked for.
+    size = _INAT_PAGE if page is None else max(1, min(limit or _INAT_PAGE, _INAT_PAGE))
     params = {
         "swlat": f"{min_lat:.5f}", "swlng": f"{min_lon:.5f}",
         "nelat": f"{max_lat:.5f}", "nelng": f"{max_lon:.5f}",
         "iconic_taxa": iconic_taxa,
-        "per_page": max(1, min(limit, 200)),
+        "per_page": size,
     }
-    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-        data = await _json(client, _INAT, params)
+    if q.strip():
+        params["q"] = q.strip()
 
-    results = data.get("results") if isinstance(data, dict) else None
-    if not isinstance(results, list):
-        raise BiotaError("iNaturalist returned an unexpected shape")
+    first = 1 if page is None else max(1, page)
+    last = _INAT_MAX_PAGES if page is None else first
+
+    results: list[Any] = []
+    total = 0
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        for page_no in range(first, last + 1):
+            data = await _json(client, _INAT, {**params, "page": page_no})
+            rows = data.get("results") if isinstance(data, dict) else None
+            if not isinstance(rows, list):
+                raise BiotaError("iNaturalist returned an unexpected shape")
+            if isinstance(data, dict) and isinstance(data.get("total_results"), int):
+                total = data["total_results"]
+            results.extend(rows)
+            # A short page, everything the service says there is, or as much as
+            # the caller asked for. Trusting only one of these loops forever
+            # when the other is what arrives.
+            if len(rows) < size:
+                break
+            if total and len(results) >= total:
+                break
+            if limit is not None and len(results) >= limit:
+                break
+
+    # A page's rows are a WINDOW on the total, not a count of it. Taking the
+    # max here would report page 3 of 2,196 as "60 species near you".
+    if page is None:
+        total = max(total, len(results))
+    if limit is not None and page is None:
+        results = results[:limit]
 
     out: list[dict[str, Any]] = []
     for row in results:
@@ -112,7 +173,7 @@ async def fetch_inat_species(
             "photo_licence": photo.get("license_code"),
             "source": "iNaturalist",
         })
-    return out
+    return out, total
 
 
 async def fetch_gbif_occurrences(

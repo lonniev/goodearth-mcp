@@ -59,6 +59,10 @@ export interface ItemsHandle<T> {
   loading: boolean;
   error: string;
   save: (value: T) => Promise<void>;
+  /// Several at once, in one write and one fare. See the note on the
+  /// implementation: six calls to `save` is six fares and a half-saved basket
+  /// if one of them fails.
+  saveMany: (values: T[]) => Promise<void>;
   retire: (itemId: string) => Promise<void>;
   reload: () => Promise<void>;
 }
@@ -138,11 +142,28 @@ export function useBlockItems<T>(
     await reload();
   }, [block, kind, season, to, reload]);
 
+  /// Several rows in ONE write.
+  ///
+  /// The wire format has always taken a list; nothing ever put more than one
+  /// thing in it. A basket of six committed through `save` would be six calls,
+  /// six fares and six reloads, and a failure halfway would leave three rows
+  /// saved with no way to tell which. One call is one fare and all-or-nothing,
+  /// which is what `block_item_save` gives for free.
+  const saveMany = useCallback(async (values: T[]) => {
+    if (!values.length) return;
+    const res = await blockItemSave(block, kind, {
+      items: values.map(to),
+      ...(season != null ? { season } : {}),
+    });
+    if (!res?.success) throw new Error(res?.error ?? "could not save");
+    await reload();
+  }, [block, kind, season, to, reload]);
+
   const retire = useCallback(async (itemId: string) => {
     const res = await blockItemSave(block, kind, { retire_ids: [itemId] });
     if (!res?.success) throw new Error(res?.error ?? "could not remove");
     await reload();
   }, [block, kind, reload]);
 
-  return { items, ...count, loading, error, unknownBlock, save, retire, reload };
+  return { items, ...count, loading, error, unknownBlock, save, saveMany, retire, reload };
 }

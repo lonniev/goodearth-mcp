@@ -25,17 +25,28 @@ from typing import Any
 from goodearth_mcp import biota, roster
 from goodearth_mcp.region import Region
 
-# Groups offered for the wildlife catalogue. This maps a taxon to an icon —
-# a rendering choice, not a species list; the species inside each come from
-# the feed.
+# Which groups the wildlife catalogue asks about.
+#
+# This said it was "a rendering choice, not a species list". It is not: the
+# loop below issues one iNaturalist query per entry, so this tuple decides
+# what can be catalogued at all, and anything absent from it is absent from
+# the page. Naming that is the difference between a caption and a contract.
+#
+# Insects and spiders are NOT here on purpose — they belong to the pest
+# catalogue, which is where a grower goes looking for them.
 WILDLIFE_GROUPS: tuple[tuple[str, str, str], ...] = (
     ("Aves", "Birds", "🐦"),
     ("Mammalia", "Mammals", "🦌"),
     ("Amphibia", "Amphibians", "🐸"),
     ("Reptilia", "Reptiles", "🐍"),
+    # Mushrooms are a thing growers watch, and the pathogens are the same
+    # kingdom. 780 species are recorded around one Vermont farm.
+    ("Fungi", "Fungi", "🍄"),
 )
 
-MAX_PER_GROUP = 40
+# Spiders sit beside the insects wherever this app asks about either, because
+# that is where a grower meets them — a scout walking rows is looking at both.
+# The pairing is expressed once, in KINGDOMS below.
 
 # Fauna is a landscape fact, not a field one.
 #
@@ -144,17 +155,14 @@ async def region_pest_catalog(region: Region, today: date | None = None) -> dict
         })
     events.sort(key=lambda e: e["date"])
 
+    # The species recorded nearby used to be swept here — every insect, in one
+    # breath. That is `nearby_species` now: 3,542 insects and spiders around
+    # one block is a search box's job, not a field on a forecast.
     box = search_box(region)
-    try:
-        insects = await biota.fetch_inat_species(box, "Insecta", MAX_PER_GROUP)
-    except biota.BiotaError:
-        insects = []
-
     return {
         "success": True,
         "region": region.describe(),
         "events": events,
-        "insects_recorded": insects,
         "search_span_km": _search_km(box),
         "models_published": len(models),
         "models_unreadable": len(models) - len(datable),
@@ -216,48 +224,6 @@ async def region_species_habits(scientific_name: str, today: date | None = None)
         ),
         "sources": _sources(),
     }
-
-
-async def region_plant_catalog(region: Region) -> dict[str, Any]:
-    """Which plants are actually recorded around this ground.
-
-    The catalogue a grower browses is hand-written and the same everywhere;
-    this is the ground's own. It is how a woodlot gets an inventory without
-    anyone walking it, and how a Vermont farm learns it has bur oak and
-    shagbark hickory that no preset list was ever going to mention.
-
-    **Ordered by how often each is observed, which is a fact about observers
-    as much as about plants.** A roadside is better recorded than a back
-    hayfield, and nothing here corrects for that — the count is evidence
-    somebody saw it, not that it is common.
-
-    No growth habit and no judgement. iNaturalist does not say which of these
-    is a tree, and it does not say which is a weed; the buckthorn and the
-    trillium come back the same way, ranked by how often people photographed
-    them. Sorting them into "woody" or "invasive" would be this file adding a
-    claim to a feed that made none.
-    """
-    box = search_box(region)
-    try:
-        plants = await biota.fetch_inat_species(box, "Plantae", MAX_PER_GROUP)
-    except biota.BiotaError as exc:
-        raise CatalogError(f"iNaturalist did not answer: {exc}") from exc
-
-    return {
-        "success": True,
-        "region": region.describe(),
-        "plants_recorded": plants,
-        "search_span_km": _search_km(box),
-        "note": (
-            "Plants recorded near this ground, most-observed first. The count "
-            "is how often someone photographed it, not how much of it grows "
-            "here. Good Earth reports what the record holds; it does not say "
-            "which of these is a tree, a weed or worth planting."
-        ),
-        "sources": _sources(),
-    }
-
-
 async def _attach_habit_events(
     groups: list[dict[str, Any]], index: dict[str, Any], on: date,
 ) -> None:
@@ -315,7 +281,7 @@ async def region_wildlife_catalog(
     """
     box = search_box(region)
     results = await asyncio.gather(
-        *(biota.fetch_inat_species(box, taxon, MAX_PER_GROUP)
+        *(biota.fetch_inat_species(box, taxon)
           for taxon, _, _ in WILDLIFE_GROUPS),
         return_exceptions=True,
     )
@@ -326,14 +292,19 @@ async def region_wildlife_catalog(
 
     groups: list[dict[str, Any]] = []
     missing: list[str] = []
-    for (taxon, label, icon), rows in zip(WILDLIFE_GROUPS, results, strict=True):
-        if isinstance(rows, BaseException):
+    for (taxon, label, icon), answer in zip(WILDLIFE_GROUPS, results, strict=True):
+        if isinstance(answer, BaseException):
             missing.append(label)
             continue
+        rows, total = answer
         groups.append({
             "group": label,
             "taxon": taxon,
             "emoji": icon,
+            # What the feed says is there, beside what came back. They are the
+            # same number now; they were 40 and 253 before, and only one of
+            # them was on screen.
+            "recorded": total,
             "species": [
                 {
                     **r,
@@ -493,3 +464,92 @@ async def species_phenophases(
             row["habits"] = drop_mortality(h or [])
         out.append(row)
     return out
+
+
+# ── Discovery: search what is recorded nearby, a page at a time ──────────
+#
+# The catalogues above answer "what is here" in one breath, which was fine
+# while the answer was forty things and wrong once it was all of them: 2,196
+# insect species around one Vermont block is eleven round trips to build a wall
+# nobody reads. This is the other shape — a search box and a page — and it is
+# the same shape for every kingdom, so the three choosers in the app can stop
+# being three different things.
+
+#: What a grower is looking for, in the terms iNaturalist files it under.
+#: Comma-joined, which the feed accepts: `Insecta,Arachnida` returns 2,386
+#: where the two asked separately return 2,196 and 190, so one query pages
+#: correctly across the pair instead of interleaving two.
+KINGDOMS: dict[str, tuple[str, str]] = {
+    # Spiders sit with the insects because that is where a grower meets them.
+    "insects": ("Insecta,Arachnida", "insects and spiders"),
+    "plants": ("Plantae", "plants"),
+    # Fauna a grower would name: birds, mammals, amphibians, reptiles. Insects
+    # have their own kingdom above rather than being buried in this one.
+    "wildlife": ("Aves,Mammalia,Amphibia,Reptilia", "wildlife"),
+    "fungi": ("Fungi", "fungi"),
+}
+
+#: One screen of results. Small on purpose: a grower reads twenty and searches
+#: again, which is faster than scrolling two thousand.
+PAGE_SIZE = 20
+
+
+async def region_nearby_species(
+    region: Region, kingdom: str, q: str = "", page: int = 1,
+) -> dict[str, Any]:
+    """One page of what is recorded near this ground, narrowed by a search.
+
+    The count travels with every page, so "20 of 2,196" is on screen and the
+    grower knows what they are looking at a slice of. That is the whole point:
+    the old answer showed forty and said nothing.
+
+    Ordered by how often each has been observed, which measures observers as
+    much as organisms — a roadside is better recorded than a back hayfield.
+    """
+    key = (kingdom or "").strip().lower()
+    if key not in KINGDOMS:
+        raise CatalogError(
+            f"{kingdom!r} is not something to look for. Ask for one of: "
+            + ", ".join(sorted(KINGDOMS))
+        )
+    taxa, plain = KINGDOMS[key]
+    page = max(1, int(page or 1))
+
+    box = search_box(region)
+    try:
+        rows, total = await biota.fetch_inat_species(
+            box, taxa, limit=PAGE_SIZE, q=q, page=page)
+    except biota.BiotaError as exc:
+        raise CatalogError(f"iNaturalist did not answer: {exc}") from exc
+
+    # Which of these USA-NPN tracks a life cycle for. It is the signal that
+    # made the old grouped catalogue worth tapping — "there is a year to see
+    # here" — and it costs one cached index read rather than a call per row.
+    index = await _species_index()
+    for row in rows:
+        row["has_habits"] = (row.get("scientific_name") or "").lower() in index
+
+    pages = max(1, -(-total // PAGE_SIZE))
+    return {
+        "success": True,
+        "region": region.describe(),
+        "kingdom": key,
+        "looking_for": plain,
+        "search": q.strip(),
+        "items": rows,
+        "with_habits": sum(1 for r in rows if r["has_habits"]),
+        "total": total,
+        "page": page,
+        "pages": pages,
+        "page_size": PAGE_SIZE,
+        "search_span_km": _search_km(box),
+        "note": (
+            f"{total} {plain} recorded near this ground"
+            + (f' matching "{q.strip()}"' if q.strip() else "")
+            + f". Showing page {page} of {pages}, most-observed first — a count "
+            "that measures observers as much as organisms, since a roadside is "
+            "better recorded than a back hayfield. iNaturalist does not say "
+            "which of these is a pest, a weed or worth planting."
+        ),
+        "sources": _sources(),
+    }
