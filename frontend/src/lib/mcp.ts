@@ -1186,7 +1186,8 @@ export interface Measure {
 }
 
 export type MeasureKey =
-  | "temp_max" | "temp_min" | "dew_point" | "precip" | "sunshine" | "daylight" | "wind_max";
+  | "temp_max" | "temp_min" | "dew_point" | "precip" | "sunshine" | "daylight"
+  | "wind_max" | "humidity";
 
 export interface AlmanacResult {
   success: boolean;
@@ -1199,6 +1200,7 @@ export interface AlmanacResult {
   conditions: {
     date: string; sky: Sky; wind: Wind;
     high_f: number | null; low_f: number | null; dew_point_f: number | null;
+    humidity_pct: number | null;
     precip_chance_pct: number | null;
     sunrise: string | null; sunset: string | null;
     daylight_hours: number | null; sunshine_hours: number | null;
@@ -1207,6 +1209,7 @@ export interface AlmanacResult {
   upcoming: {
     date: string; sky: Sky; wind: Wind;
     high_f: number | null; low_f: number | null; dew_point_f: number | null;
+    humidity_pct: number | null;
     precip_in: number | null; precip_chance_pct: number | null;
     sunshine_hours: number | null;
   }[];

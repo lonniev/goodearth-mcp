@@ -25,6 +25,11 @@ const SERIES: { key: MeasureKey; label: string; emoji: string; color?: string }[
   { key: "sunshine",  label: "Sunshine",    emoji: "☀️", color: "var(--color-honey)" },
   { key: "daylight",  label: "Day length",  emoji: "🌅", color: "var(--color-honey)" },
   { key: "wind_max",  label: "Wind",        emoji: "🌬️" },
+  // Beside the dew point on purpose. The dew point is how much water the air
+  // holds; this is how close it is to holding all it can, which is what
+  // decides whether a leaf stays wet — and the same water reads 90% at dawn
+  // and 50% by noon because the air warmed, not because anything dried.
+  { key: "humidity",  label: "Humidity",    emoji: "💦", color: "var(--color-frost)" },
 ];
 
 const time = (iso: string | null) => (iso ? iso.slice(11, 16) : "—");
@@ -148,9 +153,19 @@ export default function Almanac({
                 {u.high_f != null ? Math.round(u.high_f) : "—"}°
                 <span className="text-ink-soft">/{u.low_f != null ? Math.round(u.low_f) : "—"}°</span>
               </span>
-              {!!u.precip_chance_pct && (
-                <span className="data text-[10.5px] text-frost">{Math.round(u.precip_chance_pct)}%</span>
-              )}
+              {/* The rain row is always drawn, blank when there is no chance
+                  of any. It used to be omitted, which lifted every row below
+                  it — so a dry Monday put its humidity where its neighbours
+                  put their rain, and fourteen cells stopped lining up. A
+                  reserved line costs nothing and keeps the strip readable
+                  across. */}
+              <span className="data text-[10.5px] text-frost">
+                {u.precip_chance_pct ? `${Math.round(u.precip_chance_pct)}%` : "\u00A0"}
+              </span>
+              <span className="data text-[10.5px] text-ink-soft"
+                title="Average relative humidity">
+                {u.humidity_pct != null ? `💦${Math.round(u.humidity_pct)}%` : "\u00A0"}
+              </span>
               <span className="data text-[10.5px] text-ink-soft">{u.wind.emoji}{u.wind.from ?? ""}</span>
             </div>
           ))}
