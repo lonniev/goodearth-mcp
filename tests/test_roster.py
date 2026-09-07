@@ -153,3 +153,40 @@ def test_missing_frost_data_does_not_invent_a_verdict():
 
 def test_the_answer_says_it_is_proposed_rather_than_applied():
     assert "not applied" in run()["note"].lower()
+
+
+# ── A pest and a moment are two things ───────────────────────────────────
+
+
+def test_a_catalogue_event_splits_into_the_animal_and_what_it_is_doing():
+    """"Spotted lanternfly egg hatch" is not a pest. Handing the whole phrase
+    to a form that asks for a pest name puts that on the record as an animal,
+    which is what tapping a modelled stage used to do."""
+    assert roster.split_stage("Spotted lanternfly egg hatch") == (
+        "Spotted lanternfly", "egg hatch")
+    assert roster.split_stage("Emerald ash borer adult") == (
+        "Emerald ash borer", "adult")
+    assert roster.split_stage("Codling moth first flight") == (
+        "Codling moth", "first flight")
+
+
+def test_the_longer_ending_wins():
+    """"first egg hatch" and "egg hatch" both end the same way. Taking the
+    shorter one first leaves a stray "first" on the animal's name."""
+    assert roster.split_stage("Codling moth first egg hatch") == (
+        "Codling moth", "first egg hatch")
+
+
+def test_a_name_with_no_known_ending_is_returned_whole():
+    """An ending nobody has seen before is not evidence of a stage. Guessing
+    one would shorten a real name."""
+    assert roster.split_stage("Winter wheat") == ("Winter wheat", "")
+    assert roster.split_stage("") == ("", "")
+
+
+def test_the_splitter_and_the_matcher_share_one_list():
+    """`norm` strips these to make two spellings meet and `split_stage` uses
+    them to divide a name. Two copies would drift and only one of the two
+    behaviours would show it."""
+    for tail in roster.STAGE_TAILS:
+        assert roster.norm(f"codling moth{tail}") == "codling moth"

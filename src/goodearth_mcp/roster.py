@@ -46,10 +46,35 @@ def norm(name: str) -> str:
     s = re.sub(r"\s+", " ", s).strip()
     # Trailing life-stage and event words: a grower's "codling moth first
     # flight" and the catalogue's "codling moth" are the same animal.
-    for tail in (" first flight", " second flight", " egg hatch", " adult",
-                 " adults", " larvae", " emergence", " first egg hatch"):
+    for tail in STAGE_TAILS:
         s = s.removesuffix(tail)
     return s.strip()
+
+
+#: The life-stage words a catalogue name ends in. One list, because `norm`
+#: strips them to match names and `split_stage` uses them to say which part of
+#: "Spotted lanternfly egg hatch" is the animal and which is what it is doing.
+STAGE_TAILS: tuple[str, ...] = (
+    " first flight", " second flight", " first egg hatch", " egg hatch",
+    " adults", " adult", " larvae", " emergence",
+)
+
+
+def split_stage(name: str) -> tuple[str, str]:
+    """A catalogue event as (creature, stage).
+
+    "Spotted lanternfly egg hatch" is not a pest — it is a pest and a moment.
+    Handing the whole phrase to a form that asks for a pest name puts "Spotted
+    lanternfly egg hatch" on the record as an animal.
+
+    Returns the name unchanged and an empty stage when nothing matches, which
+    is the honest answer for a layer whose ending nobody has seen before.
+    """
+    low = (name or "").strip()
+    for tail in STAGE_TAILS:
+        if low.lower().endswith(tail):
+            return low[: -len(tail)].strip(), tail.strip()
+    return low, ""
 
 
 def _known(catalog_names: list[str]) -> set[str]:

@@ -259,7 +259,8 @@ export default function Pests({
               A life-cycle event and the degree-day total it arrives at, comma
               separated. Good Earth times them against this ground and does not
               publish entomology.
-            </Term>
+            </Term>{" "}
+            <span className="opacity-60">(leave empty to just watch it)</span>
             <input name="stages" placeholder="first flight 375, second flight 1400"
               className={FIELD} /></label>
         </div>
@@ -411,8 +412,8 @@ export default function Pests({
               <Chiclet key={e.model} emoji={e.passed ? "🐛" : "🥚"} name={e.name}
                 figure={d(e.date)}
                 tone={e.passed ? "border-honey/50 bg-honey/8" : "border-rule bg-panel"}
-                title={`${e.name} — due ${d(e.date)} here. Tap to watch it.`}
-                onClick={() => nameFromCatalog(e.name)} />
+                title={`${e.name} — due ${d(e.date)} here. Tap to put ${e.pest ?? e.name} on your list.`}
+                onClick={() => nameFromCatalog(e.pest || e.name)} />
             ))}
           </div>
               {/* Provenance, and the one instruction. How many of NPN's layers
