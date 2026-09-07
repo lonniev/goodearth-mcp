@@ -745,7 +745,7 @@ export default function Crops({
           grower who wanted six plants did that six times. There are 2,267
           plants recorded around one block, so a grid was never going to be
           the shape of it. */}
-      <Section emoji="🔭" title="Nearby">
+      <Section emoji="🔭" title="Recorded nearby">
         <Provenance tool="goodearth_nearby_species" at={nearAt} onCost={onCost} />
       </Section>
 
@@ -754,7 +754,7 @@ export default function Crops({
         blockName={region.name}
         kingdom="plants"
         adding={addingMany}
-        hint="Recorded around this ground, most-seen first. Choose any number, keep searching, then add them all. They land as plantings with no dates and no figures — those are yours to fill in."
+        hint="What people have actually seen near here, most-seen first. Choose any number, keep searching, then add them all. They land as plantings with no dates and no figures — those are yours to fill in."
         onAdd={addChosen}
       />
     </>
