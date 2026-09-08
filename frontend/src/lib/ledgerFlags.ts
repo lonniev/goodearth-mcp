@@ -216,10 +216,37 @@ export function buildFlags(
           reached: idx <= today,
         });
       }
+    } else if (w.driver === "interval" && w.from && Number.isFinite(w.days)) {
+      // A count of days from a day the grower saw. Arithmetic, and knowable
+      // here — which is why leaving it out was a gap rather than a decision.
+      //
+      // THE BUG: a grower recorded a hen laying on eggs and the hatch twenty-
+      // one days after, and the chart drew the first and dropped the second.
+      // This loop had a branch for `heat` and a branch for `calendar` and
+      // nothing for the other three, so an interval row fell out of a
+      // conditional that never mentioned it. The same shape as the feed's
+      // `else: # daylight`, in a different file.
+      const iso = new Date(
+        new Date(w.from + "T12:00:00").getTime() + (w.days as number) * 86_400_000,
+      ).toISOString().slice(0, 10);
+      const idx = indexOfDate(dates, iso);
+      if (idx != null) {
+        out.push({
+          kind: "wildlife", label: `${w.species} · ${w.event}`, emoji: w.emoji || "🐣",
+          index: idx, date: iso,
+          // Counted, not crossed. It stands whatever the heat did — the same
+          // claim a stated date makes, reached a different way, which is why
+          // it shares the `date` anchor rather than earning a third one.
+          begin: iso, anchor: "date",
+          reached: idx <= today,
+        });
+      }
     }
-    // Daylight events are deliberately not placed here: they do not read the
-    // heat axis, and their date comes from the wildlife tool rather than from
-    // this curve. They live on the Wildlife view where that is legible.
+    // Daylight and condition events are deliberately not placed here. Neither
+    // reads the heat axis, and neither date can be worked out from this curve:
+    // a daylight crossing is astronomy and a condition is the first night this
+    // ground met the grower's own terms, and both come back from the wildlife
+    // tool. They live on the Wildlife view where that is legible.
   }
 
   return out.sort((a, b) => a.index - b.index);
