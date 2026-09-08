@@ -1384,6 +1384,13 @@ export interface CalendarFeedResult {
   total: number;
   computed_on: string;
   note: string;
+  /// Rows the feed could not date, each with the service's own reason. The
+  /// builder has always returned these — nothing on the client had a field to
+  /// put them in, so a grower whose heron never appeared on their calendar was
+  /// told nothing at all. Partial knowledge is the permanent condition of
+  /// farming; one undatable row must not cost the other forty, and it must not
+  /// vanish either.
+  skipped?: { kind?: string; name: string; item_id?: string | null; reason: string }[];
 }
 
 export interface FeedRow {

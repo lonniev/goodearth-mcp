@@ -99,6 +99,30 @@ export default function CalendarFeed({ region }: { region: SavedRegion }) {
           </>
         )}
         {msg && <p className="mt-2 text-[12px] text-growth">{msg}</p>}
+
+        {/* What the feed could not date, in the service's own words.
+            The builder has always returned this list — it validates each row
+            on its own so that one it cannot read does not cost the grower the
+            other forty — and nothing on the client had a field to put it in.
+            A grower whose heron never appeared on their calendar was told
+            nothing at all, which reads as the feed being broken rather than as
+            a row that names no date. */}
+        {(fresh?.skipped?.length ?? 0) > 0 && (
+          <div className="mt-3 border-t border-rule pt-2.5">
+            <span className="eyebrow">Not on the calendar</span>
+            <ul className="mt-1 space-y-1 text-[12px] text-ink-soft">
+              {fresh!.skipped!.map((sk, i) => (
+                <li key={`${sk.name}-${i}`}>
+                  <b className="text-ink">{sk.name}</b> — {sk.reason}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1.5 text-[11.5px] leading-relaxed text-ink-soft">
+              Everything else published. A row with nothing to date is still on
+              your record; it just has no day to put on a calendar.
+            </p>
+          </div>
+        )}
       </div>
     </>
   );

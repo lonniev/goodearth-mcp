@@ -3,11 +3,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
-  cycleOf, cycleRows, filterSpecies, labelsUsed, lastInterval, mergeSpecies,
-  monthDay, nextCycle,
+  cycleOf, cycleRows, dueList, filterSpecies, labelsUsed, lastInterval,
+  mergeSpecies, monthDay, nextCycle, repeatable,
 } from "./husbandry.ts";
 import type { SavedWildlife } from "./wildlifeModels.ts";
-import type { WildlifeCatalogResult } from "./mcp.ts";
+import type { WildlifeCatalogResult, WildlifeRow } from "./mcp.ts";
 
 const CATALOG = {
   success: true,
@@ -207,5 +207,53 @@ describe("the next brood", () => {
     const all = [...CYCLE, saved({ id: "wl-9", species: "Ewe", event: "lambing" })];
     assert.equal(cycleOf(all, "Domestic chicken").length, 2);
     assert.equal(cycleOf(all, "  domestic chicken ").length, 2);
+  });
+});
+
+describe("what to be looking for", () => {
+  const row = (o: Partial<WildlifeRow>): WildlifeRow => ({
+    species: "Domestic chicken", event: "eggs hatch", emoji: null, note: null,
+    driver: "interval", threshold: "21 days", reached_on: null,
+    projected_date: null, ...o,
+  } as WildlifeRow);
+
+  const TODAY = "2026-09-20";
+
+  it("keeps the morning after, which the projection drops", () => {
+    // THE GAP. A row whose day has passed carries `reached_on` and no
+    // `projected_date`, so `due_soon` cannot hold it — correct arithmetic, and
+    // useless to a grower on the day after a hatch was due. "Did it?" is the
+    // question then, and it is the one worth answering.
+    const list = dueList([
+      row({ ref: "wl-1", reached_on: "2026-09-18" }),
+      row({ ref: "wl-2", projected_date: "2026-09-26" }),
+    ], new Set(), TODAY);
+
+    assert.deepEqual(list.map((d) => d.daysAway), [-2, 6]);
+    assert.equal(list[0].row.ref, "wl-1", "a day already past must lead");
+  });
+
+  it("stops asking once the grower has said what happened", () => {
+    const list = dueList([row({ ref: "wl-1", reached_on: "2026-09-18" })],
+                         new Set(["wl-1"]), TODAY);
+    assert.equal(list[0].settled, true);
+    assert.equal(dueList([row({ ref: "wl-1", reached_on: "2026-09-18" })],
+                         new Set(["wl-9"]), TODAY)[0].settled, false);
+  });
+
+  it("does not carry last spring around all year", () => {
+    assert.equal(dueList([row({ reached_on: "2026-04-01" })], new Set(), TODAY).length, 0);
+    assert.equal(dueList([row({ projected_date: "2027-04-01" })], new Set(), TODAY).length, 0);
+  });
+
+  it("skips a row with no date at all rather than dating it today", () => {
+    // A roster row, or a condition the season has not met. Neither is due.
+    assert.deepEqual(dueList([row({})], new Set(), TODAY), []);
+  });
+
+  it("knows which cycles can be started again", () => {
+    assert.equal(repeatable([saved({ driver: "interval", days: 21 })]), true);
+    assert.equal(repeatable([saved({ driver: "calendar" })]), false);
+    assert.equal(repeatable([]), false);
   });
 });
