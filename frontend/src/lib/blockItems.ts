@@ -64,6 +64,8 @@ export interface ItemsHandle<T> {
   /// if one of them fails.
   saveMany: (values: T[]) => Promise<void>;
   retire: (itemId: string) => Promise<void>;
+  /// Several at once, in one write and one fare.
+  retireMany: (itemIds: string[]) => Promise<void>;
   reload: () => Promise<void>;
 }
 
@@ -165,5 +167,17 @@ export function useBlockItems<T>(
     await reload();
   }, [block, kind, reload]);
 
-  return { items, ...count, loading, error, unknownBlock, save, saveMany, retire, reload };
+  /// Several rows retired in ONE write, for the same reason `saveMany` exists.
+  /// A brood is a start and its milestones, and superseding it one row at a
+  /// time is several fares and a half-retired cycle if one of them fails.
+  const retireMany = useCallback(async (itemIds: string[]) => {
+    const ids = itemIds.filter(Boolean);
+    if (!ids.length) return;
+    const res = await blockItemSave(block, kind, { retire_ids: ids });
+    if (!res?.success) throw new Error(res?.error ?? "could not remove");
+    await reload();
+  }, [block, kind, reload]);
+
+  return { items, ...count, loading, error, unknownBlock, save, saveMany,
+           retire, retireMany, reload };
 }

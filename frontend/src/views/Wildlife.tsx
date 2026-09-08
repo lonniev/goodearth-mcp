@@ -8,29 +8,26 @@
 // changes how much to trust the date. A daylight event is astronomy and barely
 // moves; a heat event moves with the season.
 
-import { useUnits } from "../components/Units";
 import { useCallback, useEffect, useState } from "react";
 import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
 import { Pager, SortHeaders, type Column } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
 import UndoBar, { remembered } from "../components/UndoBar";
-import { wildlifeCalendar, type WildlifeResult } from "../lib/mcp";
+import { wildlifeCalendar, type WildlifeResult, type WildlifeRow } from "../lib/mcp";
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
-import { useSubmit } from "../lib/useSubmit";
-import { withId } from "../lib/submit";
-import SpeciesPicker from "../components/SpeciesPicker";
-import { photosByName, type SpeciesHit } from "../lib/species";
-import {
-  DRIVER_HELP, makeRoster, makeWildlife,
-  wildlifeCodec, type SavedWildlife,
-} from "../lib/wildlifeModels";
+import { photosByName } from "../lib/species";
+import { makeRoster, wildlifeCodec, type SavedWildlife } from "../lib/wildlifeModels";
+import EventComposer from "../components/EventComposer";
+import DueSoon from "../components/DueSoon";
+import { makeReport, reportCodec, type FieldReport } from "../lib/reports";
+import { cycleOf, dueList, nextCycle, repeatable,
+  type CycleDraft } from "../lib/husbandry";
 import SpeciesFinder from "../components/SpeciesFinder";
 import type { Chosen } from "../lib/basket";
 import type { SavedRegion } from "../lib/regions";
 import {
-  CELL, Empty, ErrorBox, FIELD, ICON, IconButton, PageTitle, Pill, RowActions,
-  Section, SpeciesMark,
+  CELL, Empty, ErrorBox, PageTitle, Pill, RowActions, Section, SpeciesMark,
 } from "../components/ui";
 import { speciesHabits, type SpeciesHabitsResult } from "../lib/mcp";
 
@@ -68,7 +65,6 @@ const COLS: Column<ItemSort>[] = [
 export default function Wildlife({
   region, onCost,
 }: { region: SavedRegion; onCost: (sats: number) => void }) {
-  const u = useUnits();
   // Read from the grower's record under their npub, not from this browser.
   // Order, search and paging are the database's — it sorts every watch on the
   // block, not the twenty in hand. Search runs on submit: a read costs sats.
@@ -81,26 +77,23 @@ export default function Wildlife({
   const [savingRow, setSavingRow] = useState(false);
 
   const { items: models, save: storeWildlife, saveMany: storeMany,
-          retire: retireWildlife, reload: reloadWildlife,
+          retire: retireWildlife, retireMany, reload: reloadWildlife,
           loading: modelsLoading, error: modelsError,
           unknownBlock: modelsUnknown, total, page, pages } =
     useBlockItems<SavedWildlife>(region.id, "wildlife", wildlifeCodec, undefined, {
       sortCol: sort, sortDir: dir, page: pageNo, search, pageSize: 20,
     });
+  /// What the grower has actually seen. A projection nobody has answered and
+  /// one they answered on the 24th are different states, and only the record
+  /// of observations tells them apart.
+  const { items: seen, save: storeSeen, reload: reloadSeen } =
+    useBlockItems<FieldReport>(region.id, "observation", reportCodec);
   const [data, setData] = useState<WildlifeResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  /// Two controls write watches, so each guards its own press.
-  const watchSubmit = useSubmit("wl", setError);
-  const stockSubmit = useSubmit("wl", setError);
   const [ranAt, setRanAt] = useState<Date | null>(null);
-  const [driver, setDriver] = useState<"heat" | "daylight" | "interval" | "calendar">("daylight");
-  const [husbandryFrom, setHusbandryFrom] = useState(() => new Date().toISOString().slice(0, 10));
-  /// The animal, the event and the count — all the grower's, because the
-  /// figure moves with the breed and their own records beat any average.
-  const [stock, setStock] = useState<SpeciesHit | null>(null);
-  const [stockEvent, setStockEvent] = useState("");
-  const [stockDays, setStockDays] = useState("");
+  /// A cycle handed to the composer from the record — "start another brood".
+  const [seed, setSeed] = useState<(CycleDraft & { supersedes?: string[] }) | null>(null);
 
   /// iNaturalist's photograph for each creature on the table, by name.
   ///
@@ -148,16 +141,10 @@ export default function Wildlife({
     } finally { setAddingMany(false); }
   }
   const [catAt] = useState<Date | null>(null);
-  /// Tapping a species names it and leaves the clock blank. Which animals are
-  /// here is a fact about the country; when they arrive on this farm is not.
-  const [species, setSpecies] = useState("");
   /// The animal whose habits are open, and what USA-NPN tracks it doing.
   const [habitsOf, setHabitsOf] = useState<{ name: string } | null>(null);
   const [habits, setHabits] = useState<SpeciesHabitsResult | null>(null);
   const [habitsBusy, setHabitsBusy] = useState(false);
-  /// Tapping a habit names the event; the clock that times it stays the
-  /// grower's, exactly as the species name does.
-  const [eventName, setEventName] = useState("");
 
 
   const run = useCallback(async (list: SavedWildlife[]) => {
@@ -177,6 +164,58 @@ export default function Wildlife({
   }, [region]);
 
   useEffect(() => { void run(models); }, [run, models]);
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  /// Watches whose day is near, and the ones whose day has just been and gone
+  /// with nothing recorded against them. `due_soon` answers only the first
+  /// half — a reached row carries no projection and drops out of it.
+  const answered = new Set(seen.map((o) => o.ref).filter((r): r is string => !!r));
+  const due = dueList(data?.events ?? [], answered, today);
+
+  const [marking, setMarking] = useState(false);
+
+  /// What the grower saw, on the day they saw it, joined to the watch it
+  /// settles. The join is the saved row's own id, which is what the calendar
+  /// echoes back as `ref` — a note that merely shares a date with a projection
+  /// is not the same claim.
+  async function markSeen(row: WildlifeRow, observedOn: string) {
+    setMarking(true); setError("");
+    try {
+      const made = makeReport({
+        regionId: region.id, tag: row.event || "seen",
+        observedOn, note: `${row.species} — ${row.event}`,
+        crop: row.species, ...(row.ref ? { ref: row.ref } : {}),
+      });
+      if (typeof made === "string") { setError(made); return; }
+      await storeSeen(made);
+      await reloadSeen();
+    } catch (e) {
+      setError(String((e as Error).message ?? e));
+    } finally { setMarking(false); }
+  }
+
+  /// The same cycle, started again on a new day.
+  ///
+  /// Poultry set several times a season. The labels and the counts come off
+  /// the rows the grower already saved — nothing here decides how long a
+  /// clutch takes — and the composer asks only for the day.
+  function startAnother(species: string) {
+    const rows = cycleOf(models, species);
+    const draft = nextCycle(rows, today);
+    if (typeof draft === "string") { setError(draft); return; }
+    setError("");
+    setSeed({ ...draft, supersedes: rows.map((r) => r.id) });
+  }
+
+  /// Save the composed cycle, then retire what it replaced.
+  ///
+  /// In that order, and only on success: a brood retired before its
+  /// replacement lands would leave the grower with neither.
+  async function saveComposed(rows: SavedWildlife[], supersedes: string[]) {
+    await storeMany(rows);
+    if (supersedes.length) await retireMany(supersedes);
+  }
 
   function sortBy(col: ItemSort) {
     if (col === sort) setDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -206,37 +245,7 @@ export default function Wildlife({
     } finally { setSavingRow(false); }
   }
 
-  function add(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
-    const made = makeWildlife({
-      species: String(f.get("species") ?? ""),
-      event: String(f.get("event") ?? ""),
-      emoji: String(f.get("emoji") ?? "") || undefined,
-      driver,
-      ...(driver === "heat"
-        ? { gdd: u.ddToF(Number(f.get("gdd"))),
-            base_temp: f.get("base") ? u.toF(Number(f.get("base"))) : region.baseTempF }
-        : driver === "daylight"
-          ? { daylight_hours: Number(f.get("hours")), rising: f.get("rising") === "up" }
-          : driver === "interval"
-            ? { days: Number(f.get("days")), from: String(f.get("from") ?? "") }
-            : { typical_on: String(f.get("on") ?? "") }),
-    }, region.id);
-    if (typeof made === "string") { setError(made); return; }
-    setError("");
-    // Captured before the await: `currentTarget` is nulled when this returns.
-    const form = e.currentTarget;
-    watchSubmit.run(async (key) => {
-      await storeWildlife(withId(made, key));
-      // A controlled field is not cleared by form.reset(), so a saved event
-      // would otherwise sit in the box looking unsaved.
-      setSpecies(""); setEventName("");
-      form.reset();
-    });
-  }
   const openHabits = useCallback(async (common: string, sci?: string) => {
-    setSpecies(common);
     if (!sci) return;
     setHabitsOf({ name: common }); setHabits(null); setHabitsBusy(true);
     try {
@@ -252,24 +261,14 @@ export default function Wildlife({
 
       <UndoBar kinds={["wildlife"]} onRestored={() => void reloadWildlife()} />
 
-      {data && data.due_soon.length > 0 && (
-        <div className="mb-5 rounded-md border border-rule border-l-4 border-l-honey bg-panel px-4 py-3">
-          <span className="eyebrow">Watch for these</span>
-          <ul className="mt-1.5 space-y-1 text-[13px]">
-            {data.due_soon.map((e) => (
-              <li key={e.species + e.event}>
-                <SpeciesMark emoji={e.emoji} photo={photos.get(e.species)} />
-                <b>{e.species}</b> — {e.event} in about {e.days_away} days
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <div className="mb-3 flex items-center justify-end gap-1.5">
-        <IconButton path={ICON.add} label="Watch" form="new-watch" title="Track something"
-          disabled={watchSubmit.busy} />
-      </div>
+      <DueSoon
+        due={due}
+        photos={photos}
+        today={today}
+        busy={marking}
+        canRepeat={(sp) => repeatable(cycleOf(models, sp))}
+        onRepeat={startAnother}
+        onObserved={markSeen} />
 
       <Section emoji="📅" title="The year" first>
         {models.length > 0 && <Provenance tool="goodearth_wildlife_calendar" at={ranAt} onCost={onCost} />}
@@ -384,129 +383,13 @@ export default function Wildlife({
         </Empty>
       )}
 
-      {/* ── Add ────────────────────────────────────────────────────────── */}
-      {/* Submitted from the icon button at the top of the page. This form asks
-          different questions per clock, so it keeps its own block rather than
-          being flattened into the header row. */}
-      <Section emoji="➕" title="Track something" />
-      <form id="new-watch" onSubmit={add} className="rounded-md border border-rule bg-panel p-4">
-        <div className="flex flex-wrap gap-1.5">
-          {(["daylight", "heat", "interval", "calendar"] as const).map((d) => (
-            <button key={d} type="button" onClick={() => setDriver(d)}
-              className={`min-h-11 rounded-full border px-4 text-[13px] font-medium ${
-                driver === d ? "border-ink bg-ink text-paper" : "border-rule active:bg-band"}`}>
-              {CLOCK[d].label}
-            </button>
-          ))}
-        </div>
-        <p className="mt-1.5 text-[12px] text-ink-soft">{DRIVER_HELP[driver]}</p>
-
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Field name="species" label="Creature" placeholder="American robin"
-            value={species} onChange={setSpecies} />
-          <Field name="event" label="Event" placeholder="first arrival"
-            value={eventName} onChange={setEventName} />
-          <Field name="emoji" label="Emoji" placeholder="🐦" />
-          {driver === "heat" && (
-            <>
-              <Field name="gdd" label={u.ddUnit.trim()} placeholder="120" />
-              <Field name="base" label={`Base${u.tempUnit}`}
-                placeholder={String(Math.round(u.temp(region.baseTempF)))} />
-            </>
-          )}
-          {driver === "daylight" && (
-            <>
-              <Field name="hours" label="Day length (h)" placeholder="11.5" />
-              <label className="block text-[11px] text-ink-soft">
-                Direction
-                <select name="rising"
-                  className={FIELD}>
-                  <option value="up">days lengthening</option>
-                  <option value="down">days shortening</option>
-                </select>
-              </label>
-            </>
-          )}
-          {driver === "interval" && (
-            <>
-              <label className="block text-[11px] text-ink-soft">
-                Counting from
-                <input name="from" type="date"
-                  className={FIELD} />
-              </label>
-              <Field name="days" label="Days" placeholder="147" />
-            </>
-          )}
-          {driver === "calendar" && <Field name="on" label="Typical (MM-DD)" placeholder="09-15" />}
-        </div>
-
-      </form>
-
-      <Section emoji="🐄" title="Livestock" />
-      <div>
-        <span className="eyebrow">Name the animal, say the count, pick the day</span>
-        <div className="mt-1.5 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="block text-[11px] text-ink-soft sm:col-span-2">
-            Animal
-            <SpeciesPicker
-              kingdom="animals"
-              value={stock && {
-                commonName: stock.commonName ?? undefined,
-                scientificName: stock.scientificName,
-                thumb: stock.thumb,
-              }}
-              onPick={setStock}
-              onClear={() => setStock(null)}
-              placeholder="ewe, dairy cow, muscovy duck…" />
-          </label>
-          <label className="block text-[11px] text-ink-soft">
-            What happens
-            <input value={stockEvent} onChange={(e) => setStockEvent(e.target.value)}
-              placeholder="lambing, hatch, weaning" className={FIELD} />
-          </label>
-          <label className="block text-[11px] text-ink-soft">
-            Days
-            <input value={stockDays} onChange={(e) => setStockDays(e.target.value)}
-              inputMode="numeric" placeholder="147" className={FIELD} />
-          </label>
-          <label className="block text-[11px] text-ink-soft">
-            Counting from
-            <input type="date" value={husbandryFrom}
-              onChange={(e) => setHusbandryFrom(e.target.value)} className={FIELD} />
-          </label>
-          <div className="flex items-end">
-            <Pill
-              onClick={() => {
-                if (!stock) { setError("Which animal?"); return; }
-                const days = Number(stockDays);
-                if (!Number.isFinite(days) || days < 1) {
-                  setError("How many days does it count?"); return;
-                }
-                const made = makeWildlife({
-                  species: stock.commonName ?? stock.scientificName,
-                  event: stockEvent.trim(), driver: "interval",
-                  days, from: husbandryFrom,
-                }, region.id);
-                if (typeof made === "string") { setError(made); return; }
-                setError("");
-                stockSubmit.run(async (key) => {
-                  await storeWildlife(withId(made, key));
-                  setStock(null); setStockEvent(""); setStockDays("");
-                });
-              }}
-              disabled={stockSubmit.busy}
-              active>
-              Count it forward
-            </Pill>
-          </div>
-        </div>
-        <p className="mt-1.5 text-[12px] leading-relaxed text-ink-soft">
-          A ewe&rsquo;s gestation does not care what the season is doing — it is
-          a count of days from the day she was bred, so this is arithmetic
-          rather than weather. The count is yours: it moves with the breed, and
-          your own records are better than any average.
-        </p>
-      </div>
+      <EventComposer
+        region={region}
+        recorded={models}
+        onSave={saveComposed}
+        onCost={onCost}
+        seed={seed}
+        onSeedTaken={() => setSeed(null)} />
 
       {/* ── Sightings ───────────────────────────────────────────────────
           Four labelled rows of chiclets, each capped at 24, of 377 creatures
@@ -545,16 +428,16 @@ export default function Wildlife({
                 <>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {(habits.habits ?? []).map((h) => (
-                      <button key={h} onClick={() => setEventName(h)}
-                        title={`Track "${h}" for ${habitsOf.name}`}
-                        className="min-h-11 rounded-full border border-rule bg-paper px-3.5 text-[12px] active:border-ink">
+                      <span key={h}
+                        className="rounded-full border border-rule bg-paper px-3.5 py-1.5 text-[12px]">
                         {h}
-                      </button>
+                      </span>
                     ))}
                   </div>
                   <p className="mt-2 text-[11.5px] leading-relaxed text-ink-soft">
-                    What USA-NPN tracks this animal doing in a year. Tap one to name it
-                    above — the clock that says when it happens on your ground is yours.
+                    What USA-NPN tracks this animal doing in a year. The composer
+                    offers these as labels once you choose the animal; the clock
+                    that says when it happens on your ground stays yours.
                   </p>
                 </>
               ) : habits && !habitsBusy ? (
@@ -563,19 +446,6 @@ export default function Wildlife({
         </div>
       )}
     </>
-  );
-}
-
-function Field({ name, label, placeholder, value, onChange }: {
-  name: string; label: string; placeholder: string;
-  value?: string; onChange?: (v: string) => void;
-}) {
-  return (
-    <label className="block text-[11px] text-ink-soft">
-      {label}
-      <input name={name} placeholder={placeholder} className={FIELD}
-        {...(onChange ? { value: value ?? "", onChange: (e) => onChange(e.target.value) } : {})} />
-    </label>
   );
 }
 
