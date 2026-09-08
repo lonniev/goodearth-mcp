@@ -9,6 +9,7 @@
 // for this collection than any other, because a report is captured standing in
 // a field, which is exactly where the signal is worst.
 
+import { newItemId } from "./submit.ts";
 import type { FieldObservation } from "./mcp";
 
 /// What was seen. The five below are quick picks, not the whole vocabulary:
@@ -66,7 +67,7 @@ export function makeReport(
     return "It cannot have been seen before it was set out.";
   return {
     ...input,
-    id: `fr-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`,
+    id: newItemId("fr"),
     createdAt: new Date().toISOString(),
   };
 }

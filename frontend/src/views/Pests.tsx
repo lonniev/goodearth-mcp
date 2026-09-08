@@ -21,6 +21,8 @@ import {
   RowActions, Section, StatusChip,
 } from "../components/ui";
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
+import { useSubmit } from "../lib/useSubmit";
+import { withId } from "../lib/submit";
 import { pestCatalog, pestThreshold, type PestCatalogResult, type PestWindowResult } from "../lib/mcp";
 import {
   makePest, makeWatch, pestCodec, type SavedPest,
@@ -94,6 +96,7 @@ export default function Pests({
   const [error, setError] = useState("");
   const [ranAt, setRanAt] = useState<Date | null>(null);
   const [formErr, setFormErr] = useState("");
+  const submit = useSubmit("pe", setFormErr);
   const [cat, setCat] = useState<PestCatalogResult | null>(null);
   const [catBusy, setCatBusy] = useState(false);
   const [catAt, setCatAt] = useState<Date | null>(null);
@@ -191,9 +194,13 @@ export default function Pests({
     );
     if (typeof made === "string") { setFormErr(made); return; }
     setFormErr("");
-    void storePest(made).catch((e) => setFormErr(String(e.message ?? e)));
-    setPestName("");
-    e.currentTarget.reset();
+    // Captured before the await: `currentTarget` is nulled when this returns.
+    const form = e.currentTarget;
+    submit.run(async (key) => {
+      await storePest(withId(made, key));
+      setPestName("");
+      form.reset();
+    });
   }
 
 
@@ -224,7 +231,8 @@ export default function Pests({
       )}
 
       <div className="mb-3 flex items-center justify-end gap-1.5">
-        <IconButton path={ICON.add} label="Pest" form="new-pest" title="Watch a pest" />
+        <IconButton path={ICON.add} label="Pest" form="new-pest" title="Watch a pest"
+          disabled={submit.busy} />
       </div>
 
       {/* ── Watch a pest ───────────────────────────────────────────────── */}

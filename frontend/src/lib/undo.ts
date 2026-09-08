@@ -21,6 +21,7 @@
 // network code and stays runnable under the plain node test runner. Putting
 // something back is I/O and lives in `undoRestore.ts` for that reason; the
 // stack itself is arithmetic over a list and is where the mistakes would be.
+import { newItemId } from "./submit.ts";
 import type { ItemKind } from "./mcp.ts";
 
 /// How many removals stay recoverable. Five is the owner's figure and it is a
@@ -98,7 +99,7 @@ export function list(): UndoEntry[] {
 export function push(e: Omit<UndoEntry, "id" | "at">): UndoEntry[] {
   const entry: UndoEntry = {
     ...e,
-    id: `u-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`,
+    id: newItemId("u"),
     at: Date.now(),
   };
   return write([entry, ...read()]);

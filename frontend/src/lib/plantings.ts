@@ -98,7 +98,7 @@ export function makePlanting(
     return "Hardiness should be between -60 and 40 °F.";
 
   return {
-    id: `pl-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`,
+    id: newItemId("pl"),
     crop: crop.trim(), setOut, regionId,
     ...(gddTarget != null ? { gddTarget } : {}),
     ...(baseTempF != null ? { baseTempF } : {}),
@@ -139,6 +139,7 @@ export function plantingDateFor(earliestOut: string | null | undefined, today: s
 // place that knows how a Planting maps onto a stored item, so the views keep
 // working in their own shape.
 
+import { newItemId } from "./submit.ts";
 import type { ItemCodec } from "./blockItems";
 import type { ItemRow } from "./mcp";
 
