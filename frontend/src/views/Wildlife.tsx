@@ -14,12 +14,15 @@ import QuoteScroller from "../components/QuoteScroller";
 import { Pager, SortHeaders, type Column } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
 import UndoBar, { remembered } from "../components/UndoBar";
-import { wildlifeCalendar, type WildlifeResult } from "../lib/mcp";
+import { wildlifeCalendar, type WildlifeResult, type WildlifeRow } from "../lib/mcp";
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
 import { photosByName } from "../lib/species";
 import { makeRoster, wildlifeCodec, type SavedWildlife } from "../lib/wildlifeModels";
 import EventComposer from "../components/EventComposer";
-import type { CycleDraft } from "../lib/husbandry";
+import DueSoon from "../components/DueSoon";
+import { makeReport, reportCodec, type FieldReport } from "../lib/reports";
+import { cycleOf, dueList, nextCycle, repeatable,
+  type CycleDraft } from "../lib/husbandry";
 import SpeciesFinder from "../components/SpeciesFinder";
 import type { Chosen } from "../lib/basket";
 import type { SavedRegion } from "../lib/regions";
@@ -74,18 +77,23 @@ export default function Wildlife({
   const [savingRow, setSavingRow] = useState(false);
 
   const { items: models, save: storeWildlife, saveMany: storeMany,
-          retire: retireWildlife, reload: reloadWildlife,
+          retire: retireWildlife, retireMany, reload: reloadWildlife,
           loading: modelsLoading, error: modelsError,
           unknownBlock: modelsUnknown, total, page, pages } =
     useBlockItems<SavedWildlife>(region.id, "wildlife", wildlifeCodec, undefined, {
       sortCol: sort, sortDir: dir, page: pageNo, search, pageSize: 20,
     });
+  /// What the grower has actually seen. A projection nobody has answered and
+  /// one they answered on the 24th are different states, and only the record
+  /// of observations tells them apart.
+  const { items: seen, save: storeSeen, reload: reloadSeen } =
+    useBlockItems<FieldReport>(region.id, "observation", reportCodec);
   const [data, setData] = useState<WildlifeResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [ranAt, setRanAt] = useState<Date | null>(null);
   /// A cycle handed to the composer from the record — "start another brood".
-  const [seed, setSeed] = useState<CycleDraft | null>(null);
+  const [seed, setSeed] = useState<(CycleDraft & { supersedes?: string[] }) | null>(null);
 
   /// iNaturalist's photograph for each creature on the table, by name.
   ///
@@ -157,6 +165,58 @@ export default function Wildlife({
 
   useEffect(() => { void run(models); }, [run, models]);
 
+  const today = new Date().toISOString().slice(0, 10);
+
+  /// Watches whose day is near, and the ones whose day has just been and gone
+  /// with nothing recorded against them. `due_soon` answers only the first
+  /// half — a reached row carries no projection and drops out of it.
+  const answered = new Set(seen.map((o) => o.ref).filter((r): r is string => !!r));
+  const due = dueList(data?.events ?? [], answered, today);
+
+  const [marking, setMarking] = useState(false);
+
+  /// What the grower saw, on the day they saw it, joined to the watch it
+  /// settles. The join is the saved row's own id, which is what the calendar
+  /// echoes back as `ref` — a note that merely shares a date with a projection
+  /// is not the same claim.
+  async function markSeen(row: WildlifeRow, observedOn: string) {
+    setMarking(true); setError("");
+    try {
+      const made = makeReport({
+        regionId: region.id, tag: row.event || "seen",
+        observedOn, note: `${row.species} — ${row.event}`,
+        crop: row.species, ...(row.ref ? { ref: row.ref } : {}),
+      });
+      if (typeof made === "string") { setError(made); return; }
+      await storeSeen(made);
+      await reloadSeen();
+    } catch (e) {
+      setError(String((e as Error).message ?? e));
+    } finally { setMarking(false); }
+  }
+
+  /// The same cycle, started again on a new day.
+  ///
+  /// Poultry set several times a season. The labels and the counts come off
+  /// the rows the grower already saved — nothing here decides how long a
+  /// clutch takes — and the composer asks only for the day.
+  function startAnother(species: string) {
+    const rows = cycleOf(models, species);
+    const draft = nextCycle(rows, today);
+    if (typeof draft === "string") { setError(draft); return; }
+    setError("");
+    setSeed({ ...draft, supersedes: rows.map((r) => r.id) });
+  }
+
+  /// Save the composed cycle, then retire what it replaced.
+  ///
+  /// In that order, and only on success: a brood retired before its
+  /// replacement lands would leave the grower with neither.
+  async function saveComposed(rows: SavedWildlife[], supersedes: string[]) {
+    await storeMany(rows);
+    if (supersedes.length) await retireMany(supersedes);
+  }
+
   function sortBy(col: ItemSort) {
     if (col === sort) setDir((d) => (d === "asc" ? "desc" : "asc"));
     else { setSort(col); setDir("asc"); }
@@ -201,19 +261,14 @@ export default function Wildlife({
 
       <UndoBar kinds={["wildlife"]} onRestored={() => void reloadWildlife()} />
 
-      {data && data.due_soon.length > 0 && (
-        <div className="mb-5 rounded-md border border-rule border-l-4 border-l-honey bg-panel px-4 py-3">
-          <span className="eyebrow">Watch for these</span>
-          <ul className="mt-1.5 space-y-1 text-[13px]">
-            {data.due_soon.map((e) => (
-              <li key={e.species + e.event}>
-                <SpeciesMark emoji={e.emoji} photo={photos.get(e.species)} />
-                <b>{e.species}</b> — {e.event} in about {e.days_away} days
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <DueSoon
+        due={due}
+        photos={photos}
+        today={today}
+        busy={marking}
+        canRepeat={(sp) => repeatable(cycleOf(models, sp))}
+        onRepeat={startAnother}
+        onObserved={markSeen} />
 
       <Section emoji="📅" title="The year" first>
         {models.length > 0 && <Provenance tool="goodearth_wildlife_calendar" at={ranAt} onCost={onCost} />}
@@ -331,7 +386,7 @@ export default function Wildlife({
       <EventComposer
         region={region}
         recorded={models}
-        onSave={storeMany}
+        onSave={saveComposed}
         onCost={onCost}
         seed={seed}
         onSeedTaken={() => setSeed(null)} />
