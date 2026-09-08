@@ -9,6 +9,7 @@
 // everywhere they surface. Stored per-region like plantings; NIP-78
 // `goodearth/pests` is where they belong once the write-through lands.
 
+import { newItemId } from "./submit.ts";
 import type { PestModel } from "./mcp";
 
 export interface SavedPest extends PestModel {
@@ -42,7 +43,7 @@ export function makeWatch(
 ): SavedPest | string {
   if (!pest.trim()) return "Give the pest a name.";
   return {
-    id: `pe-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`,
+    id: newItemId("pe"),
     pest: pest.trim(), regionId, watch: true, stages: [],
     ...(extra?.taxonId ? { taxon_id: extra.taxonId } : {}),
     ...(extra?.scientificName ? { scientific_name: extra.scientificName } : {}),
@@ -79,7 +80,7 @@ export function makePest(
     return 'Stages look like "first flight 375, second flight 1400".';
 
   return {
-    id: `pe-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`,
+    id: newItemId("pe"),
     pest: pest.trim(), base_temp: baseTemp, regionId,
     stages: stages as { stage: string; gdd: number }[],
     ...(biofix ? { biofix } : {}),

@@ -9,6 +9,7 @@
 // they appear. They are chosen to show all three clocks rather than to be
 // authoritative.
 
+import { newItemId } from "./submit.ts";
 import type { WildlifeEventInput } from "./mcp";
 
 export interface SavedWildlife extends WildlifeEventInput {
@@ -60,7 +61,7 @@ export function makeRoster(
 ): SavedWildlife | string {
   if (!species.trim()) return "Which creature?";
   return {
-    id: `wl-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`,
+    id: newItemId("wl"),
     species: species.trim(), event: "", regionId,
     ...(extra?.taxonId ? { taxon_id: extra.taxonId } : {}),
     ...(extra?.scientificName ? { scientific_name: extra.scientificName } : {}),
@@ -94,7 +95,7 @@ export function makeWildlife(
     ...input,
     species: input.species.trim(),
     event: input.event.trim(),
-    id: `wl-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`,
+    id: newItemId("wl"),
     regionId,
   };
 }

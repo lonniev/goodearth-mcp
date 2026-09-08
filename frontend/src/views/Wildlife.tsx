@@ -17,6 +17,8 @@ import SearchBox from "../components/SearchBox";
 import UndoBar, { remembered } from "../components/UndoBar";
 import { wildlifeCalendar, type WildlifeResult } from "../lib/mcp";
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
+import { useSubmit } from "../lib/useSubmit";
+import { withId } from "../lib/submit";
 import SpeciesPicker from "../components/SpeciesPicker";
 import { photosByName, type SpeciesHit } from "../lib/species";
 import {
@@ -88,6 +90,9 @@ export default function Wildlife({
   const [data, setData] = useState<WildlifeResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  /// Two controls write watches, so each guards its own press.
+  const watchSubmit = useSubmit("wl", setError);
+  const stockSubmit = useSubmit("wl", setError);
   const [ranAt, setRanAt] = useState<Date | null>(null);
   const [driver, setDriver] = useState<"heat" | "daylight" | "interval" | "calendar">("daylight");
   const [husbandryFrom, setHusbandryFrom] = useState(() => new Date().toISOString().slice(0, 10));
@@ -220,11 +225,15 @@ export default function Wildlife({
     }, region.id);
     if (typeof made === "string") { setError(made); return; }
     setError("");
-    void storeWildlife(made);
-    // A controlled field is not cleared by form.reset(), so a saved event
-    // would otherwise sit in the box looking unsaved.
-    setSpecies(""); setEventName("");
-    e.currentTarget.reset();
+    // Captured before the await: `currentTarget` is nulled when this returns.
+    const form = e.currentTarget;
+    watchSubmit.run(async (key) => {
+      await storeWildlife(withId(made, key));
+      // A controlled field is not cleared by form.reset(), so a saved event
+      // would otherwise sit in the box looking unsaved.
+      setSpecies(""); setEventName("");
+      form.reset();
+    });
   }
   const openHabits = useCallback(async (common: string, sci?: string) => {
     setSpecies(common);
@@ -258,7 +267,8 @@ export default function Wildlife({
       )}
 
       <div className="mb-3 flex items-center justify-end gap-1.5">
-        <IconButton path={ICON.add} label="Watch" form="new-watch" title="Track something" />
+        <IconButton path={ICON.add} label="Watch" form="new-watch" title="Track something"
+          disabled={watchSubmit.busy} />
       </div>
 
       <Section emoji="📅" title="The year" first>
@@ -479,9 +489,12 @@ export default function Wildlife({
                 }, region.id);
                 if (typeof made === "string") { setError(made); return; }
                 setError("");
-                void storeWildlife(made);
-                setStock(null); setStockEvent(""); setStockDays("");
+                stockSubmit.run(async (key) => {
+                  await storeWildlife(withId(made, key));
+                  setStock(null); setStockEvent(""); setStockDays("");
+                });
               }}
+              disabled={stockSubmit.busy}
               active>
               Count it forward
             </Pill>

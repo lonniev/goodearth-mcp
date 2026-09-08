@@ -26,6 +26,8 @@ import SpeciesFinder from "../components/SpeciesFinder";
 import type { Chosen } from "../lib/basket";
 import { speciesByIds, type SpeciesHit } from "../lib/species";
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
+import { useSubmit } from "../lib/useSubmit";
+import { withId } from "../lib/submit";
 import type { SavedRegion } from "../lib/regions";
 import { Empty, ErrorBox, FIELD, ICON, IconButton, Pill,
   Section } from "../components/ui";
@@ -108,6 +110,7 @@ export default function Crops({
   const [error, setError] = useState("");
   const [ranAt, setRanAt] = useState<Date | null>(null);
   const [formErr, setFormErr] = useState("");
+  const submit = useSubmit("pl", setFormErr);
   /// What the last row-click put on the ledger, so a tap is not silent.
   /// What the last add put on the ledger, so the act is not silent.
   const [added, setAdded] = useState("");
@@ -308,10 +311,20 @@ export default function Crops({
     );
     if (typeof made === "string") { setFormErr(made); return; }
     setFormErr("");
-    void storePlanting(made).catch((err) => setFormErr(String(err.message ?? err)));
-    setAdded(`${picked.commonName ?? picked.scientificName} — on the ledger.`);
-    setPicked(null);
-    e.currentTarget.reset();
+    // Captured now. `currentTarget` is nulled the moment this handler returns,
+    // so reading it after the await would throw.
+    const form = e.currentTarget;
+    const named = picked.commonName ?? picked.scientificName;
+    // One press, one row. Four identical Winter wheat rows came from here:
+    // fire-and-forget, no disabled control, and a fresh id per press for the
+    // upsert to miss. The ledger is cleared only once the write LANDS —
+    // a failure leaves the form as the grower left it, ready to try again.
+    submit.run(async (key) => {
+      await storePlanting(withId(made, key));
+      setAdded(`${named} — on the ledger.`);
+      setPicked(null);
+      form.reset();
+    });
   }
 
   /// Put a basket of chosen plants on the ledger in ONE write.
@@ -375,7 +388,7 @@ export default function Crops({
         {/* Submits the form below by id, so the act has one compact control
             instead of a sentence at the foot of a form. */}
         <IconButton path={ICON.add} label="Planting" form="new-planting"
-          title="Add a planting" />
+          title="Add a planting" disabled={submit.busy} />
       </div>
 
       {error && (

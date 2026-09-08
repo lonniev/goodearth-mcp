@@ -635,6 +635,39 @@ def _clean_kind(kind: str) -> str:
     return k
 
 
+def check_item_shape(kind: str, item: dict[str, Any]) -> None:
+    """Refuse a write whose shape the readers cannot make sense of.
+
+    A wildlife item carries ONE event, and its driver fields sit at the top
+    level beside the species::
+
+        {"species": "Domestic chicken", "event": "eggs hatch",
+         "driver": "interval", "from": "2026-09-05", "days": 21}
+
+    A list of events nested under ``events`` is the shape an agent reaches for,
+    and it used to be stored verbatim. Everything downstream then behaved
+    correctly and the grower still got nothing: ``clear_columns`` found no
+    top-level ``event`` so the row landed with ``event = NULL``,
+    ``wildlife.validate_event`` read that as a ROSTER entry, and the feed
+    reported "recorded on this block, but names no event — nothing to date".
+    Four honest components describing a write that should never have been
+    accepted.
+
+    Tool input is adversarial, and an agent's plausible guess at a schema is
+    the commonest adversary there is. The refusal names the shape rather than
+    only rejecting the one it got, because whatever wrote this is going to
+    write it again.
+    """
+    if kind == "wildlife" and isinstance(item.get("events"), list | dict):
+        raise BlockError(
+            "a wildlife item carries one event, with its driver fields at the "
+            "top level beside `species` — not a list under `events`. Save "
+            '{"species": "Domestic chicken", "event": "eggs hatch", "driver": '
+            '"interval", "from": "2026-09-05", "days": 21} as one item, and '
+            "one item per event."
+        )
+
+
 def _clean_day(value: Any, field: str) -> str | None:
     if value in (None, ""):
         return None
@@ -667,6 +700,7 @@ async def save_items(
     for item in items:
         if not isinstance(item, dict):
             raise BlockError("each item must be an object")
+        check_item_shape(k, item)
         payload = {q: w for q, w in item.items() if q not in ("item_id", "observed_on")}
         iid = str(item.get("item_id") or "").strip() or uuid.uuid4().hex
         seen = _clean_day(item.get("observed_on"), "observed_on")

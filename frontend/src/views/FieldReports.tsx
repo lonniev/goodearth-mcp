@@ -23,6 +23,8 @@ import {
 } from "../lib/reports";
 import type { SavedRegion } from "../lib/regions";
 import { ErrorBox, FIELD, ICON, IconButton, Note } from "../components/ui";
+import { useSubmit } from "../lib/useSubmit";
+import { withId } from "../lib/submit";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const nice = (iso: string) =>
@@ -59,6 +61,7 @@ export default function FieldReports({
   const [ranAt, setRanAt] = useState<Date | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const submit = useSubmit("fr", setErr);
   const [msg, setMsg] = useState("");
   const [here, setHere] = useState<{ lat: number; lng: number } | null>(null);
   const [inatUser, setInatUser] = useState(() => {
@@ -137,9 +140,12 @@ export default function FieldReports({
     });
     if (typeof made === "string") { setErr(made); return; }
     setErr("");
-    void storeReport(made).catch((e) => setErr(String(e.message ?? e)));
-    e.currentTarget.reset();
-    setHere(null);
+    const form = e.currentTarget;
+    submit.run(async (key) => {
+      await storeReport(withId(made, key));
+      form.reset();
+      setHere(null);
+    });
   }
 
   // The block's own bounding box, so an import brings back the farm rather
@@ -314,8 +320,8 @@ export default function FieldReports({
           )}
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            <button title="Add observation"
-              className="flex min-h-11 items-center gap-1.5 rounded-full border-[1.5px] border-ink bg-ink px-3.5 text-[12.5px] font-semibold text-paper">
+            <button title="Add observation" disabled={submit.busy}
+              className="flex min-h-11 items-center gap-1.5 rounded-full border-[1.5px] border-ink bg-ink px-3.5 text-[12.5px] font-semibold text-paper disabled:opacity-40">
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
                 <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
               </svg>
