@@ -104,6 +104,46 @@ describe("dates on the timeline", () => {
     assert.equal(f.begin, "2026-05-09");
   });
 
+  it("draws BOTH halves of a cycle, not just the day that was stated", () => {
+    // THE BUG, as the grower met it: a hen laying on eggs and the hatch
+    // twenty-one days after, and the chart drew the first and dropped the
+    // second. The loop had a branch for `heat` and one for `calendar` and
+    // nothing for the other three clocks.
+    const cycle = [
+      { species: "Domestic chicken", event: "laying on eggs", driver: "calendar",
+        typical_on: "05-02", id: "1", regionId: "b" },
+      { species: "Domestic chicken", event: "eggs hatch", driver: "interval",
+        from: "2026-05-02", days: 11, id: "2", regionId: "b" },
+    ] as never;
+    const flags = buildFlags(dated, [], [], cycle);
+    assert.equal(flags.length, 2, "one half of the cycle was dropped");
+    assert.deepEqual(flags.map((f) => f.begin), ["2026-05-02", "2026-05-13"]);
+    // Counted, not crossed — the same claim a stated date makes, so it shares
+    // that anchor rather than pretending the heat axis decided it.
+    assert.deepEqual(flags.map((f) => f.anchor), ["date", "date"]);
+  });
+
+  it("leaves out an interval it cannot date, rather than dating it today", () => {
+    const half = [
+      { species: "Ewe", event: "lambing", driver: "interval", days: 147, id: "1", regionId: "b" },
+      { species: "Ewe", event: "lambing", driver: "interval", from: "2026-05-01", id: "2", regionId: "b" },
+    ] as never;
+    assert.deepEqual(buildFlags(dated, [], [], half), []);
+  });
+
+  it("still leaves out the two clocks this curve cannot answer", () => {
+    // Daylight is astronomy and a condition is what the weather did. Neither
+    // is knowable from a heat curve, and both come back from the wildlife
+    // tool — so their absence here is a decision, unlike the interval's was.
+    const elsewhere = [
+      { species: "American robin", event: "first arrival", driver: "daylight",
+        daylight_hours: 12.5, rising: true, id: "1", regionId: "b" },
+      { species: "Spotted salamander", event: "big night", driver: "condition",
+        trigger: { min_night_f: 40, wet: true }, id: "2", regionId: "b" },
+    ] as never;
+    assert.deepEqual(buildFlags(dated, [], [], elsewhere), []);
+  });
+
   it("every flag carries a begin", () => {
     // The chart positions by date now. A flag without one has nowhere to go.
     const plantings = [{ id: "1", crop: "Dahlia", gddTarget: 100, setOut: "2026-05-03", regionId: "b" }] as never;
