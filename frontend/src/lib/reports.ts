@@ -33,6 +33,11 @@ export interface FieldReport {
   stage?: string;
   gddTarget?: number;
   setOut?: string;
+  /// The watch this observation settles — the saved event's own id, the same
+  /// key `wildlife_calendar` echoes back as `ref`. A hatch the grower actually
+  /// saw is otherwise a note that happens to share a date with a projection,
+  /// and nothing joins the two.
+  ref?: string;
   createdAt: string;
 }
 
@@ -112,6 +117,7 @@ export const reportCodec: ItemCodec<FieldReport> = {
     stage: r.stage == null ? undefined : String(r.stage),
     gddTarget: r.gdd_target == null ? undefined : Number(r.gdd_target),
     setOut: r.set_out == null ? undefined : String(r.set_out),
+    ref: r.ref == null ? undefined : String(r.ref),
     createdAt: String(r.created_at ?? r.observed_on ?? ""),
   }),
   to: (f: FieldReport) => ({
@@ -125,5 +131,6 @@ export const reportCodec: ItemCodec<FieldReport> = {
     ...(f.stage ? { stage: f.stage } : {}),
     ...(f.gddTarget != null ? { gdd_target: f.gddTarget } : {}),
     ...(f.setOut ? { set_out: f.setOut } : {}),
+    ...(f.ref ? { ref: f.ref } : {}),
   }),
 };

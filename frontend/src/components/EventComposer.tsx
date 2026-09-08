@@ -60,11 +60,13 @@ export default function EventComposer({
 }: {
   region: SavedRegion;
   recorded: SavedWildlife[];
-  onSave: (rows: SavedWildlife[]) => Promise<void>;
+  /// `supersedes` names the rows this cycle replaces — the previous brood,
+  /// when the grower started another. Empty for anything entered from scratch.
+  onSave: (rows: SavedWildlife[], supersedes: string[]) => Promise<void>;
   onCost: (sats: number) => void;
   /// A cycle handed in from the record — "start another brood". It arrives
   /// filled in, so the grower's only remaining decision is the day.
-  seed?: CycleDraft | null;
+  seed?: (CycleDraft & { supersedes?: string[] }) | null;
   onSeedTaken?: () => void;
 }) {
   const u = useUnits();
@@ -78,6 +80,11 @@ export default function EventComposer({
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [animal, setAnimal] = useState<Pick | null>(null);
+  /// Rows the cycle being composed will replace. Held here rather than in the
+  /// page so it cannot outlive the draft it belongs to: a grower who seeds a
+  /// second brood, changes their mind and records something else entirely must
+  /// not have the first brood retired out from under them.
+  const [supersedes, setSupersedes] = useState<string[]>([]);
 
   /// Asked for once, and only when the grower goes looking. A catalogue read
   /// costs a fare, and a page visit that never touches this panel should not.
@@ -116,7 +123,13 @@ export default function EventComposer({
 
   // ── The cycle, and the four other clocks ───────────────────────────────
   const [startOn, setStartOn] = useState(today);
-  const [steps, setSteps] = useState<Milestone[]>([]);
+  /// The interval clock starts with one milestone already there.
+  ///
+  /// It is what this clock is FOR — a day, and something counted from it — and
+  /// making the grower press "+ a milestone" to reach the only reason they
+  /// chose this clock is a tap that asks nothing. They can delete it: a date
+  /// on its own is a real thing to record.
+  const [steps, setSteps] = useState<Milestone[]>([{ label: "", days: 1 }]);
   const [typicalOn, setTypicalOn] = useState("");
   const [hours, setHours] = useState<number | "">(12);
   const [rising, setRising] = useState(true);
@@ -136,12 +149,22 @@ export default function EventComposer({
     setLabel(seed.startLabel);
     setStartOn(seed.startOn);
     setSteps(seed.steps);
+    setSupersedes(seed.supersedes ?? []);
     onSeedTaken?.();
   }, [seed, onSeedTaken]);
 
   /// The count this grower used last for this animal. Not a fact about hens —
   /// a fact about THEIR hens, which is the only kind kept here.
   const remembered = animal ? lastInterval(recorded, animal.name) : undefined;
+
+  /// Choosing the animal fills in the count they used last for it — but only
+  /// into a milestone they have not touched. A grower who typed 19 for this
+  /// clutch means 19, and last season's 21 must not land on top of it.
+  useEffect(() => {
+    if (remembered == null) return;
+    setSteps((cur) => cur.length === 1 && !cur[0].label.trim() && cur[0].days === 1
+      ? [{ label: "", days: remembered }] : cur);
+  }, [remembered]);
 
   const draft: CycleDraft = {
     species: animal?.name ?? "",
@@ -248,8 +271,9 @@ export default function EventComposer({
   }, [sky]);
 
   function reset() {
-    setAnimal(null); setQ(""); setLabel(""); setSteps([]);
+    setAnimal(null); setQ(""); setLabel(""); setSteps([{ label: "", days: 1 }]);
     setStartOn(today()); setTypicalOn("");
+    setSupersedes([]);
     setPreview(null); previewed.current = "";
   }
 
@@ -275,7 +299,7 @@ export default function EventComposer({
             {catBusy && <p className="px-3 py-2 text-[12px] text-ink-soft">Reading what is recorded here…</p>}
             {shown.map((p) => (
               <button key={p.name} type="button"
-                onClick={() => { setAnimal(p); setOpen(false); setQ(""); }}
+                onClick={() => { setAnimal(p); setSupersedes([]); setOpen(false); setQ(""); }}
                 className="flex w-full items-center gap-2.5 border-b border-rule px-2.5 py-2 text-left last:border-b-0 active:bg-band">
                 <SpeciesMark emoji={p.emoji} photo={p.photo ?? undefined} />
                 <span className="min-w-0 flex-1 leading-tight">
@@ -325,7 +349,11 @@ export default function EventComposer({
         {/* ── The clock ──────────────────────────────────────────────── */}
         <div className="mt-3 flex flex-wrap gap-1.5">
           {CLOCKS.map((c) => (
-            <Pill key={c.key} active={driver === c.key} onClick={() => setDriver(c.key)}>
+            <Pill key={c.key} active={driver === c.key}
+              onClick={() => {
+                setDriver(c.key); setSupersedes([]);
+                if (c.key === "interval" && !steps.length) setSteps([{ label: "", days: 1 }]);
+              }}>
               {c.label}
             </Pill>
           ))}
@@ -333,9 +361,13 @@ export default function EventComposer({
         <p className="mt-1.5 text-[12px] text-ink-soft">{HELP[driver]}</p>
 
         {/* ── What it does ───────────────────────────────────────────── */}
+        <datalist id="goodearth-labels">
+          {[...new Set([...habits, ...mine])].map((h) => <option key={h} value={h} />)}
+        </datalist>
         <label className="mt-3 block text-[11px] text-ink-soft">
           {driver === "interval" ? "What you saw" : "What it does"}
-          <input value={label} onChange={(e) => setLabel(e.target.value)}
+          <input value={label} list="goodearth-labels"
+            onChange={(e) => setLabel(e.target.value)}
             placeholder={driver === "interval" ? "laying on eggs" : "first arrival"}
             className={FIELD} />
         </label>
@@ -362,19 +394,28 @@ export default function EventComposer({
               <div className="sm:col-span-2">
                 <span className="eyebrow">And then, counting from that day</span>
                 {steps.map((s, i) => (
-                  <div key={i} className="mt-1.5 grid gap-2 sm:grid-cols-[1fr_9rem_auto]">
+                  <div key={i} className="mt-1.5 grid gap-2 sm:grid-cols-[1fr_auto]">
                     <label className="block text-[11px] text-ink-soft">
                       What follows
                       <input value={s.label} placeholder="eggs hatch" className={FIELD}
+                        list="goodearth-labels"
                         onChange={(e) => setSteps(steps.map((x, j) =>
                           j === i ? { ...x, label: e.target.value } : x))} />
                     </label>
-                    <Stepper label="Days" value={s.days} min={1} max={1000}
-                      onChange={(n) => setSteps(steps.map((x, j) =>
-                        j === i ? { ...x, days: typeof n === "number" ? n : 0 } : x))} />
-                    <button type="button" aria-label={`Remove ${s.label || "milestone"}`}
-                      onClick={() => setSteps(steps.filter((_, j) => j !== i))}
-                      className="mt-4 h-11 w-11 text-[18px] text-ink-soft active:text-clay">×</button>
+                    {/* The count and the way to be rid of it, on one line. On a
+                        phone this row stacks, and a lone × under the stepper
+                        read as a stray character rather than as this
+                        milestone's control. */}
+                    <div className="flex items-end gap-1">
+                      <div className="w-36 shrink-0">
+                        <Stepper label="Days" value={s.days} min={1} max={1000}
+                          onChange={(n) => setSteps(steps.map((x, j) =>
+                            j === i ? { ...x, days: typeof n === "number" ? n : 0 } : x))} />
+                      </div>
+                      <button type="button" aria-label={`Remove ${s.label || "milestone"}`}
+                        onClick={() => setSteps(steps.filter((_, j) => j !== i))}
+                        className="h-11 w-11 shrink-0 text-[18px] text-ink-soft active:text-clay">×</button>
+                    </div>
                   </div>
                 ))}
                 <div className="mt-1.5">
@@ -504,12 +545,18 @@ export default function EventComposer({
               setError("");
               // One write for the whole cycle: one fare, and no chance of a
               // hatch date saved against a start that is not there.
-              submit.run(async () => { await onSave(rows); reset(); });
+              submit.run(async () => { await onSave(rows, supersedes); reset(); });
             }}>
             {driver === "interval" && steps.length
               ? `Record ${steps.length + 1} events`
               : "Record it"}
           </Pill>
+          {supersedes.length > 0 && (
+            <span className="data text-[11px] text-ink-soft">
+              The previous {supersedes.length}-row cycle is kept as history and
+              comes off the calendar.
+            </span>
+          )}
           {ready && (
             <span className="data text-[11px] text-ink-soft">
               {(rows as SavedWildlife[]).length} row

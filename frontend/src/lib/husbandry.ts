@@ -17,7 +17,9 @@
 // this file does arithmetic and remembers what they chose last time, which is
 // the part a service is actually good for.
 
-import type { WildlifeEventInput, WildlifeCatalogResult } from "./mcp";
+import type {
+  WildlifeCatalogResult, WildlifeEventInput, WildlifeRow,
+} from "./mcp";
 import { makeWildlife, type SavedWildlife } from "./wildlifeModels.ts";
 
 /// One animal the composer can offer, from wherever it was learned.
@@ -257,4 +259,54 @@ export function cycleOf(
 ): SavedWildlife[] {
   const k = key(species);
   return recorded.filter((m) => key(m.species ?? "") === k);
+}
+
+// ── What to be looking for ───────────────────────────────────────────────
+
+export interface Due {
+  row: WildlifeRow;
+  /// Days from today. Negative for a day that has already passed.
+  daysAway: number;
+  /// The grower has recorded seeing it. It stays on the list for the season,
+  /// because "it hatched on the 24th, two days early" is the whole point of
+  /// keeping the record — but it stops asking to be marked.
+  settled: boolean;
+}
+
+const daysBetween = (from: string, to: string) =>
+  Math.round((Date.parse(to + "T12:00:00") - Date.parse(from + "T12:00:00")) / 86_400_000);
+
+/// The watch list: what is coming, and what has just been and gone.
+///
+/// `wildlife_calendar`'s own `due_soon` answers the first half. It cannot
+/// answer the second, and it should not: a row whose day has passed carries
+/// `reached_on` and drops out of the projection entirely, which is correct
+/// arithmetic and useless to a grower on the morning after a hatch was due.
+/// The question they have then is "did it?", and that question is the one
+/// thing this service can turn into a record worth having.
+export function dueList(
+  events: readonly WildlifeRow[],
+  observedRefs: ReadonlySet<string>,
+  today: string,
+  { ahead = 21, back = 14 }: { ahead?: number; back?: number } = {},
+): Due[] {
+  const out: Due[] = [];
+  for (const row of events) {
+    const when = row.projected_date ?? row.reached_on;
+    if (!when) continue;
+    const daysAway = daysBetween(today, when);
+    if (daysAway > ahead || daysAway < -back) continue;
+    out.push({
+      row, daysAway,
+      settled: !!row.ref && observedRefs.has(row.ref),
+    });
+  }
+  // Soonest first, and a day already past leads: it is the one that needs an
+  // answer, where a date three weeks out needs nothing at all today.
+  return out.sort((a, b) => a.daysAway - b.daysAway);
+}
+
+/// A cycle can be started again when something in it counts days.
+export function repeatable(rows: readonly SavedWildlife[]): boolean {
+  return rows.some((r) => r.driver === "interval" && Number.isFinite(r.days));
 }
