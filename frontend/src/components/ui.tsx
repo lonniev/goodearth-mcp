@@ -358,3 +358,85 @@ export function RowActions({ onCommit, onCancel, saving, what }: {
 /// The cell style inside a row being edited. One definition, four editors.
 export const CELL =
   "w-full rounded border border-rule bg-white px-2 py-1 text-[16px] focus:border-honey focus:outline-none";
+
+/// A number the grower steps to rather than types.
+///
+/// Husbandry counts are small integers a thumb can reach — 21 days, 147 days,
+/// a base temperature — and a bare text box invites "twenty-one", an empty
+/// string, and a stray letter. The field still accepts direct entry, because
+/// stepping from 1 to 147 with a thumb is its own cruelty; what it will not
+/// accept is a value outside the range it was given.
+export function Stepper({
+  value, onChange, min = 1, max = 1000, step = 1, unit, label, id,
+}: {
+  value: number | "";
+  onChange: (n: number | "") => void;
+  min?: number; max?: number; step?: number;
+  unit?: string; label: string; id?: string;
+}) {
+  const clamp = (n: number) => Math.min(max, Math.max(min, n));
+  const nudge = (by: number) =>
+    onChange(clamp((typeof value === "number" ? value : min) + by));
+  return (
+    <label className="block text-[11px] text-ink-soft" htmlFor={id}>
+      {label}
+      <span className="mt-0.5 flex items-stretch overflow-hidden rounded border border-rule bg-white">
+        <button type="button" onClick={() => nudge(-step)} aria-label={`${label} down`}
+          className="w-11 shrink-0 text-[18px] text-ink-soft active:bg-band">−</button>
+        <input id={id} value={value} inputMode="numeric"
+          onChange={(e) => {
+            const raw = e.target.value.trim();
+            if (!raw) return onChange("");
+            const n = Number(raw);
+            if (Number.isFinite(n)) onChange(n);
+          }}
+          onBlur={() => { if (typeof value === "number") onChange(clamp(value)); }}
+          className="data min-w-0 flex-1 border-x border-rule px-2 py-2 text-center text-[16px] focus:outline-none" />
+        <button type="button" onClick={() => nudge(step)} aria-label={`${label} up`}
+          className="w-11 shrink-0 text-[18px] text-ink-soft active:bg-band">+</button>
+      </span>
+      {unit && <span className="mt-0.5 block text-[10.5px] text-ink-soft">{unit}</span>}
+    </label>
+  );
+}
+
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July",
+  "August", "September", "October", "November", "December"];
+/// February gets 29. A date that only exists in a leap year is the grower's to
+/// choose, and the server already answers "—" for the years it does not.
+const DAYS_IN = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+/// A day of the year with no year on it, picked rather than typed.
+///
+/// `typical_on` is stored as MM-DD and the form used to ask for it in exactly
+/// those words, in a text box. That is the typed date this app is trying to be
+/// rid of: it invites "Sept 5", "9/5" and "05-09", and only one of those is
+/// the thing the record wanted.
+export function MonthDay({ value, onChange, label }: {
+  value: string; onChange: (mmdd: string) => void; label: string;
+}) {
+  const [mm, dd] = /^\d{2}-\d{2}$/.test(value)
+    ? value.split("-").map(Number) : [0, 0];
+  const set = (m: number, d: number) => {
+    if (!m || !d) return onChange("");
+    onChange(`${String(m).padStart(2, "0")}-${String(Math.min(d, DAYS_IN[m - 1])).padStart(2, "0")}`);
+  };
+  return (
+    <span className="block text-[11px] text-ink-soft">
+      {label}
+      <span className="mt-0.5 flex gap-1.5">
+        <select value={mm || ""} onChange={(e) => set(Number(e.target.value), dd || 1)}
+          aria-label={`${label} — month`} className={`${FIELD} flex-1`}>
+          <option value="">month…</option>
+          {MONTHS.map((name, i) => <option key={name} value={i + 1}>{name}</option>)}
+        </select>
+        <select value={dd || ""} onChange={(e) => set(mm || 1, Number(e.target.value))}
+          aria-label={`${label} — day`} className={`${FIELD} w-24`}>
+          <option value="">day…</option>
+          {Array.from({ length: DAYS_IN[(mm || 1) - 1] }, (_, i) => i + 1)
+            .map((d) => <option key={d} value={d}>{d}</option>)}
+        </select>
+      </span>
+    </span>
+  );
+}
