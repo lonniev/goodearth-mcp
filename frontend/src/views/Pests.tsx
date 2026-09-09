@@ -53,7 +53,7 @@ function columns(ddLabel: string): Column<ItemSort>[] {
     },
     {
       label: ddLabel,
-      info: <>Growing degree days banked since the biofix: each day contributes
+      info: <>Growing Degree Days banked since the Biofix: each day contributes
         the degrees its mean temperature ran above this pest&rsquo;s base. It is
         a running total, not a stage.</>,
     },
@@ -230,11 +230,6 @@ export default function Pests({
         </div>
       )}
 
-      <div className="mb-3 flex items-center justify-end gap-1.5">
-        <IconButton path={ICON.add} label="Pest" form="new-pest" title="Watch a pest"
-          disabled={submit.busy} />
-      </div>
-
       {/* ── Watch a pest ───────────────────────────────────────────────── */}
       <form id="new-pest" onSubmit={add} className="mb-4 rounded-md border border-rule bg-panel p-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -271,6 +266,18 @@ export default function Pests({
             <span className="opacity-60">(leave empty to just watch it)</span>
             <input name="stages" placeholder="first flight 375, second flight 1400"
               className={FIELD} /></label>
+        </div>
+        {/* The act, AFTER the fields it acts on.
+          *
+          * It sat in a header row ABOVE the form, submitting it by id — one
+          * compact control instead of a sentence at the foot. A tester read
+          * the page top to bottom and reached the button before the boxes:
+          * "the enter button should be below the boxes to be intuitive". They
+          * are right, and the id still does the submitting; only the position
+          * changed. */}
+        <div className="mt-3 flex justify-end">
+          <IconButton path={ICON.add} label="Pest" form="new-pest" title="Watch a pest"
+            disabled={submit.busy} />
         </div>
         {formErr && <p className="mt-2 text-[12px] text-clay">{formErr}</p>}
       </form>

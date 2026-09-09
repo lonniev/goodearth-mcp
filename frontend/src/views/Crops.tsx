@@ -384,13 +384,6 @@ export default function Crops({
 
   return (
     <>
-      <div className="mb-3 flex items-center justify-end gap-1.5">
-        {/* Submits the form below by id, so the act has one compact control
-            instead of a sentence at the foot of a form. */}
-        <IconButton path={ICON.add} label="Planting" form="new-planting"
-          title="Add a planting" disabled={submit.busy} />
-      </div>
-
       {error && (
         <ErrorBox>{error}</ErrorBox>
       )}
@@ -452,6 +445,18 @@ export default function Crops({
               I tap this for sap
             </label>
           </div>
+        </div>
+        {/* The act, AFTER the fields it acts on.
+          *
+          * It sat in a header row ABOVE the form, submitting it by id — one
+          * compact control instead of a sentence at the foot. A tester read
+          * the page top to bottom and reached the button before the boxes:
+          * "the enter button should be below the boxes to be intuitive". They
+          * are right, and the id still does the submitting; only the position
+          * changed. */}
+        <div className="mt-3 flex justify-end">
+          <IconButton path={ICON.add} label="Planting" form="new-planting"
+            title="Add a planting" disabled={submit.busy} />
         </div>
         {formErr && <p className="mt-2 text-[12px] text-clay">{formErr}</p>}
         {added && !formErr && <p className="mt-2 text-[12px] text-growth">{added}</p>}

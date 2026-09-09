@@ -29,12 +29,17 @@ export default function About() {
 
       {/* ── What it is ─────────────────────────────────────────────────── */}
       <div className="mb-5 rounded-md border border-rule border-l-4 border-l-growth bg-panel px-4 py-3.5">
+        {/* The same correction as the welcome page: name the thing this is
+            better THAN, rather than denying a claim nobody made. */}
         <p className="text-[14px] leading-relaxed">
-          <b className="figure text-[16px]">A farm is not a point.</b> A bench
-          and a hollow on the same acreage do not share a frost date, and every
-          free weather calculator answers for a pin. Good Earth answers for{" "}
-          <i>ground</i> — draw the block, and every answer comes back with the
-          spread across it.
+          <b className="figure text-[16px]">
+            Many weather services provide a climate prediction for a single
+            weather station that may be miles from your fields.
+          </b>{" "}
+          Good Earth helps you estimate the climate variation across the varied
+          surface of your plots and fields. A bench and a hollow on the same
+          acreage do not share a frost date — draw the block, and every answer
+          comes back with the spread across it.
         </p>
         <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">
           That spread is the whole product. It is what tells you whether one

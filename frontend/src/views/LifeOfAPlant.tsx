@@ -22,18 +22,18 @@ export default function LifeOfAPlant() {
   return (
     <article className="max-w-3xl">
       <h1 className="figure mb-1 text-[24px] font-bold">The life of a plant</h1>
-      <p className="eyebrow mb-4">and what a growing degree day is</p>
+      <p className="eyebrow mb-4">and what a Growing Degree Day is</p>
 
       <Claim>A crop does not count days. It counts warmth.</Claim>
 
       <p className="text-[13.5px] leading-relaxed">
         Every plant has a temperature below which it does no growing — its{" "}
         <b>base</b>. Above that, each day adds the degrees it spent there. Add
-        them up and you have <b>growing degree days</b>: the season measured in
+        them up and you have <b>Growing Degree Days</b>: the season measured in
         what the plant actually responds to.
       </p>
 
-      <StageRun stages={STAGES} axis="growing degree days →"
+      <StageRun stages={STAGES} axis="Growing Degree Days →"
         foot={<>Figures are the shape of a tomato's season, to read as an
           example rather than as your cultivar's. A seed packet's own numbers
           are the ones that count.</>} />
