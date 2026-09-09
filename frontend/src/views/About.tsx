@@ -41,10 +41,23 @@ export default function About() {
           acreage do not share a frost date — draw the block, and every answer
           comes back with the spread across it.
         </p>
+        {/* "That spread is the whole product" claimed the service amounts to
+            noticing that microclimates exist — which every grower who has
+            walked a field in April already knows, and which would make this a
+            poor thing to pay for. The spread is a PROPERTY of the answers. The
+            answers are the product. */}
         <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">
-          That spread is the whole product. It is what tells you whether one
-          planting date serves the whole field, which bed takes the frost first,
-          and how many days apart the two ends of a block really are.
+          The spread is a property of the answers rather than the service
+          itself. What Good Earth does is the arithmetic a walk cannot: it reads
+          public scientific feeds against the shape you drew and returns dates.
+          When the frost window opens and closes here. Which sowing still
+          finishes before it closes. Which week a pest&rsquo;s stages arrive.
+          Whether a tree banks the chill it needs on this ground.
+        </p>
+        <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">
+          A grower already knows the hollow is colder. What this adds is how
+          many days colder, from which feed, with the assumption inside the
+          model written down beside the number.
         </p>
       </div>
 
