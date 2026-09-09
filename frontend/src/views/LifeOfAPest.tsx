@@ -28,7 +28,7 @@ export default function LifeOfAPest() {
         arrives at a number can be seen coming.
       </p>
 
-      <StageRun stages={STAGES} axis="growing degree days from the biofix →"
+      <StageRun stages={STAGES} axis="Growing Degree Days from the Biofix →"
         foot={<><b>Biofix</b> is the day the count starts — usually the first
           sustained catch in a trap, sometimes simply the first of January.</>} />
 
@@ -36,7 +36,7 @@ export default function LifeOfAPest() {
         <p className="text-[13.5px] leading-relaxed">
           <b>The useful moment is before the damage, not after it.</b> Larvae
           are what eats the crop, and by the time you find them the decision
-          you had is gone. Counting from the biofix tells you which week to
+          you had is gone. Counting from the Biofix tells you which week to
           walk the rows and look.
         </p>
       </div>

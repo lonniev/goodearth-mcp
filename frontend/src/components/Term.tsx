@@ -55,7 +55,14 @@ export default function Term({ label, of, children }: {
           ? "cursor-help border-b border-dotted border-ink-soft/70 text-left"
           : "ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full border border-rule text-[9px] leading-none text-ink-soft align-middle"}
       >
-        {label ?? entry?.term ?? "i"}
+        {/* The content has to agree with the styling above, and it did not:
+          * with no `label` the class is a 16px circle — the (i) badge every
+          * other explainer in the app uses — while the content fell through to
+          * the glossary's own term. So `<Term of="base_temp">` rendered the
+          * words "Base temperature" inside a four-by-four badge, overflowing
+          * onto the field label beside it. A tester saw it on the Pests form
+          * and read it as two labels printed on top of each other. */}
+        {label ?? "i"}
       </button>
       {open && (
         <span

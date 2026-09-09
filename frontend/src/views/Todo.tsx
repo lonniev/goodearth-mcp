@@ -161,9 +161,9 @@ export default function TodoView({
   return (
     <>
       <div className="mb-3 flex items-center justify-end gap-1.5">
-        {/* Submits the form below by id, so the control can sit up here in the
-            row the title used to hold without the form losing its button. */}
-        <IconButton path={ICON.add} label="Task" form="new-task" title="Add task" />
+        {/* The iCal control stays: it opens a settings page and belongs in the
+            page's own row. The ADD button went down to the foot of the form,
+            where the thing it submits actually is. */}
         <IconButton path={ICON.settings} label="iCal" tone="quiet"
           title="Calendar feed settings" onClick={() => onView?.("account")} />
       </div>
@@ -212,6 +212,12 @@ export default function TodoView({
           Note
           <input name="note" placeholder="Row cover is in the east barn" className={FIELD} />
         </label>
+
+        {/* The act, AFTER the fields it acts on. A tester read the page top to
+          * bottom and reached the button before the boxes. */}
+        <div className="mt-3 flex justify-end">
+          <IconButton path={ICON.add} label="Task" form="new-task" title="Add task" />
+        </div>
       </form>
 
       {/* ── What's on the list ─────────────────────────────────────────── */}

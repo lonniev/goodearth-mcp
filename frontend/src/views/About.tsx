@@ -30,7 +30,7 @@ export default function About() {
       {/* ── What it is ─────────────────────────────────────────────────── */}
       <div className="mb-5 rounded-md border border-rule border-l-4 border-l-growth bg-panel px-4 py-3.5">
         <p className="text-[14px] leading-relaxed">
-          <b className="figure text-[16px]">A farm is not a point.</b> A bench
+          <b className="figure text-[16px]">A farm is not a single point in space.</b> A bench
           and a hollow on the same acreage do not share a frost date, and every
           free weather calculator answers for a pin. Good Earth answers for{" "}
           <i>ground</i> — draw the block, and every answer comes back with the
