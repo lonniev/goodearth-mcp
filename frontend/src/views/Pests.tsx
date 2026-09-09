@@ -53,7 +53,7 @@ function columns(ddLabel: string): Column<ItemSort>[] {
     },
     {
       label: ddLabel,
-      info: <>Growing degree days banked since the biofix: each day contributes
+      info: <>Growing Degree Days banked since the Biofix: each day contributes
         the degrees its mean temperature ran above this pest&rsquo;s base. It is
         a running total, not a stage.</>,
     },

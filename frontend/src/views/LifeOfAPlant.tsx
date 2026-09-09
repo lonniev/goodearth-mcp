@@ -22,7 +22,7 @@ export default function LifeOfAPlant() {
   return (
     <article className="max-w-3xl">
       <h1 className="figure mb-1 text-[24px] font-bold">The life of a plant</h1>
-      <p className="eyebrow mb-4">and what a growing degree day is</p>
+      <p className="eyebrow mb-4">and what a Growing Degree Day is</p>
 
       <Claim>A crop does not count days. It counts warmth.</Claim>
 

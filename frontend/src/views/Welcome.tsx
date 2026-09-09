@@ -13,7 +13,7 @@ import type { ViewKey } from "../lib/views";
 
 const EXPLAINERS: { view: ViewKey; emoji: string; title: string; said: string }[] = [
   { view: "plant", emoji: "🌱", title: "The life of a plant",
-    said: "Why a crop counts warmth rather than days, and what a growing degree day is." },
+    said: "Why a crop counts warmth rather than days, and what a Growing Degree Day is." },
   { view: "pest", emoji: "🐛", title: "The life of an insect",
     said: "Why a pest is on the same clock, and how that tells you the week to walk the rows." },
   { view: "tree", emoji: "🌳", title: "The life of a tree",
@@ -39,13 +39,23 @@ export default function Welcome({ onView, onSignIn, signedIn }: {
 
       {!signedIn && (
         <>
-          <Claim>A farm is not a single point in space.</Claim>
+          {/* Says what the alternative IS, rather than denying something
+              nobody claimed. "A farm is not a point" answered a question the
+              reader had not asked — and "not a SINGLE POINT IN SPACE", which
+              was the first attempt at fixing it, only made the denial more
+              precise. The contrast a grower actually lives with is a forecast
+              from a station miles away. */}
+          <Claim>
+            Many weather services provide a climate prediction for a single
+            weather station that may be miles from your fields. Good Earth helps
+            you estimate the climate variation across the varied surface of your
+            plots and fields.
+          </Claim>
           <p className="text-[14px] leading-relaxed">
-            A bench and a hollow on the same acreage do not share a frost date,
-            and every free weather calculator answers for a pin. Draw your
-            block, and every answer comes back with the spread across it — heat,
-            frost, soil, daylight and rain, measured for that ground rather than
-            for a zone map.
+            A bench and a hollow on the same acreage do not share a frost date.
+            Draw your block, and every answer comes back with the spread across
+            it — heat, frost, soil, daylight and rain, measured for that ground
+            rather than for a zone map.
           </p>
 
           <div className="mt-5 flex flex-wrap items-center gap-2.5">
