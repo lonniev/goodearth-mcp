@@ -21,6 +21,7 @@ import type { LedgerFlag } from "../lib/ledgerFlags";
 import { placeLabels } from "../lib/labelPlacement";
 import { dateFor, dayNumber, timelineDomain } from "../lib/seasonDays";
 import { seasonBounds } from "../lib/meteoSeason";
+import { SEASON_ICON } from "../lib/seasonIcon";
 import { useChartFrame } from "./ui";
 import { regionImageUrl } from "../lib/basemapImage";
 import { DEFAULT_SPAN, useChartZoom, windowToDomain } from "../lib/useChartZoom";
@@ -543,7 +544,7 @@ export default function SeasonChart({
             paintOrder="stroke" stroke="var(--color-panel)" strokeWidth={3.5} strokeLinejoin="round">
             <tspan x={x(last) + 7}>today</tspan>
             <tspan x={x(last) + 7} dy={11}>
-              {Math.round(u.degreeDays(todayGdd)).toLocaleString()}{u.ddUnit}
+              {Math.round(u.degreeDays(todayGdd)).toLocaleString()}
             </tspan>
           </text>
         </g>
@@ -610,6 +611,7 @@ export default function SeasonChart({
         // The button says which season it will show. "Season" beside
         // "3 months" tells a reader nothing; "Fall" tells them everything.
         spanLabels={thisSeason ? { season: thisSeason.name } : undefined}
+        spanIcons={thisSeason ? { season: SEASON_ICON[thisSeason.name] } : undefined}
         spanTitles={thisSeason
           ? { season: `${thisSeason.start} → ${thisSeason.end}`,
               annual: "The whole timeline, however far your dated tasks reach" }

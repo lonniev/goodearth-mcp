@@ -38,10 +38,10 @@ export default function Provenance({
   return (
     <span className="data ml-auto text-right text-[10.5px] font-normal text-ink-soft">
       {tool} · {at.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-      {sats != null && (
+      {sats != null && sats > 0 && (
         <>
           {" · "}
-          <span className="text-honey">{sats === 0 ? "free" : `${sats} sat${sats === 1 ? "" : "s"}`}</span>
+          <span className="text-honey">{sats} sat{sats === 1 ? "" : "s"}</span>
         </>
       )}
     </span>

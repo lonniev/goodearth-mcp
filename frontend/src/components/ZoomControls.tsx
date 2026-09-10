@@ -34,6 +34,9 @@ interface Props {
   spanLabels?: Record<string, string>;
   /// Per-key tooltips, same reason.
   spanTitles?: Record<string, string>;
+  /// Per-key 24x24 icon paths. The season button carries the season's own
+  /// glyph, so the eye finds it without reading the row.
+  spanIcons?: Record<string, string>;
   /// Rendered under the buttons — the visible range, so the reader always
   /// knows what window they are looking at.
   range?: string;
@@ -111,22 +114,26 @@ export function AxisZoom({ onZoom, label, short }: {
 
 export default function ZoomControls({
   onZoomX, onReset, isZoomed, range, onSpan, activeSpan, spanLabels, spanTitles,
-  compact,
+  spanIcons, compact,
 }: Props) {
   return (
     <div className={`flex flex-wrap items-center gap-3 px-2 text-[11px] text-ink-soft ${
       compact ? "pt-1" : "pt-2"}`}>
       {onSpan && (
-        <span className={`flex flex-wrap items-center gap-1.5 ${
-          compact ? "" : "w-full pb-1"}`}>
+        <span className="flex flex-wrap items-center gap-1.5">
           <span className="eyebrow mr-0.5">Span</span>
           {TIMESCALES.map((t) => (
             <button key={t.key} onClick={() => onSpan(t.key)}
               title={spanTitles?.[t.key]}
-              className={`min-h-11 rounded-full border px-3.5 text-[12px] font-medium ${
+              className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-[12px] font-medium ${
                 activeSpan === t.key
                   ? "border-ink bg-ink text-paper"
                   : "border-rule text-ink active:bg-band"}`}>
+              {spanIcons?.[t.key] && (
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                  <path d={spanIcons[t.key]} />
+                </svg>
+              )}
               {spanLabels?.[t.key] ?? t.label}
             </button>
           ))}
