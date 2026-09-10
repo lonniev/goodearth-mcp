@@ -291,7 +291,7 @@ export function StatusChip({ tone, children }: {
 /// `form` is what lets it sit in the header row above the form it submits: a
 /// button outside a <form> can still be its submit button by naming its id.
 export function IconButton({
-  path, label, onClick, form, title, tone = "solid", disabled,
+  path, label, onClick, form, title, tone = "solid", disabled, hideLabel,
 }: {
   /// A 24×24 SVG path. One concept, one icon.
   path: string;
@@ -302,6 +302,10 @@ export function IconButton({
   title?: string;
   tone?: "solid" | "quiet";
   disabled?: boolean;
+  /// Show the glyph alone. The label is still REQUIRED and still reaches a
+  /// screen reader and the tooltip — hiding it is a visual decision, not a
+  /// licence to ship a button that announces itself as nothing.
+  hideLabel?: boolean;
 }) {
   const solid = tone === "solid";
   return (
@@ -311,7 +315,10 @@ export function IconButton({
       onClick={onClick}
       disabled={disabled}
       title={title ?? label}
-      className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[12.5px] font-semibold disabled:opacity-40 ${
+      aria-label={hideLabel ? label : undefined}
+      className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-full text-[12.5px] font-semibold disabled:opacity-40 ${
+        hideLabel ? "w-11 justify-center px-0" : "px-3.5"
+      } ${
         solid
           ? "border-[1.5px] border-ink bg-ink text-paper"
           : "border border-rule font-medium text-ink-soft active:bg-band"
@@ -320,7 +327,7 @@ export function IconButton({
       <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
         <path d={path} />
       </svg>
-      {label}
+      {!hideLabel && label}
     </button>
   );
 }
@@ -329,6 +336,9 @@ export function IconButton({
 /// they look like — so "one concept, one icon" is checkable by reading.
 export const ICON = {
   add: "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z",
+  // Material Design "delete" — the bin. Recognised without a word beside
+  // it, which is the whole reason a destructive action gets a glyph.
+  delete: "M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z",
   // Material Design "save" — the floppy. The one glyph every toolbar has
   // agreed on, which is the whole reason to use theirs rather than draw one.
   save: "M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z",

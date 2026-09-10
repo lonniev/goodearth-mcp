@@ -4,7 +4,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { coverageHours, frameLabel, RADAR_MAX_NATIVE_ZOOM, tileUrl, type RadarIndex } from "./radar.ts";
+import { coverageHours, coverageLabel, frameLabel, RADAR_MAX_NATIVE_ZOOM, tileUrl, type RadarIndex } from "./radar.ts";
 
 const IDX: RadarIndex = {
   host: "https://tilecache.rainviewer.com",
@@ -40,5 +40,23 @@ describe("radar", () => {
   it("reports the coverage it actually has", () => {
     assert.equal(coverageHours(IDX), 2);
     assert.equal(coverageHours({ ...IDX, frames: [IDX.frames[0]] }), 0);
+  });
+});
+
+describe("what the radar control says it covers", () => {
+  const at = (...hours: number[]) =>
+    ({ frames: hours.map((h) => ({ time: h * 3600, kind: "past" })) }) as never;
+
+  it("names the span the feed returned, not one we chose", () => {
+    assert.equal(coverageLabel(at(0, 1, 2)), "Latest 2 hrs of Radar");
+    assert.equal(coverageLabel(at(0, 3.4)), "Latest 3 hrs of Radar");
+  });
+
+  it("does not say '1 hrs'", () => {
+    assert.equal(coverageLabel(at(0, 1)), "Latest 1 hr of Radar");
+  });
+
+  it("says nothing false when there is nothing to loop", () => {
+    assert.equal(coverageLabel(at(0)), "Latest 0 hrs of Radar");
   });
 });

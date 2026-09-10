@@ -77,3 +77,13 @@ export function coverageHours(idx: RadarIndex): number {
   const f = idx.frames;
   return f.length > 1 ? (f[f.length - 1].time - f[0].time) / 3600 : 0;
 }
+
+/// How far back the loop reaches, in words.
+///
+/// MEASURED from the frames the feed actually returned, never stated. The
+/// span moves with the service, and a number typed into the page would be
+/// right until the day it quietly wasn't.
+export function coverageLabel(idx: RadarIndex): string {
+  const h = Math.round(coverageHours(idx));
+  return `Latest ${h} hr${h === 1 ? "" : "s"} of Radar`;
+}
