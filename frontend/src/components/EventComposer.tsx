@@ -30,8 +30,8 @@ import Provenance from "./Provenance";
 import { useSubmit } from "../lib/useSubmit";
 import { useUnits } from "./Units";
 import {
-  ErrorBox, FIELD, LifecycleMark, MonthDay, Note, Pill, Section, SpeciesMark,
-  Stepper,
+  ErrorBox, FIELD, ICON, IconButton, LifecycleMark, MonthDay, Note, Pill,
+  Section, SpeciesMark, Stepper,
 } from "./ui";
 
 type Driver = "calendar" | "interval" | "daylight" | "heat" | "condition";
@@ -490,68 +490,78 @@ export default function EventComposer({
         </div>
 
         {/* ── What the service makes of it ───────────────────────────── */}
-        <div className="mt-3 rounded-md border border-rule border-l-4 border-l-honey bg-paper px-3 py-2.5">
-          <span className="eyebrow">Before you save</span>
-          {!ready ? (
-            <p className="mt-0.5 text-[12.5px] text-ink-soft">{rows as string}</p>
-          ) : previewBusy ? (
-            <p className="mt-0.5 text-[12.5px] text-ink-soft">Working out the dates…</p>
-          ) : preview && !stale ? (
-            <ul className="mt-1 space-y-1 text-[13px]">
-              {preview.events.map((e) => {
-                const when = e.reached_on ?? e.projected_date;
-                return (
-                  <li key={e.ref ?? e.event}>
-                    <b>{e.event}</b>{" — "}
-                    {when ? day(when) : "not this season"}
-                    {e.window && (
-                      <span className="data text-[11px] text-ink-soft">
-                        {" "}({day(e.window.from)}–{day(e.window.to)})
-                      </span>
-                    )}
-                    {e.days_away != null && (
-                      <span className="data text-[11px] text-ink-soft"> · in {e.days_away} days</span>
-                    )}
+        {/*
+          * No panel, and no reserved space for one.
+          *
+          * This was a bordered box with a "BEFORE YOU SAVE" eyebrow, and what
+          * it usually held was "Which animal?" — a warning frame around the
+          * observation that a form you have not filled in is not filled in. Of
+          * course it is not. A disabled button already says so.
+          *
+          * The DATES are the part worth showing, and they only exist once the
+          * draft is valid, so they render then and take no room before.
+          */}
+        {ready && (previewBusy || (preview && !stale)) && (
+          <div className="mt-3 text-[13px]">
+            {previewBusy ? (
+              <p className="text-[12.5px] text-ink-soft">Working out the dates…</p>
+            ) : (
+              <ul className="space-y-1">
+                {preview!.events.map((e) => {
+                  const when = e.reached_on ?? e.projected_date;
+                  return (
+                    <li key={e.ref ?? e.event}>
+                      <b>{e.event}</b>{" — "}
+                      {when ? day(when) : "not this season"}
+                      {e.window && (
+                        <span className="data text-[11px] text-ink-soft">
+                          {" "}({day(e.window.from)}–{day(e.window.to)})
+                        </span>
+                      )}
+                      {e.days_away != null && (
+                        <span className="data text-[11px] text-ink-soft"> · in {e.days_away} days</span>
+                      )}
+                    </li>
+                  );
+                })}
+                {preview!.events.length === 0 && (
+                  <li className="text-[12.5px] text-ink-soft">
+                    Nothing to date from this yet — it is recorded all the same.
                   </li>
-                );
-              })}
-              {preview.events.length === 0 && (
-                <li className="text-[12.5px] text-ink-soft">
-                  Nothing to date from this yet — it is recorded all the same.
-                </li>
-              )}
-            </ul>
-          ) : (
-            <p className="mt-0.5 text-[12.5px] text-ink-soft">
-              {stale ? "Changed — working the dates out again…" : "Ready."}
-            </p>
-          )}
-          {previewAt && !stale && (
-            <>
-              <p className="data mt-1 text-[10.5px] text-ink-soft">
-                Good Earth worked these out on your ground, not this browser.
-              </p>
-              {/* The preview is a paid read like any other, so it says so and
-                  says what it cost. A figure that appears for free invites the
-                  grower to lean on it without knowing they are spending. */}
-              <Provenance tool="goodearth_wildlife_calendar" at={previewAt} onCost={onCost} />
-            </>
-          )}
-        </div>
+                )}
+              </ul>
+            )}
+            {previewAt && !stale && (
+              <>
+                <p className="data mt-1 text-[10.5px] text-ink-soft">
+                  Good Earth worked these out on your ground, not this browser.
+                </p>
+                {/* The preview is a paid read like any other, so it says so and
+                    says what it cost. A figure that appears for free invites the
+                    grower to lean on it without knowing they are spending. */}
+                <Provenance tool="goodearth_wildlife_calendar" at={previewAt} onCost={onCost} />
+              </>
+            )}
+          </div>
+        )}
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Pill active disabled={!ready || submit.busy}
+          {/* `+ Record`, like every other editor on the site. "Record 2 events"
+              counted the rows in a sentence on the button; the count is beside
+              it, where a count belongs. */}
+          <IconButton path={ICON.add} label="Record"
+            disabled={!ready || submit.busy}
             onClick={() => {
               if (typeof rows === "string") { setError(rows); return; }
               setError("");
               // One write for the whole cycle: one fare, and no chance of a
               // hatch date saved against a start that is not there.
               submit.run(async () => { await onSave(rows, supersedes); reset(); });
-            }}>
-            {driver === "interval" && steps.length
-              ? `Record ${steps.length + 1} events`
-              : "Record it"}
-          </Pill>
+            }} />
+          {/* The reason it is disabled, said quietly and only while it is. */}
+          {!ready && (
+            <span className="text-[12px] text-ink-soft">{rows as string}</span>
+          )}
           {supersedes.length > 0 && (
             <span className="data text-[11px] text-ink-soft">
               The previous {supersedes.length}-row cycle is kept as history and
@@ -567,11 +577,14 @@ export default function EventComposer({
         </div>
       </div>
 
+      {/* Said without a worked example. Twenty-one days and a clutch is one
+          animal's case, and this form takes ewes, does, sows and queen bees on
+          the same clock. */}
       <Note>
-        The counts are yours. Good Earth will add twenty-one days to a date and
-        say when the window opens; whether a clutch takes twenty-one days is
-        something your birds and your breed decide, and your own records beat
-        any average this service could ship.
+        The counts are yours. Good Earth adds the days you give it to the day
+        you saw and says when the window opens. How long a thing takes belongs
+        to your animals and your breed, and your own records beat any average
+        this service could ship.
       </Note>
     </>
   );
