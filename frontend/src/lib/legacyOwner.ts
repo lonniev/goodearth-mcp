@@ -13,7 +13,7 @@
 // Right for a per-patron store, backwards for a shared one. A second npub was
 // told the work was NOT done, read the first patron's farm and uploaded it to
 // its own record. Reported 2026-09-05 by a grower who generated a fresh key
-// and was greeted by someone else's ground — in Favorites, and in the calendar
+// and was greeted by someone else's ground — in the list of saved ground, and in the calendar
 // feed's offer to publish it.
 //
 // Its own module, and free of imports, so the rule can be tested. Everything

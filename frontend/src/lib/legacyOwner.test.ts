@@ -1,7 +1,7 @@
 // One browser's legacy pile has one owner.
 //
 // Reported 2026-09-05: a grower signed out, generated a fresh nsec and npub,
-// and was greeted by "Frogdale Farm, Panton, VT" — in Favorites, and in the
+// and was greeted by "Frogdale Farm, Panton, VT" — in the saved ground, and in the
 // calendar feed's offer to publish it. Scoping the blocks CACHE had not
 // stopped it, because the new npub was not reading a stale cache. The
 // migration had uploaded the previous patron's farm into their account, so the

@@ -28,8 +28,8 @@ describe("the public set", () => {
   });
 
   it("does NOT include a page about someone's farm", () => {
-    for (const shut of ["ledger", "map", "crops", "wildlife", "todo",
-                        "reports", "favorites", "almanac", "account"]) {
+    for (const shut of ["ledger", "plots", "crops", "wildlife", "todo",
+                        "reports", "almanac", "account"]) {
       assert.equal(isPublic(shut as never), false, `${shut} must stay behind the gate`);
     }
   });

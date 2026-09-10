@@ -420,7 +420,7 @@ export default function FieldReports({
           has never been walked, so a read that failed says so instead. */}
       {reportsLoading && <Note>Reading your observations for {region.name}…</Note>}
       {!reportsLoading && reportsUnknown && (
-        <ErrorBox>This browser is set to ground the record does not have. Pick the block again from Favorites, or save it on the Map.</ErrorBox>
+        <ErrorBox>This browser is set to ground the record does not have. Pick the block again from My Plots, or draw it there.</ErrorBox>
       )}
       {!reportsLoading && reportsError && (
         <ErrorBox>Could not read your observations: {reportsError}</ErrorBox>
