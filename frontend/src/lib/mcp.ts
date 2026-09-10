@@ -14,6 +14,7 @@
  * 3. Bootstrap/auth/balance tools are free and pre-login-safe.
  */
 
+import { nearbyArgs } from "./wire";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
@@ -1114,9 +1115,18 @@ export async function nearbySpecies(
   // `with_lifecycle` changes what `total` COUNTS — the ones with a published
   // life cycle rather than everything recorded here. The server says so in the
   // answer, and the finder's count line reads it back without adjustment.
-  return callTool<NearbyResult>("nearby_species", {
-    block, kingdom, q, page, with_lifecycle: withLifecycle,
-  });
+  //
+  // Sent ONLY when it is true, and that is not tidiness.
+  //
+  // The page and the service ship on different clocks: Cloudflare Pages had
+  // this build live 43 seconds after the merge, and the MCP takes minutes. For
+  // those minutes a new client was talking to a server that had never heard of
+  // the argument, and because it was sent on EVERY call the whole finder
+  // answered `unexpected_keyword_argument` — not just the new filter. Omitted
+  // at its default, the ordinary path is immune to that window and only the
+  // feature itself waits for the server to catch up.
+  return callTool<NearbyResult>(
+    "nearby_species", nearbyArgs(block, kingdom, q, page, withLifecycle));
 }
 
 export interface PestModel {

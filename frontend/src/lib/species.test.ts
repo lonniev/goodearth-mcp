@@ -180,3 +180,30 @@ describe("a picture is only shown when the answer admits to the name", () => {
     assert.equal((await photosByName(["Fisher"], "animals")).size, 0);
   });
 });
+
+// ── A new argument must not break an old server ──────────────────────────
+
+import { describe as describeWire, it as itWire } from "node:test";
+import assertWire from "node:assert/strict";
+import { nearbyArgs } from "./wire.ts";
+
+describeWire("an optional argument at its default", () => {
+  itWire("is not sent at all", () => {
+    // The ordinary path — every search, every page turn — must look exactly as
+    // it did before the feature existed. `with_lifecycle: false` on every call
+    // is what made a working finder answer `unexpected_keyword_argument` for
+    // the minutes between the page deploying and the service catching up.
+    assertWire.deepEqual(nearbyArgs("b1", "wildlife", "", 1, false),
+      { block: "b1", kingdom: "wildlife", q: "", page: 1 });
+  });
+
+  itWire("is never sent as an explicit false", () => {
+    assertWire.ok(!("with_lifecycle" in nearbyArgs("b1", "fungi", "", 1, false)));
+  });
+
+  itWire("is sent when the grower actually asks for it", () => {
+    const sent = nearbyArgs("b1", "insects", "bee", 2, true);
+    assertWire.equal(sent.with_lifecycle, true);
+    assertWire.equal(sent.page, 2);
+  });
+});
