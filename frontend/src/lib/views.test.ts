@@ -78,6 +78,31 @@ describe("a free page stays reachable after signing in", () => {
       "the signed-in rail has no entry for the guides");
   });
 
+  // Merging Favorites and Map into My Plots is what asked for this. A rail
+  // entry is a promise that pressing it shows something; a key that no view
+  // dispatches renders the shell around an empty well, and nothing above
+  // caught it — `ViewKey` would have, but only if the retired key had been
+  // removed from VIEW_KEYS in the same edit, and there is no rule that says
+  // it must be.
+  //
+  // Both files are PARSED rather than restated here. A test carrying its own
+  // copy of the rail proves the copy, not the rail.
+  it("every rail entry leads to a view that renders", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const [shell, app] = await Promise.all([
+      readFile("src/components/AppShell.tsx", "utf8"),
+      readFile("src/App.tsx", "utf8"),
+    ]);
+    const keys = [...shell.matchAll(/\{\s*key:\s*"([a-z]+)"/g)].map((m) => m[1]);
+    assert.ok(keys.length > 5, `only found ${keys.length} rail entries — the pattern has drifted`);
+    for (const k of keys) {
+      assert.ok((VIEW_KEYS as readonly string[]).includes(k),
+        `the rail offers "${k}", which is not a view`);
+      assert.match(app, new RegExp(`view === "${k}"`),
+        `the rail offers "${k}", which App never renders`);
+    }
+  });
+
   it("every public view is dispatched for a signed-in grower too", async () => {
     const { readFile } = await import("node:fs/promises");
     const app = await readFile("src/App.tsx", "utf8");
