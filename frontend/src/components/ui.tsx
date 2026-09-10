@@ -10,7 +10,7 @@
 // restate them. Where a difference remains it should be because the content
 // differs, not because someone typed the class list again.
 
-import { useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import Term from "./Term";
 
 /// One field style, for every text and date input on every page.
@@ -166,6 +166,18 @@ export function SpeciesChiclet({
 /// the subtree instead — rendering the chart in an overlay — would unmount it,
 /// and a grower who had zoomed into July would land back at the whole season
 /// for the crime of wanting a better look.
+/// Whether the chart being rendered is currently full screen.
+///
+/// A chart cannot ask its own frame otherwise, and it needs to: these plots
+/// carry a FIXED viewBox aspect, so filling the width of a full screen makes
+/// them wider and no taller. The height went unused. A chart that reads this
+/// picks a taller box and gets the whole screen rather than half of it.
+const Fullscreen = createContext(false);
+
+export function useChartFullscreen(): boolean {
+  return useContext(Fullscreen);
+}
+
 export function ChartFrame({ label, children }: {
   label: string; children: ReactNode;
 }) {
@@ -205,13 +217,16 @@ export function ChartFrame({ label, children }: {
         </div>
       )}
 
-      {/* Centred rather than stretched. These charts are drawn wide and short
-          — 740 units by 150 — so filling the height would either distort them
-          or run them off the sides. Full screen buys the WIDTH, which is the
-          axis a season is long in; the space it cannot use is shared top and
-          bottom instead of dumped underneath. */}
+      {/* Full screen buys BOTH axes now. It used to buy only width: the plots
+          carry a fixed viewBox aspect, so a wider box was a proportionally
+          taller one and the rest of the screen was shared out as blank margin
+          above and below. A chart that reads `useChartFullscreen` picks a
+          taller box instead and uses the height it was given. One that does
+          not is still centred, exactly as before. */}
       <div className={open ? "flex min-h-0 flex-1 items-center" : ""}>
-        <div className={open ? "w-full" : ""}>{children}</div>
+        <div className={open ? "w-full" : ""}>
+          <Fullscreen.Provider value={open}>{children}</Fullscreen.Provider>
+        </div>
       </div>
 
       {!open && (

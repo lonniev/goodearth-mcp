@@ -15,17 +15,34 @@
 // than guessed at.
 
 import { useUnits } from "./Units";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { SeasonCurveResult } from "../lib/mcp";
 import type { LedgerFlag } from "../lib/ledgerFlags";
 import { placeLabels } from "../lib/labelPlacement";
 import { dateFor, dayNumber, timelineDomain } from "../lib/seasonDays";
+import { seasonBounds } from "../lib/meteoSeason";
+import { useChartFullscreen } from "./ui";
 import { regionImageUrl } from "../lib/basemapImage";
-import { TIMESCALES, useChartZoom, windowToDomain } from "../lib/useChartZoom";
+import { DEFAULT_SPAN, useChartZoom, windowToDomain } from "../lib/useChartZoom";
+import { spanTarget } from "../lib/chartSpan";
 import ZoomControls, { AxisZoom } from "./ZoomControls";
 import { dateTicks } from "../lib/dateTicks";
 
-const W = 740, H = 268, L = 46, R = 716, T = 16, B = 232;
+const W = 740, L = 46, R = 716, T = 16;
+
+/// The box's height, and with it the plot's.
+///
+/// The viewBox aspect is fixed, so `w-full` in a full-screen frame made the
+/// chart wider and — proportionally — taller, leaving most of a tall screen
+/// as margin. A taller box spends that height on the plot instead. The extra
+/// goes to the GDD axis, which is the one the spread ribbon lives on.
+const H_INLINE = 268;
+/// Bounds on the measured full-screen height. The floor is the inline box —
+/// full screen must never make the plot SHORTER — and the ceiling stops a very
+/// tall window from stretching the curve into a wall.
+const H_FULL_MIN = H_INLINE, H_FULL_MAX = 900;
+/// Room under the plot for the date axis, in either box.
+const AXIS_H = 36;
 
 // SVG <text> does not wrap — it runs off the plot and over whatever is there.
 // So labels are broken into tspans here, on whole words, with a hard split for
@@ -100,8 +117,24 @@ export default function SeasonChart({
   data, frostDayIndex = null, flags = [], onFlag, showGround = true, overlay = null,
 }: Props) {
   const u = useUnits();
-  const { zoom, zoomX, zoomY, reset, showSpan, isZoomed, svgRef } = useChartZoom();
-  const [span, setSpan] = useState<string | null>("season");
+  // Full screen gets a taller box, so the height it buys is spent on the plot
+  // rather than on margin above and below it.
+  //
+  // MEASURED, not chosen. A fixed full-screen height was 885 px tall on a
+  // 834 px iPad — the plot alone was bigger than the window, so the span
+  // buttons under it were pushed off the bottom and the frame had to scroll.
+  // A number that fits one screen is wrong on every other one.
+  const full = useChartFullscreen();
+  const shell = useRef<HTMLDivElement | null>(null);
+  const [fullH, setFullH] = useState(H_INLINE);
+  const H = full ? fullH : H_INLINE;
+  const B = H - AXIS_H;
+  // The drag gutter has to follow the plot. Left at its 268-box default it
+  // would sit inside a full-screen plot, and a drag beginning on the curve
+  // would scale the date axis instead of panning.
+  const { zoom, zoomX, zoomY, reset, showSpan, isZoomed, svgRef } =
+    useChartZoom({ plotBottom: B / H });
+  const [span, setSpan] = useState<string | null>(DEFAULT_SPAN);
   const clipId = "ge-plot-clip";
   const ground = showGround && data.region?.bbox ? regionImageUrl(data.region.bbox) : null;
 
@@ -227,8 +260,8 @@ export default function SeasonChart({
           Math.round(u.degreeDays(gLo)).toLocaleString()}–${Math.round(u.degreeDays(gHi)).toLocaleString()}${u.ddUnit}`
       : "";
 
-    return { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, rangeLabel, totalDays, placement, dayOf, endDayOf, domLo, domHi, seriesHi, extended };
-  }, [data, zoom, flags]);
+    return { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, rangeLabel, totalDays, placement, dayOf, endDayOf, domLo, domHi, seriesHi, extended, origin };
+  }, [data, zoom, flags, B]);
 
   if (!view) {
     return (
@@ -238,37 +271,89 @@ export default function SeasonChart({
     );
   }
 
-  // A timeline long enough to hold next January's task opens on the season,
-  // not on the whole of it. Runs once per domain change and only while the
-  // reader has not zoomed — panning somewhere and being yanked back would be
-  // worse than opening in the wrong place.
+  /// Move the window to a named span.
+  ///
+  /// Three kinds, and only one of them is a plain day count:
+  ///
+  ///   * **annual** — the whole timeline, however far a dated task stretches
+  ///     it. This is what the button labelled "Season" used to do.
+  ///   * **season** — the METEOROLOGICAL quarter today falls in, centred on
+  ///     the quarter rather than on today, because a season has its own middle
+  ///     and sliding it to sit under the reader would show half of it.
+  ///   * anything else — that many days, centred on today, which is where the
+  ///     reader is standing.
+  ///
+  /// Every day count is measured against the DOMAIN's length, never the
+  /// array's. `showSpan` turns days into a fraction of the total it is handed,
+  /// so handing it the series length while the domain reaches into next
+  /// January would make each button lie by the ratio between them — "Week"
+  /// quietly showing a fortnight is a wrong reading that looks right.
+  const goToSpan = useCallback((key: string) => {
+    if (!view) return;
+    setSpan(key);
+    const t = spanTarget(key, {
+      today: view.last, origin: view.origin, domLo: view.domLo, domHi: view.domHi,
+    });
+    if (t === "full") { reset(); return; }
+    showSpan(t.days, view.domHi - view.domLo + 1, t.anchor);
+  }, [view, showSpan, reset]);
+
+  /// The opening view: a fortnight with today in the middle of it.
+  ///
+  /// It used to open on the recorded season, and only when a dated task had
+  /// stretched the timeline past it. A grower opening the page is asking what
+  /// to do this week; the year is one tap away on Annual.
+  ///
+  /// Runs once per domain change and only while the reader has not zoomed —
+  /// panning somewhere and being yanked back would be worse than opening in
+  /// the wrong place.
   const domainKey = view ? `${view.domLo}:${view.domHi}` : "";
   useEffect(() => {
-    if (!view?.extended || isZoomed) return;
-    const span = view.domHi - view.domLo + 1;
-    showSpan(view.seriesHi + 1, span, view.seriesHi - view.domLo);
+    if (!view || isZoomed) return;
+    goToSpan(DEFAULT_SPAN);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [domainKey]);
 
-  /// Put the window over the recorded season, wherever it sits in the domain.
-  const showSeason = useCallback(() => {
-    if (!view) return;
-    const span = view.domHi - view.domLo + 1;
-    if (span <= view.seriesHi + 1) return;   // domain IS the season; FULL is right
-    showSpan(view.seriesHi + 1, span, view.seriesHi - view.domLo);
-  }, [view, showSpan]);
+  /// How tall the plot can be and still leave its own controls on screen.
+  ///
+  /// Everything in this card that is NOT the plot — the span buttons, the
+  /// hint line, the legend — plus whatever the frame put above it, is already
+  /// laid out and none of it depends on the plot's height. So the space left
+  /// over is a straight subtraction, and it converges in one pass rather than
+  /// chasing itself.
+  useLayoutEffect(() => {
+    if (!full) { setFullH(H_INLINE); return; }
+    const measure = () => {
+      const card = shell.current, svg = svgRef.current;
+      if (!card || !svg) return;
+      const plot = svg.getBoundingClientRect();
+      const other = card.scrollHeight - plot.height;
+      const avail = window.innerHeight - card.getBoundingClientRect().top - other - 12;
+      if (plot.width > 0 && avail > 140) {
+        setFullH(Math.max(H_FULL_MIN,
+          Math.min(H_FULL_MAX, Math.round((W * avail) / plot.width))));
+      }
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [full, svgRef]);
 
-  const { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, rangeLabel, placement, dayOf, endDayOf, domLo, domHi } = view;
-  const todayIndex = last;
+  const { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, rangeLabel, placement, dayOf, endDayOf, origin } = view;
   const todayGdd = mean[last];
+  /// The meteorological quarter the curve's last recorded day falls in — the
+  /// name on the Season button, and the window it opens.
+  const thisSeason = seasonBounds(dateFor(last, origin) ?? "");
 
   return (
-    <div className="overflow-x-auto rounded-md border border-rule bg-panel px-2.5 pt-3.5 pb-2">
+    <div ref={shell} className="overflow-x-auto rounded-md border border-rule bg-panel px-2.5 pt-3.5 pb-2">
       {/* The degree-day control sits beside the degree-day axis. This is the
           one chart in the app that actually plots GDD, which is why the shared
-          row could not go on calling its vertical button "GDD". */}
+          row could not go on calling its vertical button "GDD".
+          Spelled out, because the column has the height for it and "GDD" is
+          an abbreviation a first-time grower has to look up. */}
       <div className="flex items-stretch">
-      <AxisZoom onZoom={zoomY} label={u.ddUnit.trim()} />
+      <AxisZoom onZoom={zoomY} label="Grow Degree Days" short={u.ddUnit.trim()} />
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
@@ -453,9 +538,12 @@ export default function SeasonChart({
           })}
 
         <circle cx={x(last)} cy={y(todayGdd)} r={4.5} fill="var(--color-ink)" />
-          <text x={x(last) + 7} y={y(todayGdd) + 4} fontSize={10.5} fontWeight={700} fill="var(--color-ink)"
+          <text x={x(last) + 7} y={y(todayGdd) - 1} fontSize={10.5} fontWeight={700} fill="var(--color-ink)"
             paintOrder="stroke" stroke="var(--color-panel)" strokeWidth={3.5} strokeLinejoin="round">
-            today · {Math.round(u.degreeDays(todayGdd)).toLocaleString()}
+            <tspan x={x(last) + 7}>today</tspan>
+            <tspan x={x(last) + 7} dy={11}>
+              {Math.round(u.degreeDays(todayGdd)).toLocaleString()}{u.ddUnit}
+            </tspan>
           </text>
         </g>
 
@@ -505,25 +593,22 @@ export default function SeasonChart({
 
       <ZoomControls
         onZoomX={(f) => { setSpan(null); zoomX(f); }}
-        // Reset means "show me the season", not "show me the whole domain".
-        // Once the timeline reaches past the curve to hold a task next
-        // January, the whole domain is mostly empty, and landing there would
-        // make the season a smudge in the corner.
-        onReset={() => { setSpan("season"); reset(); showSeason(); }}
+        // Reset returns to the view the page opened on, not to the whole
+        // domain. Once the timeline reaches past the curve to hold a task next
+        // January, the whole domain is mostly empty — and landing there is
+        // what the Annual button is for.
+        onReset={() => goToSpan(DEFAULT_SPAN)}
         isZoomed={isZoomed}
         range={rangeLabel}
         activeSpan={span}
-        onSpan={(days) => {
-          setSpan(TIMESCALES.find((t) => t.days === days)?.key ?? null);
-          // Anchor on today, because that is where the reader is standing —
-          // a month view that lands in March is a month of the wrong month.
-          // In DAYS against the domain's own length. showSpan turns days into
-          // a fraction of the total it is handed, so handing it the array
-          // length while the domain is longer would make every button lie by
-          // the ratio between them — "Week" quietly showing a fortnight is a
-          // wrong reading that looks right.
-          showSpan(days, domHi - domLo + 1, todayIndex - domLo);
-        }}
+        onSpan={goToSpan}
+        // The button says which season it will show. "Season" beside
+        // "3 months" tells a reader nothing; "Fall" tells them everything.
+        spanLabels={thisSeason ? { season: thisSeason.name } : undefined}
+        spanTitles={thisSeason
+          ? { season: `${thisSeason.start} → ${thisSeason.end}`,
+              annual: "The whole timeline, however far your dated tasks reach" }
+          : undefined}
       />
 
       <div className="flex flex-wrap gap-3.5 px-2 pt-2 pb-1 text-[11.5px] text-ink-soft">

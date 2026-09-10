@@ -150,7 +150,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
           the ground, so neither is repeated here. What is left is the two
           dials a grower actually set, and the way to the sources. */}
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1.5">
-        <h1 className="figure text-[22px] font-bold leading-none">{u.ddUnit.trim()}</h1>
+        <h1 className="figure text-[22px] font-bold leading-none">Dashboard</h1>
         {data && (
           <div className="flex flex-wrap items-center gap-1.5">
             <Tag>base {u.showTemp(data.base_temp_f)}</Tag>
@@ -237,7 +237,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
           <button onClick={() => setShowFlags((v) => !v)}
             className={`min-h-11 rounded-full border px-3.5 text-[12px] font-medium ${
               showFlags ? "border-ink bg-ink text-paper" : "border-rule text-ink-soft active:bg-band"}`}>
-            {flags.length} of your events
+            Events
           </button>
         )}
         <button onClick={cycleWeather} disabled={wxBusy}

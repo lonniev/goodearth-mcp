@@ -39,7 +39,7 @@ const I = (d: ReactNode) => (
 export const RAIL: RailItem[] = [
   { key: "plots", label: "My Plots", ready: true,
     icon: I(<><path d="M1 6l7-3 8 3 7-3v15l-7 3-8-3-7 3z" /><path d="M8 3v15M16 6v15" /></>) },
-  { key: "ledger", label: "GDD", ready: true,
+  { key: "ledger", label: "Dashboard", ready: true,
     icon: I(<><path d="M3 20h18M4 16c3-7 6-9 8-9s5 2 8 9" /></>) },
   { key: "almanac", label: "Almanac", ready: true,
     icon: I(<><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>) },
