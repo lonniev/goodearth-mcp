@@ -1,0 +1,6 @@
+/* The app's own stylesheet, plus the one line that makes Tailwind look at the
+   app's source. Without it Tailwind scans only this directory, emits none of
+   the layout classes the components use, and every measurement taken through
+   this harness is of a page that does not exist. */
+@import "../src/index.css";
+@source "../src";

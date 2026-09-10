@@ -10,7 +10,7 @@
 // restate them. Where a difference remains it should be because the content
 // differs, not because someone typed the class list again.
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import Term from "./Term";
 
 /// One field style, for every text and date input on every page.
@@ -166,16 +166,25 @@ export function SpeciesChiclet({
 /// the subtree instead — rendering the chart in an overlay — would unmount it,
 /// and a grower who had zoomed into July would land back at the whole season
 /// for the crime of wanting a better look.
-/// Whether the chart being rendered is currently full screen.
+/// The frame a chart is being drawn in: whether it is full screen, and how
+/// much height it has been given.
 ///
 /// A chart cannot ask its own frame otherwise, and it needs to: these plots
 /// carry a FIXED viewBox aspect, so filling the width of a full screen makes
-/// them wider and no taller. The height went unused. A chart that reads this
-/// picks a taller box and gets the whole screen rather than half of it.
-const Fullscreen = createContext(false);
+/// them wider and no taller. The height went unused.
+///
+/// `slotH` is the frame's OWN measurement of the space left after its header,
+/// and it is the number that matters. The chart used to work it out from
+/// `window.innerHeight - card.top` — but the card is vertically centred, so
+/// its top moved with its height, which moved with the plot's height. That
+/// loop has a fixed point, and the fixed point left about 80 px of slack
+/// split evenly above and below. It converged on being wrong.
+export interface ChartSlot { full: boolean; slotH: number }
 
-export function useChartFullscreen(): boolean {
-  return useContext(Fullscreen);
+const Frame = createContext<ChartSlot>({ full: false, slotH: 0 });
+
+export function useChartFrame(): ChartSlot {
+  return useContext(Frame);
 }
 
 export function ChartFrame({ label, children }: {
@@ -196,20 +205,34 @@ export function ChartFrame({ label, children }: {
     };
   }, [open]);
 
+  // The slot is measured rather than inferred: `flex-1 min-h-0` makes its
+  // height exactly what the header left over, whatever the chart puts in it.
+  const slot = useRef<HTMLDivElement>(null);
+  const [slotH, setSlotH] = useState(0);
+  useLayoutEffect(() => {
+    if (!open) { setSlotH(0); return; }
+    const measure = () => { if (slot.current) setSlotH(slot.current.clientHeight); };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [open]);
+
   return (
     <div className={open
-      ? "fixed inset-0 z-50 flex flex-col gap-2 overflow-auto bg-paper p-3"
+      // `overflow-hidden` on the panel and `overflow-auto` on the slot, so the
+      // slot's height is decided by the layout and never by its contents.
+      ? "fixed inset-0 z-50 flex flex-col overflow-hidden bg-paper px-2 pt-1.5 pb-0"
       : "relative"}>
       {open && (
         <div className="flex shrink-0 items-center gap-2">
-          <span className="figure text-[16px] font-semibold">{label}</span>
-          <span className="data text-[11px] text-ink-soft">Esc to close</span>
+          <span className="figure text-[15px] font-semibold">{label}</span>
+          <span className="data text-[10.5px] text-ink-soft">Esc to close</span>
           {/* Beside the title, not at the foot of the page. A close control
               parked below a short chart sat alone in half a screen of nothing,
               nowhere near where the eye goes to leave. */}
           <button type="button" onClick={() => setOpen(false)}
             title={`Close ${label}`} aria-label={`Close ${label}`}
-            className="ml-auto inline-flex h-11 w-11 items-center justify-center rounded text-ink-soft active:bg-band">
+            className="ml-auto inline-flex h-8 w-11 items-center justify-center rounded text-ink-soft active:bg-band">
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true">
               <path d={ICON.collapse} />
             </svg>
@@ -223,9 +246,10 @@ export function ChartFrame({ label, children }: {
           above and below. A chart that reads `useChartFullscreen` picks a
           taller box instead and uses the height it was given. One that does
           not is still centred, exactly as before. */}
-      <div className={open ? "flex min-h-0 flex-1 items-center" : ""}>
+      <div ref={slot}
+        className={open ? "min-h-0 flex-1 overflow-auto" : ""}>
         <div className={open ? "w-full" : ""}>
-          <Fullscreen.Provider value={open}>{children}</Fullscreen.Provider>
+          <Frame.Provider value={{ full: open, slotH }}>{children}</Frame.Provider>
         </div>
       </div>
 
