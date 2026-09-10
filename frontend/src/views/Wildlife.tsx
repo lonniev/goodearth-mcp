@@ -27,7 +27,7 @@ import SpeciesFinder from "../components/SpeciesFinder";
 import type { Chosen } from "../lib/basket";
 import type { SavedRegion } from "../lib/regions";
 import {
-  CELL, Empty, ErrorBox, PageTitle, Pill, RowActions, Section, SpeciesMark,
+  CELL, Empty, ErrorBox, PageTitle, RowActions, Section, SpeciesMark,
 } from "../components/ui";
 import { speciesHabits, type SpeciesHabitsResult } from "../lib/mcp";
 
@@ -395,7 +395,7 @@ export default function Wildlife({
           Four labelled rows of chiclets, each capped at 24, of 377 creatures
           recorded around one block — with no way to reach the rest. Scanning
           is what that was good at and searching is what fits the numbers. */}
-      <Section emoji="🔭" title="Recorded nearby">
+      <Section emoji="🔭" title="Community Observations">
         <Provenance tool="goodearth_nearby_species" at={catAt} onCost={onCost} />
       </Section>
 
@@ -403,16 +403,15 @@ export default function Wildlife({
         block={region.id}
         blockName={region.name}
         kingdom={kingdom}
+        kingdoms={[
+          { key: "wildlife", label: "🦌 Wildlife" },
+          { key: "fungi", label: "🍄 Fungi" },
+        ]}
+        onKingdom={(k) => setKingdom(k as "wildlife" | "fungi")}
         adding={addingMany}
         hint="What people have actually seen near here. Choose any number, keep searching, then add them all. They go on the roster named and undated — the clock and its figure are yours to set."
         onAdd={addChosen}
       />
-
-      <div className="mt-2 flex flex-wrap gap-1.5">
-        {([["wildlife", "🦌 Wildlife"], ["fungi", "🍄 Fungi"]] as const).map(([k, label]) => (
-          <Pill key={k} active={kingdom === k} onClick={() => setKingdom(k)}>{label}</Pill>
-        ))}
-      </div>
 
       {habitsOf && (
         <div className="mb-3 rounded-md border border-rule border-l-4 border-l-growth bg-panel px-4 py-3">

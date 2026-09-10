@@ -447,7 +447,7 @@ export default function Pests({
           The sightings list used to sit above, capped at eighteen with no way
           to see the rest — of 3,542 insects and spiders recorded around one
           block. Searching is the only shape that fits that. */}
-      <Section emoji="🔭" title="Recorded nearby" />
+      <Section emoji="🔭" title="Community Observations" />
       <SpeciesFinder
         block={region.id}
         blockName={region.name}

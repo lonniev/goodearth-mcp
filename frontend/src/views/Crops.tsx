@@ -763,7 +763,7 @@ export default function Crops({
           grower who wanted six plants did that six times. There are 2,267
           plants recorded around one block, so a grid was never going to be
           the shape of it. */}
-      <Section emoji="🔭" title="Recorded nearby">
+      <Section emoji="🔭" title="Community Observations">
         <Provenance tool="goodearth_nearby_species" at={nearAt} onCost={onCost} />
       </Section>
 
