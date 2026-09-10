@@ -11,6 +11,7 @@
 // are one gesture rather than two.
 
 import { useEffect, useState } from "react";
+import { LifecycleMark } from "./ui";
 import { speciesDetail, type SpeciesDetail } from "../lib/species";
 import Term from "./Term";
 
@@ -94,7 +95,7 @@ export default function SpeciesCard({
                   of="observations" />
                 {" · "}
                 {info.observations.toLocaleString()} worldwide
-                {hasYear && <> · <Term label="has a year" of="has_a_year" /></>}
+                {hasYear && <> · <LifecycleMark /></>}
               </p>
             </div>
           </div>

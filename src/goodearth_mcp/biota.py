@@ -70,6 +70,12 @@ _INAT_PAGE = 200
 #: it is a runaway guard, not a limit on what a place holds.
 _INAT_MAX_PAGES = 200
 
+#: How many pages of a full scan are fetched at once.
+#:
+#: Enough that a scan is two or three round trips deep rather than thirteen,
+#: small enough to stay a polite caller at a public API that asks for it.
+_SCAN_BATCH = 5
+
 
 async def fetch_inat_species(
     bbox: tuple[float, float, float, float],
@@ -116,29 +122,50 @@ async def fetch_inat_species(
     if q.strip():
         params["q"] = q.strip()
 
+    # One page when one was asked for; page one and then the rest when not.
+    # `last` went with the serial loop that used to walk between them.
     first = 1 if page is None else max(1, page)
-    last = _INAT_MAX_PAGES if page is None else first
 
     results: list[Any] = []
     total = 0
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-        for page_no in range(first, last + 1):
+
+        async def fetch(page_no: int) -> tuple[list[Any], int]:
             data = await _json(client, _INAT, {**params, "page": page_no})
             rows = data.get("results") if isinstance(data, dict) else None
             if not isinstance(rows, list):
                 raise BiotaError("iNaturalist returned an unexpected shape")
-            if isinstance(data, dict) and isinstance(data.get("total_results"), int):
-                total = data["total_results"]
-            results.extend(rows)
-            # A short page, everything the service says there is, or as much as
-            # the caller asked for. Trusting only one of these loops forever
-            # when the other is what arrives.
-            if len(rows) < size:
-                break
-            if total and len(results) >= total:
-                break
-            if limit is not None and len(results) >= limit:
-                break
+            said = data.get("total_results") if isinstance(data, dict) else None
+            return rows, said if isinstance(said, int) else 0
+
+        rows, total = await fetch(first)
+        results.extend(rows)
+
+        # Everything after the first page, TOGETHER.
+        #
+        # This was a serial loop, and it is the shape that made a full scan
+        # cost the sum of its round trips: 2,416 insects is thirteen pages of
+        # two hundred, thirteen requests one after another, about fifteen
+        # seconds — long enough that a filter built on it would be unusable.
+        # The first page is what tells us how many there are, so it still goes
+        # alone; the rest have no order to them and no reason to queue.
+        #
+        # Bounded rather than all at once. Thirteen simultaneous requests at a
+        # public API is not neighbourly, and iNaturalist asks callers to be.
+        if page is None and len(rows) >= size:
+            want = total if total else _INAT_PAGE * _INAT_MAX_PAGES
+            if limit is not None:
+                want = min(want, limit)
+            pages = min(_INAT_MAX_PAGES, -(-want // size))
+            rest = list(range(first + 1, first + pages))
+            for i in range(0, len(rest), _SCAN_BATCH):
+                got = await asyncio.gather(*(fetch(n) for n in rest[i : i + _SCAN_BATCH]))
+                short = False
+                for page_rows, _ in got:
+                    results.extend(page_rows)
+                    short = short or len(page_rows) < size
+                if short or (limit is not None and len(results) >= limit):
+                    break
 
     # A page's rows are a WINDOW on the total, not a count of it. Taking the
     # max here would report page 3 of 2,196 as "60 species near you".

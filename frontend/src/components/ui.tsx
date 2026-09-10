@@ -11,6 +11,7 @@
 // differs, not because someone typed the class list again.
 
 import { useEffect, useState, type ReactNode } from "react";
+import Term from "./Term";
 
 /// One field style, for every text and date input on every page.
 ///
@@ -439,4 +440,21 @@ export function MonthDay({ value, onChange, label }: {
       </span>
     </span>
   );
+}
+
+
+/// A published life cycle, as a glyph rather than as the words "has a year".
+///
+/// Those words were on every marked row, in the finder's legend, in the page's
+/// hint and on the species card — four places saying one thing, and "has a
+/// year" is not a phrase anybody uses out loud.
+///
+/// It carries the glossary's own explanation, so wherever the glyph appears it
+/// can be asked what it means. That is the point of it living here: three
+/// copies of a glyph is three chances for one of them to be a bare emoji
+/// nobody can interrogate.
+export const LIFECYCLE = "\u{1F504}";
+
+export function LifecycleMark() {
+  return <Term label={<span aria-hidden="true">{LIFECYCLE}</span>} of="has_a_year" />;
 }

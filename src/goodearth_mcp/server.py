@@ -1229,6 +1229,16 @@ async def nearby_species(
         )),
     ] = "",
     page: Annotated[int, Field(description="Which page. 20 to a page.")] = 1,
+    with_lifecycle: Annotated[
+        bool,
+        Field(
+            description=(
+                "Only the ones USA-NPN publishes a life cycle for. The count "
+                "then counts those, not everything recorded here — thirty-nine "
+                "of 2,416 insects around one block have one."
+            ),
+        ),
+    ] = False,
     npub: Annotated[
         str,
         Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
@@ -1265,7 +1275,8 @@ async def nearby_species(
     parsed, _found = await _block_region(npub, block)
 
     try:
-        return await catalog.region_nearby_species(parsed, kingdom, q=q, page=page)
+        return await catalog.region_nearby_species(
+            parsed, kingdom, q=q, page=page, with_lifecycle=with_lifecycle)
     except catalog.CatalogError as exc:
         return {"success": False, "error": str(exc), "error_code": "invalid_request"}
 

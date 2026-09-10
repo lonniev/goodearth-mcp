@@ -19,12 +19,13 @@ import { useEffect, useState } from "react";
 import { nearbySpecies, type NearbyItem } from "../lib/mcp";
 import { addLabel, clampPage, finderState, holds, toggle,
   type Chosen } from "../lib/basket";
-import { FIELD, ICON, IconButton } from "./ui";
+import { FIELD, ICON, IconButton, LIFECYCLE, LifecycleMark, Pill } from "./ui";
 import SpeciesCard from "./SpeciesCard";
 import Term from "./Term";
 
 /// Long enough not to search on every keystroke, short enough to feel live.
 const DEBOUNCE_MS = 300;
+
 
 export type Kingdom = "plants" | "insects" | "wildlife" | "fungi";
 
@@ -52,16 +53,24 @@ export default function SpeciesFinder({
   /// and no name tells you whether that is the tree or the bug that lives on
   /// it — so a row can be read before it is chosen.
   const [reading, setReading] = useState<number | null>(null);
+  /// Only the ones with a published life cycle.
+  ///
+  /// Server-side, because filtering the twenty rows in hand would answer "one
+  /// of the twenty on this page" — the page size standing in for the total,
+  /// which is the fault this whole finder replaced. Thirty-nine of the 2,416
+  /// insects around one block have one, and turning 121 pages to find them is
+  /// not finding them.
+  const [onlyCycle, setOnlyCycle] = useState(false);
 
   // A new search starts at the beginning. Staying on page 40 while the result
   // shrinks to thirteen shows an empty page and no reason for it.
-  useEffect(() => { setPage(1); setReading(null); }, [q, kingdom]);
+  useEffect(() => { setPage(1); setReading(null); }, [q, kingdom, onlyCycle]);
 
   useEffect(() => {
     const ac = new AbortController();
     const t = setTimeout(() => {
       setBusy(true);
-      nearbySpecies(block, kingdom, q.trim(), page)
+      nearbySpecies(block, kingdom, q.trim(), page, onlyCycle)
         .then((r) => {
           if (ac.signal.aborted) return;
           if (!r.success) {
@@ -80,7 +89,7 @@ export default function SpeciesFinder({
         .finally(() => { if (!ac.signal.aborted) setBusy(false); });
     }, DEBOUNCE_MS);
     return () => { ac.abort(); clearTimeout(t); };
-  }, [block, kingdom, q, page]);
+  }, [block, kingdom, q, page, onlyCycle]);
 
   const go = (to: number) => setPage(clampPage(to, total, 20));
   const state = finderState({ busy, error: err, rows: rows.length, total, page, pages });
@@ -101,9 +110,15 @@ export default function SpeciesFinder({
       </div>
 
       {hint && <p className="mt-1.5 text-[12px] leading-relaxed text-ink-soft">{hint}</p>}
-      <p className="data mt-1 text-[11px] text-ink-soft">
-        Tap a name to read what it is · <Term label="has a year" of="has_a_year" />
-      </p>
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1.5">
+        <Pill active={onlyCycle} onClick={() => setOnlyCycle((v) => !v)}
+          title="Only the ones USA-NPN publishes a life cycle for">
+          {LIFECYCLE} Has a life cycle
+        </Pill>
+        <span className="data text-[11px] text-ink-soft">
+          Tap a name to read what it is · <LifecycleMark /> a published life cycle
+        </span>
+      </div>
       {err && <p className="mt-2 text-[12.5px] text-clay">{err}</p>}
 
       {/* The count is the point. "20 of 3,542" is what the old catalogue never
@@ -160,9 +175,10 @@ export default function SpeciesFinder({
                   </span>
                   <span className="data shrink-0 text-right text-[10.5px] text-ink-soft">
                     {(r.observations ?? 0).toLocaleString()}
-                    {r.has_habits && (
-                      <span className="block text-honey">has a year</span>
-                    )}
+                    {/* The glyph, not the sentence. It carries the glossary's
+                        own words, so it can be asked what it means wherever it
+                        appears rather than only in the legend. */}
+                    {r.has_habits && <span className="block"><LifecycleMark /></span>}
                   </span>
                 </button>
               </div>

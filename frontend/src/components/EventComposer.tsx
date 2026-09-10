@@ -30,7 +30,8 @@ import Provenance from "./Provenance";
 import { useSubmit } from "../lib/useSubmit";
 import { useUnits } from "./Units";
 import {
-  ErrorBox, FIELD, MonthDay, Note, Pill, Section, SpeciesMark, Stepper,
+  ErrorBox, FIELD, LifecycleMark, MonthDay, Note, Pill, Section, SpeciesMark,
+  Stepper,
 } from "./ui";
 
 type Driver = "calendar" | "interval" | "daylight" | "heat" | "condition";
@@ -314,7 +315,7 @@ export default function EventComposer({
                       arithmetic dressed up as a fact. */}
                   {p.yours ? <span className="text-growth">yours</span>
                     : (p.observations ?? 0).toLocaleString()}
-                  {p.hasHabits && <span className="block text-honey">has a year</span>}
+                  {p.hasHabits && <span className="block"><LifecycleMark /></span>}
                 </span>
               </button>
             ))}

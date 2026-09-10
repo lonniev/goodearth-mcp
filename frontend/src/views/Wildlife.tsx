@@ -404,7 +404,7 @@ export default function Wildlife({
         blockName={region.name}
         kingdom={kingdom}
         adding={addingMany}
-        hint="What people have actually seen near here. Choose any number, keep searching, then add them all. They go on the roster named and undated — the clock and its figure are yours to set, and “has a year” marks the ones USA-NPN tracks a life cycle for."
+        hint="What people have actually seen near here. Choose any number, keep searching, then add them all. They go on the roster named and undated — the clock and its figure are yours to set."
         onAdd={addChosen}
       />
 
