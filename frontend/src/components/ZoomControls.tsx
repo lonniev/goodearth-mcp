@@ -37,6 +37,10 @@ interface Props {
   /// Rendered under the buttons — the visible range, so the reader always
   /// knows what window they are looking at.
   range?: string;
+  /// One row instead of three, and no gesture hint. For full screen, where
+  /// every pixel these take is one the plot does not get. The gestures still
+  /// work; only the sentence describing them goes.
+  compact?: boolean;
 }
 
 // 44 px minimum: this is used with a finger on a tablet, where a 24 px button
@@ -107,11 +111,14 @@ export function AxisZoom({ onZoom, label, short }: {
 
 export default function ZoomControls({
   onZoomX, onReset, isZoomed, range, onSpan, activeSpan, spanLabels, spanTitles,
+  compact,
 }: Props) {
   return (
-    <div className="flex flex-wrap items-center gap-3 px-2 pt-2 text-[11px] text-ink-soft">
+    <div className={`flex flex-wrap items-center gap-3 px-2 text-[11px] text-ink-soft ${
+      compact ? "pt-1" : "pt-2"}`}>
       {onSpan && (
-        <span className="flex w-full flex-wrap items-center gap-1.5 pb-1">
+        <span className={`flex flex-wrap items-center gap-1.5 ${
+          compact ? "" : "w-full pb-1"}`}>
           <span className="eyebrow mr-0.5">Span</span>
           {TIMESCALES.map((t) => (
             <button key={t.key} onClick={() => onSpan(t.key)}
@@ -150,10 +157,12 @@ export default function ZoomControls({
 
       {/* Say the gesture that always works FIRST. A pinch on iPadOS can escape
           to the browser's own page zoom, so it is offered but never relied on. */}
-      <span className="data w-full text-[10px] leading-relaxed opacity-70">
-        drag the left edge to stretch the scale · drag along the bottom for dates ·
-        double-tap in, two-finger tap out{isZoomed ? " · drag the middle to pan" : ""}
-      </span>
+      {!compact && (
+        <span className="data w-full text-[10px] leading-relaxed opacity-70">
+          drag the left edge to stretch the scale · drag along the bottom for dates ·
+          double-tap in, two-finger tap out{isZoomed ? " · drag the middle to pan" : ""}
+        </span>
+      )}
     </div>
   );
 }

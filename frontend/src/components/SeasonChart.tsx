@@ -21,7 +21,7 @@ import type { LedgerFlag } from "../lib/ledgerFlags";
 import { placeLabels } from "../lib/labelPlacement";
 import { dateFor, dayNumber, timelineDomain } from "../lib/seasonDays";
 import { seasonBounds } from "../lib/meteoSeason";
-import { useChartFullscreen } from "./ui";
+import { useChartFrame } from "./ui";
 import { regionImageUrl } from "../lib/basemapImage";
 import { DEFAULT_SPAN, useChartZoom, windowToDomain } from "../lib/useChartZoom";
 import { spanTarget } from "../lib/chartSpan";
@@ -124,7 +124,7 @@ export default function SeasonChart({
   // 834 px iPad — the plot alone was bigger than the window, so the span
   // buttons under it were pushed off the bottom and the frame had to scroll.
   // A number that fits one screen is wrong on every other one.
-  const full = useChartFullscreen();
+  const { full, slotH } = useChartFrame();
   const shell = useRef<HTMLDivElement | null>(null);
   const [fullH, setFullH] = useState(H_INLINE);
   const H = full ? fullH : H_INLINE;
@@ -322,22 +322,22 @@ export default function SeasonChart({
   /// over is a straight subtraction, and it converges in one pass rather than
   /// chasing itself.
   useLayoutEffect(() => {
-    if (!full) { setFullH(H_INLINE); return; }
-    const measure = () => {
-      const card = shell.current, svg = svgRef.current;
-      if (!card || !svg) return;
-      const plot = svg.getBoundingClientRect();
-      const other = card.scrollHeight - plot.height;
-      const avail = window.innerHeight - card.getBoundingClientRect().top - other - 12;
-      if (plot.width > 0 && avail > 140) {
-        setFullH(Math.max(H_FULL_MIN,
-          Math.min(H_FULL_MAX, Math.round((W * avail) / plot.width))));
-      }
-    };
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, [full, svgRef]);
+    if (!full || slotH <= 0) { setFullH(H_INLINE); return; }
+    const card = shell.current, svg = svgRef.current;
+    if (!card || !svg) return;
+    const plot = svg.getBoundingClientRect();
+    // Everything in this card that is NOT the plot — the span buttons, the
+    // legend, the card's own padding. None of it depends on the plot's
+    // height, so this is a straight subtraction from the height the FRAME
+    // measured, and it settles in one pass. Deriving the space from the
+    // card's own position instead is what left 80 px of slack: the card is
+    // centred, so its top moved with its height, which moved with the plot.
+    const avail = slotH - (card.scrollHeight - plot.height) - 6;
+    if (plot.width > 0 && avail > 140) {
+      setFullH(Math.max(H_FULL_MIN,
+        Math.min(H_FULL_MAX, Math.round((W * avail) / plot.width))));
+    }
+  }, [full, slotH, svgRef]);
 
   const { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, rangeLabel, placement, dayOf, endDayOf, origin } = view;
   const todayGdd = mean[last];
@@ -346,7 +346,8 @@ export default function SeasonChart({
   const thisSeason = seasonBounds(dateFor(last, origin) ?? "");
 
   return (
-    <div ref={shell} className="overflow-x-auto rounded-md border border-rule bg-panel px-2.5 pt-3.5 pb-2">
+    <div ref={shell} className={`overflow-x-auto rounded-md border border-rule bg-panel ${
+      full ? "px-1 pt-1 pb-0" : "px-2.5 pt-3.5 pb-2"}`}>
       {/* The degree-day control sits beside the degree-day axis. This is the
           one chart in the app that actually plots GDD, which is why the shared
           row could not go on calling its vertical button "GDD".
@@ -602,6 +603,10 @@ export default function SeasonChart({
         range={rangeLabel}
         activeSpan={span}
         onSpan={goToSpan}
+        // Full screen puts the rows side by side and drops the gesture hint —
+        // 140 px of controls under a plot that is competing for the same
+        // height is the framing the reader asked to get back.
+        compact={full}
         // The button says which season it will show. "Season" beside
         // "3 months" tells a reader nothing; "Fall" tells them everything.
         spanLabels={thisSeason ? { season: thisSeason.name } : undefined}
@@ -611,7 +616,8 @@ export default function SeasonChart({
           : undefined}
       />
 
-      <div className="flex flex-wrap gap-3.5 px-2 pt-2 pb-1 text-[11.5px] text-ink-soft">
+      <div className={`flex flex-wrap gap-3.5 px-2 text-[11.5px] text-ink-soft ${
+        full ? "pt-0.5 pb-0" : "pt-2 pb-1"}`}>
         {data.normals && (
           <span className="inline-flex items-center gap-1.5">
             <i className="inline-block h-2.5 w-4.5 bg-band" />{data.normals.span_years}-season range
