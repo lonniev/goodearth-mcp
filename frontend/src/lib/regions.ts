@@ -88,10 +88,17 @@ export interface SavedRegion {
   baseTempF: number;
 }
 
+/// The worked example's id, exported because four files were checking for it
+/// by re-typing the string. A block is treated differently for being the
+/// example — it cannot be forgotten, it is captioned as not yours, and the
+/// migration skips it — so a typo in any one copy is a silent wrong answer,
+/// not a compile error.
+export const EXAMPLE_ID = "example-champlain";
+
 /// A worked example so a first-time grower sees a real answer before drawing
 /// anything. Champlain Valley — the ground the tool was developed against.
 export const EXAMPLE_REGION: SavedRegion = {
-  id: "example-champlain",
+  id: EXAMPLE_ID,
   name: "Champlain Valley",
   baseTempF: 50,
   region: {

@@ -5,7 +5,7 @@ import { saveBlock } from "../lib/saveBlock";
 import { useUnits } from "./Units";
 import { useEffect, useRef, useState } from "react";
 import {
-  deleteRegion, listRegions, parsePastedGeoJSON, pinRegion,
+  deleteRegion, EXAMPLE_ID, listRegions, parsePastedGeoJSON, pinRegion,
   type SavedRegion,
 } from "../lib/regions";
 
@@ -65,12 +65,7 @@ export default function RegionPicker({
     }
   }
 
-  /// The worked example, marked as one. It renders exactly like a real block
-  /// — name, area, satellite ground — and nothing said otherwise, so a
-  /// first-time reader could take it for a guess at where they are.
-  const EXAMPLE = "example-champlain";
-
-  const detail = active.id === EXAMPLE
+  const detail = active.id === EXAMPLE_ID
     // Said in the one place a reader always sees, because the example is
     // otherwise indistinguishable from ground they drew.
     ? "worked example — not your ground"
@@ -106,7 +101,7 @@ export default function RegionPicker({
                   }`}
                 >
                   {r.name}
-                  {r.id === EXAMPLE && (
+                  {r.id === EXAMPLE_ID && (
                     <span className="ml-2 rounded-full bg-band px-1.5 py-0.5 text-[10px] font-semibold text-ink-soft">
                       example
                     </span>
@@ -115,7 +110,7 @@ export default function RegionPicker({
                     {"lat" in r.region ? `pin ${r.region.radius_m} m` : "polygon"}
                   </span>
                 </button>
-                {r.id !== EXAMPLE && (
+                {r.id !== EXAMPLE_ID && (
                   <button
                     onClick={() => setRegions(deleteRegion(r.id))}
                     aria-label={`Forget ${r.name}`}

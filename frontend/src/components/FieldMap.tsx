@@ -27,7 +27,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import L from "leaflet";
-import { coverageHours, fetchRadarIndex, frameLabel, RADAR_MAX_NATIVE_ZOOM, tileUrl, type RadarIndex } from "../lib/radar";
+import { coverageLabel, fetchRadarIndex, frameLabel, RADAR_MAX_NATIVE_ZOOM, tileUrl, type RadarIndex } from "../lib/radar";
 import {
   areaM2, distanceM, formatArea, isDrawable, type LatLng,
 } from "../lib/geo";
@@ -331,12 +331,8 @@ export default function FieldMap({ value, onChange, others = [], centreOn }: Pro
                   {frameLabel(radar.frames[frame])}
                 </span>
               </div>
-              {/* Say what it actually covers. Radar is an observation, so it
-                  cannot reach into tomorrow however the control is drawn. */}
               <p className="data mt-1 text-[10px] leading-snug text-ink-soft">
-                Last {coverageHours(radar).toFixed(1)} h of observed radar · about 1 km per pixel
-                {radar.frames.some((f) => f.kind === "nowcast") && " plus a short nowcast"}.
-                Radar is an echo off real rain — for tomorrow, the Almanac carries the forecast.
+                {coverageLabel(radar)}
               </p>
             </>
           )}

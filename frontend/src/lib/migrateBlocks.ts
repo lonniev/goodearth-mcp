@@ -20,6 +20,7 @@
 // instead of re-sending what already arrived.
 
 import { claimLegacy } from "./legacyOwner";
+import { EXAMPLE_ID } from "./regions";
 import { liftVerdict } from "./liftVerdict";
 import {
   blockItemSave, blockSave, getStoredNpub, type ItemKind, type Region,
@@ -71,10 +72,6 @@ interface LegacyRegion {
   region: Region;
   baseTempF?: number;
 }
-
-/// The worked example is synthesised, never saved, and must not become a real
-/// block — every grower would acquire a Champlain Valley they never drew.
-const EXAMPLE_ID = "example-champlain";
 
 export interface MigrationReport {
   ran: boolean;

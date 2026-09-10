@@ -19,16 +19,12 @@ import {
   type LatLng, type Place,
 } from "../lib/geo";
 import { blockSave } from "../lib/mcp";
-import { deleteRegion, listRegions, type SavedRegion } from "../lib/regions";
+import { deleteRegion, EXAMPLE_ID, listRegions, type SavedRegion } from "../lib/regions";
 import { saveBlock } from "../lib/saveBlock";
 
 const EMPTY: MapValue = { mode: "polygon", ring: [], centre: null, radiusM: 400 };
 
 const RADII = [200, 400, 800, 1600, 3200];
-
-/// The worked example. It renders exactly like a real block, so it is the one
-/// row that may not be forgotten — there would be nothing to stand on after.
-const EXAMPLE = "example-champlain";
 
 export default function Plots({
   active, onPick, onSaved, synced = true,
@@ -196,12 +192,7 @@ export default function Plots({
 
   return (
     <>
-      <div className="mb-3.5 flex items-baseline gap-3">
-        <h1 className="figure text-[26px] font-bold">My Plots</h1>
-        <span className="text-[13px] text-ink-soft">
-          {synced ? "the ground you work" : "the ground you work — checking for more"}
-        </span>
-      </div>
+      <h1 className="figure mb-3.5 text-[26px] font-bold">My Plots</h1>
 
       {/* ── Find the farm ──────────────────────────────────────────────── */}
       <div className="mb-2.5 flex flex-wrap items-center gap-2">
@@ -278,16 +269,12 @@ export default function Plots({
                     onClick={() => onPick(r)}
                     className="min-h-11 rounded border-[1.5px] border-ink px-4 text-[13px] font-semibold active:bg-ink active:text-paper"
                   >
-                    Work this ground
+                    Work this plot
                   </button>
                 )}
-                {r.id !== EXAMPLE && (
-                  <button
-                    onClick={() => { setConfirming(r); setErr(""); }}
-                    className="min-h-11 rounded px-3 text-[13px] text-ink-soft active:text-clay"
-                  >
-                    Forget
-                  </button>
+                {r.id !== EXAMPLE_ID && (
+                  <IconButton path={ICON.delete} label={`Forget ${r.name}`} tone="quiet" hideLabel
+                    onClick={() => { setConfirming(r); setErr(""); }} />
                 )}
               </div>
             </div>
@@ -299,7 +286,7 @@ export default function Plots({
       <div className="mt-4 rounded-md border border-rule bg-panel p-4">
         <div className="grid gap-3 sm:grid-cols-[2fr_1fr_auto] sm:items-end">
           <label className="block text-[11px] text-ink-soft">
-            Name this ground
+            Name
             <input value={name} onChange={(e) => setName(e.target.value)}
               placeholder="East Bench"
               className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" />
@@ -371,9 +358,9 @@ export default function Plots({
                 undone from the bar on its page; a block cannot, which is the
                 whole reason this asks first. */}
             <p className="mt-2 text-[13px] leading-relaxed">
-              The ground and everything recorded on it — crops, pests, watches,
+              The plot and everything recorded on it — crops, pests, watches,
               reports — stop appearing anywhere. Nothing is deleted: the record
-              keeps it, and saving the block again brings it back.
+              keeps it, and saving the plot again brings it back.
             </p>
             {err && <p className="mt-2 text-[12.5px] text-clay">{err}</p>}
             <div className="mt-4 flex justify-end gap-2">
@@ -396,11 +383,6 @@ export default function Plots({
         </div>
       )}
 
-      <p className="mt-4 text-[12px] leading-relaxed text-ink-soft">
-        Imagery is the default layer because a field is easier to recognise from
-        the air than from a road map. Nothing you draw leaves your browser until
-        you ask a question about it.
-      </p>
     </>
   );
 }
