@@ -53,15 +53,47 @@ export const FULL: ZoomState = { x: { lo: 0, hi: 1 }, y: { lo: 0, hi: 1 } };
 /// week is the finest span that still shows a shape — anything below it is
 /// seven points and a straight line, and "hours" would need an hourly fetch
 /// this chart does not make.
+///
+/// `days: null` means the CHART resolves it, because the answer depends on
+/// what that chart is plotting. "Season" is the meteorological quarter the
+/// reader is standing in — autumn in September, not January to December —
+/// and "Annual" is the whole timeline, which is what "Season" used to do.
+/// Those two were one button, and it showed a grower asking for the season a
+/// year of it.
 export const TIMESCALES: { key: string; label: string; days: number | null }[] = [
   { key: "season", label: "Season", days: null },
+  { key: "annual", label: "Annual", days: null },
   { key: "quarter", label: "3 months", days: 90 },
   { key: "month", label: "Month", days: 30 },
   { key: "fortnight", label: "2 weeks", days: 14 },
   { key: "week", label: "Week", days: 7 },
 ];
 
+/// The span a chart opens on: a fortnight, with today in the middle of it.
+///
+/// A grower opening the page is asking what to do this week, not what the year
+/// looked like. The year is one tap away on Annual.
+export const DEFAULT_SPAN = "fortnight";
+
+export function daysFor(key: string): number | null {
+  return TIMESCALES.find((t) => t.key === key)?.days ?? null;
+}
+
 const MIN_SPAN = 0.02; // never zoom past ~2% of the domain
+
+/// The x window that shows `days` out of `total`, centred on `anchorIdx`.
+///
+/// Pure, because "today is in the middle of the range" is the claim the
+/// opening view rests on, and inside a hook it could only be checked by
+/// looking at a picture. Clamping at a domain edge is the one case where the
+/// anchor does NOT end up centred — a fortnight around a day three days from
+/// the end cannot be, and sliding the window in is better than showing empty
+/// space past the end of the timeline.
+export function spanWindow(days: number, total: number, anchorIdx?: number): Window1D {
+  const frac = Math.min(days / total, 1);
+  const centre = anchorIdx != null ? anchorIdx / (total - 1) : 1 - frac / 2;
+  return clampWindow({ lo: centre - frac / 2, hi: centre + frac / 2 });
+}
 
 function clampWindow(w: Window1D): Window1D {
   let { lo, hi } = w;
@@ -72,7 +104,16 @@ function clampWindow(w: Window1D): Window1D {
   }
   if (lo < 0) { hi += -lo; lo = 0; }
   if (hi > 1) { lo -= hi - 1; hi = 1; }
-  return { lo: Math.max(lo, 0), hi: Math.min(hi, 1) };
+  // Snap the residue. Sliding a window in from an edge leaves arithmetic like
+  // lo = 1.1e-16, and `isZoomed` is `lo > 0` — so a chart showing the WHOLE
+  // domain reported itself zoomed, which switched the cursor to a grab hand,
+  // turned on vertical panning, and made the opening view decline to set
+  // itself because "the reader has already zoomed".
+  const EPS = 1e-9;
+  return {
+    lo: lo < EPS ? 0 : Math.max(lo, 0),
+    hi: hi > 1 - EPS ? 1 : Math.min(hi, 1),
+  };
 }
 
 /// Zoom one axis about an anchor point (0..1 within the *current* window),
@@ -90,20 +131,28 @@ function panBy(w: Window1D, delta: number): Window1D {
 }
 
 /// Which gutter a pointer went down in — the axis it will scale.
-type Grab = "plot" | "x-axis" | "y-axis";
+export type Grab = "plot" | "x-axis" | "y-axis";
 
 /// The plot area as a fraction of the SVG box, matching the charts' L/R/T/B.
 /// Anything left of the plot scales Y; anything below it scales X.
 const PLOT_LEFT = 0.062;
-const PLOT_BOTTOM = 0.87;
 
-function grabZone(fx: number, fy: number): Grab {
+/// Where the plot stops and the date axis begins, as a fraction of the box.
+///
+/// 0.87 is B/H for the ordinary 740×268 box. It is a DEFAULT, not a constant:
+/// the season curve grows to 740×560 full screen, where the same fraction sits
+/// 37 px INSIDE the plot — so a drag that began on the curve would have scaled
+/// the date axis instead of panning. A number correct for one shape, left
+/// standing when a second shape arrived.
+export const PLOT_BOTTOM = 0.87;
+
+export function grabZone(fx: number, fy: number, plotBottom = PLOT_BOTTOM): Grab {
   if (fx < PLOT_LEFT) return "y-axis";
-  if (fy > PLOT_BOTTOM) return "x-axis";
+  if (fy > plotBottom) return "x-axis";
   return "plot";
 }
 
-export function useChartZoom() {
+export function useChartZoom({ plotBottom = PLOT_BOTTOM } = {}) {
   const [zoom, setZoom] = useState<ZoomState>(FULL);
   const svgRef = useRef<SVGSVGElement | null>(null);
 
@@ -119,12 +168,7 @@ export function useChartZoom() {
   /// today, normally, because that is where a grower is standing.
   const showSpan = useCallback((days: number | null, total: number, anchorIdx?: number) => {
     if (days == null || total <= 1) { setZoom(FULL); return; }
-    const frac = Math.min(days / total, 1);
-    const centre = anchorIdx != null ? anchorIdx / (total - 1) : 1 - frac / 2;
-    setZoom((z) => ({
-      ...z,
-      x: clampWindow({ lo: centre - frac / 2, hi: centre + frac / 2 }),
-    }));
+    setZoom((z) => ({ ...z, x: spanWindow(days, total, anchorIdx) }));
   }, []);
 
   const isZoomed = zoom.x.lo > 0 || zoom.x.hi < 1 || zoom.y.lo > 0 || zoom.y.hi < 1;
@@ -224,7 +268,11 @@ export function useChartZoom() {
     const down = (e: PointerEvent) => {
       const box = el.getBoundingClientRect();
       if (active.size === 0) {
-        grab = grabZone((e.clientX - box.left) / box.width, (e.clientY - box.top) / box.height);
+        grab = grabZone(
+          (e.clientX - box.left) / box.width,
+          (e.clientY - box.top) / box.height,
+          plotBottom,
+        );
       }
       active.set(e.pointerId, { x: e.clientX, y: e.clientY });
       el.setPointerCapture(e.pointerId);
@@ -293,7 +341,7 @@ export function useChartZoom() {
       el.removeEventListener("pointerup", up);
       el.removeEventListener("pointercancel", up);
     };
-  }, [isZoomed, panX, panY, zoomX, zoomY]);
+  }, [isZoomed, panX, panY, plotBottom, zoomX, zoomY]);
 
   return { zoom, setZoom, zoomX, zoomY, panX, panY, reset, showSpan, isZoomed, isPanned, svgRef };
 }

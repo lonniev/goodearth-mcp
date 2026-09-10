@@ -22,8 +22,18 @@ interface Props {
   onReset: () => void;
   isZoomed: boolean;
   /// Named spans. Jumping to an altitude beats pinching your way there.
-  onSpan?: (days: number | null) => void;
+  ///
+  /// The KEY travels, not the day count. Two spans now resolve to "whatever
+  /// this chart decides" — Season and Annual — and a day count of `null`
+  /// cannot tell them apart.
+  onSpan?: (key: string) => void;
   activeSpan?: string | null;
+  /// Per-key label overrides, for a span whose name depends on the data. The
+  /// Season button reads "Fall" in September, because a button that says what
+  /// it will do beats one the reader has to press to find out.
+  spanLabels?: Record<string, string>;
+  /// Per-key tooltips, same reason.
+  spanTitles?: Record<string, string>;
   /// Rendered under the buttons — the visible range, so the reader always
   /// knows what window they are looking at.
   range?: string;
@@ -67,9 +77,15 @@ function Glass({ kind }: { kind: "in" | "out" }) {
 /// `label` is the chart's OWN quantity — degree days, °F, inches, hours — so
 /// the control can never again claim to scale something the chart does not
 /// plot.
-export function AxisZoom({ onZoom, label }: {
+export function AxisZoom({ onZoom, label, short }: {
   onZoom: (factor: number) => void;
   label: string;
+  /// A shorter form for a narrow column. The full name is what a reader wants
+  /// — "GDD" is an abbreviation they have to look up — but a phone gives the
+  /// gutter about 150 px between the two buttons, and vertical text does not
+  /// wrap. So the full name where it fits and this where it does not, with
+  /// `title` and `aria-label` always carrying the whole of it.
+  short?: string;
 }) {
   return (
     <div className="flex shrink-0 flex-col items-center justify-center gap-1 pl-1">
@@ -77,7 +93,10 @@ export function AxisZoom({ onZoom, label }: {
         aria-label={`Zoom in on ${label}`} title={`Expand the ${label} scale`}>
         <Glass kind="in" />
       </button>
-      <span className="eyebrow text-[9px] leading-none [writing-mode:vertical-rl] [text-orientation:mixed]">{label}</span>
+      <span title={label}
+        className="eyebrow text-[9px] leading-none [writing-mode:vertical-rl] [text-orientation:mixed]">
+        {short ? <><span className="hidden sm:inline">{label}</span><span className="sm:hidden">{short}</span></> : label}
+      </span>
       <button className={BTN} onClick={() => onZoom(1.4)}
         aria-label={`Zoom out on ${label}`} title={`Compress the ${label} scale`}>
         <Glass kind="out" />
@@ -87,7 +106,7 @@ export function AxisZoom({ onZoom, label }: {
 }
 
 export default function ZoomControls({
-  onZoomX, onReset, isZoomed, range, onSpan, activeSpan,
+  onZoomX, onReset, isZoomed, range, onSpan, activeSpan, spanLabels, spanTitles,
 }: Props) {
   return (
     <div className="flex flex-wrap items-center gap-3 px-2 pt-2 text-[11px] text-ink-soft">
@@ -95,12 +114,13 @@ export default function ZoomControls({
         <span className="flex w-full flex-wrap items-center gap-1.5 pb-1">
           <span className="eyebrow mr-0.5">Span</span>
           {TIMESCALES.map((t) => (
-            <button key={t.key} onClick={() => onSpan(t.days)}
+            <button key={t.key} onClick={() => onSpan(t.key)}
+              title={spanTitles?.[t.key]}
               className={`min-h-11 rounded-full border px-3.5 text-[12px] font-medium ${
                 activeSpan === t.key
                   ? "border-ink bg-ink text-paper"
                   : "border-rule text-ink active:bg-band"}`}>
-              {t.label}
+              {spanLabels?.[t.key] ?? t.label}
             </button>
           ))}
         </span>
