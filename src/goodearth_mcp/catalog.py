@@ -501,6 +501,7 @@ PAGE_SIZE = 20
 
 async def region_nearby_species(
     region: Region, kingdom: str, q: str = "", page: int = 1,
+    with_lifecycle: bool = False,
 ) -> dict[str, Any]:
     """One page of what is recorded near this ground, narrowed by a search.
 
@@ -521,18 +522,43 @@ async def region_nearby_species(
     page = max(1, int(page or 1))
 
     box = search_box(region)
+    index = await _species_index()
+
+    def mark(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Which of these USA-NPN tracks a life cycle for.
+
+        The signal that made the old grouped catalogue worth tapping — "there
+        is a year to see here" — and it costs one cached index read rather than
+        a call per row.
+        """
+        for row in rows:
+            row["has_habits"] = (row.get("scientific_name") or "").lower() in index
+        return rows
+
     try:
-        rows, total = await biota.fetch_inat_species(
-            box, taxa, limit=PAGE_SIZE, q=q, page=page)
+        if with_lifecycle:
+            # Filtering has to see EVERYTHING before it can page.
+            #
+            # Thirty-nine of the 2,416 insects recorded around one Vermont
+            # block have a published life cycle. Filtering the twenty rows in
+            # hand would answer "one of the twenty on this page", which is the
+            # page size standing in for the total all over again — and finding
+            # those thirty-nine by turning 121 pages is not finding them.
+            #
+            # It costs a full scan. That was fifteen seconds while the pages
+            # were fetched one after another and is about four now they are
+            # not; see `fetch_inat_species`.
+            everything, _ = await biota.fetch_inat_species(box, taxa, q=q)
+            kept = [r for r in mark(everything) if r["has_habits"]]
+            total = len(kept)
+            start = (page - 1) * PAGE_SIZE
+            rows = kept[start : start + PAGE_SIZE]
+        else:
+            rows, total = await biota.fetch_inat_species(
+                box, taxa, limit=PAGE_SIZE, q=q, page=page)
+            mark(rows)
     except biota.BiotaError as exc:
         raise CatalogError(f"iNaturalist did not answer: {exc}") from exc
-
-    # Which of these USA-NPN tracks a life cycle for. It is the signal that
-    # made the old grouped catalogue worth tapping — "there is a year to see
-    # here" — and it costs one cached index read rather than a call per row.
-    index = await _species_index()
-    for row in rows:
-        row["has_habits"] = (row.get("scientific_name") or "").lower() in index
 
     pages = max(1, -(-total // PAGE_SIZE))
     return {
@@ -541,6 +567,9 @@ async def region_nearby_species(
         "kingdom": key,
         "looking_for": plain,
         "search": q.strip(),
+        # So a caller knows the total it was handed counts only the filtered
+        # ones, rather than everything recorded here.
+        "with_lifecycle": bool(with_lifecycle),
         "items": rows,
         "with_habits": sum(1 for r in rows if r["has_habits"]),
         "total": total,

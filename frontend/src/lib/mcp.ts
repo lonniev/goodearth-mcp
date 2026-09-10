@@ -1109,9 +1109,14 @@ export interface NearbyResult {
 /// are 3,542 insects and spiders around one Vermont block, and sweeping them
 /// cost eleven round trips to build a list nobody read.
 export async function nearbySpecies(
-  block: string, kingdom: string, q = "", page = 1,
+  block: string, kingdom: string, q = "", page = 1, withLifecycle = false,
 ): Promise<NearbyResult> {
-  return callTool<NearbyResult>("nearby_species", { block, kingdom, q, page });
+  // `with_lifecycle` changes what `total` COUNTS — the ones with a published
+  // life cycle rather than everything recorded here. The server says so in the
+  // answer, and the finder's count line reads it back without adjustment.
+  return callTool<NearbyResult>("nearby_species", {
+    block, kingdom, q, page, with_lifecycle: withLifecycle,
+  });
 }
 
 export interface PestModel {
