@@ -31,7 +31,7 @@ interface Props {
   onFrost?: (f: FrostWindowResult | null) => void;
   /// The ledger raises questions the other views answer; it should be able to
   /// hand the reader straight to them.
-  onView?: (v: "map" | "almanac" | "crops" | "pests" | "wildlife" | "reports" | "references") => void;
+  onView?: (v: "plots" | "almanac" | "crops" | "pests" | "wildlife" | "reports" | "references") => void;
 }
 
 export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
@@ -330,8 +330,8 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
             line: "Owls, coyotes, bats — what is recorded around you, on the same clocks." },
           { to: "reports" as const, emoji: "📓", title: "Field Reports",
             line: "What you saw. Enough of them and your ground gets its own calendar." },
-          { to: "map" as const, emoji: "🗺️", title: "Map",
-            line: "Draw another region, or check the radar." },
+          { to: "plots" as const, emoji: "🗺️", title: "My Plots",
+            line: "Switch ground, or draw another block." },
         ].map((c) => (
           <button key={c.to} onClick={() => onView?.(c.to)}
             className="rounded-md border border-rule bg-panel px-3.5 py-3 text-left active:border-ink">

@@ -369,7 +369,7 @@ export default function Wildlife({
       ) : modelsLoading ? (
         <Empty>Reading what you have on {region.name}…</Empty>
       ) : modelsUnknown ? (
-        <ErrorBox>This browser is set to ground the record does not have. Pick the block again from Favorites, or save it on the Map.</ErrorBox>
+        <ErrorBox>This browser is set to ground the record does not have. Pick the block again from My Plots, or draw it there.</ErrorBox>
       ) : modelsError ? (
         <ErrorBox>Could not read your record for {region.name}: {modelsError}</ErrorBox>
       ) : (

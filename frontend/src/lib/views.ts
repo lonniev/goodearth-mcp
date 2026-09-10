@@ -10,8 +10,10 @@
 // somewhere else.
 
 export const VIEW_KEYS = [
-  "map", "ledger", "almanac", "crops", "pests", "wildlife", "todo",
-  "reports", "favorites", "references", "about", "account",
+  // "My Plots" is where ground is both chosen and drawn. It replaces the pair
+  // `favorites` and `map`, which asked one question from two pages.
+  "plots", "ledger", "almanac", "crops", "pests", "wildlife", "todo",
+  "reports", "references", "about", "account",
   // The front door and what it opens onto. Reachable without an npub.
   "welcome", "plant", "pest", "tree", "animal", "glossary",
 ] as const;

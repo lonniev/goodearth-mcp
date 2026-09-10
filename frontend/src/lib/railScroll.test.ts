@@ -15,7 +15,7 @@ describe("bringing the current view into the bar", () => {
   });
 
   it("does not scroll past the left end for an early item", () => {
-    // Favorites sits at the very start; centring it would ask for a negative
+    // My Plots sits at the very start; centring it would ask for a negative
     // offset and leave a gap where the first item should be.
     assert.equal(centreOn(4, 60, VIEW, TOTAL), 0);
   });

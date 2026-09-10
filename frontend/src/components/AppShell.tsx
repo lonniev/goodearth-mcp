@@ -37,9 +37,7 @@ const I = (d: ReactNode) => (
 );
 
 export const RAIL: RailItem[] = [
-  { key: "favorites", label: "Favorites", ready: true,
-    icon: I(<><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z" /></>) },
-  { key: "map", label: "Map", ready: true,
+  { key: "plots", label: "My Plots", ready: true,
     icon: I(<><path d="M1 6l7-3 8 3 7-3v15l-7 3-8-3-7 3z" /><path d="M8 3v15M16 6v15" /></>) },
   { key: "ledger", label: "GDD", ready: true,
     icon: I(<><path d="M3 20h18M4 16c3-7 6-9 8-9s5 2 8 9" /></>) },

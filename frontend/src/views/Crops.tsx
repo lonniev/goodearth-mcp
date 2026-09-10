@@ -506,7 +506,7 @@ export default function Crops({
       ) : plantingsLoading ? (
         <Empty>Reading what you have on {region.name}…</Empty>
       ) : plantingsUnknown ? (
-        <ErrorBox>This browser is set to ground the record does not have. Pick the block again from Favorites, or save it on the Map.</ErrorBox>
+        <ErrorBox>This browser is set to ground the record does not have. Pick the block again from My Plots, or draw it there.</ErrorBox>
       ) : plantingsError ? (
         // The record is the truth here, so a failure to read it must say so.
         // Showing an empty page would claim this ground grows nothing.

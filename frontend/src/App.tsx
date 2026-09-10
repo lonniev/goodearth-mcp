@@ -31,14 +31,13 @@ import { showTemp, type Unit } from "./lib/units";
 import HeatLedger from "./views/HeatLedger";
 import Crops from "./views/Crops";
 import Pests from "./views/Pests";
-import MapView from "./views/MapView";
 import FieldReports from "./views/FieldReports";
 import Almanac from "./views/Almanac";
 import Wildlife from "./views/Wildlife";
 import References from "./views/References";
 import About from "./views/About";
 import TodoView from "./views/Todo";
-import Favorites from "./views/Favorites";
+import Plots from "./views/Plots";
 import { AVATAR_EVENT, avatarFor, hydrateAvatarFromNostr } from "./lib/avatar";
 import { fetchProfile } from "./lib/nostrProfile";
 import {
@@ -120,7 +119,7 @@ export default function App() {
   /// gate is somewhere they CHOSE to go rather than the wall they hit.
   const [asking, setAsking] = useState(false);
   /// Whether the server's blocks have arrived. Used in exactly two places —
-  /// the Favorites empty state and MapView's save button — and threaded no
+  /// the My Plots caption and its save button — and threaded no
   /// further, because everything else reads the cache and does not care.
   const [blocksSynced, setBlocksSynced] = useState(false);
   /// Whether the grower has asked to see the worked example. Until they do, a
@@ -269,14 +268,13 @@ export default function App() {
           blocksSynced && region.id === EXAMPLE_REGION.id && !showingExample ? (
             <FirstRun
               onSaved={(r) => { pickRegion(r); setShowingExample(false); }}
-              onDraw={() => setView("map")}
+              onDraw={() => setView("plots")}
               onExample={() => setShowingExample(true)}
             />
           ) : (
             <HeatLedger region={region} onCost={onCost} onFrost={setFrost} onView={setView} />
           )
         )}
-        {view === "map" && <MapView active={region} onSaved={(r) => { pickRegion(r); setView("ledger"); }} />}
         {/* Prefs travel down rather than being read again inside the view.
             A view writing localStorage on its own would be overwritten the
             next time this component saved ITS copy — the chart order would
@@ -290,7 +288,10 @@ export default function App() {
         {view === "wildlife" && <Wildlife region={region} onCost={onCost} />}
         {view === "pests" && <Pests region={region} onCost={onCost} />}
         {view === "reports" && <FieldReports region={region} onCost={onCost} />}
-        {view === "favorites" && <Favorites active={region} onPick={pickRegion} synced={blocksSynced} />}
+        {view === "plots" && (
+          <Plots active={region} onPick={pickRegion} synced={blocksSynced}
+            onSaved={(r) => { pickRegion(r); setView("ledger"); }} />
+        )}
         {view === "todo" && <TodoView region={region} onCost={onCost} onView={setView} />}
         {view === "references" && <References />}
         {view === "about" && <About />}
