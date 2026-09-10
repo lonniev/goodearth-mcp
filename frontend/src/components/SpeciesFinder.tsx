@@ -21,7 +21,6 @@ import { addLabel, clampPage, finderState, holds, toggle,
   type Chosen } from "../lib/basket";
 import { FIELD, ICON, IconButton, LIFECYCLE, LifecycleMark, Pill } from "./ui";
 import SpeciesCard from "./SpeciesCard";
-import Term from "./Term";
 
 /// Long enough not to search on every keystroke, short enough to feel live.
 const DEBOUNCE_MS = 300;
@@ -30,12 +29,19 @@ const DEBOUNCE_MS = 300;
 export type Kingdom = "plants" | "insects" | "wildlife" | "fungi";
 
 export default function SpeciesFinder({
-  block, blockName, kingdom, onAdd, adding, hint,
+  block, blockName, kingdom, kingdoms, onKingdom, onAdd, adding, hint,
 }: {
   block: string;
   /// Named in the button, because "Add 6" does not say where they are going.
   blockName: string;
   kingdom: Kingdom;
+  /// The kingdoms this view offers, when it offers a choice. Rendered in the
+  /// SAME row as the lifecycle filter and ABOVE the results, because Wildlife
+  /// had them in a stray row UNDER the table — a control below the thing it
+  /// controls reads as a footnote, and nobody looks for a filter after the
+  /// list it filters.
+  kingdoms?: readonly { key: Kingdom; label: string }[];
+  onKingdom?: (k: Kingdom) => void;
   /// Commits the basket. One write, not one per row — see `saveMany`.
   onAdd: (chosen: Chosen[]) => Promise<void>;
   adding?: boolean;
@@ -110,14 +116,22 @@ export default function SpeciesFinder({
       </div>
 
       {hint && <p className="mt-1.5 text-[12px] leading-relaxed text-ink-soft">{hint}</p>}
-      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1.5">
+      {/* One row of controls, above what they control.
+        *
+        * The legend that used to sit here — "Tap a name to read what it is ·
+        * 🔄 a published life cycle" — is gone. Tapping a row to read it is what
+        * a row is for, and the glyph is already explained by the filter beside
+        * it, which carries the same icon and can be asked what it means. */}
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        {kingdoms?.map((k) => (
+          <Pill key={k.key} active={kingdom === k.key} onClick={() => onKingdom?.(k.key)}>
+            {k.label}
+          </Pill>
+        ))}
         <Pill active={onlyCycle} onClick={() => setOnlyCycle((v) => !v)}
           title="Only the ones USA-NPN publishes a life cycle for">
-          {LIFECYCLE} Has a life cycle
+          {LIFECYCLE} With Lifecycle
         </Pill>
-        <span className="data text-[11px] text-ink-soft">
-          Tap a name to read what it is · <LifecycleMark /> a published life cycle
-        </span>
       </div>
       {err && <p className="mt-2 text-[12.5px] text-clay">{err}</p>}
 
@@ -219,9 +233,7 @@ export default function SpeciesFinder({
             className="min-h-11 rounded-full border border-rule px-3.5 text-[12.5px] disabled:opacity-40">
             More ›
           </button>
-          <span className="data text-[11px] text-ink-soft">
-            <Term label="counts are observations" of="observations" />
-          </span>
+
         </div>
       )}
     </div>
