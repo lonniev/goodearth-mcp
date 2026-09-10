@@ -212,6 +212,8 @@ export default function EventComposer({
       gdd, base, after, minNight, minDay, wet, region.id]);
 
   const ready = typeof rows !== "string";
+  /// Nothing to say: the species is the first field and it is visibly empty.
+  const obvious = !ready && !animal;
 
   // ── What the service says the dates are ────────────────────────────────
   //
@@ -284,14 +286,19 @@ export default function EventComposer({
       {error && <ErrorBox>{error}</ErrorBox>}
 
       <div className="rounded-md border border-rule bg-panel p-4">
-        {/* ── The animal ─────────────────────────────────────────────── */}
+        {/* ── What is being tracked ──────────────────────────────────── */}
+        {/* "Animal" was wrong as soon as the finder learned about fungi: a
+            chanterelle added from Community Observations lands on this same
+            record and then appears in this same list. A morel is not an
+            animal, and the label was quietly telling the grower they had put
+            it in the wrong place. */}
         <label className="block text-[11px] text-ink-soft">
-          Animal
+          Species
           <input
             value={animal ? animal.name : q}
             onFocus={() => { setOpen(true); void askCatalog(); }}
             onChange={(e) => { setAnimal(null); setQ(e.target.value); setOpen(true); }}
-            placeholder="hen, ewe, robin…"
+            placeholder="hen, ewe, robin, chanterelle…"
             className={FIELD} />
         </label>
 
@@ -310,10 +317,13 @@ export default function EventComposer({
                   )}
                 </span>
                 <span className="data shrink-0 text-right text-[10.5px] text-ink-soft">
-                  {/* An animal only the grower keeps has no sighting count,
-                      and saying "0 nearby" about a laying flock would be
-                      arithmetic dressed up as a fact. */}
-                  {p.yours ? <span className="text-growth">yours</span>
+                  {/* Something the grower already tracks has no sighting
+                      count of its own — nobody submits observations of a
+                      laying flock — and "0 nearby" about it would be
+                      arithmetic dressed up as a fact. It used to read "yours",
+                      which named the owner and not the reason. */}
+                  {p.yours
+                    ? <span className="text-growth">on your record</span>
                     : (p.observations ?? 0).toLocaleString()}
                   {p.hasHabits && <span className="block"><LifecycleMark /></span>}
                 </span>
@@ -558,8 +568,12 @@ export default function EventComposer({
               // hatch date saved against a start that is not there.
               submit.run(async () => { await onSave(rows, supersedes); reset(); });
             }} />
-          {/* The reason it is disabled, said quietly and only while it is. */}
-          {!ready && (
+          {/* The reason it is disabled — except the one that is already on
+              screen. An empty first field does not need a sentence asking for
+              it; the field is right there, blank, and the button is grey. The
+              messages worth showing are the ones a glance does not answer: a
+              count that will not parse, a day that is not a day. */}
+          {!ready && !obvious && (
             <span className="text-[12px] text-ink-soft">{rows as string}</span>
           )}
           {supersedes.length > 0 && (
