@@ -19,16 +19,12 @@ import {
   type LatLng, type Place,
 } from "../lib/geo";
 import { blockSave } from "../lib/mcp";
-import { deleteRegion, listRegions, type SavedRegion } from "../lib/regions";
+import { deleteRegion, EXAMPLE_ID, listRegions, type SavedRegion } from "../lib/regions";
 import { saveBlock } from "../lib/saveBlock";
 
 const EMPTY: MapValue = { mode: "polygon", ring: [], centre: null, radiusM: 400 };
 
 const RADII = [200, 400, 800, 1600, 3200];
-
-/// The worked example. It renders exactly like a real block, so it is the one
-/// row that may not be forgotten — there would be nothing to stand on after.
-const EXAMPLE = "example-champlain";
 
 export default function Plots({
   active, onPick, onSaved, synced = true,
@@ -276,7 +272,7 @@ export default function Plots({
                     Work this plot
                   </button>
                 )}
-                {r.id !== EXAMPLE && (
+                {r.id !== EXAMPLE_ID && (
                   <IconButton path={ICON.delete} label={`Forget ${r.name}`} tone="quiet" hideLabel
                     onClick={() => { setConfirming(r); setErr(""); }} />
                 )}

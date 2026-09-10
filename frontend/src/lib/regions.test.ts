@@ -105,3 +105,40 @@ describe("the server's answer is written down, including 'nothing'", () => {
     assert.deepEqual(listRegions().map((r) => r.name), ["Bob's field"]);
   });
 });
+
+describe("the worked example's id has one home", () => {
+  // Four files were checking for it by re-typing the string. A block is
+  // treated differently for BEING the example — it cannot be forgotten, the
+  // top bar captions it as not yours, and the migration refuses to lift it —
+  // so a typo in any one copy is a silent wrong answer rather than a compile
+  // error: a grower who could delete the example and be left with nothing, or
+  // a Champlain Valley they never drew arriving on their record.
+  //
+  // Scans the shipped sources rather than restating the list of files, so a
+  // fifth copy added later is caught too.
+  it("is typed once, in regions.ts", async () => {
+    const { readdir, readFile } = await import("node:fs/promises");
+    const roots = ["src/lib", "src/views", "src/components"];
+    const offenders: string[] = [];
+    for (const dir of roots) {
+      for (const f of await readdir(dir)) {
+        if (!f.endsWith(".ts") && !f.endsWith(".tsx")) continue;
+        if (f.endsWith(".test.ts")) continue;
+        const path = `${dir}/${f}`;
+        if (path === "src/lib/regions.ts") continue;
+        if ((await readFile(path, "utf8")).includes("example-champlain")) {
+          offenders.push(path);
+        }
+      }
+    }
+    assert.deepEqual(offenders, [],
+      `these re-type the example id instead of importing EXAMPLE_ID: ${offenders.join(", ")}`);
+  });
+
+  it("is the id the example region actually carries", async () => {
+    // The constant and the block it names cannot drift apart, because the
+    // block is built from the constant — asserted so that stays true.
+    const { EXAMPLE_ID, EXAMPLE_REGION } = await import("./regions.ts");
+    assert.equal(EXAMPLE_REGION.id, EXAMPLE_ID);
+  });
+});
