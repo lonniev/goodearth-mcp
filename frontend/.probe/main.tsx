@@ -36,7 +36,7 @@ const nights = [64, 55, 52, 63, 49, 44, 60, 51, 46, 46].map((f, i) => ({
 }));
 const frost = {
   nights, worst_night: nights[5],
-  first_frost: { median: "2026-10-13", earliest: "2026-09-19", years_on_record: 8 },
+  first_frost: { median: "2026-10-13", earliest: "2026-09-19", latest: "2026-11-02", years_on_record: 8 },
   days_to_median_first_frost: 33,
   across_region: { coldest_ground_offset_f: 4.2, terrain_correction: "applied" },
 } as never;
@@ -71,7 +71,7 @@ createRoot(document.getElementById("root")!).render(
         <ChartFrame label="The season's heat">
           <SeasonChart data={data} flags={flags} showGround={false} />
         </ChartFrame>
-        <h2 className="figure mt-6 mb-2.5 text-[18px] font-semibold">🔔 Cooling Trends</h2>
+        <h2 className="figure mt-6 mb-2.5 text-[18px] font-semibold">🔔 Trends</h2>
         <FrostCard data={frost} />
         <SoilCard data={soil} />
         <SoilCard data={soilWarming} />

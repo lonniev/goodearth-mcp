@@ -180,7 +180,8 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
           emoji="🌡️"
           value={g ? Math.round(g.mean).toLocaleString() : busy ? "…" : "—"}
           unit={data ? `GDD${sub(data.base_temp_f)}` : ""}
-          label="across your ground"
+          label={data ? `total since ${fmt(data.season_start)} · across your ground`
+                      : "total this season"}
           gauge={heatGauge(data)}
         />
         <Pulse
@@ -190,12 +191,12 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
           muted={!g || g.spread <= 0}
           label={
             !g
-              ? "hollow to bench"
+              ? "coolest to warmest ground"
               : g.spread <= 0
                 ? "every sample alike"
                 : daysApart(g, data) != null
-                  ? `hollow to bench · ≈ ${daysApart(g, data)} days`
-                  : "hollow to bench"
+                  ? `coolest to warmest · ≈ ${daysApart(g, data)} days apart`
+                  : "coolest to warmest ground"
           }
           gauge={spreadGauge(g)}
         />
@@ -234,11 +235,18 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
       </div>
 
       <div className="mb-2.5 flex flex-wrap items-center gap-2">
+        <button onClick={() => setShowGround((v) => !v)}
+          title="Ghost your ground's satellite still behind the curve"
+          className={`min-h-11 rounded-full border px-3.5 text-[12px] font-medium ${
+            showGround ? "border-ink bg-ink text-paper" : "border-rule text-ink-soft active:bg-band"}`}>
+          🛰️ Ground
+        </button>
         {flags.length > 0 && (
           <button onClick={() => setShowFlags((v) => !v)}
+            title="Your crops, pests and watches, placed where they meet this curve"
             className={`min-h-11 rounded-full border px-3.5 text-[12px] font-medium ${
               showFlags ? "border-ink bg-ink text-paper" : "border-rule text-ink-soft active:bg-band"}`}>
-            Events
+            🔔 Events
           </button>
         )}
         <button onClick={cycleWeather} disabled={wxBusy}
@@ -247,16 +255,12 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
             wx > 0 ? "border-ink bg-ink text-paper" : "border-rule text-ink-soft active:bg-band"}`}>
           {wxBusy ? "…" : wx === 0 ? "🌦️ Weather" : `${WEATHER[wx - 1].emoji} ${WEATHER[wx - 1].label}`}
         </button>
-        {almanacAt && (
-          <Provenance tool="goodearth_almanac" at={almanacAt} onCost={onCost} />
-        )}
-        <button onClick={() => setShowGround((v) => !v)}
-          title="Ghost your ground's satellite still behind the curve"
-          className={`min-h-11 rounded-full border px-3.5 text-[12px] font-medium ${
-            showGround ? "border-ink bg-ink text-paper" : "border-rule text-ink-soft active:bg-band"}`}>
-          🛰️ Ground
-        </button>
-        <Provenance tool="goodearth_gdd_season_curve" at={ranAt} onCost={onCost} />
+        <span className="ml-auto flex flex-wrap items-center justify-end gap-x-3">
+          {almanacAt && (
+            <Provenance tool="goodearth_almanac" at={almanacAt} onCost={onCost} />
+          )}
+          <Provenance tool="goodearth_gdd_season_curve" at={ranAt} onCost={onCost} />
+        </span>
       </div>
 
       {busy && !data ? (
