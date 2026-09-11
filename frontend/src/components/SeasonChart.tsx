@@ -252,16 +252,7 @@ export default function SeasonChart({
     const gridLines: number[] = [];
     for (let g = Math.ceil(gLo / step) * step; g <= gHi; g += step) gridLines.push(Math.round(g));
 
-    // Read off the timeline, not off the recorded array. The old version
-    // indexed `dates` and printed the literal word "projection" for any window
-    // whose right edge was past the last recorded day — which is most of them
-    // once the timeline can reach into next year.
-    const rangeLabel = origin
-      ? `${dateFor(Math.round(dLo), origin) ?? ""} → ${dateFor(Math.round(dHi), origin) ?? ""} · ${
-          Math.round(u.degreeDays(gLo)).toLocaleString()}–${Math.round(u.degreeDays(gHi)).toLocaleString()}${u.ddUnit}`
-      : "";
-
-    return { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, rangeLabel, totalDays, placement, dayOf, endDayOf, domLo, domHi, seriesHi, extended, origin };
+    return { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, totalDays, placement, dayOf, endDayOf, domLo, domHi, seriesHi, extended, origin };
   }, [data, zoom, flags, B]);
 
   if (!view) {
@@ -340,7 +331,7 @@ export default function SeasonChart({
     }
   }, [full, slotH, svgRef]);
 
-  const { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, rangeLabel, placement, dayOf, endDayOf, origin } = view;
+  const { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, placement, dayOf, endDayOf, origin } = view;
   const todayGdd = mean[last];
   /// The meteorological quarter the curve's last recorded day falls in — the
   /// name on the Season button, and the window it opens.
@@ -593,8 +584,8 @@ export default function SeasonChart({
         );
       })()}
 
-      <div className={`flex flex-wrap gap-3.5 px-2 text-[11.5px] text-ink-soft ${
-        full ? "pt-0.5 pb-0" : "pt-2 pb-1"}`}>
+      <div className={`flex flex-wrap justify-center gap-3.5 px-2 text-[11.5px] text-ink-soft ${
+        full ? "pt-0.5 pb-0" : "pt-1 pb-0"}`}>
         {data.normals && (
           <span className="inline-flex items-center gap-1.5">
             <i className="inline-block h-2.5 w-4.5 bg-band" />{data.normals.span_years}-season range
@@ -626,7 +617,6 @@ export default function SeasonChart({
         // what the Annual button is for.
         onReset={() => goToSpan(DEFAULT_SPAN)}
         isZoomed={isZoomed}
-        range={rangeLabel}
         activeSpan={span}
         onSpan={goToSpan}
         // Full screen puts the rows side by side and drops the gesture hint —
