@@ -168,7 +168,7 @@ def hutton(hours: list[Hour]) -> dict[str, Any]:
         "qualifying_days": qualifying,
         "periods": periods,
         "risk": "criteria met" if periods else "criteria not met",
-        "at_risk": bool(periods),
+        "qualifying": periods,
         "explain": why,
     }
 
@@ -260,7 +260,7 @@ def mills(hours: list[Hour]) -> dict[str, Any]:
         "periods": periods,
         "infection_periods": infections,
         "risk": worst or "no infection period",
-        "at_risk": bool(infections),
+        "qualifying": infections,
         "explain": (
             f"{len(infections)} infection period{'s' if len(infections) != 1 else ''} in the record"
             + (f", the worst {worst}." if worst else ".")
@@ -317,7 +317,10 @@ def wallin(hours: list[Hour]) -> dict[str, Any]:
             "at the published decision point" if total >= WALLIN_DECISION_SV
             else "accruing" if total else "none accrued"
         ),
-        "at_risk": total >= WALLIN_DECISION_SV,
+        # Wallin is CUMULATIVE — the season's accrual is its own fact, and a
+        # separate one from whether anything is happening this week.
+        "at_decision_point": total >= WALLIN_DECISION_SV,
+        "qualifying": periods,
         "explain": (
             f"{total} severity value{'s' if total != 1 else ''} accrued across "
             f"{len(periods)} wet period{'s' if len(periods) != 1 else ''}. The literature "
@@ -376,7 +379,7 @@ def botrytis(hours: list[Hour]) -> dict[str, Any]:
         "infection_periods": qualifying,
         "longest_wet_run": longest_run.as_dict() if longest_run else None,
         "risk": "conditions met" if qualifying else "conditions not met",
-        "at_risk": bool(qualifying),
+        "qualifying": qualifying,
         "explain": (
             f"{len(qualifying)} qualifying wet period{'s' if len(qualifying) != 1 else ''} in the record."
             if qualifying else
@@ -418,13 +421,62 @@ def powdery_mildew(hours: list[Hour]) -> dict[str, Any]:
         },
         "spells": spells,
         "risk": "conducive" if spells else "not conducive",
-        "at_risk": bool(spells),
+        "qualifying": spells,
         "explain": (
             f"{len(spells)} conducive spell{'s' if len(spells) != 1 else ''} — humid air without "
             f"free water. {washed} hour{'s' if washed != 1 else ''} of rain in the record worked "
             "against it. This is the model a wetness counter gets backwards: the hours the "
             "others count are the hours this one loses."
         ),
+    }
+
+
+#: How long a qualifying period stays the answer to "what about now".
+#:
+#: A DISPLAY window, not a biological claim: a lesion does not stop developing
+#: on a fourteenth day. It is here because "risk" had come to mean "at some
+#: point since January", which on any Vermont season is nearly always true and
+#: therefore says nothing — five models out of five reported risk on a farm
+#: having its driest year in a decade.
+RECENT_DAYS = 14
+
+
+def _began(period: dict[str, Any]) -> str:
+    return str(period.get("from") or period.get("start") or "")
+
+
+def timeline(
+    qualifying: list[dict[str, Any]], forecast_from: str | None, today: str | None,
+) -> dict[str, Any]:
+    """The last qualifying period and the next one, and whether either is now.
+
+    The two questions a grower actually has. A season total answers neither:
+    "twenty infection periods" on the 11th of September says nothing about
+    whether to cut flowers this afternoon.
+    """
+    dated = sorted((p for p in qualifying if _began(p)), key=_began)
+    cut = (forecast_from or "")[:10]
+    past = [p for p in dated if not cut or _began(p)[:10] < cut]
+    ahead = [p for p in dated if cut and _began(p)[:10] >= cut]
+
+    last, nxt = (past[-1] if past else None), (ahead[0] if ahead else None)
+    recent = False
+    if last and today:
+        from datetime import date as _d
+        try:
+            recent = (_d.fromisoformat(today) - _d.fromisoformat(_began(last)[:10])).days <= RECENT_DAYS
+        except ValueError:
+            recent = False
+
+    return {
+        "season_count": len(dated),
+        "last_period": last,
+        "next_period": nxt,
+        "recent": recent,
+        # What "risk" means: something happened lately, or the forecast says
+        # something is about to. Not "this ground has ever been wet".
+        "at_risk": bool(recent or nxt),
+        "recent_window_days": RECENT_DAYS,
     }
 
 
@@ -446,7 +498,12 @@ NOTE = (
 )
 
 
-def assess(model: dict[str, Any], hours: list[Hour]) -> dict[str, Any]:
+def assess(
+    model: dict[str, Any],
+    hours: list[Hour],
+    forecast_from: str | None = None,
+    today: str | None = None,
+) -> dict[str, Any]:
     """Run one validated model over the hours, whatever they turned out to be."""
     key = model["model"]
     spec = MODELS[key]
@@ -459,9 +516,28 @@ def assess(model: dict[str, Any], hours: list[Hour]) -> dict[str, Any]:
             "at_risk": False,
             "explain": "no hourly record came back for this ground, so nothing was counted.",
         }
+    out = RUNNERS[key](hours)
+    when = timeline(out.pop("qualifying", []), forecast_from, today)
     return {
         "model": key,
         "disease": model["disease"],
         "about": spec,
-        **RUNNERS[key](hours),
+        **out,
+        **when,
+        "now": _now_line(out, when),
     }
+
+
+def _now_line(out: dict[str, Any], when: dict[str, Any]) -> str:
+    """What is true TODAY, in one sentence, ahead of the season's arithmetic."""
+    if when["next_period"]:
+        return f"The forecast implies a qualifying period beginning {_began(when['next_period'])[:10]}."
+    if when["recent"]:
+        return f"A qualifying period began {_began(when['last_period'])[:10]}, inside the last {RECENT_DAYS} days."
+    if when["last_period"]:
+        return (
+            f"Nothing qualifying now or in the forecast. The most recent was "
+            f"{_began(when['last_period'])[:10]}, and there have been "
+            f"{when['season_count']} this season."
+        )
+    return "Nothing qualifying this season, and nothing in the forecast."
