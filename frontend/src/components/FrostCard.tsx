@@ -7,6 +7,7 @@
 
 import { useUnits } from "./Units";
 import { useState } from "react";
+import { isDate } from "../lib/seasonDays";
 import type { FrostLevel, FrostNight, FrostWindowResult } from "../lib/mcp";
 
 const TONE: Record<FrostLevel, { border: string; chip: string; word: string }> = {
@@ -18,6 +19,11 @@ const TONE: Record<FrostLevel, { border: string; chip: string; word: string }> =
 
 const day = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+
+/// Month and day alone. The weekday is worth saying about a night the grower
+/// may be out covering beds; it is noise on a median drawn from eight years.
+const shortDay = (iso: string) =>
+  new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
 export default function FrostCard({ data }: { data: FrostWindowResult }) {
   const u = useUnits();
@@ -55,14 +61,7 @@ export default function FrostCard({ data }: { data: FrostWindowResult }) {
       )}
 
       {data.first_frost && (
-        <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">
-          Frost normally arrives around <b className="text-ink">{day(data.first_frost.median)}</b> here,
-          earliest on record {day(data.first_frost.earliest)} —{" "}
-          {data.first_frost.years_on_record} seasons.
-          {data.days_to_median_first_frost != null && data.days_to_median_first_frost > 0 && (
-            <> That is {data.days_to_median_first_frost} days out.</>
-          )}
-        </p>
+        <FirstFrostDates first={data.first_frost} daysOut={data.days_to_median_first_frost} />
       )}
 
       {data.nights.length > 0 && <NightStrip nights={data.nights} />}
@@ -72,6 +71,50 @@ export default function FrostCard({ data }: { data: FrostWindowResult }) {
           Terrain unavailable — this is the forecast low with no drainage applied.
         </p>
       )}
+    </div>
+  );
+}
+
+/// When frost first arrives here — earliest, usual, latest.
+///
+/// The prose said two of these three and made the reader hold them: "normally
+/// around Tuesday, Oct 13 here, earliest on record Saturday, Sep 19". `latest`
+/// was in the answer all along and never shown, which is the half of the
+/// spread that says how much rope a late crop has.
+///
+/// Three dates on one line with the usual one weighted, so the eye reads the
+/// span before it reads any single date. Below `sm` they stack, because three
+/// dates squeezed across a phone is three dates nobody can read.
+function FirstFrostDates({ first, daysOut }: {
+  first: NonNullable<FrostWindowResult["first_frost"]>;
+  daysOut: number | null;
+}) {
+  const cells = [
+    { k: "earliest", label: "earliest", date: first.earliest },
+    { k: "median", label: "usually", date: first.median, lead: true },
+    { k: "latest", label: "latest", date: first.latest },
+  ].filter((c) => isDate(c.date));
+  if (!cells.length) return null;
+  return (
+    <div className="mt-2.5">
+      <div className="eyebrow mb-1 text-ink-soft">First frost</div>
+      <div className="flex flex-col gap-1.5 sm:flex-row sm:items-stretch sm:gap-0">
+        {cells.map((c) => (
+          <div key={c.k}
+            className={`flex items-baseline gap-2 sm:flex-1 sm:flex-col sm:items-center sm:gap-0.5 sm:border-l sm:border-rule sm:px-2 sm:first:border-l-0 ${
+              c.lead ? "" : "opacity-70"
+            }`}>
+            <span className="eyebrow text-ink-soft">{c.label}</span>
+            <span className={`figure ${c.lead ? "text-[17px] font-semibold" : "text-[13.5px]"}`}>
+              {shortDay(c.date)}
+            </span>
+          </div>
+        ))}
+      </div>
+      <p className="data mt-1.5 text-[10.5px] text-ink-soft">
+        {first.years_on_record} seasons on record
+        {daysOut != null && daysOut > 0 && ` · ${daysOut} days out`}
+      </p>
     </div>
   );
 }

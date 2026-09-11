@@ -593,6 +593,31 @@ export default function SeasonChart({
         );
       })()}
 
+      <div className={`flex flex-wrap gap-3.5 px-2 text-[11.5px] text-ink-soft ${
+        full ? "pt-0.5 pb-0" : "pt-2 pb-1"}`}>
+        {data.normals && (
+          <span className="inline-flex items-center gap-1.5">
+            <i className="inline-block h-2.5 w-4.5 bg-band" />{data.normals.span_years}-season range
+          </span>
+        )}
+        <span className="inline-flex items-center gap-1.5">
+          <i className="inline-block w-4.5 border-t-[3px] border-growth" />this season (mean)
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <i className="inline-block h-2.5 w-4.5 bg-growth opacity-25" />across your ground
+        </span>
+        {data.forecast && (
+          <span className="inline-flex items-center gap-1.5">
+            <i className="inline-block w-4.5 border-t-[3px] border-dashed border-growth" />7-day forecast
+          </span>
+        )}
+        {data.projection && (
+          <span className="inline-flex items-center gap-1.5">
+            <i className="inline-block w-4.5 border-t-[3px] border-dotted border-ink-soft" />projection at the recent rate
+          </span>
+        )}
+      </div>
+
       <ZoomControls
         onZoomX={(f) => { setSpan(null); zoomX(f); }}
         // Reset returns to the view the page opened on, not to the whole
@@ -618,30 +643,6 @@ export default function SeasonChart({
           : undefined}
       />
 
-      <div className={`flex flex-wrap gap-3.5 px-2 text-[11.5px] text-ink-soft ${
-        full ? "pt-0.5 pb-0" : "pt-2 pb-1"}`}>
-        {data.normals && (
-          <span className="inline-flex items-center gap-1.5">
-            <i className="inline-block h-2.5 w-4.5 bg-band" />{data.normals.span_years}-season range
-          </span>
-        )}
-        <span className="inline-flex items-center gap-1.5">
-          <i className="inline-block w-4.5 border-t-[3px] border-growth" />this season (mean)
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <i className="inline-block h-2.5 w-4.5 bg-growth opacity-25" />across your ground
-        </span>
-        {data.forecast && (
-          <span className="inline-flex items-center gap-1.5">
-            <i className="inline-block w-4.5 border-t-[3px] border-dashed border-growth" />7-day forecast
-          </span>
-        )}
-        {data.projection && (
-          <span className="inline-flex items-center gap-1.5">
-            <i className="inline-block w-4.5 border-t-[3px] border-dotted border-ink-soft" />projection at the recent rate
-          </span>
-        )}
-      </div>
     </div>
   );
 }
