@@ -61,6 +61,30 @@ export const GLOSSARY: Entry[] = [
       + "asserting one of its own.",
   },
   {
+    key: "infection_period", term: "Infection period", group: "life",
+    aka: ["qualifying period", "wet period"],
+    said: "A stretch of weather that met a disease model's criteria — long "
+      + "enough wet, at the right temperature, for an infection to have been "
+      + "possible. It says the conditions occurred, not that the crop caught "
+      + "anything: whether spores were present, and what to do about it, is "
+      + "between you and your extension service.",
+  },
+  {
+    key: "severity_value", term: "Severity value", group: "life",
+    aka: ["SV"],
+    said: "A score from 0 to 4 that one wet period contributes, from how many "
+      + "hours it ran and how warm it was. They add up across the season the "
+      + "way degree days do, which is why an early-blight answer carries a "
+      + "running total as well as a date.",
+  },
+  {
+    key: "conducive", term: "Conducive", group: "life",
+    said: "Weather that favours a disease without being an infection period — "
+      + "used here for powdery mildew, which wants humid air and is set back "
+      + "by rain. It is the one model where a wet hour counts against rather "
+      + "than for, so it is reported in its own words.",
+  },
+  {
     key: "leaf_wetness", term: "Leaf wetness", group: "life",
     aka: ["wet hours", "estimated", "wetness"],
     said: "How long a leaf stays wet, which is what decides a fungal infection "
