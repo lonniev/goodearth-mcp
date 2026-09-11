@@ -2,7 +2,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { dateTicks, unitFor } from "./dateTicks.ts";
+import { dateTicks, labelFits, unitFor } from "./dateTicks.ts";
 
 /// A year of dates from 2026-01-01, indexed by day number.
 const isoAt = (d: number): string | null => {
@@ -93,5 +93,32 @@ describe("dateTicks — the edges", () => {
       const dayNum = Number(iso.slice(8, 10));
       assert.ok(x.label.endsWith(String(dayNum)), `${x.label} is not ${iso}`);
     }
+  });
+});
+
+describe("keeping a label inside the box", () => {
+  // 9 px monospace with 1 unit of letter spacing: 6.4 units per character.
+  it("lets a label through when there is room for all of it", () => {
+    assert.equal(labelFits(600, "Sun 20", 740), true);   // 600 + 38.4 = 638.4
+    assert.equal(labelFits(100, "SEP", 740), true);
+  });
+
+  it("refuses one that would run past the edge", () => {
+    // This is the case that shipped: the last tick of a fortnight window sits
+    // near the plot's right edge and its label was clipped mid-word.
+    assert.equal(labelFits(710, "Sun 20", 740), false);  // 710 + 38.4 = 748.4
+    assert.equal(labelFits(730, "S", 740), true);
+    assert.equal(labelFits(736, "S", 740), false);
+  });
+
+  it("is exact at the boundary rather than off by a character", () => {
+    // 6 characters = 38.4 units. Starting at 701.6 ends exactly on 740.
+    assert.equal(labelFits(701.6, "Sun 20", 740), true);
+    assert.equal(labelFits(701.7, "Sun 20", 740), false);
+  });
+
+  it("scales with the font it is actually drawn in", () => {
+    assert.equal(labelFits(700, "Sun 20", 740, 9, 0), true);    // 700 + 32.4
+    assert.equal(labelFits(700, "Sun 20", 740, 20, 0), false);  // 700 + 72
   });
 });
