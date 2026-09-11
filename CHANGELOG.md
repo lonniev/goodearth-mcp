@@ -5,6 +5,38 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- `wetness` — leaf wetness estimated from hourly humidity and rain, with the
+  shared run/accumulator primitives the disease models read. Every figure is
+  labelled estimated and names its estimator; nothing here is measured.
+- `disease` — five published extension models over those hours: Hutton (late
+  blight), modified Mills (apple scab), Wallin severity values (early blight),
+  botrytis wetness, and powdery-mildew conduciveness, which is the inverse
+  case a naive wetness counter reads backwards. Conditions only — no product,
+  rate or interval, anywhere, enforced by a test.
+- `disease_window` — one hourly fetch for the season and one for the forecast,
+  shared across every model in a call, plus `resolve_disease_models` so a
+  stored `model` reference recomputes each season instead of freezing a date.
+- `goodearth_disease_risk` — wet hours on a block and what each model makes of
+  them, including which criteria were NOT met. Stateless and previewable:
+  models travel as an argument and nothing is read from or written to the
+  record. Ships unpriced.
+- `sources.fetch_wetness_history` / `fetch_wetness_forecast` — hourly
+  temperature, humidity, dew point and rain. History is PINNED to the 2 km
+  feed rather than going through `_history_any_feed`, because a wet hour is a
+  threshold reading and the reanalysis counts nearly three times as many of
+  them at Panton.
+
+### Changed
+- `pests.PUBLISHED_MODELS` now reads the wetness models from `disease.MODELS`
+  rather than restating them, so the two lists cannot drift.
+- `catalog.resolve_referenced_models` answers only for `usa-npn`. It used to
+  claim any `model` reference, which would have had it report that USA-NPN
+  publishes no dated layer for botrytis — a true sentence about a question it
+  was never asked.
+
 ## [0.1.0] - 2026-08-30
 
 Initial scaffold — T1.

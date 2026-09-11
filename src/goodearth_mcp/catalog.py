@@ -388,7 +388,14 @@ async def resolve_referenced_models(
     comes back in ``unresolved`` rather than vanishing: "NPN publishes nothing
     for this here" is an answer, and a silent omission is not.
     """
-    wanted = [p for p in pests if p.get("model") and not p.get("stages")]
+    # NPN's own references, and no others. A row naming a WETNESS model is not
+    # a row this function failed to resolve — it is one that was never asked
+    # here, and reporting "NPN publishes no dated layer for botrytis" would be
+    # a true sentence about the wrong question.
+    wanted = [
+        p for p in pests
+        if str(p.get("model") or "").strip().lower() == "usa-npn" and not p.get("stages")
+    ]
     if not wanted:
         return [], []
 
