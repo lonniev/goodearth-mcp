@@ -36,7 +36,31 @@ def day(d: str, humid_hours: int, temp: float = 60.0, rh_dry: float = 60.0) -> l
 def test_two_consecutive_qualifying_days_meet_the_criteria():
     hours = day("2026-09-03", 7) + day("2026-09-04", 8)
     out = disease.hutton(hours)
-    assert out["qualifying"] == [{"from": "2026-09-03", "to": "2026-09-04"}]
+    assert out["qualifying"] == [{"from": "2026-09-03", "to": "2026-09-04", "days": 2}]
+
+
+def test_a_long_wet_spell_is_ONE_period_not_a_pair_for_every_overlap():
+    """Hutton asks for two consecutive days, so a five-day spell holds four
+    such pairs. Counting them gave Frogdale "13 periods" for six weather
+    events — telling a grower the season was twice as bad as it was.
+    """
+    hours: list[Hour] = []
+    for d in range(28, 32):
+        hours += day(f"2026-07-{d:02d}", 9)
+    hours += day("2026-08-01", 9)
+    out = disease.hutton(hours)
+    assert out["qualifying"] == [{"from": "2026-07-28", "to": "2026-08-01", "days": 5}]
+
+
+def test_two_spells_with_a_dry_day_between_stay_two():
+    hours = day("2026-07-01", 9) + day("2026-07-02", 9) + day("2026-07-03", 0) \
+        + day("2026-07-04", 9) + day("2026-07-05", 9)
+    assert [p["from"] for p in disease.hutton(hours)["qualifying"]] == ["2026-07-01", "2026-07-04"]
+
+
+def test_a_lone_qualifying_day_is_not_a_spell():
+    hours = day("2026-07-01", 9) + day("2026-07-02", 0) + day("2026-07-03", 9)
+    assert disease.hutton(hours)["qualifying"] == []
 
 
 def test_two_qualifying_days_that_are_not_consecutive_do_NOT_meet_it():

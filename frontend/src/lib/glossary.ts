@@ -61,6 +61,18 @@ export const GLOSSARY: Entry[] = [
       + "asserting one of its own.",
   },
   {
+    key: "leaf_wetness", term: "Leaf wetness", group: "life",
+    aka: ["wet hours", "estimated", "wetness"],
+    said: "How long a leaf stays wet, which is what decides a fungal infection "
+      + "the way accumulated heat decides an insect. Good Earth ESTIMATES it: a "
+      + "real measurement is a sensor plate in a field, and no weather service "
+      + "publishes one for arbitrary ground, so an hour is counted wet when the "
+      + "modelled humidity reaches 90% or rain falls into air already close to "
+      + "its dew point. That is the standard substitution and it inherits the "
+      + "weather grid's own bias — near a lake, two feeds a couple of degrees "
+      + "apart on dew point can differ threefold on the hours they count.",
+  },
+  {
     key: "spread", term: "Spread", group: "ground",
     said: "The difference an answer shows across your block. A bench and a "
       + "hollow on the same acreage do not share a frost date, so every answer "

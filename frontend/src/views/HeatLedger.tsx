@@ -12,6 +12,7 @@ import { ChartFrame } from "../components/ui";
 import FrostCard from "../components/FrostCard";
 import EventDetail from "../components/EventDetail";
 import SoilCard from "../components/SoilCard";
+import DiseaseCard from "../components/DiseaseCard";
 import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
 import { buildFlags, taskFlags, type LedgerFlag } from "../lib/ledgerFlags";
@@ -20,7 +21,7 @@ import { pestCodec, type SavedPest } from "../lib/pestModels";
 import { wildlifeCodec, type SavedWildlife } from "../lib/wildlifeModels";
 import { useBlockItems } from "../lib/blockItems";
 import { almanacFor, type AlmanacResult, type MeasureKey,
-  frostWindow, gddSeasonCurve, soilTempProjection, taskList, type TaskRow, type FrostWindowResult, type SeasonCurveResult, type SoilWindowResult } from "../lib/mcp";
+  diseaseRisk, frostWindow, gddSeasonCurve, soilTempProjection, taskList, type TaskRow, type DiseaseRiskResult, type FrostWindowResult, type SeasonCurveResult, type SoilWindowResult } from "../lib/mcp";
 import type { SavedRegion } from "../lib/regions";
 
 interface Props {
@@ -62,6 +63,8 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
   const [frostAt, setFrostAt] = useState<Date | null>(null);
   const [soil, setSoil] = useState<SoilWindowResult | null>(null);
   const [soilAt, setSoilAt] = useState<Date | null>(null);
+  const [sick, setSick] = useState<DiseaseRiskResult | null>(null);
+  const [sickAt, setSickAt] = useState<Date | null>(null);
   const [showFlags, setShowFlags] = useState(true);
   const [openFlag, setOpenFlag] = useState<LedgerFlag | null>(null);
   const [showGround, setShowGround] = useState(true);
@@ -109,8 +112,20 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
     } catch { setSoil(null); }
   }, [region]);
 
+  const runDisease = useCallback(async () => {
+    try {
+      // Every model, because "what is my disease risk" without naming one is
+      // the ordinary question. One call reads the hours for all five.
+      const r = await diseaseRisk(region.id);
+      if (!r.success) { setSick(null); return; }
+      setSick(r); setSickAt(new Date());
+    } catch { setSick(null); }
+  }, [region]);
+
   // Re-read whenever the active region changes — the whole app is scoped by it.
-  useEffect(() => { void run(); void runFrost(); void runSoil(); }, [run, runFrost, runSoil]);
+  useEffect(() => {
+    void run(); void runFrost(); void runSoil(); void runDisease();
+  }, [run, runFrost, runSoil, runDisease]);
 
   // Every threshold the grower has entered is a GDD number, and where it meets
   // this curve is a date. The curve is already on the page, so this needs no
@@ -292,6 +307,18 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
             <Provenance tool="goodearth_soil_temp_projection" at={soilAt} onCost={onCost} />
           </div>
           <SoilCard data={soil} />
+        </>
+      )}
+
+      {sick && (
+        <>
+          {!frost && !soil && (
+            <h2 className="figure mt-6 mb-2.5 text-[18px] font-semibold">🔔 Trends</h2>
+          )}
+          <div className="flex items-baseline gap-2.5">
+            <Provenance tool="goodearth_disease_risk" at={sickAt} onCost={onCost} />
+          </div>
+          <DiseaseCard data={sick} />
         </>
       )}
 
