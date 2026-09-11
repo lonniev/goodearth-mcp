@@ -38,6 +38,7 @@ would buy is mostly imaginary anyway.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import gzip
 import hashlib
@@ -404,19 +405,113 @@ def _wetness_fingerprint() -> str:
     return hashlib.sha256(fields.encode()).hexdigest()[:8]
 
 
+#: How many month chunks to fetch at once on a cold cache. Small, because this
+#: is the only place in the service that turns one question into nine requests.
+_CHUNK_BATCH = 4
+
+
+def month_chunks(start: str, end: str, today: date) -> list[tuple[str, str, bool]]:
+    """Split a span into calendar months, saying which are finished.
+
+    THE POINT OF THE WHOLE THING. A cache key carries its span, so a key ending
+    "today" is a different key tomorrow: a patron opening the page on
+    consecutive days minted a NEW ~50 KB row each day, each holding every hour
+    the last one held plus twenty-four more. `MAX_ROWS_PER_PATRON` was the only
+    thing stopping it, and it counts ROWS — so a 56 KB hourly row and a 2.5 KB
+    daily row cost the same one of two hundred slots.
+
+    Calendar months are boundaries the clock cannot move. Tomorrow's request
+    for the same season produces the same finished months and one more day of
+    tail, so the expensive chunks are reused instead of re-minted. Measured on
+    Panton ground: 63 KB of steady state where 200 slots of daily rows would
+    have reached 7-11 MB.
+    """
+    chunks: list[tuple[str, str, bool]] = []
+    first = date.fromisoformat(start[:10])
+    last = date.fromisoformat(end[:10])
+    cursor = first
+    while cursor <= last:
+        nxt = date(cursor.year + (cursor.month == 12), (cursor.month % 12) + 1, 1)
+        close = min(nxt - timedelta(days=1), last)
+        # Finished means every hour in it is already history. A chunk reaching
+        # today is still being revised as the model runs land, so it stays on
+        # the short TTL and is rewritten in place.
+        chunks.append((cursor.isoformat(), close.isoformat(), close < today))
+        cursor = nxt
+    return chunks
+
+
+def stitch(parts: list[dict[str, Any]]) -> dict[str, Any]:
+    """Join month chunks back into one record the readers already understand.
+
+    Deduped on the hour, first copy winning. Months do not overlap, so this
+    should never fire — it is here because a double-counted wet night is an
+    infection period that did not happen, and this service has already made
+    that mistake once at the forecast seam.
+    """
+    hours: dict[str, dict[str, Any]] = {}
+    order: list[str] = []
+    fields = ("temperature_2m", "relative_humidity_2m", "dew_point_2m", "precipitation")
+    worst: dict[str, Any] | None = None
+    for rec in parts:
+        block = rec.get("hourly") or {}
+        times = block.get("time") or []
+        for i, t in enumerate(times):
+            key = str(t)
+            if key in hours:
+                continue
+            order.append(key)
+            hours[key] = {f: (block.get(f) or [None] * len(times))[i] for f in fields}
+        feed = rec.get("_feed")
+        # The answer is only as good as its coarsest part, so provenance names
+        # that one rather than the one that happened to be asked last.
+        if isinstance(feed, dict) and (
+            worst is None or int(feed.get("resolution_m") or 0) > int(worst.get("resolution_m") or 0)
+        ):
+            worst = feed
+    order.sort()
+    return {
+        "hourly": {
+            "time": order,
+            **{f: [hours[t][f] for t in order] for f in fields},
+        },
+        **({"_feed": worst} if worst else {}),
+    }
+
+
 async def wetness_history(lat: float, lon: float, start: str, end: str) -> dict[str, Any]:
-    """Hourly humidity, temperature, dew point and rain, remembered.
+    """Hourly humidity, temperature, dew point and rain, remembered by MONTH.
 
     An hour of the past does not change, and a season is ~6,000 of them — the
-    largest single answer this cache holds, and the one most worth keeping.
+    largest single answer this cache holds, and the one most worth keeping. It
+    is kept in calendar-month chunks so that keeping it does not mean keeping a
+    new copy of it every day; see `month_chunks`.
     """
     subject = f"{lat:.5f}/{lon:.5f}/{_wetness_fingerprint()}"
-    found = await _read("hourly", subject, start, end)
-    if found is not None:
-        return found
-    fresh = await sources.fetch_wetness_history(lat, lon, start, end)
-    await _write("hourly", subject, start, end, fresh)
-    return fresh
+    today = datetime.now(UTC).date()
+    chunks = month_chunks(start, end, today)
+
+    parts: list[dict[str, Any] | None] = [None] * len(chunks)
+    missing: list[int] = []
+    for i, (a, b, _finished) in enumerate(chunks):
+        found = await _read("hourly", subject, a, b)
+        if found is None:
+            missing.append(i)
+        else:
+            parts[i] = found
+
+    # Only what is missing goes upstream, and bounded — this is the one place
+    # in the service where a single question can become nine requests.
+    for i in range(0, len(missing), _CHUNK_BATCH):
+        batch = missing[i : i + _CHUNK_BATCH]
+        got = await asyncio.gather(*(
+            sources.fetch_wetness_history(lat, lon, chunks[j][0], chunks[j][1]) for j in batch
+        ))
+        for j, rec in zip(batch, got, strict=True):
+            parts[j] = rec
+            await _write("hourly", subject, chunks[j][0], chunks[j][1], rec)
+
+    return stitch([p for p in parts if p is not None])
 
 
 async def soil_history(

@@ -30,6 +30,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   them at Panton.
 
 ### Changed
+- `record_cache.wetness_history` keeps a season in CALENDAR-MONTH chunks rather
+  than as one row per span. A cache key carries its span, so a key ending
+  "today" is a different key tomorrow — a patron opening the page daily minted
+  a fresh ~50 KB row every morning, and `MAX_ROWS_PER_PATRON` counts rows, so
+  each one cost the same slot as a 2.5 KB daily row. Measured on Panton ground:
+  63 KB of steady state per block per season, against 7-11 MB of single-use
+  rows. Finished months never expire and are reused; only the current month is
+  refetched.
 - `pests.PUBLISHED_MODELS` now reads the wetness models from `disease.MODELS`
   rather than restating them, so the two lists cannot drift.
 - `catalog.resolve_referenced_models` answers only for `usa-npn`. It used to
