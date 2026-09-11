@@ -144,6 +144,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
   const g = data?.accumulated_gdd;
   const ahead = data?.normals?.ahead_of_normal_gdd ?? null;
 
+
   return (
     <>
       {/* The rail already names this view and the region chip already names
@@ -281,19 +282,10 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
         </p>
       )}
 
-      {data && (
-        <p className="data mt-2 text-[10.5px] text-ink-soft">
-          {data.region.sample_count} sample points over {data.region.area_km2.toFixed(1)} km² ·{" "}
-          {data.across_region.archive_cells_fetched} archive cell
-          {data.across_region.archive_cells_fetched === 1 ? "" : "s"} ·{" "}
-          {data.projection?.note}
-        </p>
-      )}
-
       {frost && (
         <>
           <h2 className="figure mt-6 mb-2.5 flex items-baseline gap-2.5 text-[18px] font-semibold">
-            <span className="mr-0.5">🔔</span>React
+            <span className="mr-0.5">🔔</span>Trends
             <Provenance tool="goodearth_frost_window" at={frostAt} onCost={onCost} />
           </h2>
           <FrostCard data={frost} />
@@ -302,7 +294,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
 
       {soil && (
         <>
-          {!frost && <h2 className="figure mt-6 mb-2.5 text-[18px] font-semibold">🔔 React</h2>}
+          {!frost && <h2 className="figure mt-6 mb-2.5 text-[18px] font-semibold">🔔 Trends</h2>}
           <div className="flex items-baseline gap-2.5">
             <Provenance tool="goodearth_soil_temp_projection" at={soilAt} onCost={onCost} />
           </div>
@@ -317,7 +309,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
         <EventDetail flag={openFlag} curve={data} onClose={() => setOpenFlag(null)} />
       )}
 
-      <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold">🧭 From here</h2>
+      <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold">🧭 More Views</h2>
       <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
         {[
           { to: "almanac" as const, emoji: "🌤️", title: "Almanac",

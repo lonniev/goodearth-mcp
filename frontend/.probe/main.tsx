@@ -3,6 +3,8 @@ import { createRoot } from "react-dom/client";
 import SeasonChart from "../src/components/SeasonChart";
 import { ChartFrame } from "../src/components/ui";
 import { UnitProvider } from "../src/components/Units";
+import FrostCard from "../src/components/FrostCard";
+import SoilCard from "../src/components/SoilCard";
 import "./probe.css";
 
 const N = 253;
@@ -26,6 +28,42 @@ const flags = [
   { id: "d", label: "Grey squirrel nut caching", index: 258, gdd: 800, kind: "wildlife", anchor: "date", begin: iso(258) },
 ] as never;
 
+// ── The React/Cooling-Trends cards ─────────────────────────────────────
+const nights = [64, 55, 52, 63, 49, 44, 60, 51, 46, 46].map((f, i) => ({
+  date: iso(252 + i), low_ground_f: f, forecast_low_f: f + 4,
+  level: f <= 32 ? "frost_likely" : f <= 38 ? "frost_watch" : "clear",
+  reason: "clear and calm", wind_mph: 6, cloud_pct: 20, dew_point_f: f - 6,
+}));
+const frost = {
+  nights, worst_night: nights[5],
+  first_frost: { median: "2026-10-13", earliest: "2026-09-19", years_on_record: 8 },
+  days_to_median_first_frost: 33,
+  across_region: { coldest_ground_offset_f: 4.2, terrain_correction: "applied" },
+} as never;
+
+const soil = {
+  as_of: iso(252), band: { key: "planting", label: "7\u201328 cm (planting depth, ~3\u201311 in)" },
+  threshold_f: 60, direction: "cooling", current_soil_f: 68,
+  near_term: {
+    days: Array.from({ length: 16 }, (_, i) => ({ date: iso(252 + i), soil_f: 68 - i * 0.28 })),
+    crossing_date: null,
+    note: "The soil does not cross 60 \u00b0F within the 16-day forecast.",
+  },
+  typical: { median: "2026-09-26", earliest: "2026-09-17", latest: "2026-10-03", years_on_record: 8 },
+  days_to_typical_crossing: 16, note: "",
+} as never;
+
+// Spring: the soil crosses INSIDE the forecast, and warming rather than cooling.
+const soilWarming = {
+  ...soil, direction: "warming", current_soil_f: 52, as_of: iso(100),
+  near_term: {
+    days: Array.from({ length: 16 }, (_, i) => ({ date: iso(100 + i), soil_f: 52 + i * 0.9 })),
+    crossing_date: iso(109),
+    note: "",
+  },
+  typical: { median: "2026-04-24", earliest: "2026-04-15", latest: "2026-05-06", years_on_record: 8 },
+} as never;
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <UnitProvider value="imperial">
@@ -33,6 +71,10 @@ createRoot(document.getElementById("root")!).render(
         <ChartFrame label="The season's heat">
           <SeasonChart data={data} flags={flags} showGround={false} />
         </ChartFrame>
+        <h2 className="figure mt-6 mb-2.5 text-[18px] font-semibold">🔔 Cooling Trends</h2>
+        <FrostCard data={frost} />
+        <SoilCard data={soil} />
+        <SoilCard data={soilWarming} />
       </div>
     </UnitProvider>
   </StrictMode>,

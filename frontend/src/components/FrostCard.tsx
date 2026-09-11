@@ -87,7 +87,7 @@ function NightStrip({ nights }: { nights: FrostNight[] }) {
   const [open, setOpen] = useState<string | null>(null);
   const lows = nights.map((n) => n.low_ground_f);
   const min = Math.min(...lows, 28), max = Math.max(...lows, 60);
-  const h = (v: number) => Math.max(10, Math.round(((v - min) / Math.max(max - min, 1)) * 40) + 10);
+  const h = (v: number) => Math.max(12, Math.round(((v - min) / Math.max(max - min, 1)) * 64) + 12);
   const shown = nights.find((n) => n.date === open);
 
   return (
@@ -106,12 +106,12 @@ function NightStrip({ nights }: { nights: FrostNight[] }) {
               onClick={() => setOpen(isOpen ? null : n.date)}
               aria-pressed={isOpen}
               aria-label={`${day(n.date)}, coldest ground ${Math.round(n.low_ground_f)} degrees`}
-              className={`flex min-h-11 w-11 shrink-0 flex-col items-center justify-end gap-1 rounded pb-1 ${
+              className={`flex min-h-11 min-w-11 flex-1 flex-col items-center justify-end gap-1 rounded pb-1 ${
                 isOpen ? "bg-band" : "active:bg-band"
               }`}
             >
               <span className="data text-[10px] text-ink-soft">{Math.round(n.low_ground_f)}</span>
-              <div className={`w-5 rounded-sm ${color}`} style={{ height: h(n.low_ground_f) }} />
+              <div className={`w-full max-w-14 rounded-sm ${color}`} style={{ height: h(n.low_ground_f) }} />
               <span className="data text-[10px] text-ink-soft">
                 {new Date(n.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "narrow" })}
               </span>
