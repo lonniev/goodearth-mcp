@@ -259,7 +259,7 @@ export default function Wildlife({
 
       {error && <ErrorBox>{error}</ErrorBox>}
 
-      <UndoBar kinds={["wildlife"]} onRestored={() => void reloadWildlife()} />
+      <UndoBar kinds={["wildlife"]} blockId={region.id} onRestored={() => void reloadWildlife()} />
 
       <DueSoon
         due={due}

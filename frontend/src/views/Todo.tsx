@@ -170,7 +170,7 @@ export default function TodoView({
 
       {err && <ErrorBox>{err}</ErrorBox>}
 
-      <UndoBar kinds={["task"]} onRestored={() => { refreshFeed.soon(); void load(); }} />
+      <UndoBar kinds={["task"]} blockId={region.id} onRestored={() => { refreshFeed.soon(); void load(); }} />
 
       {/* ── Write it down ──────────────────────────────────────────────── */}
       {/* No section heading: the button below names the act, and a heading

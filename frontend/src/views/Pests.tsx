@@ -219,7 +219,7 @@ export default function Pests({
 
       {error && <ErrorBox>{error}</ErrorBox>}
 
-      <UndoBar kinds={["pest"]} onRestored={() => void reloadPests()} />
+      <UndoBar kinds={["pest"]} blockId={region.id} onRestored={() => void reloadPests()} />
 
       {data && data.scout_now.length > 0 && (
         <div className="mb-5 rounded-md border border-rule border-l-4 border-l-honey bg-panel px-4 py-3">
