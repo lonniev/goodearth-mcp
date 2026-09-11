@@ -13,6 +13,7 @@ import FrostCard from "../components/FrostCard";
 import EventDetail from "../components/EventDetail";
 import SoilCard from "../components/SoilCard";
 import DiseaseCard from "../components/DiseaseCard";
+import { bands } from "../lib/diseaseBands";
 import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
 import { buildFlags, taskFlags, type LedgerFlag } from "../lib/ledgerFlags";
@@ -133,6 +134,12 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
   const flags: LedgerFlag[] = data
     ? [...buildFlags(data, plantings, pests, wildlife), ...taskFlags(tasks)]
     : [];
+
+  // What this block grows, as the grower wrote it — the record's side of the
+  // join against each model's own "developed for" list.
+  const cropNames = plantings.map((p) => p.crop).filter(Boolean);
+  // The last wet period and the next one, as washes on the date axis.
+  const wetBands = bands(data, sick);
 
   // One chiclet, one tap per measure, and a tap that clears it. The almanac is
   // fetched lazily on the first tap rather than with the page: a reader who
@@ -286,7 +293,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
         <ChartFrame label="The season's heat">
           <SeasonChart data={data} frostDayIndex={frostIndex(data, frost)}
             flags={showFlags ? flags : []} onFlag={setOpenFlag} showGround={showGround}
-            overlay={overlay} />
+            overlay={overlay} bands={wetBands} />
         </ChartFrame>
       ) : null}
 
@@ -318,7 +325,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
           <div className="flex items-baseline gap-2.5">
             <Provenance tool="goodearth_disease_risk" at={sickAt} onCost={onCost} />
           </div>
-          <DiseaseCard data={sick} />
+          <DiseaseCard data={sick} plantings={cropNames} />
         </>
       )}
 

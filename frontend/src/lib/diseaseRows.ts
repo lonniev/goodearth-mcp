@@ -6,6 +6,7 @@
 // the distinction they turn on — risk NOW against risk at some point since
 // January — is exactly the one this feature already got wrong once.
 
+import { claimedBy, matches } from "./cropMatch.ts";
 import type { DiseaseRiskResult, DiseaseVerdict } from "./mcp.ts";
 
 export type Tone = "ahead" | "recent" | "quiet";
@@ -44,16 +45,82 @@ export function rowDate(v: DiseaseVerdict): { lead: string; date: string } | nul
 /// is present — a dry Vermont year is the ordinary answer, and a card that
 /// hid its quiet models would leave the reader unable to tell "nothing found"
 /// from "not looked at".
-export function order(data: DiseaseRiskResult): { live: DiseaseVerdict[]; quiet: DiseaseVerdict[] } {
+export function order(
+  data: DiseaseRiskResult, plantings: readonly string[] = [],
+): { live: DiseaseVerdict[]; quiet: DiseaseVerdict[]; unclaimed: DiseaseVerdict[] } {
+  // A model no planting claims is set aside, not hidden. Apple scab on a
+  // flower farm was being SHOWN with a caption apologising for it — a line
+  // explaining why a row the reader did not need was there. Matching the
+  // model's own "developed for" list against the record is the fix; the
+  // caption was the patch.
+  //
+  // A block with nothing saved claims nothing, so every model stays in view.
+  // An empty record is not a statement that the ground grows everything, and
+  // it is not one that it grows nothing either.
+  const { claimed, unclaimed } = plantings.length
+    ? claimedBy(data.diseases, plantings)
+    : { claimed: data.diseases, unclaimed: [] as DiseaseVerdict[] };
   return {
-    live: data.diseases.filter((v) => v.at_risk),
-    quiet: data.diseases.filter((v) => !v.at_risk),
+    live: claimed.filter((v) => v.at_risk),
+    quiet: claimed.filter((v) => !v.at_risk),
+    unclaimed,
   };
 }
 
-export function heading(data: DiseaseRiskResult): string {
-  const live = data.diseases.filter((v) => v.at_risk).length;
-  return live
-    ? `${live} of ${data.diseases.length} models reporting risk`
+export function heading(data: DiseaseRiskResult, plantings: readonly string[] = []): string {
+  const { live, quiet } = order(data, plantings);
+  const shown = live.length + quiet.length;
+  return live.length
+    ? `${live.length} of ${shown} models reporting risk`
     : "Nothing reporting risk";
+}
+
+export interface CropWatch {
+  model: string;
+  /// The disease, as the model names it.
+  label: string;
+  /// When the next qualifying period begins, or the last one did.
+  date: string;
+  lead: "from" | "last";
+  forecast: boolean;
+}
+
+/// Which models claim THIS crop, and what each has to say about it.
+///
+/// The answer to "where does a grower see which of their crops might have
+/// disease": beside the crop, on the page that lists their crops. A model is
+/// here because its own "developed for" list names this plant — Good Earth is
+/// citing the model's scope against the record, not asserting that a crop gets
+/// a disease. That second thing is plant pathology and is not ours to publish.
+///
+/// Quiet models are left out HERE, unlike on the card. A crop ledger is a
+/// working list and a row that says "nothing, all season" beside every
+/// planting is a column of noise; the card is where absence is reported.
+export function cropWatch(data: DiseaseRiskResult | null, crop: string): CropWatch[] {
+  if (!data || !crop) return [];
+  return data.diseases
+    .filter((v) => v.at_risk && matches(crop, v.about.crops))
+    .map((v) => {
+      const r = rowDate(v);
+      return r && {
+        model: v.model,
+        label: v.disease,
+        date: r.date,
+        lead: r.lead as "from" | "last",
+        forecast: !!v.next_period,
+      };
+    })
+    .filter((w): w is CropWatch => !!w)
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/// The line that accounts for what is NOT on the card.
+///
+/// Said out loud, because a reader who knows five models exist and counts four
+/// is owed the fifth. Silence would read as a bug.
+export function asideLine(unclaimed: readonly DiseaseVerdict[]): string {
+  if (!unclaimed.length) return "";
+  const names = unclaimed.map((v) => v.disease).join(", ");
+  return `${unclaimed.length} model${unclaimed.length === 1 ? "" : "s"} set aside — `
+    + `${names} ${unclaimed.length === 1 ? "was" : "were"} developed for crops this block does not grow.`;
 }

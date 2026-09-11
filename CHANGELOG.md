@@ -25,6 +25,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Each row opens onto the model's own criteria and citation, and says which
   crops it was developed for — every model runs on every block, so a flower
   grower meets "apple scab" and deserves to know it is about apples.
+- Wet periods as washes on the GDD chart's date axis — solid for what the
+  record saw, hatched for what the forecast implies. A wet period is a
+  condition of the DAYS, not a point on the curve, so it is drawn with width
+  and behind everything. The LAST and the NEXT per model, never the season's
+  whole tally: twenty apple-scab washes across one plot is weather wallpaper.
+- `lib/cropMatch` — a port of the service's `roster.norm`/`_matches`, so
+  "Calendula officinalis" on the record meets "calendula" in a model's own
+  "developed for" list. The Trends card now sets aside models no planting
+  claims, and says out loud how many it set aside and why. Apple scab was
+  being SHOWN to a flower farm with a caption apologising for it.
+- The Crops ledger names, under each planting, the models claiming that crop
+  and when each next fires. Good Earth is citing a model's scope against the
+  record, never asserting that a crop gets a disease.
 - `leaf_wetness` in the glossary, because the page now leans on the word
   "estimated" and a grower deserves to be able to look it up.
 - `goodearth_disease_risk` — wet hours on a block and what each model makes of

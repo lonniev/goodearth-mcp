@@ -15,7 +15,8 @@
 
 import { useState } from "react";
 import Term from "./Term";
-import { heading, order, rowDate, toneOf, TONE_WORD, type Tone } from "../lib/diseaseRows";
+import { asideLine, heading, order, rowDate, toneOf, TONE_WORD, type Tone } from "../lib/diseaseRows";
+import { growing } from "../lib/cropMatch";
 import type { DiseaseRiskResult, DiseaseVerdict } from "../lib/mcp";
 
 const d = (iso: string) =>
@@ -27,10 +28,15 @@ const CHIP: Record<Tone, string> = {
   quiet: "bg-band text-ink-soft",
 };
 
-export default function DiseaseCard({ data }: { data: DiseaseRiskResult }) {
+export default function DiseaseCard({ data, plantings = [] }: {
+  data: DiseaseRiskResult;
+  /// What this block grows, as the grower wrote it. A model is shown when its
+  /// own "developed for" list claims one of these.
+  plantings?: string[];
+}) {
   const [open, setOpen] = useState<string | null>(null);
 
-  const { live, quiet } = order(data);
+  const { live, quiet, unclaimed } = order(data, plantings);
   const w = data.wetness;
 
   return (
@@ -41,7 +47,7 @@ export default function DiseaseCard({ data }: { data: DiseaseRiskResult }) {
     >
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h3 className="figure text-[15.5px] font-semibold">
-          {heading(data)}
+          {heading(data, plantings)}
         </h3>
         <span className="data text-[12px] text-ink-soft">
           <b className="text-ink">{w.wet_hours.toLocaleString()}</b> wet hours since {d(data.season_from)}
@@ -59,7 +65,7 @@ export default function DiseaseCard({ data }: { data: DiseaseRiskResult }) {
       {live.length > 0 && (
         <ul className="mt-2.5 flex flex-col gap-1.5">
           {live.map((v) => (
-            <Row key={v.model} v={v} open={open === v.model} onOpen={setOpen} />
+            <Row key={v.model} v={v} open={open === v.model} onOpen={setOpen} plantings={plantings} />
           ))}
         </ul>
       )}
@@ -70,9 +76,13 @@ export default function DiseaseCard({ data }: { data: DiseaseRiskResult }) {
       {quiet.length > 0 && (
         <ul className="mt-2 flex flex-col gap-1.5">
           {quiet.map((v) => (
-            <Row key={v.model} v={v} open={open === v.model} onOpen={setOpen} />
+            <Row key={v.model} v={v} open={open === v.model} onOpen={setOpen} plantings={plantings} />
           ))}
         </ul>
+      )}
+
+      {unclaimed.length > 0 && (
+        <p className="data mt-2 text-[10.5px] text-ink-soft">{asideLine(unclaimed)}</p>
       )}
 
       {data.skipped.length > 0 && (
@@ -90,10 +100,13 @@ export default function DiseaseCard({ data }: { data: DiseaseRiskResult }) {
   );
 }
 
-function Row({ v, open, onOpen }: {
-  v: DiseaseVerdict; open: boolean; onOpen: (k: string | null) => void;
+function Row({ v, open, onOpen, plantings }: {
+  v: DiseaseVerdict; open: boolean; onOpen: (k: string | null) => void; plantings: string[];
 }) {
   const tone = toneOf(v);
+  // Named as the GROWER wrote them. Echoing back the model's "calendula" at
+  // someone who saved "Calendula officinalis" quietly corrects them.
+  const yours = growing(v.about.crops, plantings);
   return (
     <li>
       <button
@@ -128,7 +141,10 @@ function Row({ v, open, onOpen }: {
           {/* Which crops the model was developed against. Every model runs on
               every block, so a flower grower meets "apple scab · from Sep 13"
               and deserves to know it is about apples before it worries them. */}
-          <p className="mt-1 text-ink-soft">Developed for {v.about.crops.join(", ")}.</p>
+          <p className="mt-1 text-ink-soft">
+            Developed for {v.about.crops.join(", ")}.
+            {yours.length > 0 && ` You grow ${yours.join(", ")}.`}
+          </p>
           {v.at_decision_point && (
             <p className="mt-1 text-ink-soft">
               {v.severity_total} severity values accrued — the literature's decision point.

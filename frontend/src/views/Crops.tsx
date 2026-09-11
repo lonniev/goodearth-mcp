@@ -14,9 +14,9 @@ import Provenance from "../components/Provenance";
 import { Pager } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
 import QuoteScroller from "../components/QuoteScroller";
-import { cropGddStatus, cropSuitability, plantingWindow,
+import { cropGddStatus, cropSuitability, diseaseRisk, plantingWindow,
   treeSuitability, treeYear,
-  type CropLedgerResult, type PlantingWindowResult, type SuitabilityResult,
+  type CropLedgerResult, type DiseaseRiskResult, type PlantingWindowResult, type SuitabilityResult,
   type TreeAssessment, type TreeSuitabilityResult,
   type TreeYearResult, type Verdict } from "../lib/mcp";
 import { makePlanting, plantingCodec, SEEDLING,
@@ -26,6 +26,7 @@ import SpeciesFinder from "../components/SpeciesFinder";
 import type { Chosen } from "../lib/basket";
 import { speciesByIds, type SpeciesHit } from "../lib/species";
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
+import { cropWatch } from "../lib/diseaseRows";
 import { useSubmit } from "../lib/useSubmit";
 import { withId } from "../lib/submit";
 import type { SavedRegion } from "../lib/regions";
@@ -106,6 +107,10 @@ export default function Crops({
     } finally { setSavingRow(false); }
   }
   const [ledger, setLedger] = useState<CropLedgerResult | null>(null);
+  /// Disease risk for this block, joined to the plantings by each model's own
+  /// "developed for" list. Its own call because it reads HOURS, not the heat
+  /// curve the ledger is built on.
+  const [sick, setSick] = useState<DiseaseRiskResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [ranAt, setRanAt] = useState<Date | null>(null);
@@ -160,6 +165,20 @@ export default function Crops({
   const [whenAt, setWhenAt] = useState<Date | null>(null);
   const [whenBusy, setWhenBusy] = useState(false);
 
+
+  /// Disease risk, once per block rather than once per planting.
+  ///
+  /// Its own call because it reads hours where the ledger reads the heat
+  /// curve, and a quiet failure here must cost the crop rows nothing — a
+  /// grower opening this page came for their plantings.
+  const runDisease = useCallback(async () => {
+    try {
+      const r = await diseaseRisk(region.id);
+      setSick(r.success ? r : null);
+    } catch { setSick(null); }
+  }, [region]);
+
+  useEffect(() => { void runDisease(); }, [runDisease]);
 
   const run = useCallback(async (list: Planting[]) => {
     if (!list.length) { setLedger(null); return; }
@@ -366,7 +385,10 @@ export default function Crops({
     const missed = ledger?.untracked?.find(
       (u) => (u.ref && u.ref === planting.id) || (!u.ref && u.crop === planting.crop),
     );
-    return { planting, status, reason: missed?.reason };
+    return {
+      planting, status, reason: missed?.reason,
+      watch: cropWatch(sick, planting.crop),
+    };
   });
 
   /// Remove a row, and remember it. The record retires the row rather than
