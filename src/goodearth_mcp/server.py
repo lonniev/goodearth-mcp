@@ -97,6 +97,17 @@ mcp = FastMCP(
         "samples the terrain inside the block and reports an aggregate PLUS the "
         "spread across it, because a bench and a hollow on the same acreage do "
         "not share a frost date.\n\n"
+        "Blocks may OVERLAP or NEST — a meadow drawn inside the farm around it, "
+        "one bed inside a field, a trial strip across two. That is intended: a "
+        "block is a question about some ground, not a parcel on a survey, so an "
+        "overlap is two honest questions and never a drawing error. Do not "
+        "report one as a mistake or offer to redraw it.\n\n"
+        "Name a block loosely. Its id, its name, an alias, or any part of its "
+        "name that only one block has all work — \"Meadow\" finds \"Lower "
+        "Meadow\", and a saved \"North Farm (east parcel)\" answers to "
+        "\"North Farm\". When several blocks match, the error names every one with its "
+        "id, so choose from that list rather than adding an alias to get past "
+        "it.\n\n"
         "Start with goodearth_block_list. If the grower has saved nothing it "
         "answers with a worked example, so there is always ground to stand on; "
         "save theirs with goodearth_block_save and it takes over. What they "
@@ -403,9 +414,12 @@ tool = register_standard_tools(
 
 BLOCK_FIELD = Field(
     description=(
-        "The ground to answer for: a block you have saved. Its id, its name, "
-        'or one of its aliases — e.g. "Frogdale Farm". Save one with '
-        "block_save first; geometry travels once, not on every call."
+        "The ground to answer for: a block you have saved — its id, its name, "
+        "one of its aliases, or any part of its name that only one block has "
+        '(e.g. "Meadow" for "Lower Meadow"). If several match, the error lists '
+        "them with their ids. Blocks may overlap; each answers for its own "
+        "ground. Save one with block_save first; geometry travels once, not on "
+        "every call."
     ),
 )
 
@@ -1969,11 +1983,15 @@ async def forget_my_ground(
 async def block_save(
     name: Annotated[
         str,
-        Field(description="What you call this ground, e.g. 'Frogdale Farm'."),
+        Field(description="What you call this ground, e.g. 'North Field'. Unique among your blocks."),
     ],
     geometry: Annotated[
         dict[str, Any],
-        Field(description="Its bounds: a GeoJSON Polygon, or {lat, lon, radius_m}."),
+        Field(description=(
+            "Its bounds: a GeoJSON Polygon, or {lat, lon, radius_m}. It may overlap "
+            "or sit inside another block — a meadow within the farm around it is "
+            "two blocks, each answered for its own ground."
+        )),
     ],
     block: Annotated[
         str,
@@ -1981,7 +1999,10 @@ async def block_save(
     ] = "",
     aliases: Annotated[
         list[str] | None,
-        Field(description="Other names you call it, so you can ask for it either way."),
+        Field(description=(
+            "Other names you call it. Only needed for a name that shares no words "
+            "with the saved one — any unambiguous part of the name already works."
+        )),
     ] = None,
     base_temp: Annotated[
         float,
@@ -2002,6 +2023,10 @@ async def block_save(
     Its area and sample count are measured here from the bounds you give, and
     returned — they are facts about the geometry, so there is nothing for you to
     keep in step.
+
+    Blocks may overlap or nest. A grower who saves the whole farm and then the
+    meadow inside it has asked two questions about two pieces of ground, and
+    both are right; the overlap is not a drawing error to correct.
     """
     try:
         parsed = parse_region(geometry)
@@ -2049,6 +2074,10 @@ async def block_list(
 
     A grower who has saved nothing gets the worked example, marked as such, so
     there is always somewhere to stand.
+
+    Blocks can overlap — a meadow drawn inside the farm that contains it is two
+    blocks, each answered for its own ground. Read an overlap as intent, not as
+    one outline being wrong.
     """
     try:
         blocks = await block_store.list_blocks(npub, include_retired=include_retired)

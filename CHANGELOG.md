@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- A block answers to any part of its name that only one block has. "North
+  Farm" finds a block saved as "North Farm (east parcel)"; a word two blocks
+  share is refused with every candidate named, never quietly narrowed to one.
+  Retired ground is never reached by a loose name.
+- The tool metadata says blocks may overlap or nest, and that an overlap is
+  intended rather than a drawing error.
+
 - `wetness` — leaf wetness estimated from hourly humidity and rain, with the
   shared run/accumulator primitives the disease models read. Every figure is
   labelled estimated and names its estimator; nothing here is measured.

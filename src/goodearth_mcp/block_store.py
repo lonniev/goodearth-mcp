@@ -585,12 +585,59 @@ async def list_blocks(npub: str, *, include_retired: bool = False) -> list[dict[
     return [_hydrate(row, npub) for row in (r.get("rows") or [])]
 
 
+#: Words an agent puts in front of a name that the grower never saved in it.
+#: Articles and possessives only — "field", "block" and "plot" are real parts of
+#: real names ("North Field", "Block 7"), and dropping them would make two
+#: blocks that differ by that word answer to the same question.
+_FILLER = frozenset({"the", "a", "an", "my", "our", "your"})
+
+
+def _words(text: str) -> set[str]:
+    """A name as the set of words in it, punctuation and filler folded out."""
+    return {w for w in re.split(r"[^a-z0-9]+", norm(text)) if w and w not in _FILLER}
+
+
+def approximate(want: str, blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Live blocks whose name, or an alias, contains every word asked for.
+
+    "Frogdale Farm" finds "Frogdale Farm, Panton, VT" — the saved name carried
+    a town the grower never says aloud, and an exact match turned the ordinary
+    way of asking into "you have no block called that". "Meadow" finds "Lower
+    Frogdale Meadow". "Frogdale" finds BOTH, and the caller is told so rather
+    than handed one.
+
+    Retired ground is left out. An exact name still reaches it, but a loose
+    one must not: that is how a grower asking about "the farm" gets last
+    year's farm.
+    """
+    asked = _words(want)
+    if not asked:
+        return []
+    return [
+        b for b in blocks
+        if not b.get("retired")
+        and any(asked <= _words(n) for n in [b.get("name") or "", *(b.get("aliases") or [])])
+    ]
+
+
+def _named(b: dict[str, Any]) -> str:
+    return f"{b.get('name') or '?'} ({b.get('block_id')})"
+
+
+#: How many of a grower's blocks an unknown-block refusal lists by name. A
+#: bound on a SENTENCE, not on what anyone may own — past it the message says
+#: how many more there are.
+_LIST_IN_REFUSAL = 12
+
+
 async def resolve(npub: str, block: str) -> dict[str, Any]:
     """The block this identifier means, or a refusal that says which.
 
-    Tiers, in order: the id, then the blind index over names and aliases. A tier
-    that matches more than one row raises rather than guessing — picking one
-    silently is how a grower ends up reading last year's field.
+    Tiers, in order: the id, the blind index over names, an exact alias, and
+    then any part of a name or alias that only one live block has. A tier that
+    matches more than one row raises rather than guessing — picking one
+    silently is how a grower ends up reading last year's field — and the
+    refusal NAMES the candidates, so an agent can choose without another call.
     """
     want = (block or "").strip()
     if not want:
@@ -607,21 +654,29 @@ async def resolve(npub: str, block: str) -> dict[str, Any]:
     if by_name is not None:
         return by_name
 
-    # Aliases are sealed rather than indexed, so this is the one tier that
-    # scans. A grower has a handful of blocks; the list is already capped.
-    hits = [
-        b for b in await list_blocks(npub, include_retired=True)
-        if any(norm(a) == norm(want) for a in b["aliases"])
-    ]
+    # Aliases are sealed rather than indexed, so from here the tiers scan. One
+    # read serves all of them.
+    everything = await list_blocks(npub, include_retired=True)
+
+    hits = [b for b in everything if any(norm(a) == norm(want) for a in b["aliases"])]
+    if not hits:
+        hits = approximate(want, everything)
     if len(hits) == 1:
         return hits[0]
     if len(hits) > 1:
         raise AmbiguousBlock(
-            f"{len(hits)} of your blocks answer to {want!r} — name one by its id",
+            f"{len(hits)} of your blocks answer to {want!r}: "
+            f"{'; '.join(_named(h) for h in hits)}. Name one more fully, or by its id.",
             [h["block_id"] for h in hits],
         )
+
+    live = [b for b in everything if not b.get("retired")]
+    shown = "; ".join(_named(b) for b in live[:_LIST_IN_REFUSAL])
+    more = f" and {len(live) - _LIST_IN_REFUSAL} more" if len(live) > _LIST_IN_REFUSAL else ""
     raise UnknownBlock(
-        f"you have no block called {want!r} — save it first, then ask about it by name"
+        f"you have no block called {want!r}"
+        + (f". Your blocks: {shown}{more}." if live else
+           " — save one with block_save first, then ask about it by name.")
     )
 
 
