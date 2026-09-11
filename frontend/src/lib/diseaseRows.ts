@@ -16,7 +16,7 @@ export type Tone = "ahead" | "recent" | "quiet";
 /// Hutton's periods start on a DATE and botrytis's on an HOUR. Reading only
 /// `from` left half the models with no date on the row at all.
 export function began(p: DiseaseVerdict["last_period"]): string {
-  return String(p?.from ?? p?.start ?? "");
+  return String(p?.from ?? p?.start ?? "").slice(0, 10);
 }
 
 export function toneOf(v: DiseaseVerdict): Tone {
