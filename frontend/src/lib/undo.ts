@@ -49,6 +49,24 @@ function key(): string {
 
 export type UndoKind = ItemKind | "task";
 
+/// The removals THIS page may offer to put back.
+///
+/// Two filters, and the second one was missing for months. A page shows the
+/// kinds it can render — undoing a task from the Crops page would restore a
+/// row that page cannot then show — and it shows only removals from the ground
+/// it is scoped to. Without that, a crop removed on one block offered itself
+/// back on every other, above a form the reader had come to add something to.
+///
+/// An entry with no `blockId` is shown to everyone. Nothing writes one today;
+/// dropping it silently would be a row a grower could never put back.
+export function offerable(
+  entries: readonly UndoEntry[], kinds: readonly UndoKind[], blockId: string,
+): UndoEntry[] {
+  return entries.filter(
+    (e) => kinds.includes(e.kind) && (!blockId || !e.blockId || e.blockId === blockId),
+  );
+}
+
 export interface UndoEntry {
   /// This entry's own id, not the row's — two removals of the same row (undo,
   /// remove again) are two entries and must not collapse into one.

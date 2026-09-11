@@ -35,11 +35,11 @@ describe("which date a row shows", () => {
     assert.equal(rowDate(model()), null);
   });
 
-  it("reads an HOUR as happily as a DATE", () => {
+  it("reads an HOUR as happily as a DATE, and hands back a DATE", () => {
     // Hutton's periods begin on a date and botrytis's on an hour. Reading only
     // `from` left half the models with no date on the row at all.
     assert.equal(began({ from: "2026-09-17" }), "2026-09-17");
-    assert.equal(began({ start: "2026-09-13T04:00" }), "2026-09-13T04:00");
+    assert.equal(began({ start: "2026-09-13T04:00" }), "2026-09-13");
     assert.equal(began(null), "");
   });
 });
@@ -187,5 +187,26 @@ describe("what a crop row says about disease", () => {
   it("is empty rather than throwing when nothing has been read yet", () => {
     assert.deepEqual(cropWatch(null, "Potato"), []);
     assert.deepEqual(cropWatch(DATA, ""), []);
+  });
+});
+
+describe("the date a row hands on", () => {
+  it("is always a plain date, never a timestamp", () => {
+    // Botrytis periods begin on an HOUR. Every consumer that formatted the
+    // result assumed a date, and the crop ledger's `new Date(iso + "T12:00")`
+    // turned "2026-09-13T04:00" into the literal words "Invalid Date" beside
+    // a grower's calendula. Slicing here means no consumer has to remember.
+    assert.equal(began({ start: "2026-09-13T04:00" }), "2026-09-13");
+    assert.equal(began({ from: "2026-09-17" }), "2026-09-17");
+  });
+
+  it("hands a plain date on through rowDate too", () => {
+    const v = model({ next_period: { start: "2026-09-13T04:00", end: "2026-09-14T09:00" } });
+    assert.deepEqual(rowDate(v), { lead: "from", date: "2026-09-13" });
+  });
+
+  it("survives being parsed the way the ledger parses it", () => {
+    const got = new Date(began({ start: "2026-09-13T04:00" }) + "T12:00:00");
+    assert.equal(Number.isNaN(got.getTime()), false, "the ledger would print Invalid Date");
   });
 });

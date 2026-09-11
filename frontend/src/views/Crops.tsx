@@ -410,7 +410,7 @@ export default function Crops({
         <ErrorBox>{error}</ErrorBox>
       )}
 
-      <UndoBar kinds={["planting"]} onRestored={() => void reloadPlantings()} />
+      <UndoBar kinds={["planting"]} blockId={region.id} onRestored={() => void reloadPlantings()} />
 
       {/* ── Add a planting ─────────────────────────────────────────────── */}
       <form id="new-planting" onSubmit={add} className="mb-4 rounded-md border border-rule bg-panel p-4">

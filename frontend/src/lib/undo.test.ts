@@ -14,7 +14,7 @@ const KEY = "goodearth:undo:v1:npub1alice";
   },
 };
 
-const { clear, drop, list, MAX_ENTRIES, push, since } = await import("./undo.ts");
+const { clear, drop, list, MAX_ENTRIES, offerable, push, since } = await import("./undo.ts");
 
 const crop = (label: string) => ({
   kind: "crop" as const,
@@ -123,5 +123,40 @@ describe("one browser, two patrons", () => {
     push(crop("Bob's beans"));
     store.set(NPUB, "npub1alice");
     assert.deepEqual(list().map((e) => e.label), ["Zinnia"]);
+  });
+});
+
+describe("which removals a page may offer back", () => {
+  const e = (over: Record<string, unknown>) =>
+    ({ id: "u", kind: "planting", blockId: "b1", label: "Field corn",
+       item: {}, at: 1, ...over }) as never;
+
+  it("shows only the kinds this page can render", () => {
+    const rows = [e({ id: "a", kind: "planting" }), e({ id: "b", kind: "task" })];
+    assert.deepEqual(offerable(rows, ["planting"], "b1").map((r) => r.id), ["a"]);
+  });
+
+  it("shows only removals from the ground this page is on", () => {
+    // The bug: a crop removed on Frogdale Farm offered itself back on Lower
+    // Frogdale Meadow, above a form the reader had come to add something to.
+    const rows = [e({ id: "here", blockId: "b1" }), e({ id: "elsewhere", blockId: "b2" })];
+    assert.deepEqual(offerable(rows, ["planting"], "b1").map((r) => r.id), ["here"]);
+  });
+
+  it("needs BOTH to match", () => {
+    const rows = [e({ id: "x", kind: "task", blockId: "b1" })];
+    assert.deepEqual(offerable(rows, ["planting"], "b1"), []);
+  });
+
+  it("shows an entry with no block to everyone, rather than losing it", () => {
+    // Nothing writes one today. Dropping it silently would be a row a grower
+    // could never put back.
+    const rows = [e({ id: "old", blockId: "" })];
+    assert.deepEqual(offerable(rows, ["planting"], "b1").map((r) => r.id), ["old"]);
+  });
+
+  it("shows everything when the page names no block", () => {
+    const rows = [e({ id: "a", blockId: "b1" }), e({ id: "b", blockId: "b2" })];
+    assert.equal(offerable(rows, ["planting"], "").length, 2);
   });
 });

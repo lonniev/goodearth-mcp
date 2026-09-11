@@ -1,24 +1,40 @@
 // What you just removed, and the way back.
 //
 // This stands in place of a confirmation dialog, which means it carries the
-// dialog's job: saying plainly what happened. A bar that just says "Removed"
-// leaves someone wondering whether the row is gone for good — and that
-// ambiguity is the one thing that would argue the modal back in. So it names
-// the row, and the history beneath says how long each has been recoverable.
+// dialog's job: saying plainly what happened. A control that just says "Undo"
+// leaves someone wondering what — and that ambiguity is the one thing that
+// would argue the modal back in. So it names the row it would put back.
 //
-// Not a modal and not a toast that vanishes on a timer. A timed toast is a
-// deadline nobody agreed to; on a tablet in a shed the interruption that made
-// you look away is exactly as long as the window you had.
+// A CHIP, not a banner. It used to be a full-width bar with its own border
+// standing above the form, which is a lot of room for an offer most people
+// never take, on the page they came to add something to.
+//
+// SCOPED TO THE GROUND. `UndoEntry` has carried `blockId` all along and this
+// filtered only on kind, so a crop removed on one block offered itself back
+// on every other one — an undo for a row that page could not even show.
+//
+// Still not a toast that vanishes on a timer. A timed toast is a deadline
+// nobody agreed to; on a tablet in a shed the interruption that made you look
+// away is exactly as long as the window you had.
 
 import { useCallback, useEffect, useState } from "react";
-import { drop, list, push, since, type UndoEntry } from "../lib/undo";
+
+//: Material Design "undo". A glyph rather than the "\u21b6" arrow the button
+//: used to carry, which renders as a box in more fonts than it does not.
+const UNDO_PATH = "M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 "
+  + "3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z";
+import { drop, list, offerable, push, since, type UndoEntry } from "../lib/undo";
 import { restore } from "../lib/undoRestore";
 
-export default function UndoBar({ kinds, onRestored }: {
+export default function UndoBar({ kinds, blockId, onRestored }: {
   /// Which kinds this page is responsible for. A page shows the removals it
   /// could put back and not the ones it could not — undoing a task from the
   /// Crops page would restore a row that page cannot then show.
   kinds: UndoEntry["kind"][];
+  /// The ground this page is scoped to. Removals from other blocks are not
+  /// this page's to offer back: restoring one would write a row the reader is
+  /// not looking at, onto ground they may not have open.
+  blockId: string;
   /// Re-read the record. The restore is a write; the list on screen is stale
   /// until the page asks again.
   onRestored: () => void;
@@ -36,7 +52,7 @@ export default function UndoBar({ kinds, onRestored }: {
     return () => window.removeEventListener(UNDO_EVENT, refresh);
   }, [refresh]);
 
-  const mine = entries.filter((e) => kinds.includes(e.kind));
+  const mine = offerable(entries, kinds, blockId);
   if (!mine.length) return null;
 
   const [newest, ...older] = mine;
@@ -57,18 +73,18 @@ export default function UndoBar({ kinds, onRestored }: {
   }
 
   return (
-    <div className="mb-3 rounded-md border border-rule border-l-4 border-l-clay bg-panel px-4 py-2.5">
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
-        <span className="text-[13px]">
-          Removed <b>{newest.label}</b>
-          <span className="text-ink-soft"> — it can be put back.</span>
-        </span>
+    <div className="mb-2.5">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <button
           onClick={() => void put(newest)}
           disabled={!!busy}
-          className="min-h-11 shrink-0 rounded-full border-[1.5px] border-ink px-3.5 text-[12.5px] font-semibold disabled:opacity-40 active:bg-ink active:text-paper"
+          title={`Put ${newest.label} back`}
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-rule px-3 text-[12px] text-ink-soft disabled:opacity-40 active:bg-band"
         >
-          {busy === newest.id ? "Putting back…" : "↶ Undo"}
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+            <path d={UNDO_PATH} />
+          </svg>
+          {busy === newest.id ? "Putting back…" : <>Undo <b className="font-semibold text-ink">{newest.label}</b></>}
         </button>
       </div>
 
@@ -96,7 +112,7 @@ export default function UndoBar({ kinds, onRestored }: {
                     disabled={!!busy}
                     className="min-h-11 shrink-0 rounded-full border border-rule px-3 text-[12px] text-ink-soft disabled:opacity-40 active:bg-band"
                   >
-                    {busy === e.id ? "…" : "↶ Undo"}
+                    {busy === e.id ? "…" : "Undo"}
                   </button>
                 </li>
               ))}
