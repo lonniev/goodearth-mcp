@@ -135,7 +135,7 @@ async def region_disease_window(
     for m in parsed:
         assessments.append({
             **({"ref": m["ref"]} if m.get("ref") else {}),
-            **disease.assess(m, combined),
+            **disease.assess(m, combined, forecast_from=cut, today=today.isoformat()),
         })
 
     at_risk = [a for a in assessments if a.get("at_risk")]
@@ -216,10 +216,7 @@ async def resolve_disease_models(
         key = str(p["model"]).strip().lower().replace("-", "_")
         name = str(p.get("pest") or disease.MODELS[key]["disease"])
         found = by_key.get(key) or {}
-        periods = (
-            found.get("periods") if key == "hutton"
-            else found.get("infection_periods") or found.get("spells")
-        ) or []
+        periods = [p for p in (found.get("last_period"), found.get("next_period")) if p]
         dated = [_period_event(name, key, per, cut) for per in periods]
         dated = [e for e in dated if e]
         if not dated:
