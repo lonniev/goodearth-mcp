@@ -141,10 +141,22 @@ def _hutton_days(hours: list[Hour]) -> list[dict[str, Any]]:
 
 def hutton(hours: list[Hour]) -> dict[str, Any]:
     days = _hutton_days(hours)
+
+    # One period per WEATHER EVENT, not per overlapping pair of days.
+    #
+    # Hutton asks for two consecutive qualifying days, so a five-day wet spell
+    # contains four such pairs — and counting them gave Frogdale "13 periods"
+    # for what were really six spells. A grower reading that is being told the
+    # season was twice as bad as it was.
     periods = []
-    for i in range(1, len(days)):
-        if days[i - 1]["qualifies"] and days[i]["qualifies"]:
-            periods.append({"from": days[i - 1]["date"], "to": days[i]["date"]})
+    run: list[str] = []
+    for d in [*days, {"date": "", "qualifies": False}]:
+        if d["qualifies"]:
+            run.append(d["date"])
+            continue
+        if len(run) >= 2:
+            periods.append({"from": run[0], "to": run[-1], "days": len(run)})
+        run = []
 
     qualifying = [d["date"] for d in days if d["qualifies"]]
     if periods:

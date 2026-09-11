@@ -19,6 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `disease_window` — one hourly fetch for the season and one for the forecast,
   shared across every model in a call, plus `resolve_disease_models` so a
   stored `model` reference recomputes each season instead of freezing a date.
+- `DiseaseCard` + `lib/diseaseRows` — the Dashboard's Trends card for wetness
+  risk. Leads with what is true TODAY; the models that are quiet keep their
+  place below, because risk that is absent is as useful as risk that is present.
+  Each row opens onto the model's own criteria and citation, and says which
+  crops it was developed for — every model runs on every block, so a flower
+  grower meets "apple scab" and deserves to know it is about apples.
+- `leaf_wetness` in the glossary, because the page now leans on the word
+  "estimated" and a grower deserves to be able to look it up.
 - `goodearth_disease_risk` — wet hours on a block and what each model makes of
   them, including which criteria were NOT met. Stateless and previewable:
   models travel as an argument and nothing is read from or written to the
@@ -30,6 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   them at Panton.
 
 ### Changed
+- `disease.hutton` reports one period per WEATHER EVENT rather than one per
+  overlapping pair of days. Hutton asks for two consecutive qualifying days, so
+  a five-day wet spell held four such pairs — Frogdale read "13 periods" for
+  what were six. A grower was being told the season was twice as bad as it was.
 - `record_cache.wetness_history` keeps a season in CALENDAR-MONTH chunks rather
   than as one row per span. A cache key carries its span, so a key ending
   "today" is a different key tomorrow — a patron opening the page daily minted

@@ -595,6 +595,7 @@ export interface CheckPriceResult {
 /// orphaning its pricing row, which is the whole point of freezing the UUID.
 export const TOOL_ID: Record<string, string> = {
   goodearth_gdd_season_curve: "886ebfd6-dde4-5297-9145-2154caefb943",
+  goodearth_disease_risk: "b12c4ed8-c3cd-5a14-8e4b-a9fa344b7096",
   goodearth_region_climate_bundle: "2a6cda20-40e0-5aea-8b3a-3f8310937f05",
   goodearth_frost_window: "2b611018-f61d-5d72-bc8e-27abb605b669",
   goodearth_dli_curve: "b111cfd0-1bef-5cf4-907c-37bbf8d2d96a",
@@ -906,6 +907,75 @@ export interface SoilWindowResult {
   typical: { median: string; earliest: string; latest: string; years_on_record: number } | null;
   days_to_typical_crossing: number | null;
   note: string;
+}
+
+/// One published disease model's verdict on this ground.
+///
+/// `at_risk` is about NOW — a qualifying period inside the recent window, or
+/// one the forecast implies. `season_count` is the whole season and is a
+/// different question: twenty periods since January says nothing about
+/// whether to cut flowers this afternoon.
+export interface DiseaseVerdict {
+  model: string;
+  disease: string;
+  about: { name: string; disease: string; crops: string[]; citation: string; asks: string };
+  risk: string;
+  at_risk: boolean;
+  recent: boolean;
+  recent_window_days: number;
+  season_count: number;
+  last_period: { from?: string; to?: string; start?: string; end?: string; days?: number } | null;
+  next_period: { from?: string; to?: string; start?: string; end?: string; days?: number } | null;
+  /// One sentence about today, computed server-side so every caller says the
+  /// same thing about the same weather.
+  now: string;
+  explain: string;
+  /// Wallin only: the season's accrual is its own fact, separate from `at_risk`.
+  at_decision_point?: boolean;
+  severity_total?: number;
+  ref?: string;
+}
+
+export interface DiseaseRiskResult {
+  success: boolean;
+  error?: string;
+  as_of: string;
+  season_from: string;
+  region: RegionDescription;
+  wetness: {
+    hours: number;
+    hours_read: number;
+    hours_missing: number;
+    first: string | null;
+    last: string | null;
+    wet_hours: number;
+    humid_hours: number;
+    forecast_from: string | null;
+    forecast_note?: string;
+    /// Never measured. The estimator names itself so the page can say so.
+    estimator: { name: string; measured: boolean; wet_when: string; why_estimated: string };
+  };
+  diseases: DiseaseVerdict[];
+  skipped: { name: string; reason: string }[];
+  summary: string;
+  note: string;
+  sources: { name: string; role: string; resolution_m: number }[];
+}
+
+/// Hours of leaf wetness on this ground, and what the models make of them.
+///
+/// Stateless: the models travel as an argument and nothing is read from or
+/// written to the record, so a page can show risk for a row nobody has saved.
+export async function diseaseRisk(
+  block: string, models?: { model: string; ref?: string }[],
+): Promise<DiseaseRiskResult> {
+  return callTool<DiseaseRiskResult>("disease_risk", {
+    block,
+    // Omitted at its default, never sent as an explicit one: the page and the
+    // service deploy on separate clocks, and an argument the deployed service
+    // has not heard of fails the WHOLE call rather than just the new feature.
+    ...(models?.length ? { models } : {}),
+  });
 }
 
 /// When soil at planting depth crosses a threshold on this ground.
