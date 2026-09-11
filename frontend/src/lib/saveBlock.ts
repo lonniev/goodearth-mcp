@@ -26,6 +26,8 @@ export async function saveBlock(r: SavedRegion): Promise<SavedRegion> {
     name: r.name,
     geometry: r.region,
     base_temp: r.baseTempF,
+    // Omitted when unknown, so the server keeps what it has.
+    ...(r.aliases ? { aliases: r.aliases } : {}),
   });
   // This used to make an exception for `error_code === "ambiguous_block"`, on
   // the reasoning that a name the record already holds means the block is
@@ -47,6 +49,7 @@ export async function saveBlock(r: SavedRegion): Promise<SavedRegion> {
         name: res.block.name ?? r.name,
         areaHa: res.block.area_ha ?? undefined,
         sampleCount: res.block.sample_count ?? undefined,
+        aliases: res.block.aliases ?? r.aliases,
       }
     : r;
   saveRegion(measured);

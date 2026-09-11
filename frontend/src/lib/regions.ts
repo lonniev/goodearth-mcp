@@ -86,6 +86,9 @@ export interface SavedRegion {
   areaHa?: number;
   sampleCount?: number;
   baseTempF: number;
+  /// Other names the plot answers to. Undefined means "not known here", and a
+  /// save leaves the server's copy alone; `[]` clears them.
+  aliases?: string[];
 }
 
 /// The worked example's id, exported because four files were checking for it

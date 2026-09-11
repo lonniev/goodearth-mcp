@@ -21,6 +21,7 @@ import {
 import { blockSave } from "../lib/mcp";
 import { deleteRegion, EXAMPLE_ID, listRegions, type SavedRegion } from "../lib/regions";
 import { saveBlock } from "../lib/saveBlock";
+import PlotEditor from "../components/PlotEditor";
 
 const EMPTY: MapValue = { mode: "polygon", ring: [], centre: null, radiusM: 400 };
 
@@ -54,6 +55,8 @@ export default function Plots({
   /// crop, pest, watch and report recorded on it out of every view at once —
   /// so it asks first where a row does not.
   const [confirming, setConfirming] = useState<SavedRegion | null>(null);
+  /// The plot whose name and aliases are open for editing.
+  const [editing, setEditing] = useState<string | null>(null);
   const [forgetting, setForgetting] = useState(false);
   const [err, setErr] = useState("");
 
@@ -246,10 +249,27 @@ export default function Plots({
                 isActive ? "border-ink border-l-4 border-l-growth" : "border-rule"
               }`}
             >
-              <div className="flex items-start justify-between gap-2">
-                <h2 className="figure text-[15.5px] font-semibold">{r.name}</h2>
-                {isActive && <span className="eyebrow text-growth">active</span>}
-              </div>
+              {editing === r.id ? (
+                <PlotEditor plot={r} onDone={(saved) => {
+                  setEditing(null);
+                  if (!saved) return;
+                  setRegions(listRegions());
+                  // The top bar and every view carry the active plot's name.
+                  if (isActive) onSaved(saved);
+                }} />
+              ) : (
+                <>
+                  <div className="flex items-start justify-between gap-2">
+                    <h2 className="figure text-[15.5px] font-semibold">{r.name}</h2>
+                    {isActive && <span className="eyebrow text-growth">active</span>}
+                  </div>
+                  {!!r.aliases?.length && (
+                    <p className="mt-0.5 text-[12px] text-ink-soft">
+                      also {r.aliases.map((a) => `“${a}”`).join(", ")}
+                    </p>
+                  )}
+                </>
+              )}
 
               <p className="data mt-1 text-[11px] text-ink-soft">
                 {"lat" in r.region
@@ -271,6 +291,13 @@ export default function Plots({
                   >
                     Work this plot
                   </button>
+                )}
+                {/* Not before the record has answered: the cache may not know
+                    the plot's aliases, and saving what it does not know would
+                    clear them. */}
+                {r.id !== EXAMPLE_ID && synced && editing !== r.id && (
+                  <IconButton path={ICON.edit} label={`Rename ${r.name}`} tone="quiet" hideLabel
+                    onClick={() => setEditing(r.id)} />
                 )}
                 {r.id !== EXAMPLE_ID && (
                   <IconButton path={ICON.delete} label={`Forget ${r.name}`} tone="quiet" hideLabel
