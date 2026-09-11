@@ -479,15 +479,24 @@ async def save_block(
     area_ha: float | None = None, sample_count: int | None = None,
     retired: bool = False,
 ) -> dict[str, Any]:
-    """Create or update one block. Returns the stored row, decrypted."""
+    """Create or update one block. Returns the stored row, decrypted.
+
+    ``aliases=None`` on an update KEEPS the aliases the block has; ``[]``
+    clears them. A rename or a retire that says nothing about aliases used to
+    wipe them, because the upsert wrote whatever it was handed — and the page
+    never sent them at all, so every save from it erased what an agent had set.
+    """
     clean = _clean_name(name)
     alias_list = _clean_aliases(aliases)
     bid = block_id.strip() if block_id.strip() else ""
-    if bid and bid != EXAMPLE_BLOCK_ID and not LEGACY_ID.match(bid):
-        # An id we already minted, i.e. an update of an existing block.
+    existing: dict[str, Any] | None = None
+    if bid and bid != EXAMPLE_BLOCK_ID:
         existing = await _row_by_id(npub, bid)
-        if existing is None:
+        if existing is None and not LEGACY_ID.match(bid):
+            # An id we minted, i.e. an update of a block that is not there.
             raise UnknownBlock("no block of yours has that id")
+    if aliases is None and existing is not None:
+        alias_list = list(existing.get("aliases") or [])
     bid = bid or new_block_id()
 
     key = lookup_key(npub, clean)

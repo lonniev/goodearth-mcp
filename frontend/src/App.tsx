@@ -197,6 +197,7 @@ export default function App() {
         baseTempF: b.base_temp_f ?? 50,
         areaHa: b.area_ha ?? undefined,
         sampleCount: b.sample_count ?? undefined,
+        aliases: b.aliases ?? [],
       }));
       hydrate(rows);
       // Through `listRegions` rather than `rows`, so an empty record lands on

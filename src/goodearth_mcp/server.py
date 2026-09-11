@@ -2001,7 +2001,8 @@ async def block_save(
         list[str] | None,
         Field(description=(
             "Other names you call it. Only needed for a name that shares no words "
-            "with the saved one — any unambiguous part of the name already works."
+            "with the saved one — any unambiguous part of the name already works. "
+            "Omit to keep the aliases it has; pass [] to clear them."
         )),
     ] = None,
     base_temp: Annotated[
