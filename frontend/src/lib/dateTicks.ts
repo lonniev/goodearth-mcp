@@ -121,3 +121,20 @@ export function dateTicks(
   }
   return out;
 }
+
+/// Does this label fit inside the box if it starts at `x`?
+///
+/// The axis draws each label from its tick rightwards, and the last tick in a
+/// window sits close to the plot's right edge — so its label ran past the
+/// edge of the SVG and was clipped mid-word by the card. A tick with half a
+/// word under it is worse than a tick with none: the reader takes "Sun" for a
+/// date rather than for the start of "Sun 20".
+///
+/// Monospace at a known size, so this is arithmetic rather than a guess. The
+/// axis is IBM Plex Mono with `letterSpacing="1"`, which is one extra unit per
+/// character on top of the 0.6em advance.
+export function labelFits(
+  x: number, label: string, boxW: number, fontSize = 9, letterSpacing = 1,
+): boolean {
+  return x + label.length * (fontSize * 0.6 + letterSpacing) <= boxW;
+}

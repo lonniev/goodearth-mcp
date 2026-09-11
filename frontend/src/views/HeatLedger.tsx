@@ -275,17 +275,6 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
         </ChartFrame>
       ) : null}
 
-      {data && flags.length > 0 && showFlags && (
-        <p className="data mt-2 text-[10.5px] text-ink-soft">
-          <span className="text-growth">● crops</span>{" · "}
-          <span className="text-honey">● pests</span>{" · "}
-          <span className="text-frost">● wildlife</span>
-          {" — placed where your own thresholds meet this curve."}
-          {flags.some((f) => f.baseMismatch) &&
-            " Dimmed flags count from a different base temperature than your ground."}
-        </p>
-      )}
-
       {frost && (
         <>
           <h2 className="figure mt-6 mb-2.5 flex items-baseline gap-2.5 text-[18px] font-semibold">

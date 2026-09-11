@@ -27,7 +27,8 @@ import { regionImageUrl } from "../lib/basemapImage";
 import { DEFAULT_SPAN, useChartZoom, windowToDomain } from "../lib/useChartZoom";
 import { spanTarget } from "../lib/chartSpan";
 import ZoomControls, { AxisZoom } from "./ZoomControls";
-import { dateTicks } from "../lib/dateTicks";
+import GestureHint from "./GestureHint";
+import { dateTicks, labelFits } from "../lib/dateTicks";
 
 const W = 740, L = 46, R = 716, T = 16;
 
@@ -37,7 +38,10 @@ const W = 740, L = 46, R = 716, T = 16;
 /// chart wider and — proportionally — taller, leaving most of a tall screen
 /// as margin. A taller box spends that height on the plot instead. The extra
 /// goes to the GDD axis, which is the one the spread ribbon lives on.
-const H_INLINE = 268;
+// Grew with the space the gesture hint and the flag note gave back. The plot
+// is the only thing on this card anybody came to look at, so a row removed
+// from around it belongs to it.
+const H_INLINE = 300;
 /// Bounds on the measured full-screen height. The floor is the inline box —
 /// full screen must never make the plot SHORTER — and the ceiling stops a very
 /// tall window from stretching the curve into a wall.
@@ -347,6 +351,12 @@ export default function SeasonChart({
           an abbreviation a first-time grower has to look up. */}
       <div className="flex items-stretch">
       <AxisZoom onZoom={zoomY} label="Grow Degree Days" short={u.ddUnit.trim()} />
+      {/* One column, so the key lands under the PLOT rather than under the
+          card. The gutters match the svg's own L and R as percentages of its
+          box, which is what makes "10-season range" sit above "Sun 6" instead
+          of above the degree-day axis. */}
+      <div className="min-w-[560px] flex-1">
+      <GestureHint isZoomed={isZoomed}>
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
@@ -560,16 +570,18 @@ export default function SeasonChart({
           <g key={t.d}>
             <line x1={x(t.d)} x2={x(t.d)} y1={B} y2={B + (t.major ? 7 : 4)}
               stroke={t.major ? "var(--color-ink)" : "var(--color-ink-soft)"} />
-            <text x={x(t.d) + 2} y={B + 16} fontSize={9}
-              fill={t.major ? "var(--color-ink)" : "var(--color-ink-soft)"}
-              fontFamily="var(--font-data)" letterSpacing="1">
-              {t.label}
-            </text>
+            {labelFits(x(t.d) + 2, t.label, W - 2) && (
+              <text x={x(t.d) + 2} y={B + 16} fontSize={9}
+                fill={t.major ? "var(--color-ink)" : "var(--color-ink-soft)"}
+                fontFamily="var(--font-data)" letterSpacing="1">
+                {t.label}
+              </text>
+            )}
           </g>
         ))}
         <line x1={L} x2={R} y1={B} y2={B} stroke="var(--color-ink)" strokeWidth={1.5} />
       </svg>
-      </div>
+      </GestureHint>
 
       {overlay && (() => {
         const vals = overlay.values.filter((v): v is number => typeof v === "number");
@@ -584,8 +596,10 @@ export default function SeasonChart({
         );
       })()}
 
-      <div className={`flex flex-wrap justify-center gap-3.5 px-2 text-[11.5px] text-ink-soft ${
-        full ? "pt-0.5 pb-0" : "pt-1 pb-0"}`}>
+      <div
+        style={{ paddingLeft: `${(L / W) * 100}%`, paddingRight: `${((W - R) / W) * 100}%` }}
+        className={`flex flex-wrap justify-center gap-x-3.5 gap-y-0.5 text-[11.5px] text-ink-soft ${
+          full ? "pt-0.5 pb-0" : "pt-1 pb-0"}`}>
         {data.normals && (
           <span className="inline-flex items-center gap-1.5">
             <i className="inline-block h-2.5 w-4.5 bg-band" />{data.normals.span_years}-season range
@@ -607,6 +621,21 @@ export default function SeasonChart({
             <i className="inline-block w-4.5 border-t-[3px] border-dotted border-ink-soft" />projection at the recent rate
           </span>
         )}
+        {flags.length > 0 && (
+          <>
+            <span className="inline-flex items-center gap-1.5">
+              <i className="inline-block h-2 w-2 rounded-full bg-growth" />crops
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <i className="inline-block h-2 w-2 rounded-full bg-honey" />pests
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <i className="inline-block h-2 w-2 rounded-full bg-frost" />wildlife
+            </span>
+          </>
+        )}
+      </div>
+      </div>
       </div>
 
       <ZoomControls

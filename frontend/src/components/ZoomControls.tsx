@@ -156,14 +156,6 @@ export default function ZoomControls({
         </button>
       )}
 
-      {/* Say the gesture that always works FIRST. A pinch on iPadOS can escape
-          to the browser's own page zoom, so it is offered but never relied on. */}
-      {!compact && (
-        <span className="data w-full text-[10px] leading-relaxed opacity-70">
-          drag the left edge to stretch the scale · drag along the bottom for dates ·
-          double-tap in, two-finger tap out{isZoomed ? " · drag the middle to pan" : ""}
-        </span>
-      )}
     </div>
   );
 }
