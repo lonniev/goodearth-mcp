@@ -37,9 +37,6 @@ interface Props {
   /// Per-key 24x24 icon paths. The season button carries the season's own
   /// glyph, so the eye finds it without reading the row.
   spanIcons?: Record<string, string>;
-  /// Rendered under the buttons — the visible range, so the reader always
-  /// knows what window they are looking at.
-  range?: string;
   /// One row instead of three, and no gesture hint. For full screen, where
   /// every pixel these take is one the plot does not get. The gestures still
   /// work; only the sentence describing them goes.
@@ -113,15 +110,14 @@ export function AxisZoom({ onZoom, label, short }: {
 }
 
 export default function ZoomControls({
-  onZoomX, onReset, isZoomed, range, onSpan, activeSpan, spanLabels, spanTitles,
+  onZoomX, onReset, isZoomed, onSpan, activeSpan, spanLabels, spanTitles,
   spanIcons, compact,
 }: Props) {
   return (
-    <div className={`flex flex-wrap items-center gap-3 px-2 text-[11px] text-ink-soft ${
-      compact ? "pt-1" : "pt-2"}`}>
+    <div className={`flex flex-wrap items-center justify-center gap-3 px-2 text-[11px] text-ink-soft ${
+      compact ? "pt-1" : "pt-1.5"}`}>
       {onSpan && (
-        <span className="flex flex-wrap items-center gap-1.5">
-          <span className="eyebrow mr-0.5">Span</span>
+        <span className="flex flex-wrap items-center justify-center gap-1.5">
           {TIMESCALES.map((t) => (
             <button key={t.key} onClick={() => onSpan(t.key)}
               title={spanTitles?.[t.key]}
@@ -159,8 +155,6 @@ export default function ZoomControls({
           Whole season
         </button>
       )}
-
-      {range && <span className="data ml-auto text-[10px]">{range}</span>}
 
       {/* Say the gesture that always works FIRST. A pinch on iPadOS can escape
           to the browser's own page zoom, so it is offered but never relied on. */}

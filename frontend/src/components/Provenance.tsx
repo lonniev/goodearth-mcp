@@ -1,4 +1,4 @@
-// Provenance line — which tool answered, and when.
+// Provenance line — WHEN this answer was read.
 //
 // NOT what it cost. A fare on every answer on every page is a number nobody
 // came for: a grower reading the season wants the season, and the running
@@ -35,8 +35,9 @@ export default function Provenance({
   if (!at) return null;
 
   return (
-    <span className="data ml-auto text-right text-[10.5px] font-normal text-ink-soft">
-      {tool} · {at.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+    <span className="data ml-auto text-right text-[10.5px] font-normal text-ink-soft"
+      title="When this answer was read">
+      read {at.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
     </span>
   );
 }
