@@ -22,6 +22,7 @@
 // earliest set-out" and "the earliest set-out among these twenty".
 
 import { useUnits } from "./Units";
+import type { CropWatch } from "../lib/diseaseRows";
 import type { PlantingStatus } from "../lib/mcp";
 import { SEEDLING, type Planting } from "../lib/plantings";
 import { SortHeaders, type Column } from "./RecordTable";
@@ -52,6 +53,10 @@ export interface LedgerRow {
   planting: Planting;
   status?: PlantingStatus;
   reason?: string;
+  /// Models whose own "developed for" list names this crop, and which are
+  /// reporting risk. Beside the crop, because that is where a grower looking
+  /// at their plantings would look for it.
+  watch?: CropWatch[];
 }
 
 const COLS: Column<ItemSort>[] = [
@@ -89,7 +94,7 @@ export default function CropLedger({
           <SortHeaders cols={COLS} sort={sort} dir={dir} onSort={onSort} />
         </thead>
         <tbody>
-          {rows.map(({ planting: p, status: r, reason }) =>
+          {rows.map(({ planting: p, status: r, reason, watch }) =>
             editing === p.id && draft ? (
               <Editor key={p.id} draft={draft} onChange={onDraft} onCommit={onCommit}
                 onCancel={onCancel} saving={saving} />
@@ -100,6 +105,18 @@ export default function CropLedger({
                       chiclet that created it read as the one crop. */}
                   <span className="mr-1.5 text-[15px]" aria-hidden="true">{SEEDLING}</span>
                   {p.crop}
+                  {/* Under the name rather than in a seventh column. The table
+                      already carries six, and this is a fact ABOUT the crop
+                      rather than another measurement of it. */}
+                  {(watch?.length ?? 0) > 0 && (
+                    <span className="data mt-0.5 block text-[10.5px] font-normal text-clay">
+                      {watch!.map((w) => (
+                        <span key={w.model} className="mr-2 inline-block">
+                          🍄 {w.label} {w.lead} {shortDate(w.date)}
+                        </span>
+                      ))}
+                    </span>
+                  )}
                   <small className="block text-[11px] font-normal text-ink-soft">
                     {/* A tree is described by the figures it IS judged on.
                         "on the record · base 50 °F" under an apple stated one

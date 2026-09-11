@@ -18,6 +18,7 @@ import { useUnits } from "./Units";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { SeasonCurveResult } from "../lib/mcp";
 import type { LedgerFlag } from "../lib/ledgerFlags";
+import type { Band } from "../lib/diseaseBands";
 import { placeLabels } from "../lib/labelPlacement";
 import { dateFor, dayNumber, timelineDomain } from "../lib/seasonDays";
 import { seasonBounds } from "../lib/meteoSeason";
@@ -98,6 +99,10 @@ interface Props {
   onFlag?: (f: LedgerFlag) => void;
   /// Ghost the block's own satellite still behind the plot.
   showGround?: boolean;
+  /// Wet periods, as washes on the date axis. A wet period is a condition of
+  /// the DAYS, not a point on the curve, so it is drawn with width and behind
+  /// everything rather than as one more stem competing with the flags.
+  bands?: Band[];
   /// One weather series drawn behind the curve on its own scale.
   overlay?: {
     key: string;
@@ -120,6 +125,7 @@ function niceStep(span: number): number {
 
 export default function SeasonChart({
   data, frostDayIndex = null, flags = [], onFlag, showGround = true, overlay = null,
+  bands = [],
 }: Props) {
   const u = useUnits();
   // Full screen gets a taller box, so the height it buys is spent on the plot
@@ -398,6 +404,31 @@ export default function SeasonChart({
           </>
         )}
 
+        {/* Wet periods, behind the grid and everything after it. Deliberately
+            unlabelled in the plot: the key below names them and the card names
+            their dates, where two overlapping washes cannot collide into a
+            word nobody can read. A period from the FORECAST is hatched, so a
+            projection never reads as something the record observed. */}
+        {bands.length > 0 && (
+          <g clipPath={`url(#${clipId})`} aria-hidden="true">
+            <defs>
+              <pattern id="ge-wet-ahead" width="6" height="6" patternUnits="userSpaceOnUse"
+                patternTransform="rotate(45)">
+                <rect width="6" height="6" fill="var(--color-clay)" opacity={0.07} />
+                <line x1="0" y1="0" x2="0" y2="6" stroke="var(--color-clay)" strokeWidth={1.6} opacity={0.28} />
+              </pattern>
+            </defs>
+            {bands.map((b) => (
+              <rect key={b.key} x={x(b.from)} y={T}
+                // A one-day period still needs to be visible, so a band is
+                // never thinner than a hairline however far the chart is out.
+                width={Math.max(x(b.to + 1) - x(b.from), 2)} height={B - T}
+                fill={b.forecast ? "url(#ge-wet-ahead)" : "var(--color-clay)"}
+                opacity={b.forecast ? 1 : 0.1} />
+            ))}
+          </g>
+        )}
+
         {gridLines.map((g) => (
           <g key={g}>
             <line x1={L} x2={R} y1={y(g)} y2={y(g)} stroke="var(--color-rule)" strokeWidth={1} strokeDasharray="1 4" />
@@ -619,6 +650,15 @@ export default function SeasonChart({
         {data.projection && (
           <span className="inline-flex items-center gap-1.5">
             <i className="inline-block w-4.5 border-t-[3px] border-dotted border-ink-soft" />projection at the recent rate
+          </span>
+        )}
+        {bands.length > 0 && (
+          <span className="inline-flex items-center gap-1.5">
+            <i className="inline-block h-2.5 w-4.5 bg-clay opacity-25" />
+            {bands.some((b) => b.forecast) && (
+              <i className="-ml-1 inline-block h-2.5 w-4.5 border border-clay/50 bg-clay/10" />
+            )}
+            wet{bands.some((b) => b.forecast) ? " · ahead" : ""}
           </span>
         )}
         {flags.length > 0 && (
