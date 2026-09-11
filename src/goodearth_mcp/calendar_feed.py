@@ -312,7 +312,8 @@ async def build_feed(
         record(
             "pest", f"{e['pest']}-{e['date']}", f"{e['pest']} — {e['name']}",
             date.fromisoformat(e["date"]),
-            f"{e['source']}, resolved for this ground at {e.get('resolution_m', 0)} m",
+            e.get("detail")
+            or f"{e['source']}, resolved for this ground at {e.get('resolution_m', 0)} m",
             "🐛",
         )
         counted["pest"] += 1

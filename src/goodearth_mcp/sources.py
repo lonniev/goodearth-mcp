@@ -331,6 +331,100 @@ async def fetch_soil_forecast(lat: float, lon: float, hourly_field: str, days: i
     return results[0]
 
 
+#: The hourly variables a wetness model needs. One list, so the cache key can
+#: fingerprint it the way `_field_fingerprint` already fingerprints the almanac's.
+_HOURLY_WETNESS = "temperature_2m,relative_humidity_2m,dew_point_2m,precipitation"
+
+
+async def fetch_wetness_history(lat: float, lon: float, start: str, end: str) -> dict[str, Any]:
+    """Hourly temperature, humidity, dew point and rain, for counting wet hours.
+
+    PINNED TO THE 2 km FEED, deliberately, where every other history call goes
+    through `_history_any_feed`. That helper reverses its feed order for spans
+    over DEEP_SPAN_DAYS, on the sound reasoning that a decade wants to arrive at
+    all — but a wet hour is a THRESHOLD reading, and the two feeds do not agree
+    near the threshold.
+
+    Measured at Panton over 28 Aug - 6 Sep 2026, same coordinates, same hours:
+    the archived model runs gave 30 hours at or above 90% humidity and a mean
+    dew-point depression of 8.4 F; the reanalysis gave 86 hours and 6.5 F. A
+    1.9 F bias, with a quarter of all hours sitting within five points of the
+    line, is the whole difference between "no late-blight period this week" and
+    "four days running".
+
+    So a season counted half on one feed and half on the other would report a
+    change in the weather that was really a change in the grid. ERA5 remains the
+    fallback for an outage — a coarse reading beats no reading — and `_feed`
+    records which one answered so the answer can say.
+    """
+    params = {
+        "latitude": lat,
+        "longitude": lon,
+        "hourly": _HOURLY_WETNESS,
+        "start_date": start,
+        "end_date": end,
+        "timezone": "auto",
+        **_US_UNITS,
+    }
+    last: UpstreamError | None = None
+    for url, name, res in _HISTORY_FEEDS:
+        try:
+            async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+                payload = await _get(client, url, params)
+        except UpstreamError as exc:
+            last = exc
+            logger.warning("wetness history: %s did not answer (%s)", name, exc)
+            continue
+        results = _as_list(payload)
+        if not results:
+            last = UpstreamError(f"{name} returned no locations")
+            continue
+        return _stamp(results[0], name, res)
+    raise last if last else UpstreamError("no history feed is configured")
+
+
+async def fetch_wetness_forecast(lat: float, lon: float, days: int = 16) -> dict[str, Any]:
+    """The same hourly variables ahead, for the period the forecast implies.
+
+    The forecast endpoint runs the SAME model as the archived runs above, so the
+    series does not step at today — which matters, because "the last qualifying
+    period" and "the next one" are read across that boundary.
+    """
+    days = max(1, min(days, 16))
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        payload = await _get(
+            client,
+            _FORECAST,
+            {
+                "latitude": lat,
+                "longitude": lon,
+                "hourly": _HOURLY_WETNESS,
+                "forecast_days": days,
+                "timezone": "auto",
+                **_US_UNITS,
+            },
+        )
+    results = _as_list(payload)
+    if not results:
+        raise UpstreamError("wetness forecast returned no locations")
+    return _stamp(results[0], "Open-Meteo forecast", FORECAST_RESOLUTION_M)
+
+
+def hourly_block(record: dict[str, Any]) -> dict[str, Any]:
+    """The whole hourly block, for a caller that needs several fields at once.
+
+    `hourly_series` takes one field at a time; wetness needs four of them
+    aligned hour for hour, and re-reading the record four times to zip them back
+    together is how two of them end up off by one.
+    """
+    hourly = record.get("hourly")
+    if not isinstance(hourly, dict):
+        raise UpstreamError("record has no hourly block")
+    if not isinstance(hourly.get("time"), list):
+        raise UpstreamError("hourly block is not in the expected array shape")
+    return hourly
+
+
 def hourly_series(record: dict[str, Any], field: str) -> tuple[list[str], list[float | None]]:
     """Pull one hourly field out of a forecast record."""
     hourly = record.get("hourly")

@@ -44,6 +44,11 @@ from goodearth_mcp.calibration import CalibrationError
 from goodearth_mcp.crop_status import LedgerError
 from goodearth_mcp.crop_status import region_crop_ledger as crop_ledger_impl
 from goodearth_mcp.crops import CropError
+from goodearth_mcp.disease import MODELS as DISEASE_MODELS
+from goodearth_mcp.disease import DiseaseError
+from goodearth_mcp.disease_window import DiseaseWindowError
+from goodearth_mcp.disease_window import region_disease_window as disease_impl
+from goodearth_mcp.disease_window import resolve_disease_models as disease_resolve
 from goodearth_mcp.forget import ForgetError
 from goodearth_mcp.forget import everything as forget_everything_impl
 from goodearth_mcp.frost_window import FrostError
@@ -155,6 +160,7 @@ BLOCK_ITEM_SAVE_UUID       = "af45380a-1bcb-54a8-9b81-3569f785c33f"
 BLOCK_ITEM_LIST_UUID       = "587e418b-59f5-5400-bc9b-98db6929fec1"
 TREE_SUITABILITY_UUID      = "9f065c39-548a-5675-a562-cbf2bb720dd9"
 TREE_YEAR_UUID             = "993d83ad-9edd-5690-88fd-298f2137dc24"
+DISEASE_RISK_UUID          = "b12c4ed8-c3cd-5a14-8e4b-a9fa344b7096"
 
 _DOMAIN_TOOLS = [
     ToolIdentity(
@@ -186,6 +192,12 @@ _DOMAIN_TOOLS = [
         capability="pest_threshold",
         category="read",
         intent="Where a pest model's degree-day stages stand on this ground, and when the next arrives",
+    ),
+    ToolIdentity(
+        tool_id=DISEASE_RISK_UUID,
+        capability="disease_risk",
+        category="read",
+        intent="How many hours this ground stayed wet, and what the published disease models make of them",
     ),
     ToolIdentity(
         tool_id=CALIBRATION_UUID,
@@ -1681,7 +1693,24 @@ async def calendar_dataset(
         logger.warning("referenced pest models did not resolve: %s", exc)
         unresolved = [{"pest": str(p.get("pest") or "?"),
                        "reason": f"the published forecast did not answer: {exc}"}
-                      for p in pests if p.get("model")]
+                      for p in pests if str(p.get("model") or "").lower() == "usa-npn"]
+
+    # The wetness models resolve the same way and for the same reason: a stored
+    # REFERENCE recomputes each season where a stored date would freeze. They
+    # read hours rather than a heat curve, so they are their own call, and a
+    # feed that will not answer costs this half of the calendar and no more.
+    try:
+        wet_events, wet_unresolved = await disease_resolve(parsed, pests)
+        referenced = [*referenced, *wet_events]
+        unresolved = [*unresolved, *wet_unresolved]
+    except (DiseaseWindowError, sources.UpstreamError, OSError) as exc:
+        logger.warning("wetness models did not resolve: %s", exc)
+        unresolved = [*unresolved, *[
+            {"pest": str(p.get("pest") or "?"),
+             "reason": f"the hourly record did not answer: {exc}"}
+            for p in pests
+            if str(p.get("model") or "").lower().replace("-", "_") in DISEASE_MODELS
+        ]]
 
     feed_token = token.strip() or calendar_feed.new_token()
     try:
@@ -2208,6 +2237,78 @@ async def block_item_list(
         "block_name": found.get("name", ""),
         **result,
     }
+
+
+@tool
+@runtime.paid_tool(DISEASE_RISK_UUID)
+async def disease_risk(
+    block: Annotated[str, BLOCK_FIELD],
+    models: Annotated[
+        list[dict[str, Any]] | None,
+        Field(
+            description=(
+                "Which published models to run, as a list. Omit for all of "
+                'them. Each row names one: {"model": "hutton"} for potato and '
+                'tomato late blight, {"model": "botrytis"} for grey mould on '
+                'cut flowers, and likewise "mills" (apple scab), "wallin" '
+                '(early blight) and "powdery_mildew". Add "ref" to carry a '
+                "saved row's id back on the answer. Do NOT invent a model "
+                "name — the five are the ones this service runs."
+            ),
+        ),
+    ] = None,
+    season: Annotated[
+        int | None,
+        Field(description="A past season year to count instead of this one. Omit for the season to date."),
+    ] = None,
+    npub: Annotated[
+        str,
+        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
+    ] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """Hours of leaf wetness on this ground, and what the disease models make of them.
+
+    Returns the estimated wet hours since the season began, every qualifying
+    infection period each model found, which of its criteria were met and which
+    were not, and the wet stretch the forecast implies next.
+
+    Degree days are the wrong clock for a fungus. What decides an infection is
+    how long the leaf stayed wet and how warm it was while it did, which is why
+    a dry August that accumulated heat all month grows no botrytis. A season
+    with nothing qualifying is reported as exactly that — risk that is absent is
+    as useful to a grower as risk that is present.
+
+    WETNESS IS ESTIMATED, NEVER MEASURED. No feed publishes a leaf wetness
+    sensor for arbitrary ground, so it is inferred from modelled humidity and
+    rain, and every answer names the estimator and the feed that fed it. That
+    matters more here than elsewhere: humidity crosses the 90% line in a step,
+    and two feeds a couple of degrees apart on dew point can differ threefold on
+    the hours they count.
+
+    Good Earth runs published models against your ground. It does not publish
+    plant pathology and it never recommends a treatment — registration is
+    jurisdiction-specific and a label rate is law. Take the decision to your
+    extension service, whose word counts where this service's does not.
+
+    Args:
+        block: The ground to answer for — its id, its name, or an alias.
+        models: Which models to run. Omit for all five.
+        season: A past season year. Omit for the season to date.
+    """
+    parsed, _found = await _block_region(npub, block)
+
+    try:
+        return await disease_impl(parsed, models, season=season)
+    except (DiseaseWindowError, DiseaseError) as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_request"}
+    except (sources.UpstreamError, OSError) as exc:
+        logger.warning("disease_risk failed: %s", exc)
+        return {
+            "success": False,
+            "error": f"A weather feed did not answer: {exc}",
+            "error_code": "upstream_unavailable",
+        }
 
 
 # ---------------------------------------------------------------------------

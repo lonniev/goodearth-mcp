@@ -391,6 +391,34 @@ async def normals_history(
     return records, name, res
 
 
+def _wetness_fingerprint() -> str:
+    """The hourly field set, named in the key for the same reason as above.
+
+    Load-bearing here too: an hourly span that is wholly in the past caches
+    without expiry, so a row written before a fifth variable was added would
+    answer forever with four. Adding a field re-keys every row automatically
+    and nobody has to remember to clear anything.
+    """
+    fields = ",".join(sorted(
+        f.strip() for f in sources._HOURLY_WETNESS.split(",") if f.strip()))
+    return hashlib.sha256(fields.encode()).hexdigest()[:8]
+
+
+async def wetness_history(lat: float, lon: float, start: str, end: str) -> dict[str, Any]:
+    """Hourly humidity, temperature, dew point and rain, remembered.
+
+    An hour of the past does not change, and a season is ~6,000 of them — the
+    largest single answer this cache holds, and the one most worth keeping.
+    """
+    subject = f"{lat:.5f}/{lon:.5f}/{_wetness_fingerprint()}"
+    found = await _read("hourly", subject, start, end)
+    if found is not None:
+        return found
+    fresh = await sources.fetch_wetness_history(lat, lon, start, end)
+    await _write("hourly", subject, start, end, fresh)
+    return fresh
+
+
 async def soil_history(
     lat: float, lon: float, archive_field: str, start: str, end: str,
 ) -> dict[str, Any]:

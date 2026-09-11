@@ -20,10 +20,17 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any
 
+from goodearth_mcp import disease
+
 #: Models a grower may reference rather than restate. Kept deliberately short:
 #: each entry is a published source this service already reads for the caller's
 #: own coordinates, so a name here is a promise that dates can be resolved.
-PUBLISHED_MODELS = {"usa-npn"}
+#:
+#: The wetness-driven ones are READ FROM `disease.MODELS` rather than restated.
+#: A model added there would otherwise be a name a grower could not reference
+#: until someone remembered to type it here as well, and the two lists would
+#: drift in the quietest possible way — a valid row refused.
+PUBLISHED_MODELS = {"usa-npn", *disease.MODELS}
 
 
 class PestError(ValueError):
