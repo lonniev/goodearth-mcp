@@ -51,6 +51,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   them at Panton.
 
 ### Changed
+- References names the feed the service actually asks FIRST. It described the
+  ERA5 reanalysis at ~9 km as "the running season" while `_history_any_feed`
+  has been trying the 2 km archived model runs before it — so the page named
+  the fallback as the primary, on the page whose whole purpose is "not trust
+  us, here is the feed". The 2 km feed was not listed at all. Both are there
+  now, in the order they are asked, with the 30-vs-86 wet-hour disagreement
+  between them stated.
+- References gains NEWA as the reference implementation of the disease models
+  — read for definitions and validation, never called — and six method
+  entries: the wetness estimator with its own thresholds, and Hutton, Mills,
+  Wallin, botrytis and powdery mildew each with the assumption inside it.
+- `infection_period`, `severity_value` and `conducive` in the glossary.
 - `disease.hutton` reports one period per WEATHER EVENT rather than one per
   overlapping pair of days. Hutton asks for two consecutive qualifying days, so
   a five-day wet spell held four such pairs — Frogdale read "13 periods" for
