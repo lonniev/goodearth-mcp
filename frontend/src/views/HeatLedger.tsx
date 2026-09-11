@@ -144,13 +144,6 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
   const g = data?.accumulated_gdd;
   const ahead = data?.normals?.ahead_of_normal_gdd ?? null;
 
-  /// What this section is about, said the way round the year actually is.
-  ///
-  /// "React" told the reader nothing. "Cooling Trends" tells them a lot — for
-  /// half the year. The soil question is asked in whichever direction the
-  /// season is going, and the heading follows it rather than contradicting
-  /// the card underneath.
-  const trendLabel = soil?.direction === "warming" ? "Warming Trends" : "Cooling Trends";
 
   return (
     <>
@@ -292,7 +285,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
       {frost && (
         <>
           <h2 className="figure mt-6 mb-2.5 flex items-baseline gap-2.5 text-[18px] font-semibold">
-            <span className="mr-0.5">🔔</span>{trendLabel}
+            <span className="mr-0.5">🔔</span>Trends
             <Provenance tool="goodearth_frost_window" at={frostAt} onCost={onCost} />
           </h2>
           <FrostCard data={frost} />
@@ -301,7 +294,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
 
       {soil && (
         <>
-          {!frost && <h2 className="figure mt-6 mb-2.5 text-[18px] font-semibold">🔔 {trendLabel}</h2>}
+          {!frost && <h2 className="figure mt-6 mb-2.5 text-[18px] font-semibold">🔔 Trends</h2>}
           <div className="flex items-baseline gap-2.5">
             <Provenance tool="goodearth_soil_temp_projection" at={soilAt} onCost={onCost} />
           </div>
