@@ -20,6 +20,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { searchSpecies, type Kingdom, type SpeciesHit } from "../lib/species";
+import { isTap, type PointerMark } from "../lib/tapIntent";
 import { FIELD } from "./ui";
 
 /// Long enough that a grower is not searching after one keystroke, short
@@ -88,6 +89,13 @@ export default function SpeciesPicker({
     return () => document.removeEventListener("pointerdown", away);
   }, [open]);
 
+  /// Where the finger went down, so lifting it on the same row picks that row.
+  /// See `lib/tapIntent`: the pick must not wait on a synthesised click.
+  const pressed = useRef<PointerMark | null>(null);
+  /// The row just chosen by a lift, so the click that may follow does not
+  /// choose it a second time.
+  const justPicked = useRef<number | null>(null);
+
   function choose(h: SpeciesHit) {
     onPick(h);
     setText("");
@@ -140,7 +148,27 @@ export default function SpeciesPicker({
             </p>
           )}
           {hits.map((h) => (
-            <button key={h.id} type="button" onClick={() => choose(h)}
+            // Chosen when the finger LIFTS on the row it pressed, so the pick
+            // does not depend on the click iOS may never send; the click stays
+            // for a keyboard (Enter or Space). The press also keeps focus in
+            // the search box, so a tablet's keyboard does not close and slide
+            // the row out from under the finger.
+            <button key={h.id} type="button"
+              onPointerDown={(e) => { pressed.current = { id: String(h.id), x: e.clientX, y: e.clientY }; }}
+              onPointerUp={(e) => {
+                const down = pressed.current;
+                pressed.current = null;
+                if (isTap(down, { id: String(h.id), x: e.clientX, y: e.clientY })) {
+                  justPicked.current = h.id;
+                  choose(h);
+                }
+              }}
+              onPointerCancel={() => { pressed.current = null; }}
+              onClick={() => {
+                if (justPicked.current === h.id) { justPicked.current = null; return; }
+                choose(h);
+              }}
+              onMouseDown={(e) => e.preventDefault()}
               className="flex w-full items-center gap-2.5 border-b border-rule px-2.5 py-2 text-left last:border-b-0 active:bg-band">
               {h.thumb
                 ? <img src={h.thumb} alt="" width={32} height={32} loading="lazy"

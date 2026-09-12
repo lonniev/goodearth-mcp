@@ -420,7 +420,11 @@ export default function Crops({
       {/* ── Add a planting ─────────────────────────────────────────────── */}
       <form id="new-planting" onSubmit={add} className="mb-4 rounded-md border border-rule bg-panel p-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="block text-[11px] text-ink-soft sm:col-span-2">
+          {/* A div, never a label element. The picker's suggestions are buttons,
+              and a tap inside a label can be handed to the label's input
+              instead — on the iPad the grower tapped "sugar maple", the
+              caret went back into the box, and nothing was chosen. */}
+          <div className="block text-[11px] text-ink-soft sm:col-span-2">
             Plant
             <SpeciesPicker
               kingdom="plants"
@@ -433,7 +437,7 @@ export default function Crops({
               onPick={(h) => { setPicked(h); setSeed(""); }}
               onClear={() => setPicked(null)}
               placeholder="sugar maple, zinnia, haskap…" />
-          </label>
+          </div>
           <label className="block text-[11px] text-ink-soft">
             Your name for it <span className="opacity-60">(optional)</span>
             <input name="label" placeholder="succession 4, north lot" className={FIELD} />

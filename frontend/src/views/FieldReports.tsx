@@ -349,13 +349,16 @@ export default function FieldReports({
       <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold">🔭 Import from iNaturalist</h2>
       <div className="rounded-md border border-rule bg-panel p-4">
         <div className="flex flex-wrap items-end gap-2">
-          <label className="relative block flex-1 text-[11px] text-ink-soft" style={{ minWidth: 180 }}>
+          {/* A div, not a label element: the suggestions below are buttons, and a
+              tap inside a label can be handed to its input instead. */}
+          <div className="relative block flex-1 text-[11px] text-ink-soft" style={{ minWidth: 180 }}>
             iNaturalist handle <span className="opacity-60">(not your email)</span>
             {/* `autoComplete="off"` and a name that says nothing about email,
                 because the browser will otherwise offer one — and iNaturalist
                 answers an email address with a 422 that used to reach the
                 grower as a bare number. */}
             <input value={inatUser} name="inat-handle" autoComplete="off"
+              aria-label="iNaturalist handle"
               onChange={(e) => setInatUser(e.target.value)}
               placeholder="your-handle"
               className={FIELD} />
@@ -374,7 +377,7 @@ export default function FieldReports({
                 ))}
               </div>
             )}
-          </label>
+          </div>
           {/* Search, not Import. This writes nothing: it fetches and lists,
               and the record is only touched by "Import n selected" below,
               after the grower has picked. A button that claims to import and
