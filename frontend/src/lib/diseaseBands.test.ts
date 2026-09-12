@@ -119,3 +119,21 @@ describe("what it refuses to draw", () => {
     assert.deepEqual(bands(naked, risk([model({ last_period: { from: "2026-09-03" } })])), []);
   });
 });
+
+describe("only this ground's diseases", () => {
+  const about = (crops: string[]) => ({ name: "", disease: "", crops, citation: "", asks: "" });
+  const both = risk([
+    model({ model: "mills", disease: "apple scab", about: about(["apple"]),
+            last_period: { from: "2026-09-03", to: "2026-09-04" } }),
+    model({ about: about(["calendula"]), last_period: { from: "2026-09-05", to: "2026-09-06" } }),
+  ]);
+
+  it("never bands a disease of a crop the block does not grow", () => {
+    const out = bands(curve(20), both, ["Calendula officinalis"]);
+    assert.deepEqual(out.map((b) => b.label), ["grey mould"]);
+  });
+
+  it("bands every model when the record names no crop", () => {
+    assert.equal(bands(curve(20), both, []).length, 2);
+  });
+});

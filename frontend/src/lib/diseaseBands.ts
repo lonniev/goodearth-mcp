@@ -11,6 +11,7 @@
 // card below already carries the season's count.
 
 import { dayNumber } from "./seasonDays.ts";
+import { relevant } from "./diseaseRows.ts";
 import type { DiseaseRiskResult, DiseaseVerdict } from "./mcp.ts";
 import type { SeasonCurveResult } from "./mcp.ts";
 
@@ -39,6 +40,9 @@ function span(curve: SeasonCurveResult): number {
 export function bands(
   curve: SeasonCurveResult | null,
   risk: DiseaseRiskResult | null,
+  /// What the block grows. The chart bands the same models the card lists,
+  /// so a flower farm is never shown an apple-scab week.
+  plantings: readonly string[] = [],
 ): Band[] {
   const origin = curve?.curve?.dates?.[0];
   if (!curve || !risk || !origin) return [];
@@ -46,7 +50,7 @@ export function bands(
   if (last < 1) return [];
 
   const out: Band[] = [];
-  for (const v of risk.diseases) {
+  for (const v of relevant(risk.diseases, plantings)) {
     for (const [which, period] of [["last", v.last_period], ["next", v.next_period]] as const) {
       if (!period) continue;
       const a = dayNumber(began(period), origin);

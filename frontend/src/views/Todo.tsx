@@ -15,7 +15,8 @@
 // The list is sorted, filtered, searched and paged by the SERVER. A season's
 // tasks are not a thing to download in full so a browser can slice them.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { once } from "../lib/once";
 import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
 import { Pager, SortHeaders, type Column } from "../components/RecordTable";
@@ -100,25 +101,44 @@ export default function TodoView({
     setPageNo(0);
   }
 
+  /// Set before the first await, so a second tap is dropped even before the
+  /// re-render that disables the button. See `once`.
+  const addingRef = useRef(false);
+  const [adding, setAdding] = useState(false);
+
   async function add(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const f = new FormData(e.currentTarget);
+    // Held now: React clears `e.currentTarget` once the handler yields, and
+    // reading it after the save threw — the task saved, but the form never
+    // cleared and the list never reloaded, so the tap looked lost and was
+    // tapped again. Four copies of one task.
+    const form = e.currentTarget;
+    const f = new FormData(form);
     const title = String(f.get("title") ?? "").trim();
     if (!title) { setErr("A task needs a title."); return; }
     setErr("");
-    const r = await taskSave(region.id, {
-      title,
-      note: String(f.get("note") ?? "") || undefined,
-      due: String(f.get("due") ?? "") || undefined,
-      starts_at: reminderOnly ? undefined : String(f.get("starts") ?? "") || undefined,
-      ends_at: reminderOnly ? undefined : String(f.get("ends") ?? "") || undefined,
-      reminder_only: reminderOnly,
+    await once(addingRef, async () => {
+      setAdding(true);
+      try {
+        const r = await taskSave(region.id, {
+          title,
+          note: String(f.get("note") ?? "") || undefined,
+          due: String(f.get("due") ?? "") || undefined,
+          starts_at: reminderOnly ? undefined : String(f.get("starts") ?? "") || undefined,
+          ends_at: reminderOnly ? undefined : String(f.get("ends") ?? "") || undefined,
+          reminder_only: reminderOnly,
+        });
+        if (!r.success) { setErr(r.error || "The task could not be saved."); return; }
+        refreshFeed.now();
+        form.reset();
+        setReminderOnly(true);
+        void load();
+      } catch (e2) {
+        setErr((e2 as Error).message);
+      } finally {
+        setAdding(false);
+      }
     });
-    if (!r.success) { setErr(r.error || "The task could not be saved."); return; }
-    refreshFeed.now();
-    e.currentTarget.reset();
-    setReminderOnly(true);
-    void load();
   }
 
   /// The row being edited. A blank id means a task that does not exist yet,
@@ -216,7 +236,8 @@ export default function TodoView({
         {/* The act, AFTER the fields it acts on. A tester read the page top to
           * bottom and reached the button before the boxes. */}
         <div className="mt-3 flex justify-end">
-          <IconButton path={ICON.add} label="Task" form="new-task" title="Add task" />
+          <IconButton path={ICON.add} label={adding ? "Adding…" : "Task"} form="new-task"
+            title="Add task" disabled={adding} />
         </div>
       </form>
 

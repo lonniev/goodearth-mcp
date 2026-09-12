@@ -3,8 +3,8 @@
 // The plant and insect pages teach that warmth is the clock. This page has to
 // unteach it for disease: a hot dry August banks heat all month and grows no
 // botrytis. So it says what the clock is, what each model watches, where the
-// weather comes from — and what "quiet" on the Dashboard means, because a
-// tester read it as "you have not entered anything yet".
+// weather comes from — and what "clear" on the Dashboard means. It was
+// "quiet", which a tester read as "you have not entered anything yet".
 
 import { Claim, Facts, StageRun } from "../components/Diagram";
 
@@ -34,8 +34,8 @@ const STATUS: { word: string; tone: string; means: string }[] = [
     means: "The next 10 days of forecast weather meet the model's criteria. The date is when." },
   { word: "recent", tone: "bg-honey/20 text-ink",
     means: "An infection period happened on your ground in the last 14 days." },
-  { word: "quiet", tone: "bg-band text-ink-soft",
-    means: "Neither. The weather over the last two weeks and the next ten has not met the criteria." },
+  { word: "clear", tone: "bg-band text-ink-soft",
+    means: "A clear prognosis. The weather over the last two weeks and the next ten has not met the criteria." },
 ];
 
 export default function LifeOfADisease() {
@@ -83,9 +83,8 @@ export default function LifeOfADisease() {
         published rule.
       </p>
       <p className="mt-2 text-[13.5px] leading-relaxed">
-        It runs on every plot whether or not you have entered anything. The
-        crops you record only decide which diseases lead the card — a model
-        written for apples is set aside on ground that grows none.
+        It runs on every plot whether or not you have entered anything. Once
+        you record your crops, the card shows only the diseases of those crops.
       </p>
 
       <h2 className="figure mt-6 mb-2.5 text-[18px] font-semibold">What the card is telling you</h2>
@@ -102,7 +101,7 @@ export default function LifeOfADisease() {
 
       <div className="mt-4 rounded-md border border-rule border-l-4 border-l-honey bg-panel px-4 py-3">
         <p className="text-[13.5px] leading-relaxed">
-          <b>Quiet is an answer, not a blank.</b> A dry fortnight is the ordinary
+          <b>Clear is an answer, not a blank.</b> A dry fortnight is the ordinary
           result, and it is as useful to know as a warning. Open a row to see the
           last time that disease's weather did happen this season.
         </p>

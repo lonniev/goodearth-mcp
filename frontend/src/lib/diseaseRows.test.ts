@@ -2,7 +2,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { asideLine, began, cropWatch, heading, order, rowDate, toneOf } from "./diseaseRows.ts";
+import { began, cropWatch, heading, order, relevant, rowDate, toneOf, TONE_WORD } from "./diseaseRows.ts";
 import type { DiseaseRiskResult, DiseaseVerdict } from "./mcp.ts";
 
 function model(over: Partial<DiseaseVerdict> = {}): DiseaseVerdict {
@@ -53,11 +53,16 @@ describe("what a row's chip says", () => {
     assert.equal(toneOf(model({ recent: true, at_risk: true, last_period: { from: "2026-09-01" } })), "recent");
   });
 
-  it("is quiet when a period is old, however many the season had", () => {
+  it("is clear when a period is old, however many the season had", () => {
     // The distinction the whole feature turned on. Six periods since June is
     // not an answer about today.
     const v = model({ season_count: 6, last_period: { from: "2026-06-14" } });
-    assert.equal(toneOf(v), "quiet");
+    assert.equal(toneOf(v), "clear");
+  });
+
+  it("says clear, never quiet — quiet read as 'nothing entered yet'", () => {
+    assert.equal(TONE_WORD[toneOf(model())], "clear");
+    assert.ok(!Object.values(TONE_WORD).includes("quiet"));
   });
 
   it("prefers the forecast over recency when both are true", () => {
@@ -69,16 +74,16 @@ describe("what a row's chip says", () => {
 describe("the order of the card", () => {
   it("puts what is happening above what is not", () => {
     const live = model({ model: "hutton", at_risk: true, next_period: { from: "2026-09-17" } });
-    const { live: a, quiet: b } = order(card([model(), live, model({ model: "mills" })]));
+    const { live: a, clear: b } = order(card([model(), live, model({ model: "mills" })]));
     assert.deepEqual(a.map((v) => v.model), ["hutton"]);
     assert.equal(b.length, 2);
   });
 
-  it("keeps the quiet ones rather than hiding them", () => {
+  it("keeps the clear ones rather than hiding them", () => {
     // "Nothing found" and "did not look" must not render the same.
-    const { live, quiet } = order(card([model(), model({ model: "mills" })]));
+    const { live, clear } = order(card([model(), model({ model: "mills" })]));
     assert.equal(live.length, 0);
-    assert.equal(quiet.length, 2);
+    assert.equal(clear.length, 2);
   });
 });
 
@@ -89,12 +94,12 @@ describe("the heading", () => {
   });
 
   it("says so plainly when nothing is", () => {
-    assert.equal(heading(card([model(), model()])), "Nothing reporting risk");
+    assert.equal(heading(card([model(), model()])), "All clear");
   });
 
   it("does not count a busy season as a busy today", () => {
     const busy = model({ season_count: 20, last_period: { from: "2026-06-14" } });
-    assert.equal(heading(card([busy])), "Nothing reporting risk");
+    assert.equal(heading(card([busy])), "All clear");
   });
 });
 
@@ -109,12 +114,17 @@ describe("only the models this ground grows for", () => {
     withCrops("botrytis", ["calendula", "cut flowers"], { at_risk: true, next_period: { from: "2026-09-13" } }),
   ];
 
-  it("sets aside a model no planting claims", () => {
-    // Apple scab on a flower farm was SHOWN, with a caption apologising for
-    // it. Matching the model's own list against the record is the fix.
-    const { live, unclaimed } = order(card(FIVE), ["Calendula officinalis", "Potato"]);
+  it("leaves out a model no planting claims, without a word about it", () => {
+    // Apple scab on a flower farm was first SHOWN, then set aside with a
+    // caption saying so. The owner's rule: what is not about this ground is
+    // not mentioned at all.
+    const { live, clear } = order(card(FIVE), ["Calendula officinalis", "Potato"]);
     assert.deepEqual(live.map((v) => v.model), ["hutton", "botrytis"]);
-    assert.deepEqual(unclaimed.map((v) => v.model), ["mills"]);
+    assert.equal([...live, ...clear].some((v) => v.model === "mills"), false);
+  });
+
+  it("gives the chart the same models the card shows", () => {
+    assert.deepEqual(relevant(FIVE, ["Potato"]).map((v) => v.model), ["hutton"]);
   });
 
   it("counts the heading against what is SHOWN, not against all five", () => {
@@ -126,20 +136,9 @@ describe("only the models this ground grows for", () => {
     // An empty record is not a statement that the ground grows everything, and
     // it is not one that it grows nothing either. Showing all of them is the
     // answer that hides nothing.
-    const { live, unclaimed } = order(card(FIVE), []);
+    const { live } = order(card(FIVE), []);
     assert.equal(live.length, 3);
-    assert.equal(unclaimed.length, 0);
-  });
-
-  it("accounts out loud for what it set aside", () => {
-    const { unclaimed } = order(card(FIVE), ["Calendula officinalis"]);
-    const line = asideLine(unclaimed);
-    assert.match(line, /2 models set aside/);
-    assert.match(line, /does not grow/);
-  });
-
-  it("says nothing when nothing was set aside", () => {
-    assert.equal(asideLine([]), "");
+    assert.equal(relevant(FIVE, []).length, 3);
   });
 });
 
@@ -167,7 +166,7 @@ describe("what a crop row says about disease", () => {
     assert.deepEqual(cropWatch(DATA, "Garlic"), []);
   });
 
-  it("leaves the QUIET models out of a working list", () => {
+  it("leaves the CLEAR models out of a working list", () => {
     // Wallin claims potato but is not reporting risk. A ledger row saying
     // "nothing, all season" beside every planting is a column of noise; the
     // card is where absence gets reported.
