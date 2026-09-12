@@ -13,6 +13,7 @@ import { useUnits } from "../components/Units";
 import Provenance from "../components/Provenance";
 import { Pager } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
+import { baseBounds, parseBase } from "../lib/baseTemp";
 import QuoteScroller from "../components/QuoteScroller";
 import { cropGddStatus, cropSuitability, diseaseRisk, plantingWindow,
   treeSuitability, treeYear,
@@ -305,8 +306,12 @@ export default function Crops({
     e.preventDefault();
     if (!picked) { setFormErr("Search for the plant and pick it from the list."); return; }
     const f = new FormData(e.currentTarget);
-    // Typed in the scale on screen, held in the Fahrenheit the record keeps.
-    const base = f.get("base") ? u.toF(Number(f.get("base"))) : undefined;
+    // Typed in the scale on screen, held in the Fahrenheit the record keeps —
+    // and only a temperature the service accepts, refused here in the
+    // grower's own scale rather than by the record in Fahrenheit.
+    const parsed = parseBase(String(f.get("base") ?? ""), u);
+    if (parsed.error) { setFormErr(parsed.error); return; }
+    const base = parsed.f;
     const target = String(f.get("target") ?? "").trim();
     const label = String(f.get("label") ?? "").trim();
 
@@ -453,18 +458,22 @@ export default function Crops({
               Blank takes {region.name}&rsquo;s {u.showTemp(region.baseTempF)}.
             </Term>{" "}
             <span className="opacity-60">(optional)</span>
-            <input name="base" inputMode="numeric"
+            {/* A number field bounded to what the service accepts, in the
+                reader's scale. `submit` checks it again: a number field still
+                lets a thumb type 780 into it. */}
+            <input name="base" type="number" inputMode="decimal" step="1"
+              min={baseBounds(u).min} max={baseBounds(u).max}
               placeholder={String(Math.round(u.temp(region.baseTempF)))}
               className={FIELD} />
           </label>
           <div className="flex flex-wrap items-end gap-4 text-[12px] sm:col-span-2">
             <label className="flex min-h-11 items-center gap-2">
               <input type="checkbox" name="hardy" className="size-4" />
-              Handles a light frost
+              Handles Light Frost
             </label>
             <label className="flex min-h-11 items-center gap-2">
               <input type="checkbox" name="taps" className="size-4" />
-              Sap production?
+              Sap Producer
             </label>
             {/* The act, AFTER the fields it acts on — a tester read the page
               * top to bottom and reached the button before the boxes — but at

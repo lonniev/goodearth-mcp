@@ -69,7 +69,12 @@ export default function Term({ label, of, children }: {
           role="tooltip"
           // Right-anchored: these sit in table headers and form labels near
           // the right edge, where a left-anchored panel runs off the screen.
-          className="absolute top-full right-0 z-30 mt-1 w-64 rounded-md border border-rule bg-paper p-2.5 text-[12px] leading-snug font-normal normal-case tracking-normal text-ink shadow-lg"
+          //
+          // It resets everything it could inherit, because it is a child of
+          // whatever it explains. Inside a table header it took the header's
+          // `whitespace-nowrap` and monospace, and ran as one line across the
+          // table. So: wrap, the body face, and never wider than the screen.
+          className="absolute top-full right-0 z-30 mt-1 w-64 max-w-[calc(100vw-2rem)] whitespace-normal break-words rounded-md border border-rule bg-paper p-2.5 text-left text-[12px] leading-snug font-normal normal-case tracking-normal text-ink shadow-lg [font-family:var(--font-body)]"
         >
           {entry && <span className="block">{entry.said}</span>}
           {children && (
