@@ -466,19 +466,15 @@ export default function Crops({
               <input type="checkbox" name="taps" className="size-4" />
               I tap this for sap
             </label>
+            {/* The act, AFTER the fields it acts on — a tester read the page
+              * top to bottom and reached the button before the boxes — but at
+              * the end of the last row rather than on a row of its own, so the
+              * ledger below gets that height back. */}
+            <div className="ml-auto">
+              <IconButton path={ICON.add} label="Planting" form="new-planting"
+                title="Add a planting" disabled={submit.busy} />
+            </div>
           </div>
-        </div>
-        {/* The act, AFTER the fields it acts on.
-          *
-          * It sat in a header row ABOVE the form, submitting it by id — one
-          * compact control instead of a sentence at the foot. A tester read
-          * the page top to bottom and reached the button before the boxes:
-          * "the enter button should be below the boxes to be intuitive". They
-          * are right, and the id still does the submitting; only the position
-          * changed. */}
-        <div className="mt-3 flex justify-end">
-          <IconButton path={ICON.add} label="Planting" form="new-planting"
-            title="Add a planting" disabled={submit.busy} />
         </div>
         {formErr && <p className="mt-2 text-[12px] text-clay">{formErr}</p>}
         {added && !formErr && <p className="mt-2 text-[12px] text-growth">{added}</p>}
@@ -490,22 +486,24 @@ export default function Crops({
         )}
       </Section>
 
-      <div className="mb-2.5 flex flex-wrap items-center gap-1.5">
+      {/* One row: the table's caption on the left, its search on the right
+          (SearchBox pushes itself right). They were two rows, and the ledger
+          is what a grower came to read. */}
+      <div className="mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        {/* The server's summary counts the rows it was SENT, which is now one
+            page. Quoting it over a paged table would say "3 plantings" of a
+            block holding twenty. The pager states the true count; what only
+            the ledger knows is the frost date, so that is what is kept. */}
+        {ledger?.first_frost && (
+          <p className="text-[13px] text-ink-soft">
+            Median first frost {new Date(ledger.first_frost.median + "T12:00:00")
+              .toLocaleDateString("en-US", { month: "short", day: "numeric" })}.
+            {ledger.wont_finish?.length ? ` ${ledger.wont_finish.length} on this page will not make it.` : ""}
+          </p>
+        )}
         <SearchBox value={search} placeholder="regex ok, e.g. zinnia|dahlia"
           onSearch={(t) => { setSearch(t); setPageNo(0); }} />
       </div>
-
-      {/* The server's summary counts the rows it was SENT, which is now one
-          page. Quoting it over a paged table would say "3 plantings" of a
-          block holding twenty. The pager states the true count; what only the
-          ledger knows is the frost date, so that is what is kept. */}
-      {ledger?.first_frost && (
-        <p className="mb-2.5 text-[13px] text-ink-soft">
-          Median first frost {new Date(ledger.first_frost.median + "T12:00:00")
-            .toLocaleDateString("en-US", { month: "short", day: "numeric" })}.
-          {ledger.wont_finish?.length ? ` ${ledger.wont_finish.length} on this page will not make it.` : ""}
-        </p>
-      )}
 
       {busy && !ledger ? (
         <div className="rounded-md border border-rule bg-panel">
