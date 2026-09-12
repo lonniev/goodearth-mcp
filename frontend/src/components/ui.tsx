@@ -381,6 +381,10 @@ export const ICON = {
   // Material Design "save" — the floppy. The one glyph every toolbar has
   // agreed on, which is the whole reason to use theirs rather than draw one.
   save: "M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z",
+  // Material Design "edit_off" — the pencil struck through. Abandoning an
+  // edit. It was a ×, which is also what removed a row: one glyph for two
+  // opposite acts, beside each other.
+  cancelEdit: "M12.126 8.125l1.937-1.937 3.747 3.747-1.937 1.938zM20.71 5.63l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75L20.71 7a1 1 0 0 0 0-1.37zM2 5l6.63 6.63L3 17.25V21h3.75l5.63-5.62L18 21l2-2L4 3 2 5z",
   // Material Design "edit" — the pencil. Renaming a plot and its other names.
   edit: "M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z",
   expand: "M7 14H5v5h5v-2H7zm-2-4h2V7h3V5H5zm12 7h-3v2h5v-5h-2zM14 5v2h3v3h2V5z",
@@ -392,7 +396,18 @@ export const ICON = {
   ask: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 17h-2v-2h2zm2.07-7.75-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26A1.95 1.95 0 0 0 12 7a2 2 0 0 0-2 2H8a4 4 0 1 1 8 0c0 .88-.36 1.68-.93 2.25z",
 } as const;
 
-/// The ✓ and × that close a row being edited.
+/// The bin that removes a row. Every ledger's delete, so a grower learns it
+/// once. It was a ×, the same glyph that abandoned an edit in the same column.
+export function TrashGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="currentColor" aria-hidden="true">
+      <path d={ICON.delete} />
+    </svg>
+  );
+}
+
+/// The ✓ that saves a row being edited, and the struck-through pencil that
+/// abandons the edit.
 ///
 /// Shared because getting them wrong is uniform: an editor that can only be
 /// dismissed with the mouse is slower than the form it replaced, so every
@@ -404,8 +419,12 @@ export function RowActions({ onCommit, onCancel, saving, what }: {
     <>
       <button onClick={onCommit} disabled={saving} aria-label={`Save ${what}`}
         className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-growth disabled:opacity-40">✓</button>
-      <button onClick={onCancel} aria-label="Cancel"
-        className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>
+      <button onClick={onCancel} aria-label="Cancel edit" title="Cancel edit"
+        className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-ink">
+        <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="currentColor" aria-hidden="true">
+          <path d={ICON.cancelEdit} />
+        </svg>
+      </button>
     </>
   );
 }

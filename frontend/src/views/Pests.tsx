@@ -18,7 +18,7 @@ import Term from "../components/Term";
 import { useUnits } from "../components/Units";
 import {
   CELL, Chiclet, Empty, ErrorBox, FIELD, ICON, IconButton, Note, PageTitle, Pill,
-  RowActions, Section, StatusChip,
+  RowActions, Section, StatusChip, TrashGlyph,
 } from "../components/ui";
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
 import { useSubmit } from "../lib/useSubmit";
@@ -386,8 +386,8 @@ export default function Pests({
                           });
                           void retirePest(m.id);
                         }}
-                          aria-label={`Remove ${m.pest}`}
-                          className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>
+                          aria-label={`Remove ${m.pest}`} title="Remove"
+                          className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-clay"><TrashGlyph /></button>
                       </td>
                     </tr>
                   )

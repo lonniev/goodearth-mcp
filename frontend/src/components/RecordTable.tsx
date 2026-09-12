@@ -50,7 +50,9 @@ export function SortHeaders<K extends string>({
             key={(c.key ?? "") + c.label + i}
             onClick={sortable ? () => onSort(c.key as K) : undefined}
             aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : undefined}
-            className={`data border-b-[1.5px] border-ink px-3 py-2.5 text-left text-[10px] font-medium uppercase tracking-[.1em] select-none ${
+            // One line: a header wrapped away from its own ⓘ, leaving the
+            // mark alone on the line below. The tables scroll sideways.
+            className={`data whitespace-nowrap border-b-[1.5px] border-ink px-3 py-2.5 text-left text-[10px] font-medium uppercase tracking-[.1em] select-none ${
               sortable ? "cursor-pointer text-ink-soft" : "text-ink-soft"
             } ${active ? "text-ink" : ""}`}
             style={c.width ? { width: c.width } : undefined}

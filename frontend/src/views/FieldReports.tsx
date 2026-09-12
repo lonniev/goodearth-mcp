@@ -22,7 +22,7 @@ import {
   toObservations, type FieldReport, type ReportTag,
 } from "../lib/reports";
 import type { SavedRegion } from "../lib/regions";
-import { ErrorBox, FIELD, ICON, IconButton, Note } from "../components/ui";
+import { ErrorBox, FIELD, ICON, IconButton, Note, TrashGlyph } from "../components/ui";
 import { useSubmit } from "../lib/useSubmit";
 import { withId } from "../lib/submit";
 
@@ -449,8 +449,8 @@ export default function FieldReports({
                     {r.note && <p className="mt-0.5 text-[12.5px] text-ink-soft">{r.note}</p>}
                   </div>
                   <button onClick={() => void retireReport(r.id)}
-                    aria-label="Delete report"
-                    className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>
+                    aria-label="Delete report" title="Remove"
+                    className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-ink-soft active:text-clay"><TrashGlyph /></button>
                 </li>
               );
             })}

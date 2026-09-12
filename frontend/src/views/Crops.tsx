@@ -460,11 +460,11 @@ export default function Crops({
           <div className="flex flex-wrap items-end gap-4 text-[12px] sm:col-span-2">
             <label className="flex min-h-11 items-center gap-2">
               <input type="checkbox" name="hardy" className="size-4" />
-              Takes a light frost
+              Handles a light frost
             </label>
             <label className="flex min-h-11 items-center gap-2">
               <input type="checkbox" name="taps" className="size-4" />
-              I tap this for sap
+              Sap production?
             </label>
             {/* The act, AFTER the fields it acts on — a tester read the page
               * top to bottom and reached the button before the boxes — but at
