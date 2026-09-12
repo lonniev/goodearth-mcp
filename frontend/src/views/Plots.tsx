@@ -24,7 +24,7 @@ import { saveBlock } from "../lib/saveBlock";
 import { baseBounds } from "../lib/baseTemp";
 import PlotEditor from "../components/PlotEditor";
 import {
-  bundleFileName, countLine, MAX_BUNDLE_BYTES, readBundle, type FarmBundle,
+  bundleFileName, countLine, LARGE_BUNDLE_BYTES, readBundle, type FarmBundle,
 } from "../lib/farmBundle";
 import { exportPlot, importBundle } from "../lib/farmBundleIO";
 import { shareOrDownload } from "../lib/shareFile";
@@ -75,6 +75,10 @@ export default function Plots({
   /// A bundle opened from a file, waiting for the grower to say yes.
   const [incoming, setIncoming] = useState<{ bundle: FarmBundle; skipped: string[] } | null>(null);
   const [importing, setImporting] = useState(false);
+  /// How far an import has got, for a farm with hundreds of entries.
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  /// A file large enough to ask about before opening. Asked, never refused.
+  const [bigFile, setBigFile] = useState<File | null>(null);
   const [bundleMsg, setBundleMsg] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -105,7 +109,12 @@ export default function Plots({
     e.target.value = "";   // the same file can be chosen again after a refusal
     if (!file) return;
     setBundleMsg("");
-    if (file.size > MAX_BUNDLE_BYTES) { setBundleMsg("That file is larger than a farm bundle can be."); return; }
+    if (file.size > LARGE_BUNDLE_BYTES) { setBigFile(file); return; }
+    await stage(file);
+  }
+
+  async function stage(file: File) {
+    setBigFile(null);
     const read = readBundle(await file.text());
     if ("error" in read) { setBundleMsg(read.error); return; }
     setIncoming(read);
@@ -115,18 +124,21 @@ export default function Plots({
     if (!incoming) return;
     setImporting(true);
     try {
-      const done = await importBundle(incoming.bundle, regions.map((x) => x.name));
+      const done = await importBundle(incoming.bundle, regions.map((x) => x.name),
+        (n, total) => setProgress({ done: n, total }));
       setRegions(listRegions());
       onSaved(done.plot);   // switching to it re-scopes the whole app
       setIncoming(null);
+      const got = `${done.saved - done.tasks} items and ${done.tasks} tasks`;
       setBundleMsg(done.error
-        ? `${done.plot.name} is yours now, with ${done.saved} items. ${done.error}`
-        : `${done.plot.name} is yours now, with ${done.saved} items. Every view is scoped to it.`);
+        ? `${done.plot.name} is yours now, with ${got}. ${done.error}`
+        : `${done.plot.name} is yours now, with ${got}. Every view is scoped to it.`);
     } catch (e) {
       setBundleMsg((e as Error).message);
       setIncoming(null);
     } finally {
       setImporting(false);
+      setProgress(null);
     }
   }
 
@@ -487,7 +499,33 @@ export default function Plots({
               </button>
               <button onClick={() => void accept()} disabled={importing}
                 className="min-h-11 rounded-full border-[1.5px] border-ink bg-ink px-4 text-[13px] font-semibold text-paper disabled:opacity-40">
-                {importing ? "Importing…" : "Import it"}
+                {importing
+                  ? (progress && progress.total ? `Importing… ${progress.done} of ${progress.total}` : "Importing…")
+                  : "Import it"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bigFile && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink/40 px-5">
+          <div className="w-full max-w-sm rounded-xl border border-rule bg-paper p-5 shadow-xl">
+            <h2 className="figure text-[17px] font-semibold">Open a large bundle?</h2>
+            {/* Asked, not refused. A big farm makes a big bundle, and the
+                point of sharing one is to share all of it. */}
+            <p className="mt-2 text-[13px] leading-relaxed">
+              {bigFile.name} is {(bigFile.size / 1_000_000).toFixed(1)} MB, larger than most
+              farm bundles. It may take a while to open and import.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setBigFile(null)}
+                className="min-h-11 rounded-full border border-rule px-4 text-[13px] font-medium text-ink-soft active:bg-band">
+                Not now
+              </button>
+              <button onClick={() => void stage(bigFile)}
+                className="min-h-11 rounded-full border-[1.5px] border-ink bg-ink px-4 text-[13px] font-semibold text-paper">
+                Open it
               </button>
             </div>
           </div>
