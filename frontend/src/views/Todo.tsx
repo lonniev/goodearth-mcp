@@ -232,14 +232,15 @@ export default function TodoView({
           </div>
         )}
 
-        <label className="mt-3 block text-[11px] text-ink-soft">
-          Note
-          <input name="note" placeholder="Row cover is in the east barn" className={FIELD} />
-        </label>
-
-        {/* The act, AFTER the fields it acts on. A tester read the page top to
-          * bottom and reached the button before the boxes. */}
-        <div className="mt-3 flex justify-end">
+        {/* The act, AFTER the fields it acts on — a tester read the page top
+          * to bottom and reached the button before the boxes — but on the
+          * Note's row rather than a row of its own, so the list below gets
+          * that height back. */}
+        <div className="mt-3 flex items-end gap-3">
+          <label className="block min-w-0 flex-1 text-[11px] text-ink-soft">
+            Note
+            <input name="note" placeholder="Row cover is in the east barn" className={FIELD} />
+          </label>
           <IconButton path={ICON.add} label={adding ? "Adding…" : "Task"} form="new-task"
             title="Add task" disabled={adding} />
         </div>
