@@ -8,12 +8,17 @@
 // an upsert never moves a row to another block — and leave the new plot empty.
 // So ids never leave, and never come back in, whatever a hand-edited file says.
 //
-// What travels: the plot's name, outline and base temperature, and this
-// season's plantings, pests and wildlife. What does not: the npub (a bundle
-// names no patron), the plot's other names (a nickname is the sharer's own),
-// field reports (one grower's dated sightings) and tasks.
+// What travels: the plot's name, outline and base temperature, this season's
+// plantings, pests and wildlife, and every task on the plot, done or not.
+// What does not: the npub (a bundle names no patron), the plot's other names
+// (a nickname is the sharer's own), and field reports (one grower's dated
+// sightings). Tasks carry the same hazard as items — the task record upserts
+// on its `id` — so their ids are stripped the same way.
+//
+// Nothing is capped. The point of a bundle is the whole farm, so every page of
+// every kind goes out, and a large file coming in is asked about, not refused.
 
-import type { ItemRow, Region } from "./mcp.ts";
+import type { ItemRow, Region, TaskRow } from "./mcp.ts";
 import type { SavedRegion } from "./regions.ts";
 
 export const BUNDLE_FORMAT = "goodearth.farm-bundle";
@@ -21,9 +26,20 @@ export const BUNDLE_VERSION = 1;
 export const BUNDLE_KINDS = ["planting", "pest", "wildlife"] as const;
 export type BundleKind = (typeof BUNDLE_KINDS)[number];
 
-/// A file larger than this is not a farm bundle. It bounds what a stranger's
-/// file can make this page parse; it is not a limit on what a plot may hold.
-export const MAX_BUNDLE_BYTES = 2_000_000;
+/// Above this the page asks "are you sure" before opening a file. A question,
+/// not a limit: a large farm makes a large bundle, and it all comes in.
+export const LARGE_BUNDLE_BYTES = 5_000_000;
+
+/// A task as it travels: what needs doing and when, without the record's id.
+export interface BundleTask {
+  title: string;
+  note?: string;
+  due?: string;
+  starts_at?: string;
+  ends_at?: string;
+  reminder_only?: boolean;
+  done?: boolean;
+}
 
 /// `block_store.MAX_ITEMS_PER_CALL`. A page size for writing — the import
 /// sends every item, a hundred at a time.
@@ -39,6 +55,7 @@ export interface FarmBundle {
   exported_at: string;
   plot: { name: string; geometry: Region; base_temp_f: number };
   items: Record<BundleKind, Record<string, unknown>[]>;
+  tasks: BundleTask[];
 }
 
 /// The record's bookkeeping, never the grower's content.
@@ -58,9 +75,25 @@ export function cleanItem(row: Record<string, unknown>): Record<string, unknown>
   return out;
 }
 
+const TASK_TEXT = ["title", "note", "due", "starts_at", "ends_at"] as const;
+
+/// A task with only its own fields — no id, no timestamps, no empties.
+/// Undefined when it has no title, which the task record would refuse.
+export function cleanTask(row: Record<string, unknown>): BundleTask | undefined {
+  const out: Record<string, unknown> = {};
+  for (const k of TASK_TEXT) {
+    const v = row[k];
+    if (typeof v === "string" && v.trim()) out[k] = v.trim();
+  }
+  if (typeof row.reminder_only === "boolean") out.reminder_only = row.reminder_only;
+  if (typeof row.done === "boolean") out.done = row.done;
+  return typeof out.title === "string" ? (out as unknown as BundleTask) : undefined;
+}
+
 export function makeBundle(
   plot: SavedRegion,
   items: Partial<Record<BundleKind, ItemRow[]>>,
+  tasks: readonly TaskRow[] = [],
   now: Date = new Date(),
 ): FarmBundle {
   const cleaned = {} as FarmBundle["items"];
@@ -73,6 +106,8 @@ export function makeBundle(
     exported_at: now.toISOString(),
     plot: { name: plot.name, geometry: plot.region, base_temp_f: plot.baseTempF },
     items: cleaned,
+    tasks: tasks.map((t) => cleanTask(t as unknown as Record<string, unknown>))
+      .filter((t): t is BundleTask => !!t),
   };
 }
 
@@ -104,7 +139,6 @@ export type ReadResult =
 
 /// A file someone else made, read as untrusted.
 export function readBundle(text: string): ReadResult {
-  if (text.length > MAX_BUNDLE_BYTES) return { error: "That file is larger than a farm bundle can be." };
   let raw: unknown;
   try { raw = JSON.parse(text); } catch { return { error: "That file is not a farm bundle — it is not JSON." }; }
   if (!isObj(raw) || raw.format !== BUNDLE_FORMAT) {
@@ -135,12 +169,24 @@ export function readBundle(text: string): ReadResult {
     items[kind as BundleKind] = list.map(cleanItem);
   }
 
+  const givenTasks = raw.tasks ?? [];
+  if (!Array.isArray(givenTasks) || !givenTasks.every(isObj)) {
+    return { error: "That bundle's tasks are not a list Good Earth can read." };
+  }
+  const tasks: BundleTask[] = [];
+  for (const t of givenTasks) {
+    const clean = cleanTask(t);
+    if (!clean) return { error: "That bundle has a task with no title." };
+    tasks.push(clean);
+  }
+
   return {
     bundle: {
       format: BUNDLE_FORMAT, version: raw.version,
       exported_at: typeof raw.exported_at === "string" ? raw.exported_at : "",
       plot: { name, geometry: plot.geometry, base_temp_f: base },
       items,
+      tasks,
     },
     skipped,
   };
@@ -180,6 +226,7 @@ export function countLine(b: FarmBundle): string {
     n("planting") && `${n("planting")} planting${n("planting") === 1 ? "" : "s"}`,
     n("pest") && `${n("pest")} pest${n("pest") === 1 ? "" : "s"}`,
     n("wildlife") && `${n("wildlife")} wildlife`,
+    b.tasks.length && `${b.tasks.length} task${b.tasks.length === 1 ? "" : "s"}`,
   ].filter(Boolean);
   return parts.length ? parts.join(" · ") : "nothing tracked yet";
 }

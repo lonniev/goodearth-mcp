@@ -4,7 +4,7 @@ import {
   BUNDLE_FORMAT, bundleFileName, chunks, cleanItem, countLine, importName,
   makeBundle, readBundle, validGeometry, type FarmBundle,
 } from "./farmBundle.ts";
-import type { ItemRow } from "./mcp.ts";
+import type { ItemRow, TaskRow } from "./mcp.ts";
 import type { SavedRegion } from "./regions.ts";
 
 const PLOT: SavedRegion = {
@@ -17,10 +17,16 @@ const row = (over: Record<string, unknown>): ItemRow => ({
   source: null, retired: false, ...over,
 }) as ItemRow;
 
+const TASK = {
+  id: "t-1", title: "Cover the east beds", note: null, due: "2026-09-20",
+  starts_at: null, ends_at: null, reminder_only: true, done: false,
+  created_at: "2026-09-01T10:00:00Z", updated_at: "2026-09-02T10:00:00Z",
+} as unknown as TaskRow;
+
 const made = () => makeBundle(PLOT, {
   planting: [row({ crop: "Zinnia", gdd_target: 900, set_out: "2026-05-20" })],
   pest: [row({ item_id: "i-2", kind: "pest", pest: "Botrytis", model: "botrytis" })],
-}, new Date("2026-09-12T12:00:00Z"));
+}, [TASK], new Date("2026-09-12T12:00:00Z"));
 
 describe("what a bundle carries out", () => {
   it("keeps the grower's content and drops the record's bookkeeping", () => {
@@ -31,7 +37,15 @@ describe("what a bundle carries out", () => {
   });
 
   it("carries no id at all — the record upserts on them", () => {
-    assert.equal(JSON.stringify(made()).includes("item_id"), false);
+    const text = JSON.stringify(made());
+    assert.equal(text.includes("item_id"), false);
+    assert.equal(text.includes('"id"'), false, "a task id would upsert over the sharer's task");
+  });
+
+  it("carries every task, done or not, with only its own fields", () => {
+    assert.deepEqual(made().tasks, [
+      { title: "Cover the east beds", due: "2026-09-20", reminder_only: true, done: false },
+    ]);
   });
 
   it("names no patron and leaves the sharer's nicknames behind", () => {
@@ -101,8 +115,30 @@ describe("reading a bundle someone else made", () => {
     assert.equal(r.bundle.plot.base_temp_f, 50);
   });
 
-  it("refuses a file far larger than any bundle", () => {
-    assert.match((readBundle("x".repeat(2_000_001)) as { error: string }).error, /larger/);
+  it("reads a large farm whole — size is asked about, never refused", () => {
+    const many = Array.from({ length: 3000 }, (_, i) => ({ crop: `Bed ${i}`, gdd_target: 900 }));
+    const r = readBundle(JSON.stringify({ ...made(), items: { ...made().items, planting: many } }));
+    assert.ok("bundle" in r);
+    assert.equal(r.bundle.items.planting.length, 3000);
+  });
+
+  it("strips a task id a hand-edited file slipped back in", () => {
+    const b = { ...made(), tasks: [{ id: "someone-elses-task", title: "Mulch" }] };
+    const r = readBundle(JSON.stringify(b));
+    assert.ok("bundle" in r);
+    assert.deepEqual(r.bundle.tasks, [{ title: "Mulch" }]);
+  });
+
+  it("refuses a task with no title, and a task list that is not a list", () => {
+    assert.match((readBundle(JSON.stringify({ ...made(), tasks: [{ note: "x" }] })) as { error: string }).error, /no title/);
+    assert.ok("error" in readBundle(JSON.stringify({ ...made(), tasks: "mulch" })));
+  });
+
+  it("reads a bundle with no tasks section as one with no tasks", () => {
+    const { tasks: _t, ...noTasks } = made();
+    const r = readBundle(JSON.stringify(noTasks));
+    assert.ok("bundle" in r);
+    assert.deepEqual(r.bundle.tasks, []);
   });
 
   it("does not let a key named __proto__ through", () => {
@@ -144,7 +180,7 @@ describe("the rest", () => {
   });
 
   it("counts what is inside", () => {
-    assert.equal(countLine(made()), "1 planting · 1 pest");
-    assert.equal(countLine({ ...made(), items: { planting: [], pest: [], wildlife: [] } }), "nothing tracked yet");
+    assert.equal(countLine(made()), "1 planting · 1 pest · 1 task");
+    assert.equal(countLine({ ...made(), items: { planting: [], pest: [], wildlife: [] }, tasks: [] }), "nothing tracked yet");
   });
 });
