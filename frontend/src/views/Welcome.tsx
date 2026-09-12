@@ -20,6 +20,8 @@ const EXPLAINERS: { view: ViewKey; emoji: string; title: string; said: string }[
     said: "Why a year that closes is a different question, and what chill and hardiness decide." },
   { view: "animal", emoji: "🦌", title: "The life of an animal",
     said: "Migration runs on day length. Hibernation asks two questions. Neither is heat." },
+  { view: "disease", emoji: "🍄", title: "The life of a fungus",
+    said: "Why disease counts wet hours rather than heat, what each model watches, and where the weather comes from." },
 ];
 
 export default function Welcome({ onView, onSignIn, signedIn }: {
@@ -70,11 +72,11 @@ export default function Welcome({ onView, onSignIn, signedIn }: {
         </>
       )}
 
-      {/* The teaching, free and unsigned. Four pages, one idea each. */}
+      {/* The teaching, free and unsigned. Five pages, one idea each. */}
       <h2 className={`figure mb-2.5 text-[18px] font-semibold ${signedIn ? "mt-5" : "mt-8"}`}>
         How the season is counted
       </h2>
-      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
         {EXPLAINERS.map((e) => (
           <button key={e.view} onClick={() => onView(e.view)}
             className="rounded-md border border-rule bg-panel p-4 text-left active:border-ink">

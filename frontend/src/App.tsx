@@ -25,6 +25,7 @@ import LifeOfAPest from "./views/LifeOfAPest";
 import LifeOfAPlant from "./views/LifeOfAPlant";
 import LifeOfAnAnimal from "./views/LifeOfAnAnimal";
 import LifeOfATree from "./views/LifeOfATree";
+import LifeOfADisease from "./views/LifeOfADisease";
 import Welcome from "./views/Welcome";
 import Glossary from "./views/Glossary";
 import { showTemp, type Unit } from "./lib/units";
@@ -238,6 +239,7 @@ export default function App() {
         {view === "pest" && <LifeOfAPest />}
         {view === "tree" && <LifeOfATree />}
         {view === "animal" && <LifeOfAnAnimal />}
+        {view === "disease" && <LifeOfADisease />}
         {view === "glossary" && <Glossary />}
         {view === "about" && <About />}
         {view === "references" && <References />}
@@ -305,6 +307,7 @@ export default function App() {
         {view === "pest" && <LifeOfAPest />}
         {view === "tree" && <LifeOfATree />}
         {view === "animal" && <LifeOfAnAnimal />}
+        {view === "disease" && <LifeOfADisease />}
         {view === "glossary" && <Glossary />}
         {view === "account" && (
           <>
