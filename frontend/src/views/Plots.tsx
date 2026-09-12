@@ -23,6 +23,11 @@ import { deleteRegion, EXAMPLE_ID, listRegions, type SavedRegion } from "../lib/
 import { saveBlock } from "../lib/saveBlock";
 import { baseBounds } from "../lib/baseTemp";
 import PlotEditor from "../components/PlotEditor";
+import {
+  bundleFileName, countLine, MAX_BUNDLE_BYTES, readBundle, type FarmBundle,
+} from "../lib/farmBundle";
+import { exportPlot, importBundle } from "../lib/farmBundleIO";
+import { shareOrDownload } from "../lib/shareFile";
 
 const EMPTY: MapValue = { mode: "polygon", ring: [], centre: null, radiusM: 400 };
 
@@ -60,6 +65,70 @@ export default function Plots({
   const [editing, setEditing] = useState<string | null>(null);
   const [forgetting, setForgetting] = useState(false);
   const [err, setErr] = useState("");
+
+  // ── Farm bundles ──────────────────────────────────────────────────────
+  /// The plot whose bundle is being read from the record.
+  const [packing, setPacking] = useState<string | null>(null);
+  /// A bundle assembled but not yet handed over, because the share sheet
+  /// wanted a fresh tap (see `shareOrDownload`). Keyed by plot.
+  const [waiting, setWaiting] = useState<{ id: string; file: File } | null>(null);
+  /// A bundle opened from a file, waiting for the grower to say yes.
+  const [incoming, setIncoming] = useState<{ bundle: FarmBundle; skipped: string[] } | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [bundleMsg, setBundleMsg] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function hand(id: string, file: File, name: string) {
+    const outcome = await shareOrDownload(file, name);
+    if (outcome === "blocked") { setWaiting({ id, file }); return; }
+    setWaiting(null);
+    if (outcome === "downloaded") setBundleMsg(`Saved ${file.name}. Send it to whoever should have it.`);
+  }
+
+  async function share(r: SavedRegion) {
+    if (waiting?.id === r.id) { await hand(r.id, waiting.file, r.name); return; }
+    setPacking(r.id); setBundleMsg("");
+    try {
+      const bundle = await exportPlot(r);
+      const file = new File([JSON.stringify(bundle, null, 2)], bundleFileName(r.name),
+        { type: "application/json" });
+      await hand(r.id, file, r.name);
+    } catch (e) {
+      setBundleMsg((e as Error).message);
+    } finally {
+      setPacking(null);
+    }
+  }
+
+  async function openFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";   // the same file can be chosen again after a refusal
+    if (!file) return;
+    setBundleMsg("");
+    if (file.size > MAX_BUNDLE_BYTES) { setBundleMsg("That file is larger than a farm bundle can be."); return; }
+    const read = readBundle(await file.text());
+    if ("error" in read) { setBundleMsg(read.error); return; }
+    setIncoming(read);
+  }
+
+  async function accept() {
+    if (!incoming) return;
+    setImporting(true);
+    try {
+      const done = await importBundle(incoming.bundle, regions.map((x) => x.name));
+      setRegions(listRegions());
+      onSaved(done.plot);   // switching to it re-scopes the whole app
+      setIncoming(null);
+      setBundleMsg(done.error
+        ? `${done.plot.name} is yours now, with ${done.saved} items. ${done.error}`
+        : `${done.plot.name} is yours now, with ${done.saved} items. Every view is scoped to it.`);
+    } catch (e) {
+      setBundleMsg((e as Error).message);
+      setIncoming(null);
+    } finally {
+      setImporting(false);
+    }
+  }
 
   const [value, setValue] = useState<MapValue>(EMPTY);
   const [name, setName] = useState("");
@@ -196,7 +265,18 @@ export default function Plots({
 
   return (
     <>
-      <h1 className="figure mb-3.5 text-[26px] font-bold">My Plots</h1>
+      <div className="mb-3.5 flex items-center justify-between gap-2">
+        <h1 className="figure text-[26px] font-bold">My Plots</h1>
+        {/* A plot someone shared, opened as a plot of your own. Waits for the
+            record, like rename: the new plot's name is chosen against the
+            plots the record says you have. */}
+        <IconButton path={ICON.upload} label="Import" tone="quiet"
+          title="Import a farm bundle" disabled={!synced || importing}
+          onClick={() => fileRef.current?.click()} />
+        <input ref={fileRef} type="file" accept="application/json,.json" hidden
+          onChange={(e) => void openFile(e)} />
+      </div>
+      {bundleMsg && <p className="-mt-2 mb-2.5 text-[12.5px] text-ink">{bundleMsg}</p>}
 
       {/* ── Find the farm ──────────────────────────────────────────────── */}
       <div className="mb-2.5 flex flex-wrap items-center gap-2">
@@ -300,6 +380,19 @@ export default function Plots({
                   <IconButton path={ICON.edit} label={`Rename ${r.name}`} tone="quiet" hideLabel
                     onClick={() => setEditing(r.id)} />
                 )}
+                {/* The plot and this season's plantings, pests and wildlife,
+                    as a file another patron can import. A second tap is asked
+                    for only when the share sheet refused the first. */}
+                {r.id !== EXAMPLE_ID && synced && editing !== r.id && (
+                  waiting?.id === r.id ? (
+                    <IconButton path={ICON.share} label="Share ready" title={`Share ${r.name}`}
+                      onClick={() => void share(r)} />
+                  ) : (
+                    <IconButton path={ICON.share} label={`Share ${r.name}`} tone="quiet" hideLabel
+                      title="Share this plot as a farm bundle" disabled={packing === r.id}
+                      onClick={() => void share(r)} />
+                  )
+                )}
                 {r.id !== EXAMPLE_ID && (
                   <IconButton path={ICON.delete} label={`Forget ${r.name}`} tone="quiet" hideLabel
                     onClick={() => { setConfirming(r); setErr(""); }} />
@@ -376,6 +469,30 @@ export default function Plots({
           </>
         )}
       </div>
+
+      {incoming && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink/40 px-5">
+          <div className="w-full max-w-sm rounded-xl border border-rule bg-paper p-5 shadow-xl">
+            <h2 className="figure text-[17px] font-semibold">
+              Import {incoming.bundle.plot.name}?
+            </h2>
+            <p className="mt-2 text-[13px] leading-relaxed">
+              {countLine(incoming.bundle)}. It becomes a new plot of yours, on
+              the same ground; none of your plots are changed.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setIncoming(null)} disabled={importing}
+                className="min-h-11 rounded-full border border-rule px-4 text-[13px] font-medium text-ink-soft disabled:opacity-40 active:bg-band">
+                Not now
+              </button>
+              <button onClick={() => void accept()} disabled={importing}
+                className="min-h-11 rounded-full border-[1.5px] border-ink bg-ink px-4 text-[13px] font-semibold text-paper disabled:opacity-40">
+                {importing ? "Importing…" : "Import it"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {confirming && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink/40 px-5">
