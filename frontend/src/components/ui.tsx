@@ -455,13 +455,16 @@ export function Stepper({
   const clamp = (n: number) => Math.min(max, Math.max(min, n));
   const nudge = (by: number) =>
     onChange(clamp((typeof value === "number" ? value : min) + by));
+  // Only the caption is a label element. The − and + are buttons, and a tap inside a
+  // label can be handed to its input instead — the thumb meant "one more" and
+  // got a keyboard.
   return (
-    <label className="block text-[11px] text-ink-soft" htmlFor={id}>
-      {label}
+    <div className="block text-[11px] text-ink-soft">
+      <label htmlFor={id}>{label}</label>
       <span className="mt-0.5 flex items-stretch overflow-hidden rounded border border-rule bg-white">
         <button type="button" onClick={() => nudge(-step)} aria-label={`${label} down`}
           className="w-11 shrink-0 text-[18px] text-ink-soft active:bg-band">−</button>
-        <input id={id} value={value} inputMode="numeric"
+        <input id={id} value={value} inputMode="numeric" aria-label={id ? undefined : label}
           onChange={(e) => {
             const raw = e.target.value.trim();
             if (!raw) return onChange("");
@@ -474,7 +477,7 @@ export function Stepper({
           className="w-11 shrink-0 text-[18px] text-ink-soft active:bg-band">+</button>
       </span>
       {unit && <span className="mt-0.5 block text-[10.5px] text-ink-soft">{unit}</span>}
-    </label>
+    </div>
   );
 }
 
