@@ -97,6 +97,56 @@ export const GLOSSARY: Entry[] = [
       + "apart on dew point can differ threefold on the hours they count.",
   },
   {
+    key: "disease_status", term: "Quiet, recent, forecast", group: "life",
+    aka: ["quiet", "recent", "forecast", "disease status"],
+    said: "The word beside each disease on the Dashboard. Forecast: the next "
+      + "ten days of weather meet the model's criteria. Recent: they were met "
+      + "on your ground in the last fourteen days. Quiet: neither. It is read "
+      + "from the weather, not from your records — quiet means the weather has "
+      + "not been right for it, not that anything is missing.",
+  },
+  {
+    key: "disease_model", term: "Disease model", group: "life",
+    said: "A published rule that turns hours of wetness and temperature into "
+      + "the dates a disease could have infected. Good Earth runs five of them "
+      + "on every plot and says whose each one is; it adds none of its own.",
+  },
+  {
+    key: "late_blight", term: "Late blight", group: "life",
+    aka: ["Phytophthora infestans", "Hutton criteria", "Smith period"],
+    said: "The potato and tomato disease behind the Irish famine. Timed here by "
+      + "the Hutton criteria: two days running, each with a night above 10 °C "
+      + "and at least six hours at 90% humidity.",
+  },
+  {
+    key: "early_blight", term: "Early blight", group: "life",
+    aka: ["Alternaria", "Wallin"],
+    said: "A leaf-spot disease of potato and tomato that builds through the "
+      + "season. Timed by Wallin severity values, which add up like degree "
+      + "days, so it is reported as a running total as well as a date.",
+  },
+  {
+    key: "apple_scab", term: "Apple scab", group: "life",
+    aka: ["Venturia inaequalis", "Mills"],
+    said: "The spring disease of apples and crabapples. Timed by the modified "
+      + "Mills table: how many hours a leaf stayed wet at the temperature of "
+      + "that rain, graded light, moderate or severe.",
+  },
+  {
+    key: "grey_mould", term: "Grey mould", group: "life",
+    aka: ["botrytis", "gray mold", "Botrytis cinerea"],
+    said: "The fuzzy grey rot of flowers, strawberries and grapes. Timed by one "
+      + "unbroken stretch of wet hours — about six when it is warm, eighteen "
+      + "when it is cool. The same hours split by a dry spell do not count.",
+  },
+  {
+    key: "powdery_mildew", term: "Powdery mildew", group: "life",
+    aka: ["mildew"],
+    said: "The white dust on cucurbit, grape and rose leaves. It is the "
+      + "opposite of the others: it wants humid air at 68–81 °F and is set "
+      + "back by rain, so its hours are the dry-but-muggy ones.",
+  },
+  {
     key: "spread", term: "Spread", group: "ground",
     said: "The difference an answer shows across your block. A bench and a "
       + "hollow on the same acreage do not share a frost date, so every answer "
@@ -151,6 +201,14 @@ export const GLOSSARY: Entry[] = [
       + "percentage. It moves with temperature: the same water reads 90 % at "
       + "dawn and 50 % by noon because the air warmed, not because anything "
       + "dried. The dew point is the steadier figure; this is what a leaf feels.",
+  },
+  {
+    key: "dew_point_depression", term: "Dew-point depression", group: "sky",
+    aka: ["depression"],
+    said: "How far the air temperature sits above its dew point. Near zero, "
+      + "the air is about to condense onto leaves; rain falling into air within "
+      + "about 5 °F of its dew point is what the disease models count as wetting "
+      + "a leaf.",
   },
   {
     key: "normal", term: "Normal", group: "sky", aka: ["normal band", "the grey band"],

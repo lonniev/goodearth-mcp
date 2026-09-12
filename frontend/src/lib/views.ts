@@ -15,7 +15,7 @@ export const VIEW_KEYS = [
   "plots", "ledger", "almanac", "crops", "pests", "wildlife", "todo",
   "reports", "references", "about", "account",
   // The front door and what it opens onto. Reachable without an npub.
-  "welcome", "plant", "pest", "tree", "animal", "glossary",
+  "welcome", "plant", "pest", "tree", "animal", "disease", "glossary",
 ] as const;
 
 export type ViewKey = (typeof VIEW_KEYS)[number];
@@ -35,7 +35,7 @@ export const PUBLIC_VIEWS = [
   // `glossary` passes the test above: it is static, names no patron and spends
   // no sats. It is also the page a stranger most needs — the words are the
   // barrier before the farming is.
-  "welcome", "plant", "pest", "tree", "animal", "about", "references",
+  "welcome", "plant", "pest", "tree", "animal", "disease", "about", "references",
   "glossary",
 ] as const;
 

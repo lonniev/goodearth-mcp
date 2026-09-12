@@ -30,7 +30,7 @@ const SOURCES: {
     url: "https://open-meteo.com/en/docs/historical-weather-api",
     role: "The fallback for the running season when the archived runs do not answer, and the first choice for a decade of history, where arriving at all matters more than resolution.",
     resolution: "≈ 9 km",
-    note: "A model's estimate of past weather, not a station reading — which is why two points on one farm return identical numbers. Measured at Panton over one fortnight it counted 86 hours at or above 90% humidity where the 2 km feed counted 30: a 1.9 °F difference in dew-point depression, across a hard threshold. Wetness is therefore pinned to the finer feed and never spliced between the two.",
+    note: "A model's estimate of past weather, not a station reading — which is why two points on one farm return identical numbers. Measured on one Vermont farm over one fortnight it counted 86 hours at or above 90% humidity where the 2 km feed counted 30: a 1.9 °F difference in dew-point depression, across a hard threshold. Wetness is therefore pinned to the finer feed and never spliced between the two.",
   },
   {
     name: "Open-Meteo — forecast",
@@ -178,6 +178,26 @@ const MODELS: { title: string; body: string; assumption: string }[] = [
   },
 ];
 
+/// Where the disease models are published and run by others. Good Earth
+/// calls none of these; they are where a grower checks it, or goes next.
+const DISEASE_READING: { name: string; url: string; said: string }[] = [
+  {
+    name: "NEWA — disease models on station data (Cornell)",
+    url: "https://newa.cornell.edu/",
+    said: "Apple scab, fire blight, grape and vegetable disease models run on real weather stations with measured leaf wetness. The nearest station to your ground is a second opinion on every date this site gives.",
+  },
+  {
+    name: "BlightWatch — the Hutton Criteria (UK)",
+    url: "https://blightwatch.co.uk/",
+    said: "The service the Hutton Criteria were written for. It states the rule this site applies to late blight, as its authors publish it.",
+  },
+  {
+    name: "USAblight",
+    url: "https://usablight.org/",
+    said: "Confirmed late blight reports across the United States. A Hutton period says the weather allowed infection; a report nearby says spores are actually about.",
+  },
+];
+
 export default function References() {
   return (
     <>
@@ -211,6 +231,19 @@ export default function References() {
             <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-soft">
               <span className="eyebrow mr-1.5">Assumption</span>{m.assumption}
             </p>
+          </div>
+        ))}
+      </div>
+
+      <h2 className="figure mt-8 mb-2.5 text-[18px] font-semibold">🍄 Disease, elsewhere</h2>
+      <div className="space-y-2.5">
+        {DISEASE_READING.map((s) => (
+          <div key={s.name} className="rounded-md border border-rule bg-panel px-4 py-3">
+            <a href={s.url} target="_blank" rel="noreferrer"
+              className="figure text-[15px] font-semibold text-ink underline decoration-rule underline-offset-2">
+              {s.name}
+            </a>
+            <p className="mt-1 text-[13px] leading-relaxed">{s.said}</p>
           </div>
         ))}
       </div>
