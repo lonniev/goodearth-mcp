@@ -7,15 +7,18 @@
 // is the number a card like this wants to show because it is the biggest one
 // available — and it is the wrong one. "Six late-blight periods this season"
 // on the 11th of September says nothing about whether to cut flowers this
-// afternoon. So the season sits behind the models that are quiet, and what is
+// afternoon. So the season sits behind the models that are clear, and what is
 // happening leads.
+//
+// Only this ground's models. A disease of crops the block does not grow is not
+// listed, and not accounted for in a caption either.
 //
 // Conditions, never a treatment. The models are published ones and the card
 // says whose they are; what to do about them belongs to an extension service.
 
 import { useState } from "react";
 import Term from "./Term";
-import { asideLine, heading, order, rowDate, toneOf, TONE_WORD, type Tone } from "../lib/diseaseRows";
+import { heading, order, rowDate, toneOf, TONE_WORD, type Tone } from "../lib/diseaseRows";
 import { growing } from "../lib/cropMatch";
 import type { DiseaseRiskResult, DiseaseVerdict } from "../lib/mcp";
 
@@ -25,7 +28,7 @@ const d = (iso: string) =>
 const CHIP: Record<Tone, string> = {
   ahead: "bg-clay/15 text-clay",
   recent: "bg-honey/20 text-ink",
-  quiet: "bg-band text-ink-soft",
+  clear: "bg-band text-ink-soft",
 };
 
 export default function DiseaseCard({ data, plantings = [] }: {
@@ -36,7 +39,7 @@ export default function DiseaseCard({ data, plantings = [] }: {
 }) {
   const [open, setOpen] = useState<string | null>(null);
 
-  const { live, quiet, unclaimed } = order(data, plantings);
+  const { live, clear } = order(data, plantings);
   const w = data.wetness;
 
   return (
@@ -73,16 +76,12 @@ export default function DiseaseCard({ data, plantings = [] }: {
       {/* Risk that is ABSENT is as useful to report as risk that is present,
           and a dry year is the ordinary Vermont answer. These are not hidden —
           they are just not shouted. */}
-      {quiet.length > 0 && (
+      {clear.length > 0 && (
         <ul className="mt-2 flex flex-col gap-1.5">
-          {quiet.map((v) => (
+          {clear.map((v) => (
             <Row key={v.model} v={v} open={open === v.model} onOpen={setOpen} plantings={plantings} />
           ))}
         </ul>
-      )}
-
-      {unclaimed.length > 0 && (
-        <p className="data mt-2 text-[10.5px] text-ink-soft">{asideLine(unclaimed)}</p>
       )}
 
       {data.skipped.length > 0 && (
@@ -141,9 +140,13 @@ function Row({ v, open, onOpen, plantings }: {
           {/* Which crops the model was developed against. Every model runs on
               every block, so a flower grower meets "apple scab · from Sep 13"
               and deserves to know it is about apples before it worries them. */}
+          {/* Only what concerns this ground: the grower's own crops when the
+              record names them. The model's full list is shown only when the
+              record names none, and is then how a reader judges relevance. */}
           <p className="mt-1 text-ink-soft">
-            Developed for {v.about.crops.join(", ")}.
-            {yours.length > 0 && ` You grow ${yours.join(", ")}.`}
+            {yours.length > 0
+              ? `Watched here for your ${yours.join(", ")}.`
+              : `Developed for ${v.about.crops.join(", ")}.`}
           </p>
           {v.at_decision_point && (
             <p className="mt-1 text-ink-soft">

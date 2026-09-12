@@ -97,13 +97,13 @@ export const GLOSSARY: Entry[] = [
       + "apart on dew point can differ threefold on the hours they count.",
   },
   {
-    key: "disease_status", term: "Quiet, recent, forecast", group: "life",
-    aka: ["quiet", "recent", "forecast", "disease status"],
+    key: "disease_status", term: "Forecast, recent, clear", group: "life",
+    aka: ["clear", "all clear", "clear prognosis", "recent", "forecast", "disease status"],
     said: "The word beside each disease on the Dashboard. Forecast: the next "
       + "ten days of weather meet the model's criteria. Recent: they were met "
-      + "on your ground in the last fourteen days. Quiet: neither. It is read "
-      + "from the weather, not from your records — quiet means the weather has "
-      + "not been right for it, not that anything is missing.",
+      + "on your ground in the last fourteen days. Clear: neither — a clear "
+      + "prognosis. It is read from the weather, not from your records, so "
+      + "clear means the weather has not been right for it.",
   },
   {
     key: "disease_model", term: "Disease model", group: "life",

@@ -139,7 +139,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
   // join against each model's own "developed for" list.
   const cropNames = plantings.map((p) => p.crop).filter(Boolean);
   // The last wet period and the next one, as washes on the date axis.
-  const wetBands = bands(data, sick);
+  const wetBands = bands(data, sick, cropNames);
 
   // One chiclet, one tap per measure, and a tap that clears it. The almanac is
   // fetched lazily on the first tap rather than with the page: a reader who
