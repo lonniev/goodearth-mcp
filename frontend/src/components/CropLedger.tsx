@@ -28,6 +28,7 @@ import { SEEDLING, type Planting } from "../lib/plantings";
 import { SortHeaders, type Column } from "./RecordTable";
 import { CELL, RowActions, TrashGlyph } from "./ui";
 import type { ItemSort } from "../lib/blockItems";
+import { baseBounds } from "../lib/baseTemp";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   past_target:     { label: "Past target",  cls: "bg-growth/15 text-growth" },
@@ -290,7 +291,8 @@ function Editor({ draft, onChange, onCommit, onCancel, saving }: {
           onChange={(e) => set({ gddTarget: gddToF(e.target.value) })} />
       </td>
       <td className="px-3 py-2 align-top">
-        <input inputMode="numeric" defaultValue={base} className={CELL}
+        <input type="number" inputMode="decimal" step="1" defaultValue={base} className={CELL}
+          min={baseBounds(u).min} max={baseBounds(u).max}
           onKeyDown={keys} placeholder={`base${u.tempUnit}`}
           onChange={(e) => set({ baseTempF: baseToF(e.target.value) })} />
       </td>

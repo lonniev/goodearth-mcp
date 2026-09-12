@@ -21,6 +21,7 @@ import {
 import { blockSave } from "../lib/mcp";
 import { deleteRegion, EXAMPLE_ID, listRegions, type SavedRegion } from "../lib/regions";
 import { saveBlock } from "../lib/saveBlock";
+import { baseBounds } from "../lib/baseTemp";
 import PlotEditor from "../components/PlotEditor";
 
 const EMPTY: MapValue = { mode: "polygon", ring: [], centre: null, radiusM: 400 };
@@ -322,7 +323,8 @@ export default function Plots({
             Base{u.tempUnit}
             {/* Shown in the reader's scale, stored in the Fahrenheit the
                 service validates against. */}
-            <input defaultValue={Math.round(u.temp(baseTemp))} inputMode="numeric"
+            <input defaultValue={Math.round(u.temp(baseTemp))} type="number" inputMode="decimal"
+              step="1" min={baseBounds(u).min} max={baseBounds(u).max}
               onChange={(e) => setBaseTemp(u.toF(Number(e.target.value)) || 50)}
               className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" />
           </label>
