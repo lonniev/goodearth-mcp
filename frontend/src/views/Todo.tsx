@@ -51,7 +51,7 @@ const FRAMES: { key: Timeframe; label: string }[] = [
 /// is not in this list cannot be sorted by, which mirrors the server's own
 /// whitelist rather than hoping the two agree.
 const COLS: Column<TaskSort>[] = [
-  { key: "done", label: "" },
+  { key: "done", label: "Done?" },
   { key: "title", label: "Task" },
   { key: "due", label: "Due" },
   { key: "starts", label: "Time" },
@@ -180,7 +180,11 @@ export default function TodoView({
 
   return (
     <>
-      <div className="mb-3 flex items-center justify-end gap-1.5">
+      <div className="mb-3 flex items-center justify-between gap-1.5">
+        {/* Names the form below. A tester starting an empty list kept typing
+            into the search box, because the only heading on the page was the
+            list's — so the form gets its own, in the row it already had. */}
+        <h2 className="figure text-[18px] font-semibold">New Task?</h2>
         {/* The iCal control stays: it opens a settings page and belongs in the
             page's own row. The ADD button went down to the foot of the form,
             where the thing it submits actually is. */}
@@ -193,8 +197,8 @@ export default function TodoView({
       <UndoBar kinds={["task"]} blockId={region.id} onRestored={() => { refreshFeed.soon(); void load(); }} />
 
       {/* ── Write it down ──────────────────────────────────────────────── */}
-      {/* No section heading: the button below names the act, and a heading
-          plus a full-width submit was two rows spent saying "add". */}
+      {/* Headed by "New Task?" in the row above, not a row of its own: a
+          heading plus a full-width submit was two rows spent saying "add". */}
       <form id="new-task" onSubmit={add} className="mb-4 rounded-md border border-rule bg-panel p-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="block text-[11px] text-ink-soft lg:col-span-2">
@@ -242,7 +246,7 @@ export default function TodoView({
       </form>
 
       {/* ── What's on the list ─────────────────────────────────────────── */}
-      <Section emoji="✅" title="Tasks">
+      <Section emoji="✅" title="Planned Tasks">
         <Provenance tool="goodearth_task_list" at={ranAt} onCost={onCost} />
       </Section>
 
