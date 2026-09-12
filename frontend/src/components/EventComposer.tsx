@@ -31,7 +31,7 @@ import { useSubmit } from "../lib/useSubmit";
 import { useUnits } from "./Units";
 import {
   ErrorBox, FIELD, ICON, IconButton, LifecycleMark, MonthDay, Note, Pill,
-  Section, SpeciesMark, Stepper,
+  Section, SpeciesMark, Stepper, TrashGlyph,
 } from "./ui";
 
 type Driver = "calendar" | "interval" | "daylight" | "heat" | "condition";
@@ -425,7 +425,7 @@ export default function EventComposer({
                       </div>
                       <button type="button" aria-label={`Remove ${s.label || "milestone"}`}
                         onClick={() => setSteps(steps.filter((_, j) => j !== i))}
-                        className="h-11 w-11 shrink-0 text-[18px] text-ink-soft active:text-clay">×</button>
+                        className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-ink-soft active:text-clay"><TrashGlyph /></button>
                     </div>
                   </div>
                 ))}

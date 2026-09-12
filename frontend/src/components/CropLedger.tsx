@@ -26,7 +26,7 @@ import type { CropWatch } from "../lib/diseaseRows";
 import type { PlantingStatus } from "../lib/mcp";
 import { SEEDLING, type Planting } from "../lib/plantings";
 import { SortHeaders, type Column } from "./RecordTable";
-import { CELL, RowActions } from "./ui";
+import { CELL, RowActions, TrashGlyph } from "./ui";
 import type { ItemSort } from "../lib/blockItems";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
@@ -62,10 +62,23 @@ export interface LedgerRow {
 const COLS: Column<ItemSort>[] = [
   { key: "name", label: "Crop" },
   { key: "starts_on", label: "Set out" },
-  { key: "target_gdd", label: "Heat to target", width: "34%" },
-  { label: "Projected" },
-  { label: "Frost" },
-  { label: "" },
+  { key: "target_gdd", label: "Heat to target", width: "34%",
+    info: <>Growing degree days this planting has banked since it was set out,
+      against the target you gave it. The bar fills as the heat arrives; the
+      target is when it reaches the stage you care about, usually harvest.</> },
+  { label: "Projected",
+    info: <>The date this planting reaches its heat target if the season keeps
+      its pace of the last fortnight. A projection, not a forecast.</> },
+  { label: "Frost",
+    info: <>Whether that date comes before the median first frost on this
+      ground — and by how many days it clears it, or misses.</> },
+  { label: "Status",
+    info: <><b>On pace</b>: heat is arriving and a date can be projected.{" "}
+      <b>Past target</b>: it has banked its heat.{" "}
+      <b>Stalled</b>: too little heat lately to project a date.{" "}
+      <b>Not yet out</b>: its set-out date is still ahead.{" "}
+      <b>Not tracked</b>: it has no set-out date or no heat target to count from.{" "}
+      <b>Perennial</b>: judged on winter chill and hardiness instead.</> },
 ];
 
 export default function CropLedger({
@@ -117,21 +130,22 @@ export default function CropLedger({
                       ))}
                     </span>
                   )}
-                  <small className="block text-[11px] font-normal text-ink-soft">
-                    {/* A tree is described by the figures it IS judged on.
-                        "on the record · base 50 °F" under an apple stated one
-                        thing that was vague and one that was not true. */}
-                    {p.perennial
+                  {/* A tree is described by the figures it IS judged on, a crop
+                      by its target and base. With none of them, nothing: this
+                      line used to say "on the record", which a grower asked the
+                      meaning of — it meant only "saved", and the row's own
+                      cells already say what is missing. */}
+                  {(() => {
+                    const facts = (p.perennial
                       ? [p.chillHours != null && `${p.chillHours} h chill`,
                          p.hardyToF != null && `hardy to ${u.showTemp(p.hardyToF)}`]
-                          .filter(Boolean).join(" · ") || "on the record"
-                      : <>
-                          {p.gddTarget != null
-                            ? `target ${u.showDD(p.gddTarget)}`
-                            : "on the record"}
-                          {p.baseTempF != null && ` · base ${u.showTemp(p.baseTempF)}`}
-                        </>}
-                  </small>
+                      : [p.gddTarget != null && `target ${u.showDD(p.gddTarget)}`,
+                         p.baseTempF != null && `base ${u.showTemp(p.baseTempF)}`]
+                    ).filter(Boolean).join(" · ");
+                    return facts
+                      ? <small className="block text-[11px] font-normal text-ink-soft">{facts}</small>
+                      : null;
+                  })()}
                 </td>
                 <td onClick={() => onEdit(p)} className="cursor-text px-3 py-2.5 whitespace-nowrap">
                   {p.setOut ? shortDate(p.setOut) : "—"}
@@ -166,8 +180,8 @@ export default function CropLedger({
                     {r ? (STATUS[r.state] ?? STATUS.on_pace).label
                        : p.perennial ? "Perennial" : "Not tracked"}
                   </span>
-                  <button onClick={() => onDelete(p.id)} aria-label={`Remove ${p.crop}`}
-                    className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>
+                  <button onClick={() => onDelete(p.id)} aria-label={`Remove ${p.crop}`} title="Remove"
+                    className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-clay"><TrashGlyph /></button>
                 </td>
               </tr>
             ),

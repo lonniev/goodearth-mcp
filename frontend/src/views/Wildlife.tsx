@@ -27,7 +27,7 @@ import SpeciesFinder from "../components/SpeciesFinder";
 import type { Chosen } from "../lib/basket";
 import type { SavedRegion } from "../lib/regions";
 import {
-  CELL, Empty, ErrorBox, PageTitle, RowActions, Section, SpeciesMark,
+  CELL, Empty, ErrorBox, PageTitle, RowActions, Section, SpeciesMark, TrashGlyph,
 } from "../components/ui";
 import { speciesHabits, type SpeciesHabitsResult } from "../lib/mcp";
 
@@ -355,8 +355,8 @@ export default function Wildlife({
                           });
                           void retireWildlife(m.id);
                         }}
-                          aria-label={`Remove ${m.species} ${m.event}`}
-                          className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>
+                          aria-label={`Remove ${m.species} ${m.event}`} title="Remove"
+                          className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-clay"><TrashGlyph /></button>
                       </td>
                     </tr>
                   );

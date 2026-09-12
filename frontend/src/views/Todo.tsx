@@ -23,7 +23,7 @@ import { Pager, SortHeaders, type Column } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
 import UndoBar, { remembered } from "../components/UndoBar";
 import {
-  CELL, Empty, ErrorBox, FIELD, ICON, IconButton, Pill, RowActions, Section,
+  CELL, Empty, ErrorBox, FIELD, ICON, IconButton, Pill, RowActions, Section, TrashGlyph,
 } from "../components/ui";
 import {
   taskDelete, taskList, taskSave, taskSetDone,
@@ -316,8 +316,8 @@ export default function TodoView({
                         });
                         await taskDelete(t.id); refreshFeed.soon(); void load();
                       }}
-                        aria-label={`Remove ${t.title}`}
-                        className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-clay">×</button>
+                        aria-label={`Remove ${t.title}`} title="Remove"
+                        className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-clay"><TrashGlyph /></button>
                     </td>
                   </tr>
                 )))}
