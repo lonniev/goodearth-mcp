@@ -19,6 +19,7 @@ import Term from "../components/Term";
 import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
 import { buildFlags, taskFlags, type LedgerFlag } from "../lib/ledgerFlags";
+import { findEvent, MIN_QUERY } from "../lib/findEvent";
 import { plantingCodec, type Planting } from "../lib/plantings";
 import { pestCodec, type SavedPest } from "../lib/pestModels";
 import { wildlifeCodec, type SavedWildlife } from "../lib/wildlifeModels";
@@ -157,6 +158,20 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
   const wetBands = bands(data, sick, cropNames);
   const dryLine = drying ? dryingLine(drying) : null;
 
+  // Find an event by name and centre the chart on it. Every keystroke is a
+  // local search over marks already on the page — nothing is fetched.
+  const [find, setFind] = useState("");
+  const [focus, setFocus] = useState<{ flag: LedgerFlag; nonce: number } | null>(null);
+  const todayIdx = (data?.curve?.cumulative_mean?.length ?? 1) - 1;
+  const onFind = (text: string) => {
+    setFind(text);
+    const hit = findEvent(flags, text, todayIdx);
+    if (!hit) return;
+    setShowFlags(true);   // a found mark the reader cannot see is no find
+    setFocus({ flag: hit, nonce: Date.now() });
+  };
+  const findMiss = find.trim().length >= MIN_QUERY && !findEvent(flags, find, todayIdx);
+
   // One chiclet, one tap per measure, and a tap that clears it. The almanac is
   // fetched lazily on the first tap rather than with the page: a reader who
   // never opens the weather never triggers the call, and once it is here the
@@ -294,6 +309,15 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
           {wxBusy ? "…" : wx === 0 ? "🌦️ Weather" : `${WEATHER[wx - 1].emoji} ${WEATHER[wx - 1].label}`}
         </button>
         <span className="ml-auto flex flex-wrap items-center justify-end gap-x-3">
+          {flags.length > 0 && (
+            <label className="flex items-center gap-1.5">
+              <input type="search" value={find} onChange={(e) => onFind(e.target.value)}
+                placeholder="find an event" aria-label="Find an event on the chart"
+                className={`h-9 w-44 rounded-full border bg-white px-3 text-[13px] focus:outline-none ${
+                  findMiss ? "border-clay" : "border-rule focus:border-honey"}`} />
+              {findMiss && <span className="data text-[10.5px] text-clay">no match</span>}
+            </label>
+          )}
           {almanacAt && (
             <Provenance tool="goodearth_almanac" at={almanacAt} onCost={onCost} />
           )}
@@ -309,7 +333,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
         <ChartFrame label="The season's heat">
           <SeasonChart data={data} frostDayIndex={frostIndex(data, frost)}
             flags={showFlags ? flags : []} onFlag={setOpenFlag} showGround={showGround}
-            overlay={overlay} bands={wetBands} />
+            overlay={overlay} bands={wetBands} focus={focus} />
         </ChartFrame>
       ) : null}
 
