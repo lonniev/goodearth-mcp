@@ -335,6 +335,16 @@ async def fetch_soil_forecast(lat: float, lon: float, hourly_field: str, days: i
 #: fingerprint it the way `_field_fingerprint` already fingerprints the almanac's.
 _HOURLY_WETNESS = "temperature_2m,relative_humidity_2m,dew_point_2m,precipitation"
 
+#: The wetness fields plus what decides how fast a wet thing DRIES: evaporative
+#: demand (FAO-56 reference evapotranspiration, mm), how thirsty the air is
+#: (vapour-pressure deficit, kPa), sun and wind. Asked of the FORECAST only —
+#: the drying line looks at today and ahead, and the forecast covers today from
+#: midnight — so the season's cached wetness record is untouched by it.
+_HOURLY_DRYING = (
+    _HOURLY_WETNESS
+    + ",et0_fao_evapotranspiration,vapour_pressure_deficit,shortwave_radiation,wind_speed_10m"
+)
+
 
 async def fetch_wetness_history(lat: float, lon: float, start: str, end: str) -> dict[str, Any]:
     """Hourly temperature, humidity, dew point and rain, for counting wet hours.
@@ -383,12 +393,17 @@ async def fetch_wetness_history(lat: float, lon: float, start: str, end: str) ->
     raise last if last else UpstreamError("no history feed is configured")
 
 
-async def fetch_wetness_forecast(lat: float, lon: float, days: int = 16) -> dict[str, Any]:
+async def fetch_wetness_forecast(
+    lat: float, lon: float, days: int = 16, hourly: str = _HOURLY_WETNESS,
+) -> dict[str, Any]:
     """The same hourly variables ahead, for the period the forecast implies.
 
     The forecast endpoint runs the SAME model as the archived runs above, so the
     series does not step at today — which matters, because "the last qualifying
     period" and "the next one" are read across that boundary.
+
+    `hourly` widens the field list for a caller that needs more than wetness —
+    the drying line passes `_HOURLY_DRYING`.
     """
     days = max(1, min(days, 16))
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
@@ -398,7 +413,7 @@ async def fetch_wetness_forecast(lat: float, lon: float, days: int = 16) -> dict
             {
                 "latitude": lat,
                 "longitude": lon,
-                "hourly": _HOURLY_WETNESS,
+                "hourly": hourly,
                 "forecast_days": days,
                 "timezone": "auto",
                 **_US_UNITS,

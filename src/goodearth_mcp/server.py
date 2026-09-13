@@ -49,6 +49,8 @@ from goodearth_mcp.disease import DiseaseError
 from goodearth_mcp.disease_window import DiseaseWindowError
 from goodearth_mcp.disease_window import region_disease_window as disease_impl
 from goodearth_mcp.disease_window import resolve_disease_models as disease_resolve
+from goodearth_mcp.drying_window import DryingWindowError
+from goodearth_mcp.drying_window import region_drying_window as drying_impl
 from goodearth_mcp.forget import ForgetError
 from goodearth_mcp.forget import everything as forget_everything_impl
 from goodearth_mcp.frost_window import FrostError
@@ -172,6 +174,7 @@ BLOCK_ITEM_LIST_UUID       = "587e418b-59f5-5400-bc9b-98db6929fec1"
 TREE_SUITABILITY_UUID      = "9f065c39-548a-5675-a562-cbf2bb720dd9"
 TREE_YEAR_UUID             = "993d83ad-9edd-5690-88fd-298f2137dc24"
 DISEASE_RISK_UUID          = "b12c4ed8-c3cd-5a14-8e4b-a9fa344b7096"
+DRYING_WINDOW_UUID         = "9e07633f-a43a-5298-9691-7678a59cfb32"
 
 _DOMAIN_TOOLS = [
     ToolIdentity(
@@ -209,6 +212,12 @@ _DOMAIN_TOOLS = [
         capability="disease_risk",
         category="read",
         intent="How many hours this ground stayed wet, and what the published disease models make of them",
+    ),
+    ToolIdentity(
+        tool_id=DRYING_WINDOW_UUID,
+        capability="drying_window",
+        category="read",
+        intent="When the dew burns off this ground, the dry days ahead, and the next rain",
     ),
     ToolIdentity(
         tool_id=CALIBRATION_UUID,
@@ -2337,6 +2346,52 @@ async def disease_risk(
         return {
             "success": False,
             "error": f"A weather feed did not answer: {exc}",
+            "error_code": "upstream_unavailable",
+        }
+
+
+@tool
+@runtime.paid_tool(DRYING_WINDOW_UUID)
+async def drying_window(
+    block: Annotated[str, BLOCK_FIELD],
+    npub: Annotated[
+        str,
+        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
+    ] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """When the dew burns off this ground, the dry days ahead, and the next rain.
+
+    Answers "is it dry enough yet?" for a grower planning to cut flowers, pick,
+    mow or make hay. Returns this morning's and tomorrow morning's dew-off hour
+    (the first hour the leaves are estimated to stay dry for two hours running),
+    the first run of forecast days with no rain, the next hour of rain, and per
+    day the rain, wet hours, reference evapotranspiration (FAO-56 ET0) and peak
+    vapour-pressure deficit — how hard the air is pulling water out of anything
+    wet. Ten days ahead, from one forecast call.
+
+    Not wet is not drying: a still, overcast, humid day wets nothing and dries
+    little, which is why ET0 travels with every day. Wetness is ESTIMATED from
+    modelled humidity and rain, never measured, as in `disease_risk`.
+
+    Conditions only. Good Earth never says a crop is ready to cut or that hay
+    will cure — that depends on the crop, the swath and the field — and it
+    publishes no agronomy.
+
+    Args:
+        block: The ground to answer for — its id, its name, or an alias.
+    """
+    parsed, _found = await _block_region(npub, block)
+
+    try:
+        return await drying_impl(parsed)
+    except DryingWindowError as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_request"}
+    except (sources.UpstreamError, OSError) as exc:
+        logger.warning("drying_window failed: %s", exc)
+        return {
+            "success": False,
+            "error": f"The forecast did not answer: {exc}",
             "error_code": "upstream_unavailable",
         }
 

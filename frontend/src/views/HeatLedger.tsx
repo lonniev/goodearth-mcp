@@ -14,6 +14,8 @@ import EventDetail from "../components/EventDetail";
 import SoilCard from "../components/SoilCard";
 import DiseaseCard from "../components/DiseaseCard";
 import { bands } from "../lib/diseaseBands";
+import { dryingLine } from "../lib/dryingLine";
+import Term from "../components/Term";
 import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
 import { buildFlags, taskFlags, type LedgerFlag } from "../lib/ledgerFlags";
@@ -22,7 +24,7 @@ import { pestCodec, type SavedPest } from "../lib/pestModels";
 import { wildlifeCodec, type SavedWildlife } from "../lib/wildlifeModels";
 import { useBlockItems } from "../lib/blockItems";
 import { almanacFor, type AlmanacResult, type MeasureKey,
-  diseaseRisk, frostWindow, gddSeasonCurve, soilTempProjection, taskList, type TaskRow, type DiseaseRiskResult, type FrostWindowResult, type SeasonCurveResult, type SoilWindowResult } from "../lib/mcp";
+  diseaseRisk, dryingWindow, frostWindow, gddSeasonCurve, soilTempProjection, taskList, type TaskRow, type DiseaseRiskResult, type DryingWindowResult, type FrostWindowResult, type SeasonCurveResult, type SoilWindowResult } from "../lib/mcp";
 import type { SavedRegion } from "../lib/regions";
 
 interface Props {
@@ -123,10 +125,23 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
     } catch { setSick(null); }
   }, [region]);
 
+  // Dew off, the dry days ahead, the next rain — one line. Hidden, not an
+  // error, until the tool is priced: a line that cannot be answered is simply
+  // not a line on the page.
+  const [drying, setDrying] = useState<DryingWindowResult | null>(null);
+  const [dryingAt, setDryingAt] = useState<Date | null>(null);
+  const runDrying = useCallback(async () => {
+    try {
+      const r = await dryingWindow(region.id);
+      if (!r.success) { setDrying(null); return; }
+      setDrying(r); setDryingAt(new Date());
+    } catch { setDrying(null); }
+  }, [region]);
+
   // Re-read whenever the active region changes — the whole app is scoped by it.
   useEffect(() => {
-    void run(); void runFrost(); void runSoil(); void runDisease();
-  }, [run, runFrost, runSoil, runDisease]);
+    void run(); void runFrost(); void runSoil(); void runDisease(); void runDrying();
+  }, [run, runFrost, runSoil, runDisease, runDrying]);
 
   // Every threshold the grower has entered is a GDD number, and where it meets
   // this curve is a date. The curve is already on the page, so this needs no
@@ -140,6 +155,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
   const cropNames = plantings.map((p) => p.crop).filter(Boolean);
   // The last wet period and the next one, as washes on the date axis.
   const wetBands = bands(data, sick, cropNames);
+  const dryLine = drying ? dryingLine(drying) : null;
 
   // One chiclet, one tap per measure, and a tap that clears it. The almanac is
   // fetched lazily on the first tap rather than with the page: a reader who
@@ -317,9 +333,27 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
         </>
       )}
 
-      {sick && (
+      {/* Drying, as one line and never as chart bands: wet and dry washes on
+          one chart would be two stories at once. */}
+      {dryLine && (
         <>
           {!frost && !soil && (
+            <h2 className="figure mt-6 mb-2.5 text-[18px] font-semibold">🔔 Trends</h2>
+          )}
+          <p className="mb-3 flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-md border border-rule bg-panel px-4 py-2.5 text-[13.5px]">
+            <span aria-hidden="true">🌾</span>
+            <span>{dryLine}</span>
+            <Term of="drying" />
+            <span className="ml-auto">
+              <Provenance tool="goodearth_drying_window" at={dryingAt} onCost={onCost} />
+            </span>
+          </p>
+        </>
+      )}
+
+      {sick && (
+        <>
+          {!frost && !soil && !dryLine && (
             <h2 className="figure mt-6 mb-2.5 text-[18px] font-semibold">🔔 Trends</h2>
           )}
           <div className="flex items-baseline gap-2.5">

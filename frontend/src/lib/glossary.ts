@@ -211,6 +211,24 @@ export const GLOSSARY: Entry[] = [
       + "a leaf.",
   },
   {
+    key: "drying", term: "Dry by, dry days", group: "sky",
+    aka: ["dew off", "dry day", "drying", "mowing", "harvest", "hay"],
+    said: "The Dashboard's line about drying. \"Dry by 9 am\" is the first hour "
+      + "this ground's leaves are estimated to stay dry for two hours running "
+      + "after a wet night — the dew burning off. A dry day is a forecast day "
+      + "with no hour of rain. Both come from the same modelled hours as leaf "
+      + "wetness, so they are estimates, and they describe the weather: what to "
+      + "cut, pick or mow, and whether hay will cure, is yours to judge.",
+  },
+  {
+    key: "et0", term: "Evapotranspiration (ET0)", group: "sky",
+    aka: ["ET0", "evaporation", "evaporative demand", "drying power"],
+    said: "How much water the air would pull from well-watered grass in a day, "
+      + "in millimetres — the standard FAO measure of evaporative demand, from "
+      + "sun, warmth, dry air and wind. Not wet is not drying: a still, overcast, "
+      + "humid day wets nothing and dries little, and its ET0 says so.",
+  },
+  {
     key: "normal", term: "Normal", group: "sky", aka: ["normal band", "the grey band"],
     said: "What this ground usually does on this date, taken from its own "
       + "record over the last ten seasons. It is the band a chart draws behind "
