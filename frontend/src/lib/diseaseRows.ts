@@ -74,12 +74,18 @@ export function order(
   };
 }
 
-export function heading(data: DiseaseRiskResult, plantings: readonly string[] = []): string {
+/// What the card's (i) says about the counts behind it.
+///
+/// The card used to lead with "4 of 4 models reporting risk" and a wet-hour
+/// total. The owner's rule: the card lists the estimates, and the arithmetic
+/// behind them goes in the (i).
+export function estimatesInfo(data: DiseaseRiskResult, plantings: readonly string[] = []): string {
   const { live, clear } = order(data, plantings);
-  const shown = live.length + clear.length;
-  return live.length
-    ? `${live.length} of ${shown} models reporting risk`
-    : "All clear";
+  const n = live.length + clear.length;
+  const since = new Date(`${data.season_from.slice(0, 10)}T12:00:00Z`)
+    .toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  return `${n} disease model${n === 1 ? "" : "s"} · `
+    + `${data.wetness.wet_hours.toLocaleString("en-US")} estimated wet hours since ${since}`;
 }
 
 export interface CropWatch {

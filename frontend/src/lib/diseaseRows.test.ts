@@ -2,7 +2,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { began, cropWatch, heading, order, relevant, rowDate, toneOf, TONE_WORD } from "./diseaseRows.ts";
+import { began, cropWatch, estimatesInfo, order, relevant, rowDate, toneOf, TONE_WORD } from "./diseaseRows.ts";
 import type { DiseaseRiskResult, DiseaseVerdict } from "./mcp.ts";
 
 function model(over: Partial<DiseaseVerdict> = {}): DiseaseVerdict {
@@ -87,19 +87,18 @@ describe("the order of the card", () => {
   });
 });
 
-describe("the heading", () => {
-  it("counts only what is happening now", () => {
+describe("the counts behind the card, in its (i)", () => {
+  const withWet = (diseases: DiseaseVerdict[], wet = 1026) =>
+    ({ diseases, season_from: "2026-01-01", wetness: { wet_hours: wet } }) as unknown as DiseaseRiskResult;
+
+  it("names the models and the wet hours, not a score of risk", () => {
     const at = model({ at_risk: true });
-    assert.equal(heading(card([at, model(), model()])), "1 of 3 models reporting risk");
+    assert.equal(estimatesInfo(withWet([at, model(), model(), model()])),
+      "4 disease models · 1,026 estimated wet hours since Jan 1");
   });
 
-  it("says so plainly when nothing is", () => {
-    assert.equal(heading(card([model(), model()])), "All clear");
-  });
-
-  it("does not count a busy season as a busy today", () => {
-    const busy = model({ season_count: 20, last_period: { from: "2026-06-14" } });
-    assert.equal(heading(card([busy])), "All clear");
+  it("says one model, not one models", () => {
+    assert.match(estimatesInfo(withWet([model()], 7)), /^1 disease model · 7 estimated/);
   });
 });
 
@@ -127,9 +126,9 @@ describe("only the models this ground grows for", () => {
     assert.deepEqual(relevant(FIVE, ["Potato"]).map((v) => v.model), ["hutton"]);
   });
 
-  it("counts the heading against what is SHOWN, not against all five", () => {
-    assert.equal(heading(card(FIVE), ["Calendula officinalis", "Potato"]),
-      "2 of 2 models reporting risk");
+  it("counts the models SHOWN, not all five", () => {
+    const data = { ...card(FIVE), season_from: "2026-01-01", wetness: { wet_hours: 10 } } as unknown as DiseaseRiskResult;
+    assert.match(estimatesInfo(data, ["Calendula officinalis", "Potato"]), /^2 disease models/);
   });
 
   it("shows every model when the record names no crop at all", () => {

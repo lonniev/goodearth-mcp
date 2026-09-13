@@ -18,7 +18,7 @@
 
 import { useState } from "react";
 import Term from "./Term";
-import { heading, order, rowDate, toneOf, TONE_WORD, type Tone } from "../lib/diseaseRows";
+import { estimatesInfo, order, rowDate, toneOf, TONE_WORD, type Tone } from "../lib/diseaseRows";
 import { growing } from "../lib/cropMatch";
 import type { DiseaseRiskResult, DiseaseVerdict } from "../lib/mcp";
 
@@ -48,15 +48,19 @@ export default function DiseaseCard({ data, plantings = [] }: {
         live.length ? "border-l-clay" : "border-l-growth"
       }`}
     >
+      {/* The estimates, listed — not a score of them. "4 of 4 models reporting
+          risk" and the wet-hour total were the arithmetic, not the answer, so
+          they live in the (i) with the rule that counts an hour wet and the
+          line that says whose models these are. */}
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h3 className="figure text-[15.5px] font-semibold">
-          {heading(data, plantings)}
+          Disease Estimates
+          <Term>
+            {estimatesInfo(data, plantings)}. An hour counts as wet when {w.estimator.wet_when} —
+            estimated, never measured. Published models run against your ground; Good Earth
+            does not publish plant pathology and never recommends a treatment.
+          </Term>
         </h3>
-        <span className="data text-[12px] text-ink-soft">
-          <b className="text-ink">{w.wet_hours.toLocaleString()}</b> wet hours since {d(data.season_from)}
-          {" "}
-          <Term of="leaf_wetness">estimated</Term>
-        </span>
         {w.forecast_note && (
           <span className="data text-[10.5px] text-clay">record only — the forecast did not answer</span>
         )}
@@ -89,12 +93,6 @@ export default function DiseaseCard({ data, plantings = [] }: {
           {data.skipped.map((s) => `${s.name}: ${s.reason}`).join(" · ")}
         </p>
       )}
-
-      <p className="data mt-2.5 text-[10px] leading-relaxed text-ink-soft">
-        {w.estimator.wet_when}.{" "}
-        Published models run against your ground — Good Earth does not publish plant
-        pathology and never recommends a treatment.
-      </p>
     </div>
   );
 }
