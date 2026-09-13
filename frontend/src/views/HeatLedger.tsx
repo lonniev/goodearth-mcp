@@ -313,22 +313,31 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
         </ChartFrame>
       ) : null}
 
+      {/* ── Trends: one heading, and every trend named by its own label ──
+          It was four cards under one heading with a bare "read 7:05 PM" above
+          each and no word saying which was which. The heading used to be
+          re-declared inside each block, guarded by which blocks came before
+          it; one heading shown when any trend is, is the same thing plainly. */}
+      {(frost || soil || dryLine || sick) && (
+        <h2 className="figure mt-6 mb-1 text-[18px] font-semibold">
+          <span className="mr-0.5">🔔</span>Trends
+        </h2>
+      )}
+
       {frost && (
         <>
-          <h2 className="figure mt-6 mb-2.5 flex items-baseline gap-2.5 text-[18px] font-semibold">
-            <span className="mr-0.5">🔔</span>Trends
+          <TrendLabel emoji="❄️" label="Freezing">
             <Provenance tool="goodearth_frost_window" at={frostAt} onCost={onCost} />
-          </h2>
+          </TrendLabel>
           <FrostCard data={frost} />
         </>
       )}
 
       {soil && (
         <>
-          {!frost && <h2 className="figure mt-6 mb-2.5 text-[18px] font-semibold">🔔 Trends</h2>}
-          <div className="flex items-baseline gap-2.5">
+          <TrendLabel emoji="🪱" label="Soil Temp">
             <Provenance tool="goodearth_soil_temp_projection" at={soilAt} onCost={onCost} />
-          </div>
+          </TrendLabel>
           <SoilCard data={soil} />
         </>
       )}
@@ -337,28 +346,21 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
           one chart would be two stories at once. */}
       {dryLine && (
         <>
-          {!frost && !soil && (
-            <h2 className="figure mt-6 mb-2.5 text-[18px] font-semibold">🔔 Trends</h2>
-          )}
+          <TrendLabel emoji="🌾" label="Drying">
+            <Provenance tool="goodearth_drying_window" at={dryingAt} onCost={onCost} />
+          </TrendLabel>
           <p className="mb-3 flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-md border border-rule bg-panel px-4 py-2.5 text-[13.5px]">
-            <span aria-hidden="true">🌾</span>
             <span>{dryLine}</span>
             <Term of="drying" />
-            <span className="ml-auto">
-              <Provenance tool="goodearth_drying_window" at={dryingAt} onCost={onCost} />
-            </span>
           </p>
         </>
       )}
 
       {sick && (
         <>
-          {!frost && !soil && !dryLine && (
-            <h2 className="figure mt-6 mb-2.5 text-[18px] font-semibold">🔔 Trends</h2>
-          )}
-          <div className="flex items-baseline gap-2.5">
+          <TrendLabel emoji="🍄" label="Diseases">
             <Provenance tool="goodearth_disease_risk" at={sickAt} onCost={onCost} />
-          </div>
+          </TrendLabel>
           <DiseaseCard data={sick} plantings={cropNames} />
         </>
       )}
@@ -402,6 +404,20 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
 function Tag({ children }: { children: ReactNode }) {
   return (
     <span className="data rounded-full bg-band px-2.5 py-1 text-[10px] text-ink-soft">{children}</span>
+  );
+}
+
+/// The name of one trend, with when it was read on the right.
+function TrendLabel({ emoji, label, children }: {
+  emoji: string; label: string; children?: ReactNode;
+}) {
+  return (
+    <div className="mt-4 mb-1.5 flex items-baseline gap-2.5">
+      <h3 className="figure text-[15px] font-semibold">
+        <span className="mr-1" aria-hidden="true">{emoji}</span>{label}
+      </h3>
+      <span className="ml-auto">{children}</span>
+    </div>
   );
 }
 
