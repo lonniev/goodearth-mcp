@@ -1,20 +1,35 @@
 // Hand a file to the person holding the device.
 //
-// The share sheet where the device has one that takes files — a tablet or a
-// phone, where a "download" lands somewhere nobody looks — and a download
-// where it does not.
+// The share sheet on a touch-first device that has one for files — a tablet or
+// a phone, where a "download" lands in a folder nobody opens. A download
+// everywhere else.
 //
-// "blocked" is its own answer. Safari opens the sheet only from a tap, and a
-// file that took a few calls to assemble arrives after the tap has expired.
-// The caller keeps the file and asks for one more tap, which the sheet then
-// accepts; falling back to a download there would hand a tablet user a file
-// in a folder they never open.
+// Desktop is decided by the POINTER, not by whether the browser offers a share
+// sheet. Chrome and Edge on Windows 11 do offer one for files, and following it
+// is why a tester's Export "did nothing": the bundle takes several calls to
+// assemble, the click that asked for it has expired by then, the sheet is
+// refused, and the page waited for a second click on a button whose changed
+// label a desktop user never notices. The Windows sheet offers Mail and Nearby
+// Share anyway, not "save this file", which is what a desktop user wanted.
+//
+// "blocked" is still its own answer on a tablet. Safari opens the sheet only
+// from a fresh tap, so the caller keeps the file and asks for one more tap,
+// which the sheet then accepts.
 
 export type ShareOutcome = "shared" | "downloaded" | "cancelled" | "blocked";
 
+/// The share sheet only on a touch-first device that can share files.
+export function handOffMode(o: { canShareFiles: boolean; coarsePointer: boolean }): "share" | "download" {
+  return o.canShareFiles && o.coarsePointer ? "share" : "download";
+}
+
 export async function shareOrDownload(file: File, title: string): Promise<ShareOutcome> {
   const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
-  if (nav.share && nav.canShare?.({ files: [file] })) {
+  const canShareFiles = !!nav.share && !!nav.canShare?.({ files: [file] });
+  const coarsePointer = typeof window.matchMedia === "function"
+    && window.matchMedia("(pointer: coarse)").matches;
+
+  if (handOffMode({ canShareFiles, coarsePointer }) === "share") {
     try {
       await nav.share({ files: [file], title });
       return "shared";
