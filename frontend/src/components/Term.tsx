@@ -9,8 +9,15 @@
 // It exists so that "biofix", "threshold" and "base temperature" can stay on
 // screen as the single words they are, instead of dragging a paragraph of
 // explanation onto a dashboard behind them.
+//
+// IT MUST ALWAYS GO AWAY, and it must open when tapped. It toggled on a click,
+// the click the iPad drops (the plant picker, then the chart's gesture hint
+// that stuck on screen), and closed on an outside mousedown. Now it toggles
+// when the finger lifts on it, closes on any outside press, on Escape, and by
+// itself once there has been time to read it (`lib/dwell`).
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { dwellMs } from "../lib/dwell";
 import { define } from "../lib/glossary";
 
 export default function Term({ label, of, children }: {
@@ -30,17 +37,23 @@ export default function Term({ label, of, children }: {
   const entry = of ? define(of) : undefined;
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLSpanElement>(null);
+  const panel = useRef<HTMLSpanElement>(null);
+  /// A lift already toggled it, so the click that may follow must not undo it.
+  const toggledByLift = useRef(false);
 
   useEffect(() => {
     if (!open) return;
-    const away = (e: MouseEvent) => {
+    const away = (e: PointerEvent) => {
       if (!box.current?.contains(e.target as Node)) setOpen(false);
     };
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-    document.addEventListener("mousedown", away);
+    // Gone once it has had time to be read — never left up for good.
+    const decay = window.setTimeout(() => setOpen(false), dwellMs(panel.current?.textContent ?? ""));
+    document.addEventListener("pointerdown", away);
     document.addEventListener("keydown", esc);
     return () => {
-      document.removeEventListener("mousedown", away);
+      window.clearTimeout(decay);
+      document.removeEventListener("pointerdown", away);
       document.removeEventListener("keydown", esc);
     };
   }, [open]);
@@ -50,7 +63,19 @@ export default function Term({ label, of, children }: {
       <button
         type="button"
         aria-expanded={open}
-        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
+        // Its presses are its own: a Term in a sortable table header must not
+        // sort the column, or start any gesture on what it sits in.
+        onPointerDown={(e) => e.stopPropagation()}
+        onPointerUp={(e) => {
+          e.stopPropagation();
+          toggledByLift.current = true;
+          setOpen((v) => !v);
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (toggledByLift.current) { toggledByLift.current = false; return; }
+          setOpen((v) => !v);   // a keyboard's Enter or Space
+        }}
         className={label
           ? "cursor-help border-b border-dotted border-ink-soft/70 text-left"
           : "ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full border border-rule text-[9px] leading-none text-ink-soft align-middle"}
@@ -66,6 +91,7 @@ export default function Term({ label, of, children }: {
       </button>
       {open && (
         <span
+          ref={panel}
           role="tooltip"
           // Right-anchored: these sit in table headers and form labels near
           // the right edge, where a left-anchored panel runs off the screen.
