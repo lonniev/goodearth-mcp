@@ -99,6 +99,9 @@ interface Props {
   onFlag?: (f: LedgerFlag) => void;
   /// Ghost the block's own satellite still behind the plot.
   showGround?: boolean;
+  /// Centre the timeline on this event. A new `nonce` recentres again, so
+  /// searching the same name twice after panning away still brings it back.
+  focus?: { flag: LedgerFlag; nonce: number } | null;
   /// Wet periods, as washes on the date axis. A wet period is a condition of
   /// the DAYS, not a point on the curve, so it is drawn with width and behind
   /// everything rather than as one more stem competing with the flags.
@@ -125,7 +128,7 @@ function niceStep(span: number): number {
 
 export default function SeasonChart({
   data, frostDayIndex = null, flags = [], onFlag, showGround = true, overlay = null,
-  bands = [],
+  bands = [], focus = null,
 }: Props) {
   const u = useUnits();
   // Full screen gets a taller box, so the height it buys is spent on the plot
@@ -315,6 +318,19 @@ export default function SeasonChart({
     goToSpan(DEFAULT_SPAN);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [domainKey]);
+
+  /// Centre on an event the grower searched for, at the zoom they already
+  /// had — or a fortnight around it when the whole year was up, where
+  /// "centre on it" would move nothing. Placed by `dayOf`, the same day the
+  /// flag is drawn on, so the search lands where the mark is.
+  useEffect(() => {
+    if (!view || !focus) return;
+    const total = view.domHi - view.domLo + 1;
+    const shown = (zoom.x.hi - zoom.x.lo) * total;
+    setSpan(null);
+    showSpan(shown >= total - 1 ? 14 : shown, total, view.dayOf(focus.flag) - view.domLo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus?.nonce]);
 
   /// How tall the plot can be and still leave its own controls on screen.
   ///
