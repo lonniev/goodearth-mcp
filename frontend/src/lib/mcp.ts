@@ -962,6 +962,44 @@ export interface DiseaseRiskResult {
   sources: { name: string; role: string; resolution_m: number }[];
 }
 
+export interface DewOff {
+  state: "dry" | "clears" | "wet" | "unknown";
+  /// The feed's local hour, "YYYY-MM-DDTHH:00", when state is "clears".
+  at: string | null;
+}
+
+export interface DryDay {
+  date: string;
+  /// Null when the feed did not fill the day — never read as dry.
+  dry: boolean | null;
+  rain_mm: number;
+  rain_hours: number;
+  wet_hours: number;
+  et0_mm: number | null;
+  vpd_max_kpa: number | null;
+}
+
+export interface DryingWindowResult {
+  success: boolean;
+  error?: string;
+  error_code?: string;
+  as_of: string;
+  /// This hour on the block's own clock — the line reads against it, not the device's.
+  now: string;
+  today: { date: string; dew_off: DewOff };
+  tomorrow: { date: string; dew_off: DewOff };
+  dry_run: { start: string; end: string; days: number; strongest: string | null } | null;
+  next_rain: { at: string; mm: number } | null;
+  days: DryDay[];
+  note: string;
+  sources: { name: string; role: string; resolution_m: number }[];
+}
+
+/// When the dew burns off this ground, the dry days ahead, and the next rain.
+export async function dryingWindow(block: string): Promise<DryingWindowResult> {
+  return callTool<DryingWindowResult>("drying_window", { block });
+}
+
 /// Hours of leaf wetness on this ground, and what the models make of them.
 ///
 /// Stateless: the models travel as an argument and nothing is read from or

@@ -35,7 +35,7 @@ const SOURCES: {
   {
     name: "Open-Meteo — forecast",
     url: "https://open-meteo.com/en/docs",
-    role: "The 7–16 day outlook: nightly lows, wind, cloud, precipitation chance, hourly soil temperature, sunrise and sunset — and the hourly temperature, humidity, dew point and rain the disease models read ahead. Same model as the archived runs above, so the wetness series does not step at today.",
+    role: "The 7–16 day outlook: nightly lows, wind, cloud, precipitation chance, hourly soil temperature, sunrise and sunset — and the hourly temperature, humidity, dew point and rain the disease models read ahead, with the evapotranspiration, vapour-pressure deficit, sun and wind the drying line reads. Same model as the archived runs above, so the wetness series does not step at today.",
     resolution: "≈ 2–11 km by model",
     note: "Daily soil aggregates come back empty from this endpoint, so Good Earth asks hourly and averages.",
   },
@@ -155,6 +155,11 @@ const MODELS: { title: string; body: string; assumption: string }[] = [
     title: "Powdery mildew — the inverse case",
     body: "Hours of high humidity between 70% and 90% at 68–81 °F, with NO rain in the hour. Six such hours in a row is a conducive spell.",
     assumption: "Free water suppresses this one, so the hours every other model counts are the hours it loses. A wetness counter applied naively reads it exactly backwards, which is why it is stated as its own model rather than folded in with the rest.",
+  },
+  {
+    title: "Drying — dew off and dry days",
+    body: "The dew is counted off at the first hour the estimated leaf wetness stays dry for two hours running, looking at the morning only, up to 2 pm. A dry day is a forecast day with no hour of rain over 0.2 mm. Each day also carries its reference evapotranspiration (FAO-56 ET0) and peak vapour-pressure deficit, read from the forecast.",
+    assumption: "Not wet is not drying: a still, humid, overcast day wets nothing and dries little, which is why ET0 travels with every day. The line reports conditions only — it never says a crop is ready to cut or that hay will cure, which depends on the crop, the swath and the field as much as on the air.",
   },
   {
     title: "Projections",

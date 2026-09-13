@@ -91,7 +91,7 @@ GROUND_TOOLS = (
     "gdd_season_curve", "frost_window", "crop_gdd_status", "soil_temp_projection",
     "pest_threshold", "calibration", "almanac", "review_roster", "pest_catalog",
     "wildlife_catalog", "wildlife_calendar", "crop_suitability", "planting_window",
-    "calendar_dataset", "disease_risk",
+    "calendar_dataset", "disease_risk", "drying_window",
 )
 
 
