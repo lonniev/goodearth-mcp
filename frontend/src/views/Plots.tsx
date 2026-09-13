@@ -82,23 +82,35 @@ export default function Plots({
   const [bundleMsg, setBundleMsg] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
+  /// What the share button on one card is doing, said on that card. The page
+  /// title is a screen away from the card on a desktop, and a quiet button
+  /// with the answer somewhere else is how Export read as doing nothing.
+  const [cardMsg, setCardMsg] = useState<{ id: string; text: string } | null>(null);
+
   async function hand(id: string, file: File, name: string) {
     const outcome = await shareOrDownload(file, name);
-    if (outcome === "blocked") { setWaiting({ id, file }); return; }
+    if (outcome === "blocked") {
+      setWaiting({ id, file });
+      setCardMsg({ id, text: `${name} is ready. Tap Share again to send it.` });
+      return;
+    }
     setWaiting(null);
-    if (outcome === "downloaded") setBundleMsg(`Saved ${file.name}. Send it to whoever should have it.`);
+    setCardMsg(outcome === "downloaded"
+      ? { id, text: `Saved ${file.name} to your downloads. Send it to whoever should have it.` }
+      : null);
   }
 
   async function share(r: SavedRegion) {
     if (waiting?.id === r.id) { await hand(r.id, waiting.file, r.name); return; }
     setPacking(r.id); setBundleMsg("");
+    setCardMsg({ id: r.id, text: `Preparing ${r.name}…` });
     try {
       const bundle = await exportPlot(r);
       const file = new File([JSON.stringify(bundle, null, 2)], bundleFileName(r.name),
         { type: "application/json" });
       await hand(r.id, file, r.name);
     } catch (e) {
-      setBundleMsg((e as Error).message);
+      setCardMsg({ id: r.id, text: (e as Error).message });
     } finally {
       setPacking(null);
     }
@@ -410,6 +422,9 @@ export default function Plots({
                     onClick={() => { setConfirming(r); setErr(""); }} />
                 )}
               </div>
+              {cardMsg?.id === r.id && (
+                <p className="mt-2 text-[12px] text-ink-soft" role="status">{cardMsg.text}</p>
+              )}
             </div>
           );
         })}
