@@ -7,7 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-14
+
 ### Added
+- Year-round planning: succession schedules — `succession_days` on
+  `goodearth_planting_window` returns every sowing to the last that still
+  finishes, each with its typical finish and frost margin; Crops adds them to
+  the ledger in one write (#128).
+- Harvest log: cuts with an amount and unit, joined to their planting; a
+  planting's first cut calibrates its heat target (#121).
+- Offline field entry: plantings, notes, pests, wildlife and tasks recorded
+  without signal wait in an outbox and are sent in order; the installed app
+  opens with no signal (#120).
+- The heat chart carries on through Dec 31 on this ground's typical year
+  (`typical` on `goodearth_gdd_season_curve`), so a planting set out past the
+  projection has a bar (#129).
+- A drying line on the Dashboard — dew off, dry days, next rain —
+  `goodearth_drying_window` (#109).
+- Farm bundles: share a plot with every planting, pest, wildlife entry and task
+  as a file, and import one as a plot of your own (#105, #106).
+- Plot names and aliases editable on My Plots (#97); the life of a fungus, with
+  disease words and further reading (#98).
+- Dashboard: each trend carries its own label (#113); find an event by name and
+  the chart centres on it (#114); a full-screen button, and Good Earth installs
+  as an app (#116).
+- For readers without JavaScript and for AI agents: a readable front door,
+  robots.txt, sitemap.xml, llms.txt and JSON-LD (#119); first-connection
+  instructions a grower's agent reads first (#122); an MCP Registry entry
+  (`io.github.lonniev/goodearth-mcp`) and `/.well-known/ai-catalog.json` (#127).
 - A block answers to any part of its name that only one block has. "North
   Farm" finds a block saved as "North Farm (east parcel)"; a word two blocks
   share is refused with every candidate named, never quietly narrowed to one.
@@ -58,6 +85,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   them at Panton.
 
 ### Changed
+- A grower's season does not end on Dec 31: the calendar feed, roster review,
+  calibration and task "season" read a rolling season, and a row's season is
+  the year of its own date (#130). The planting window plans the coming season
+  once this year's first frost has passed (#131). Sap is counted over the
+  winter, Dec 1 – May 15; chill counts only winters that have finished (#132).
+- The last sowing date walks back from the frost through this ground's typical
+  heat day by day, not a season-long average rate (#128).
+- Disease shows only the models for what grows on this ground, reads "clear"
+  rather than "quiet", and is headed "Disease Estimates" (#99, #111).
+- Tasks and Crops rows compacted; trash removes, a struck pencil cancels;
+  tooltips wrap (#100–#104). Pages use the full width of the device (#118); the
+  Almanac's charts draw at their card's width on a phone (#125).
+- Grower-facing text no longer says where data is kept (#123).
 - References names the feed the service actually asks FIRST. It described the
   ERA5 reanalysis at ~9 km as "the running season" while `_history_any_feed`
   has been trying the 2 km archived model runs before it — so the page named
@@ -88,6 +128,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   claim any `model` reference, which would have had it report that USA-NPN
   publishes no dated layer for botrytis — a true sentence about a question it
   was never asked.
+
+### Fixed
+- One task per tap (#99); the plant picker picks on the iPad (#107); Export
+  downloads on a desktop (#108); the chart's gesture hint always goes away
+  (#110).
+- The web app's MCP client no longer awaits a failed connection forever, which
+  stranded every later call until a reload (#120).
+- Feb 29 no longer breaks the frost and soil summaries; a first fall frost in
+  January is found and ordered after December; a brood started in December is
+  not re-dated to next December; a January cut is calibrated from its October
+  set-out (#131). An October freeze belongs to the coming winter (#132).
 
 ## [0.1.0] - 2026-08-30
 
