@@ -1442,6 +1442,9 @@ export interface WildlifeEventInput {
   daylight_hours?: number;
   rising?: boolean;
   typical_on?: string;
+  /// A calendar event that happened ONCE, on this full date — a brood's start.
+  /// Never re-dated to the year in hand, as `typical_on` alone is.
+  on?: string;
   /// Interval events: a fixed count of days from a date. Every husbandry
   /// event is this — gestation, incubation, days to point of lay.
   days?: number;
@@ -1646,6 +1649,9 @@ export interface SuccessionRow {
 export interface PlantingWindowResult {
   success: boolean;
   error?: string;
+  /// The season the dates are for — next year's once this year's first frost
+  /// has typically come. Absent from a server older than the web app.
+  season?: number;
   frost: {
     last_spring_median: string | null;
     last_spring_latest: string | null;

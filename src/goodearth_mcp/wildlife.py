@@ -154,7 +154,12 @@ def validate_event(ev: Any) -> dict[str, Any]:
         out.update({"trigger": validate_trigger(species, ev.get("trigger"))})
 
     else:  # calendar
-        raw = ev.get("typical_on")
+        # A day that happened ONCE — a hen set on Dec 20 — carries its full
+        # date in `on` and is never re-dated. Month-and-day alone is an annual
+        # event, re-dated to each year: stored that way, a brood started on
+        # Dec 20 read "Dec 20 expected", meaning next December, from Jan 1.
+        once = ev.get("on")
+        raw = ev.get("typical_on") or (str(once)[5:10] if once else None)
         if not raw:
             raise WildlifeError(f"{species}: a calendar event needs typical_on (MM-DD)")
         try:
@@ -163,6 +168,11 @@ def validate_event(ev: Any) -> dict[str, Any]:
         except (ValueError, TypeError) as exc:
             raise WildlifeError(f"{species}: typical_on must be MM-DD, got {raw!r}") from exc
         out.update({"month": month, "day": day})
+        if once:
+            try:
+                out["on"] = date.fromisoformat(str(once)[:10]).isoformat()
+            except ValueError as exc:
+                raise WildlifeError(f"{species}: on must be YYYY-MM-DD, got {once!r}") from exc
 
     return out
 
@@ -392,7 +402,17 @@ def interval_event(ev: dict[str, Any], today: date) -> dict[str, Any]:
 
 
 def calendar_event(ev: dict[str, Any], today: date) -> dict[str, Any]:
-    """A date the grower recorded, expressed in the current year."""
+    """A date the grower recorded: an annual one expressed in the current
+    year, one that happened once on its own day."""
+    if ev.get("on"):
+        when = date.fromisoformat(ev["on"])
+        return {
+            "driver": "calendar",
+            "threshold": when.strftime("%b %-d, %Y"),
+            "reached_on": when.isoformat() if when <= today else None,
+            "projected_date": None if when <= today else when.isoformat(),
+            "note": "The day you recorded — it happened once, so it is not re-dated.",
+        }
     try:
         when = date(today.year, ev["month"], ev["day"])
     except ValueError:

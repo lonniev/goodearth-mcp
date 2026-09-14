@@ -19,8 +19,10 @@ Pure domain logic. No billing, no npubs, no MCP.
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date
 from typing import Any
+
+from goodearth_mcp import gdd
 
 # Open-Meteo's soil bands. 7-28 cm brackets the 4-inch depth growers speak in
 # (10 cm), so it is the default — but the band is reported rather than the
@@ -134,34 +136,20 @@ def crossing(
     return None
 
 
-def _month_day(iso: str) -> tuple[int, int]:
-    """Sort key by calendar date, not day-of-year — see frost._month_day."""
-    d = date.fromisoformat(iso)
-    return (d.month, d.day)
-
-
 def typical_crossing(iso_dates: list[str], reference_year: int) -> dict[str, Any] | None:
     """Median, earliest and latest crossing date across seasons."""
-    if not iso_dates:
+    # The same arithmetic as the frost dates, in one place: Feb 29 re-expressed
+    # in a common year raised here, and the soil summary silently came back
+    # empty for a spring crossing on that day.
+    got = gdd.typical_dates(iso_dates, reference_year)
+    if got is None:
         return None
-    keys = sorted(_month_day(d) for d in iso_dates)
-    n = len(keys)
-    if n % 2:
-        median_key = keys[n // 2]
-    else:
-        lo = date(reference_year, *keys[n // 2 - 1])
-        hi = date(reference_year, *keys[n // 2])
-        mid = lo + timedelta(days=(hi - lo).days // 2)
-        median_key = (mid.month, mid.day)
-
-    def to_date(k: tuple[int, int]) -> str:
-        return date(reference_year, k[0], k[1]).isoformat()
-
+    median, earliest, latest = got
     return {
-        "median": to_date(median_key),
-        "earliest": to_date(keys[0]),
-        "latest": to_date(keys[-1]),
-        "years_on_record": n,
+        "median": median.isoformat(),
+        "earliest": earliest.isoformat(),
+        "latest": latest.isoformat(),
+        "years_on_record": len(iso_dates),
     }
 
 

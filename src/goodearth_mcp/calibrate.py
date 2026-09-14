@@ -48,8 +48,12 @@ async def region_calibration(
             skipped.append({"name": str((row or {}).get("kind") or "?"), "reason": str(exc_)})
 
     # Reports can span seasons, and a stage seen in 2024 must be counted
-    # against 2024's heat. One archive request covers the whole span.
-    years = sorted({o["observed_on"].year for o in parsed})
+    # against 2024's heat. One archive request covers the whole span — from
+    # the earliest SET-OUT, not the earliest report: greens cut in January
+    # from an October sowing were counted from Jan 1, a few degree-days
+    # against a target of hundreds, and read as a huge false bias.
+    years = sorted({o["observed_on"].year for o in parsed}
+                   | {o["set_out"].year for o in parsed if o.get("set_out")})
     span_start = date(min(years), 1, 1)
     span_end = min(date(max(years), 12, 31), today)
 
