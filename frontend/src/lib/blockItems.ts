@@ -11,10 +11,11 @@
 // One hook for all four kinds. They differ only in payload, so four loaders
 // would have been four chances to drift.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  blockItemList, blockItemSave, type ItemKind, type ItemRow, type ItemSort,
+  blockItemList, blockItemSave, getStoredNpub, type ItemKind, type ItemRow, type ItemSort,
 } from "./mcp";
+import { entries, isNetworkFailure, overlay, pendingItems, subscribe } from "./outbox";
 
 export type { ItemKind, ItemSort };
 
@@ -58,6 +59,9 @@ export interface ItemsHandle<T> {
   /// True only on the first load, so a refresh does not blank the page.
   loading: boolean;
   error: string;
+  /// Rows in `items` that were recorded without signal and have not reached
+  /// the server yet. A view marks them; it does not have to.
+  pendingIds: ReadonlySet<string>;
   save: (value: T) => Promise<void>;
   /// Several at once, in one write and one fare. See the note on the
   /// implementation: six calls to `save` is six fares and a half-saved basket
@@ -124,7 +128,11 @@ export function useBlockItems<T>(
         setItems([]);
       }
     } catch (e) {
-      setError(String(e instanceof Error ? e.message : e));
+      // No signal is not a fault to report in a transport's words. What was
+      // on screen stays; anything recorded now waits and is sent later.
+      setError(isNetworkFailure(e, typeof navigator === "undefined" ? undefined : navigator.onLine)
+        ? "No signal. This list loads when the signal is back — anything you record now waits and is sent then."
+        : String(e instanceof Error ? e.message : e));
     } finally {
       setLoading(false);
     }
@@ -135,13 +143,41 @@ export function useBlockItems<T>(
 
   useEffect(() => { setLoading(true); void reload(); }, [reload]);
 
+  // This view's own writes still waiting for signal, laid over the list, so
+  // an entry made in the field shows where it was made — marked as waiting —
+  // instead of vanishing until the signal returns.
+  const [queue, setQueue] = useState(() => entries());
+  useEffect(() => subscribe(setQueue), []);
+  const waitingHere = useMemo(
+    () => pendingItems(queue, getStoredNpub(), block, kind, season),
+    [queue, block, kind, season],
+  );
+  const idOf = useCallback((t: T) => String(to(t).item_id ?? ""), [to]);
+  const shown = useMemo(
+    () => overlay(items, waitingHere, idOf,
+      (r) => from({ ...r, block_id: block, kind } as unknown as ItemRow)),
+    [items, waitingHere, idOf, from, block, kind],
+  );
+  const pendingIds = useMemo(() => new Set(waitingHere.saves.keys()), [waitingHere]);
+
+  // Once this view's waiting writes have gone, read the list again: the
+  // server's rows are the truth, and they now include them.
+  const waitingCount = waitingHere.saves.size + waitingHere.retires.size;
+  const lastCount = useRef(waitingCount);
+  useEffect(() => {
+    if (waitingCount < lastCount.current) void reload();
+    lastCount.current = waitingCount;
+  }, [waitingCount, reload]);
+
   const save = useCallback(async (value: T) => {
     const res = await blockItemSave(block, kind, {
       items: [to(value)],
       ...(season != null ? { season } : {}),
     });
     if (!res?.success) throw new Error(res?.error ?? "could not save");
-    await reload();
+    // A queued write is already on screen, from the outbox. Reloading would
+    // only fail for want of the same signal.
+    if (!res.queued) await reload();
   }, [block, kind, season, to, reload]);
 
   /// Several rows in ONE write.
@@ -158,13 +194,13 @@ export function useBlockItems<T>(
       ...(season != null ? { season } : {}),
     });
     if (!res?.success) throw new Error(res?.error ?? "could not save");
-    await reload();
+    if (!res.queued) await reload();
   }, [block, kind, season, to, reload]);
 
   const retire = useCallback(async (itemId: string) => {
     const res = await blockItemSave(block, kind, { retire_ids: [itemId] });
     if (!res?.success) throw new Error(res?.error ?? "could not remove");
-    await reload();
+    if (!res.queued) await reload();
   }, [block, kind, reload]);
 
   /// Several rows retired in ONE write, for the same reason `saveMany` exists.
@@ -175,9 +211,9 @@ export function useBlockItems<T>(
     if (!ids.length) return;
     const res = await blockItemSave(block, kind, { retire_ids: ids });
     if (!res?.success) throw new Error(res?.error ?? "could not remove");
-    await reload();
+    if (!res.queued) await reload();
   }, [block, kind, reload]);
 
-  return { items, ...count, loading, error, unknownBlock, save, saveMany,
-           retire, retireMany, reload };
+  return { items: shown, ...count, loading, error, unknownBlock, pendingIds,
+           save, saveMany, retire, retireMany, reload };
 }

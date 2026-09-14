@@ -21,6 +21,9 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { clearSessionNsec, hasSessionNsec, sessionNsecNpub } from "./sessionNsec";
 import { debugPush } from "./debugLog";
 import { signInlineProof } from "./inlineProof";
+import {
+  QUEUEABLE, enqueue, flush, isNetworkFailure, waiting, type FlushResult,
+} from "./outbox";
 
 const SLUG = "goodearth";
 
@@ -48,14 +51,18 @@ async function getClient(): Promise<Client> {
     await connecting;
     return client!;
   }
+  // Cleared whether it worked or not. It used to be cleared only on success,
+  // so one failed connect — no signal, a cold server — was awaited again by
+  // every later call, and nothing reached the server until the page was
+  // reloaded. The outbox found it: signal came back, and not one queued
+  // write left the browser.
   connecting = (async () => {
     const url = requireUrl();
     const c = new Client({ name: "goodearth-frontend", version: "0.1.0" });
     const transport = new StreamableHTTPClientTransport(new URL(url));
     await c.connect(transport);
     client = c;
-    connecting = null;
-  })();
+  })().finally(() => { connecting = null; });
   await connecting;
   return client!;
 }
@@ -273,26 +280,41 @@ const QUIET_TOOLS = new Set([
 async function callTool<T = unknown>(
   toolName: string,
   args: Record<string, unknown> = {},
-  opts: { bestEffort?: boolean; timeoutMs?: number } = {},
+  /// `replay` is the outbox sending what waited. It must fail rather than
+  /// queue itself a second time.
+  opts: { bestEffort?: boolean; timeoutMs?: number; replay?: boolean } = {},
 ): Promise<T> {
   const quiet = QUIET_TOOLS.has(toolName);
   // `args` holds only the wrapper's own params — never npub/proof (those are
   // injected below), so it is safe to log verbatim.
   if (!quiet) debugPush("call", `${SLUG}_${toolName}(${JSON.stringify(args).slice(0, 140)})`);
 
-  const c = await getClient();
+  // A field write with no signal waits in the outbox instead of failing.
+  // It also waits behind anything already waiting: sent straight away, it
+  // would land first and then be overwritten by an older edit of the same
+  // row when that one is replayed.
+  const queueable = QUEUEABLE.has(toolName) && !opts.replay;
+  const npub = getStoredNpub() || "";
+  if (queueable && npub && (browserOnline() === false || waiting(npub).length > 0)) {
+    const q = queue(toolName, args, npub);
+    if (browserOnline() !== false) void flushOutbox();
+    return q as T;
+  }
+
   const merged: Record<string, unknown> = BOOTSTRAP_TOOLS.has(toolName)
     ? { ...args }
     : { npub: getStoredNpub(), dpop_token: getCachedProof(toolName), ...args };
 
   let result: ToolResult;
   try {
+    const c = await getClient();
     result = (await c.callTool(
       { name: `${SLUG}_${toolName}`, arguments: merged },
       undefined,
       { timeout: opts.timeoutMs ?? 120_000 },
     )) as ToolResult;
   } catch (e) {
+    if (queueable && npub && isNetworkFailure(e, browserOnline())) return queue(toolName, args, npub) as T;
     if (!quiet) debugPush("error", `${SLUG}_${toolName}: ${(e as Error).message}`);
     throw new Error(`${SLUG}_${toolName}: ${(e as Error).message}`);
   }
@@ -355,6 +377,38 @@ async function callTool<T = unknown>(
     }
   }
   return payload as T;
+}
+
+/// What the browser believes. `undefined` where there is no browser.
+function browserOnline(): boolean | undefined {
+  return typeof navigator === "undefined" ? undefined : navigator.onLine;
+}
+
+/// Put a field write in the outbox and answer as the server would have, marked
+/// `queued` so a view can draw the row as waiting rather than reload a list it
+/// cannot reach.
+function queue(toolName: string, args: Record<string, unknown>, npub: string) {
+  enqueue(npub, toolName, args);
+  debugPush("call", `${SLUG}_${toolName} waits for signal`);
+  const items = (args.items as Record<string, unknown>[] | undefined) ?? [];
+  return {
+    success: true, queued: true,
+    ...(typeof args.task_id === "string" ? { id: args.task_id } : {}),
+    ...(items.length ? { saved: items.map((i) => String(i.item_id)) } : {}),
+  };
+}
+
+/// Send what waited for signal, as whoever is signed in now. Safe to call as
+/// often as anything likes: one drain runs at a time.
+export function flushOutbox(): Promise<FlushResult> {
+  return flush(getStoredNpub() || "", (tool, args) => callTool(tool, args, { replay: true }));
+}
+
+/// A row's id, made here rather than by the server, so that a write replayed
+/// after a dropped reply updates the row it made instead of making another.
+function mintId(prefix: string): string {
+  const r = globalThis.crypto?.getRandomValues?.(new Uint32Array(2)) ?? [Math.random() * 2 ** 32, 0];
+  return `${prefix}-${Date.now().toString(36)}-${[...r].map((n) => Math.floor(n).toString(36)).join("")}`;
 }
 
 // ─── Service / auth (free) ───────────────────────────────────────────────
@@ -1737,8 +1791,8 @@ export async function taskList(regionId: string, q: {
   return callTool<TaskPage>("task_list", { region_id: regionId, ...q });
 }
 
-export async function taskSave(regionId: string, t: TaskInput): Promise<{ success: boolean; id?: string; error?: string }> {
-  return callTool("task_save", { region_id: regionId, ...t });
+export async function taskSave(regionId: string, t: TaskInput): Promise<{ success: boolean; id?: string; error?: string; queued?: boolean }> {
+  return callTool("task_save", { region_id: regionId, ...t, task_id: t.task_id || mintId("tk") });
 }
 
 export async function taskDelete(taskId: string): Promise<{ success: boolean; error?: string }> {
@@ -1852,8 +1906,9 @@ export async function blockSave(b: {
 export async function blockItemSave(
   block: string, kind: ItemKind,
   q: { items?: Record<string, unknown>[]; retire_ids?: string[]; season?: number } = {},
-): Promise<{ success: boolean; saved?: string[]; saved_count?: number; retired_count?: number; error?: string; error_code?: string }> {
-  return callTool("block_item_save", { block, kind, ...q });
+): Promise<{ success: boolean; saved?: string[]; saved_count?: number; retired_count?: number; error?: string; error_code?: string; queued?: boolean }> {
+  const items = q.items?.map((i) => (i.item_id ? i : { ...i, item_id: mintId(kind.slice(0, 2)) }));
+  return callTool("block_item_save", { block, kind, ...q, ...(items ? { items } : {}) });
 }
 
 export async function blockItemList(

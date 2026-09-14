@@ -54,7 +54,7 @@ export default function FieldReports({
   // live on their record under their npub rather than in one browser.
   const { items: reports, save: storeReport, retire: retireReport, reload: reloadReports,
           loading: reportsLoading, error: reportsError,
-          unknownBlock: reportsUnknown } =
+          unknownBlock: reportsUnknown, pendingIds: reportsWaiting } =
     useBlockItems<FieldReport>(region.id, "observation", reportCodec);
   const [tag, setTag] = useState<ReportTag>("frost");
   const [cal, setCal] = useState<CalibrationResult | null>(null);
@@ -444,6 +444,9 @@ export default function FieldReports({
                     <span className="text-[13px] font-semibold">{t?.label}</span>
                     {r.crop && <span className="text-[13px]"> · {r.crop}</span>}
                     <span className="data ml-2 text-[11px] text-ink-soft">{nice(r.observedOn)}</span>
+                    {reportsWaiting.has(r.id) && (
+                      <span className="ml-2 text-[10.5px] text-ink-soft">⇡ waiting for signal</span>
+                    )}
                     {r.lat != null && (
                       <span className="data ml-2 text-[10px] text-ink-soft">
                         {r.lat.toFixed(4)}, {r.lng!.toFixed(4)}
