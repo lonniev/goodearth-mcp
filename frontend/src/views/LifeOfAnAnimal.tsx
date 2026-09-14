@@ -23,7 +23,7 @@ const YEAR = [
 
 export default function LifeOfAnAnimal() {
   return (
-    <article className="max-w-3xl">
+    <article>
       <h1 className="figure mb-1 text-[24px] font-bold">The life of an animal</h1>
       <p className="eyebrow mb-4">migration, and the winter sleep</p>
 

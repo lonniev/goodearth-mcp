@@ -40,7 +40,7 @@ const STATUS: { word: string; tone: string; means: string }[] = [
 
 export default function LifeOfADisease() {
   return (
-    <article className="max-w-3xl">
+    <article>
       <h1 className="figure mb-1 text-[24px] font-bold">The life of a fungus</h1>
       <p className="eyebrow mb-4">and why it counts wet hours</p>
 

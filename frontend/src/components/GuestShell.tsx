@@ -35,7 +35,7 @@ export default function GuestShell({ view, onView, onSignIn, children }: {
   return (
     <div className="min-h-dvh bg-paper text-ink">
       <header className="border-b border-rule bg-panel">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 md:px-6">
           <button onClick={() => onView("welcome")}
             className="figure shrink-0 text-[18px] font-bold">
             Good<span className="ml-1 text-honey italic">Earth</span>
@@ -60,9 +60,12 @@ export default function GuestShell({ view, onView, onSignIn, children }: {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
+      {/* The device's full width, with side padding. These were capped at
+          1024 px, so a visitor on a wider screen read everything in a column
+          with empty margins either side. */}
+      <main className="px-4 py-6 md:px-6">{children}</main>
 
-      <footer className="mx-auto max-w-5xl px-4 pt-2 pb-8 text-[12px] text-ink-soft">
+      <footer className="px-4 pt-2 pb-8 text-[12px] text-ink-soft md:px-6">
         Good Earth is an operator on the DPYC network. Identity is a Nostr
         keypair; answers are paid for in Bitcoin Lightning, per call.
       </footer>

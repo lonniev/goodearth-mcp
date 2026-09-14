@@ -6,13 +6,17 @@
 // is the same definitions in one place, reachable on purpose rather than by
 // happening to tap the right thing.
 //
-// One column, deliberately. This is read on a phone in a field more than
-// anywhere else, and a glossary in two columns on a 390 px screen is a
-// glossary nobody scrolls to the end of.
+// One column on a phone, deliberately: it is read in a field more than
+// anywhere, and two columns on a 390 px screen is a glossary nobody scrolls to
+// the end of. On a tablet or wider the cards share the width, two or three
+// across — the page used to sit in a 672 px column, half of an iPad.
 
 import { useState } from "react";
 import { GLOSSARY, GROUPS, searchGlossary } from "../lib/glossary";
 import { FIELD } from "../components/ui";
+
+/// One column on a phone, two on a tablet, three on a wide screen.
+const GRID = "grid items-start gap-3 md:grid-cols-2 xl:grid-cols-3";
 
 export default function Glossary() {
   const [q, setQ] = useState("");
@@ -20,7 +24,7 @@ export default function Glossary() {
   const searching = q.trim().length > 0;
 
   return (
-    <div className="max-w-2xl">
+    <div>
       <h1 className="figure text-[26px] leading-tight font-bold">
         What the words mean
       </h1>
@@ -50,7 +54,7 @@ export default function Glossary() {
       {/* Grouped while browsing, flat while searching. A search that keeps its
           headings makes the reader count empty sections to find two hits. */}
       {searching ? (
-        <dl className="space-y-3">
+        <dl className={GRID}>
           {hits.map((e) => <Definition key={e.key} term={e.term} said={e.said} aka={e.aka} />)}
         </dl>
       ) : (
@@ -60,7 +64,7 @@ export default function Glossary() {
           return (
             <section key={g.key}>
               <h2 className="figure mt-6 mb-2 text-[16px] font-semibold">{g.label}</h2>
-              <dl className="space-y-3">
+              <dl className={GRID}>
                 {rows.map((e) => (
                   <Definition key={e.key} term={e.term} said={e.said} aka={e.aka} />
                 ))}

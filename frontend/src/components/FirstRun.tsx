@@ -49,7 +49,7 @@ export default function FirstRun({ onSaved, onDraw, onExample }: {
   }
 
   return (
-    <div className="max-w-2xl">
+    <div>
       <h1 className="figure mb-1 text-[26px] font-bold">Where do you farm?</h1>
       <Claim>Every answer here is about a piece of ground, so it needs one.</Claim>
       <p className="text-[13.5px] leading-relaxed">
