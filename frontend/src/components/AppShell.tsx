@@ -9,6 +9,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { centreOn, scrolls } from "../lib/railScroll";
 import Avatar from "./Avatar";
 import Boundary from "./Boundary";
+import FullscreenButton from "./FullscreenButton";
 import RegionPicker from "./RegionPicker";
 import type { SavedRegion } from "../lib/regions";
 import { applyOrder, move, readCollapsed, readOrder, writeCollapsed, writeOrder } from "../lib/navOrder";
@@ -202,11 +203,15 @@ export default function AppShell({
             chrome elements for things a grower touches rarely cost more room
             than they earned, and the rail foot they free is where the skep
             belongs. */}
+        {/* One right-aligned group, so the account chip keeps its corner when
+            the full-screen button has nothing to offer on this device. */}
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+        <FullscreenButton />
         <button
           onClick={() => onView("account")}
           aria-current={view === "account" ? "page" : undefined}
           title={displayName || "Your account"}
-          className={`ml-auto flex min-h-11 shrink-0 items-center gap-2 rounded-full border-[1.5px] px-2 py-1 text-[12px] ${
+          className={`flex min-h-11 shrink-0 items-center gap-2 rounded-full border-[1.5px] px-2 py-1 text-[12px] ${
             view === "account" ? "border-ink bg-ink text-paper" : "border-rule text-ink-soft active:bg-band"
           }`}
         >
@@ -215,6 +220,7 @@ export default function AppShell({
             {displayName || (npub ? `${npub.slice(0, 8)}…` : "Account")}
           </span>
         </button>
+        </div>
       </header>
 
       <main className="relative col-start-1 row-start-2 overflow-auto px-5 pt-5 pb-16 md:col-start-2 md:px-6">

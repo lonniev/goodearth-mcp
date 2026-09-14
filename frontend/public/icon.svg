@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Good Earth's home-screen mark: the site's ink, an earth in its growth
+       green, a honey sun. Geometry only — the app draws structure, never
+       creatures. Everything sits inside the central 80% so a maskable crop
+       (a circle on Android) loses nothing. -->
+  <rect width="512" height="512" rx="112" fill="#20301B"/>
+  <circle cx="256" cy="300" r="132" fill="#4C7A3D"/>
+  <path d="M124 300 A132 132 0 0 1 388 300 Z" fill="#5E8F4C"/>
+  <circle cx="356" cy="150" r="46" fill="#D99A06"/>
+</svg>

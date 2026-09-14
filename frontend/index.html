@@ -3,7 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!--
+      Installable, so a phone can run it without the browser's bars.
+
+      iPhone Safari will not take a web page full screen — the Fullscreen API
+      there is for video only — so the way to the whole screen on an iPhone is
+      Add to Home Screen, which opens the site in its own window with no
+      address or tab bar. The manifest's "standalone" is what asks for that;
+      the apple-* tags are what older iOS still reads.
+    -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Good Earth" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="theme-color" content="#F1F2E8" />
     <meta
