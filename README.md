@@ -16,9 +16,16 @@ account and no API key.
 
 | Client | How |
 |---|---|
-| Claude.ai / Claude Desktop | Settings → Connectors → Add custom connector → `https://goodearth-mcp.fastmcp.app/mcp` |
-| Claude Code | `claude mcp add --transport http goodearth https://goodearth-mcp.fastmcp.app/mcp` |
+| Claude.ai / Claude Desktop | Customize → Connectors → Add custom connector → `https://goodearth-mcp.fastmcp.app/mcp` (leave the OAuth fields blank) |
+| Claude Code | `claude mcp add --transport http goodearth https://goodearth-mcp.fastmcp.app/mcp`, or in a project's `.mcp.json`: `{"mcpServers": {"goodearth": {"type": "http", "url": "https://goodearth-mcp.fastmcp.app/mcp"}}}` |
 | Cursor | `.cursor/mcp.json`: `{"mcpServers": {"goodearth": {"url": "https://goodearth-mcp.fastmcp.app/mcp"}}}` |
+| VS Code | `.vscode/mcp.json`: `{"servers": {"goodearth": {"type": "http", "url": "https://goodearth-mcp.fastmcp.app/mcp"}}}` |
+
+`server.json` at the repo root is the entry for the official
+[MCP Registry](https://registry.modelcontextprotocol.io), under the
+domain-verified namespace `com.tollbooth-dpyc`. Bump its `version` with
+`pyproject.toml` (a test holds them equal), then `mcp-publisher login dns
+--domain tollbooth-dpyc.com …` and `mcp-publisher publish`.
 
 ### First connection walkthrough
 

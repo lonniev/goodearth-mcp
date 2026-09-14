@@ -81,6 +81,27 @@ describe("the plain files a crawler asks for first", () => {
       assert.ok(t.includes(step), `llms.txt no longer says ${step}`);
   });
 
+  it("serves an AI catalog whose server card says what server.json says", async () => {
+    // Two descriptions of one server, one for the MCP Registry and one for
+    // agents that discover by domain. They must not drift apart: a card that
+    // names another version or endpoint than the registry sends a client wrong.
+    const catalog = JSON.parse(await readFile("public/.well-known/ai-catalog.json", "utf8"));
+    const entry = JSON.parse(await readFile("../server.json", "utf8"));
+    assert.equal(catalog.specVersion, "1.0");
+    const [card] = catalog.entries;
+    assert.equal(card.type, "application/mcp-server-card+json");
+    assert.equal(card.identifier, "urn:air:tollbooth-dpyc.com:mcp:goodearth-mcp");
+    for (const k of ["name", "title", "description", "version", "websiteUrl", "repository", "remotes"])
+      assert.deepEqual(card.data[k], entry[k], `the card's ${k} differs from server.json`);
+  });
+
+  it("serves the catalog with its media type and open CORS", async () => {
+    const h = await readFile("public/_headers", "utf8");
+    const block = h.slice(h.indexOf("/.well-known/ai-catalog.json"));
+    assert.match(block, /Content-Type: application\/ai-catalog\+json/);
+    assert.match(block, /Access-Control-Allow-Origin: \*/);
+  });
+
   it("names no one's own plot or town in anything a stranger reads", async () => {
     const all = html + await readFile("public/llms.txt", "utf8") + await readFile("public/robots.txt", "utf8");
     for (const place of ["frogdale", "panton", "addison"]) {
