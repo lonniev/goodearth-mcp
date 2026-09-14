@@ -1,0 +1,40 @@
+# Good Earth
+
+> Climate timing for cottage gardens and small specialty-crop and flower farms. A grower draws their plot on a map, and Good Earth works out the weather on that ground — growing degree days, first and last frost, soil temperature, planting windows, disease weather and drying days — including how much it varies across the plot, from its terrain.
+
+Good Earth is a working web app at https://goodearth.tollbooth-dpyc.com and an MCP server that AI assistants can call. It is for people who plan beds and plantings by the season rather than by a zone map. Many weather services answer for one station miles away; Good Earth answers for the grower's own plot, and says how much a bench and a hollow on the same acreage differ.
+
+## What it answers
+
+- Where the season stands: growing degree days since January, against the last ten seasons, with the spread across the plot.
+- Frost: typical first and last frost for this ground, and this week's risk to its coldest spot.
+- Soil temperature: when planting depth crosses a threshold — the garlic question.
+- Planting windows: when to start seed indoors, when to set out, and the last sowing that still finishes.
+- Crops: each planting's heat toward its target, its projected finish, and whether it beats the frost.
+- Pests and wildlife: when insect stages arrive by degree days (USA National Phenology Network models), and when the grower's own wildlife or livestock events fall.
+- Trees: whether a fruit or nut tree survives the winters here and gets its chill.
+- Disease weather: estimated leaf-wetness hours read by five published models — late blight, early blight, apple scab, grey mould and powdery mildew.
+- Drying: when the dew burns off and the dry days ahead, for cutting flowers, picking and mowing.
+- Records: plantings, pests, wildlife and field notes per plot (with iNaturalist import), tasks with a calendar feed, and sharing a plot with another grower as a file.
+
+## What it deliberately does not do
+
+- It never recommends a pesticide or a treatment. Those questions go to the grower's local extension service.
+- It does not publish agronomy. Crop heat targets and pest thresholds are the grower's own, with starter figures labelled as starters.
+- Leaf wetness and disease risk are estimated from modelled weather, never measured in the field.
+
+## How it is paid for
+
+There is no account, card or email. A grower signs in with a Nostr key and keeps a small prepaid Bitcoin Lightning balance, and each answer is paid from it. The guides, the glossary and the sources page are free and public. Good Earth runs on the Tollbooth DPYC network, which is its payment layer, not its product.
+
+## Free to read
+
+- [Guides](https://goodearth.tollbooth-dpyc.com/#/welcome): the life of a plant, an insect, a tree, an animal and a fungus
+- [Glossary](https://goodearth.tollbooth-dpyc.com/#/glossary): what the words mean
+- [Sources and models](https://goodearth.tollbooth-dpyc.com/#/references): every feed, its resolution, and the assumption inside every model
+- [About](https://goodearth.tollbooth-dpyc.com/#/about)
+
+## For AI assistants
+
+- MCP endpoint: https://goodearth-mcp.fastmcp.app/mcp — tools are prefixed `goodearth_`; start with `goodearth_block_list`
+- Source code: https://github.com/lonniev/goodearth-mcp
