@@ -282,7 +282,7 @@ export default function FieldReports({
             way, so a closed list only ever hid that a grower may report
             whatever they actually saw. */}
         <div className="flex flex-wrap items-center gap-1.5">
-          {TAGS.map((t) => (
+          {TAGS.filter((t) => t.pick !== false).map((t) => (
             <button key={t.key} type="button" onClick={() => setTag(t.key)}
               className={`min-h-11 rounded-full border px-4 text-[13px] font-medium ${
                 tag === t.key ? "border-ink bg-ink text-paper" : "border-rule active:bg-band"}`}>
@@ -443,6 +443,9 @@ export default function FieldReports({
                   <div className="min-w-0 flex-1">
                     <span className="text-[13px] font-semibold">{t?.label}</span>
                     {r.crop && <span className="text-[13px]"> · {r.crop}</span>}
+                    {r.amount != null && (
+                      <span className="text-[13px]"> · {r.amount}{r.unit ? ` ${r.unit}` : ""}</span>
+                    )}
                     <span className="data ml-2 text-[11px] text-ink-soft">{nice(r.observedOn)}</span>
                     {r.lat != null && (
                       <span className="data ml-2 text-[10px] text-ink-soft">

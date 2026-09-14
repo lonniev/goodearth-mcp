@@ -21,8 +21,11 @@
 // rather than the ones on this page, which is the difference between "your
 // earliest set-out" and "the earliest set-out among these twenty".
 
+import { Fragment, useState } from "react";
 import { useUnits } from "./Units";
 import type { CropWatch } from "../lib/diseaseRows";
+import { describeHarvest, UNITS, type HarvestInput, type HarvestSummary } from "../lib/harvests";
+import { newItemId } from "../lib/submit";
 import type { PlantingStatus } from "../lib/mcp";
 import { SEEDLING, type Planting } from "../lib/plantings";
 import { SortHeaders, type Column } from "./RecordTable";
@@ -58,6 +61,19 @@ export interface LedgerRow {
   /// reporting risk. Beside the crop, because that is where a grower looking
   /// at their plantings would look for it.
   watch?: CropWatch[];
+  /// What it has actually given this season — beside what it was projected to.
+  harvest?: HarvestSummary;
+}
+
+/// Recording a cut, handed in by the page: which planting the form is open
+/// on, the unit to offer, and the save, which answers with a reason if it
+/// could not take the cut.
+export interface Harvesting {
+  open: string;
+  onOpen: (p: Planting) => void;
+  onClose: () => void;
+  unitFor: (crop: string) => string | undefined;
+  onSave: (p: Planting, h: HarvestInput, id: string) => Promise<string | null>;
 }
 
 const COLS: Column<ItemSort>[] = [
@@ -84,7 +100,7 @@ const COLS: Column<ItemSort>[] = [
 
 export default function CropLedger({
   rows, sort, dir, onSort, editing, onEdit, onCancel, onCommit, draft, onDraft,
-  saving, onDelete,
+  saving, onDelete, harvesting,
 }: {
   rows: LedgerRow[];
   sort?: ItemSort;
@@ -99,6 +115,7 @@ export default function CropLedger({
   onDraft: (p: Planting) => void;
   saving: boolean;
   onDelete: (id: string) => void;
+  harvesting?: Harvesting;
 }) {
   const u = useUnits();
   return (
@@ -108,12 +125,13 @@ export default function CropLedger({
           <SortHeaders cols={COLS} sort={sort} dir={dir} onSort={onSort} />
         </thead>
         <tbody>
-          {rows.map(({ planting: p, status: r, reason, watch }) =>
+          {rows.map(({ planting: p, status: r, reason, watch, harvest }) =>
             editing === p.id && draft ? (
               <Editor key={p.id} draft={draft} onChange={onDraft} onCommit={onCommit}
                 onCancel={onCancel} saving={saving} />
             ) : (
-              <tr key={p.id} className={`border-b border-rule last:border-b-0 ${r ? "" : "text-ink-soft"}`}>
+              <Fragment key={p.id}>
+              <tr className={`border-b border-rule last:border-b-0 ${r ? "" : "text-ink-soft"}`}>
                 <td onClick={() => onEdit(p)} className="cursor-text px-3 py-2.5 font-semibold">
                   {/* The same icon the chiclet carried, so a row and the
                       chiclet that created it read as the one crop. */}
@@ -147,6 +165,13 @@ export default function CropLedger({
                       ? <small className="block text-[11px] font-normal text-ink-soft">{facts}</small>
                       : null;
                   })()}
+                  {/* What it gave, under what it was asked to do. The heat
+                      target is "usually harvest"; this is when harvest was. */}
+                  {harvest && (
+                    <span className="data mt-0.5 block text-[10.5px] font-normal text-growth">
+                      ✂ {describeHarvest(harvest, shortDate)}
+                    </span>
+                  )}
                 </td>
                 <td onClick={() => onEdit(p)} className="cursor-text px-3 py-2.5 whitespace-nowrap">
                   {p.setOut ? shortDate(p.setOut) : "—"}
@@ -181,10 +206,20 @@ export default function CropLedger({
                     {r ? (STATUS[r.state] ?? STATUS.on_pace).label
                        : p.perennial ? "Perennial" : "Not tracked"}
                   </span>
+                  {harvesting && (
+                    <button onClick={() => harvesting.onOpen(p)}
+                      aria-label={`Record a cut of ${p.crop}`} title="Record a harvest"
+                      className="inline-flex h-11 w-11 items-center justify-center text-[16px] text-ink-soft active:text-growth">✂</button>
+                  )}
                   <button onClick={() => onDelete(p.id)} aria-label={`Remove ${p.crop}`} title="Remove"
                     className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-clay"><TrashGlyph /></button>
                 </td>
               </tr>
+              {harvesting?.open === p.id && (
+                <HarvestRow planting={p} unit={harvesting.unitFor(p.crop)}
+                  onSave={(h, id) => harvesting.onSave(p, h, id)} onCancel={harvesting.onClose} />
+              )}
+              </Fragment>
             ),
           )}
         </tbody>
@@ -239,6 +274,81 @@ function Verdict({ r }: { r: PlantingStatus }) {
         </span>
       )}
     </>
+  );
+}
+
+/// A cut of one planting, recorded under its row.
+///
+/// Under the row rather than in a dialog, so the planting it belongs to is the
+/// thing directly above it. The date starts at today — most cuts are recorded
+/// the day they are made, often standing in the bed.
+function HarvestRow({ planting, unit, onSave, onCancel }: {
+  planting: Planting;
+  unit?: string;
+  onSave: (h: HarvestInput, id: string) => Promise<string | null>;
+  onCancel: () => void;
+}) {
+  const today = new Date().toLocaleDateString("en-CA");
+  const [on, setOn] = useState(today);
+  const [amount, setAmount] = useState("");
+  const [unitText, setUnitText] = useState(unit ?? "");
+  const [note, setNote] = useState("");
+  const [err, setErr] = useState("");
+  const [saving, setSaving] = useState(false);
+  // One id for as long as this form is open: a second tap after a save that
+  // landed without answering updates this cut instead of adding another.
+  const [id] = useState(() => newItemId("hv"));
+
+  async function commit() {
+    if (saving) return;
+    setSaving(true); setErr("");
+    const n = amount.trim() === "" ? undefined : Number(amount);
+    const why = await onSave({ on, amount: n, unit: unitText, note }, id);
+    setSaving(false);
+    if (why) setErr(why);
+  }
+  const keys = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") { e.preventDefault(); void commit(); }
+    if (e.key === "Escape") onCancel();
+  };
+
+  return (
+    <tr className="border-b border-rule bg-growth/5 last:border-b-0">
+      <td colSpan={6} className="px-3 py-2">
+        {/* Pinned to the left of whatever part of the table is in view, and
+            no wider than the screen. On a phone the ledger scrolls sideways;
+            without this the form opened half off-screen, its save button out
+            of reach and the crop's name scrolled away. */}
+        <div className="sticky left-3 flex max-w-[calc(100vw-3.5rem)] flex-wrap items-center gap-2">
+          <span className="text-[12.5px] font-semibold">✂ A cut of {planting.crop}</span>
+          <span className="w-[9.5rem]">
+            <input type="date" value={on} max={today} className={CELL} onKeyDown={keys}
+              aria-label="Cut on" onChange={(e) => setOn(e.target.value)} />
+          </span>
+          <span className="w-24">
+            <input autoFocus inputMode="decimal" value={amount} className={CELL} onKeyDown={keys}
+              placeholder="how many" aria-label="How many"
+              onChange={(e) => setAmount(e.target.value)} />
+          </span>
+          <span className="w-28">
+            <input list="harvest-units" value={unitText} className={CELL} onKeyDown={keys}
+              placeholder="stems, lb…" aria-label="Unit"
+              onChange={(e) => setUnitText(e.target.value)} />
+            <datalist id="harvest-units">
+              {UNITS.map((x) => <option key={x} value={x} />)}
+            </datalist>
+          </span>
+          <span className="min-w-[8rem] flex-1">
+            <input value={note} className={CELL} onKeyDown={keys} placeholder="note (optional)"
+              aria-label="Note" onChange={(e) => setNote(e.target.value)} />
+          </span>
+          <span className="whitespace-nowrap">
+            <RowActions onCommit={() => void commit()} onCancel={onCancel} saving={saving} what="harvest" />
+          </span>
+        </div>
+        {err && <p className="mt-1 text-[12px] text-clay">{err}</p>}
+      </td>
+    </tr>
   );
 }
 

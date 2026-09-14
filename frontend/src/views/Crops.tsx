@@ -5,7 +5,7 @@
 // the way the server does, so a grower is corrected here rather than by a
 // failed paid call.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import CropLedger, { type LedgerRow } from "../components/CropLedger";
 import UndoBar, { remembered } from "../components/UndoBar";
 import Term from "../components/Term";
@@ -27,6 +27,8 @@ import SpeciesFinder from "../components/SpeciesFinder";
 import type { Chosen } from "../lib/basket";
 import { speciesByIds, type SpeciesHit } from "../lib/species";
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
+import { reportCodec, type FieldReport } from "../lib/reports";
+import { lastUnit, makeHarvest, summarize, type HarvestInput } from "../lib/harvests";
 import { cropWatch } from "../lib/diseaseRows";
 import { useSubmit } from "../lib/useSubmit";
 import { withId } from "../lib/submit";
@@ -84,6 +86,29 @@ export default function Crops({
     useBlockItems<Planting>(region.id, "planting", plantingCodec, undefined, {
       sortCol: sort, sortDir: dir, page: pageNo, search, pageSize: 20,
     });
+
+  // This season's cuts, to put what each planting GAVE beside what it was
+  // projected to do. They are field observations, dated rather than seasonal,
+  // so the season is a date range; the newest come first, so a page that
+  // cannot hold them all drops the oldest note rather than today's cut.
+  const { items: seen, save: storeSeen, total: seenTotal } =
+    useBlockItems<FieldReport>(region.id, "observation", reportCodec, undefined, {
+      since: `${new Date().getFullYear()}-01-01`, sortCol: "observed_on", sortDir: "desc", pageSize: 200,
+    });
+  const harvests = useMemo(() => summarize(seen), [seen]);
+  const [cutting, setCutting] = useState("");
+
+  async function saveHarvest(p: Planting, h: HarvestInput, id: string): Promise<string | null> {
+    const made = makeHarvest(p, region.id, h, { id });
+    if (typeof made === "string") return made;
+    try {
+      await storeSeen(made);
+      setCutting("");
+      return null;
+    } catch (e) {
+      return String((e as Error).message ?? e);
+    }
+  }
 
   function sortBy(col: ItemSort) {
     if (col === sort) setDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -393,6 +418,7 @@ export default function Crops({
     return {
       planting, status, reason: missed?.reason,
       watch: cropWatch(sick, planting.crop),
+      harvest: harvests.get(planting.id),
     };
   });
 
@@ -532,9 +558,22 @@ export default function Crops({
             onCancel={() => { setEditing(""); setDraft(null); }}
             onCommit={commitRow}
             onDelete={remove}
+            harvesting={{
+              open: cutting,
+              onOpen: (pl) => setCutting(pl.id),
+              onClose: () => setCutting(""),
+              unitFor: (crop) => lastUnit(seen, crop),
+              onSave: saveHarvest,
+            }}
           />
           <Pager page={page} pages={pages} total={total} noun="planting"
             onPage={setPageNo} />
+          {seenTotal > seen.length && (
+            <p className="data mt-1 text-[11px] text-ink-soft">
+              Harvest totals count your latest {seen.length} field observations of
+              the {seenTotal} this season.
+            </p>
+          )}
         </>
       ) : plantingsLoading ? (
         <Empty>Reading what you have on {region.name}…</Empty>
