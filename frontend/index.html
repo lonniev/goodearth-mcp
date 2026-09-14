@@ -22,13 +22,13 @@
     <meta name="theme-color" content="#F1F2E8" />
     <meta
       name="description"
-      content="Good Earth — natural phenomena for your Acreage. Draw your field; get heat, frost, light and water with the spread across it. Sign in with a Nostr key; pay per answer in Bitcoin Lightning."
+      content="Good Earth — climate timing for cottage gardens and small farms. Draw your plot; get frost dates, growing degree days, soil temperature, planting windows and disease weather worked out for that ground, with the spread across it."
     />
     <title>Good Earth</title>
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Good Earth" />
     <meta property="og:title" content="Good Earth" />
-    <meta property="og:description" content="Natural phenomena for your Acreage." />
+    <meta property="og:description" content="Climate timing for cottage gardens and small farms — frost, heat, soil and planting dates for your own plot." />
     <meta property="og:url" content="https://goodearth.tollbooth-dpyc.com" />
     <!--
       The FRONT DOOR, not a farm.
@@ -50,12 +50,92 @@
     <meta property="og:image:alt" content="Good Earth's welcome page: natural phenomena for your acreage, with links to short explainers on the life of a plant, an insect and a tree." />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Good Earth" />
-    <meta name="twitter:description" content="Natural phenomena for your Acreage." />
+    <meta name="twitter:description" content="Climate timing for cottage gardens and small farms — frost, heat, soil and planting dates for your own plot." />
     <meta name="twitter:image" content="https://goodearth.tollbooth-dpyc.com/og-image.jpg" />
     <meta name="twitter:image:alt" content="Good Earth's welcome page: natural phenomena for your acreage, with links to short explainers on the life of a plant, an insect and a tree." />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Good Earth",
+        "url": "https://goodearth.tollbooth-dpyc.com/",
+        "description": "Climate timing for cottage gardens and small specialty-crop and flower farms: growing degree days, frost dates, soil temperature, planting windows, disease weather and drying days, worked out for the grower's own plot.",
+        "applicationCategory": "LifestyleApplication",
+        "operatingSystem": "Any web browser",
+        "audience": { "@type": "Audience", "audienceType": "Home gardeners and small specialty-crop and flower farms" },
+        "featureList": [
+          "Growing degree days against the last ten seasons",
+          "First and last frost for your own plot",
+          "Soil temperature crossings for planting",
+          "Seed-start, set-out and last-sowing dates",
+          "Crop progress toward harvest, with a frost verdict",
+          "Pest stage timing by degree days",
+          "Disease weather from published models",
+          "Dew-off time and dry days",
+          "Tasks with a calendar feed"
+        ],
+        "sameAs": ["https://github.com/lonniev/goodearth-mcp"]
+      }
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!--
+        What a reader without JavaScript sees: a search crawler, an AI
+        assistant's fetcher, a slow phone before the app loads. The app's
+        createRoot replaces all of it on mount, so a grower never sees it
+        twice.
+
+        It used to be empty. An AI assistant asked about Good Earth found "a
+        page that returns no content" on a domain full of payment words, and
+        told a gardener to avoid it. This says what the thing is.
+      -->
+      <main style="max-width:48rem;margin:0 auto;padding:24px 16px;font-family:system-ui,sans-serif;color:#20301B;background:#F1F2E8;line-height:1.55">
+        <h1>Good Earth — climate timing for cottage gardens and small farms</h1>
+        <p>
+          Draw your plot on a map. Good Earth works out the weather on that
+          ground — growing degree days, first and last frost, soil temperature,
+          planting windows, disease weather and drying days — and how much it
+          varies across your plot, from its terrain. Many weather services
+          answer for one station miles away; this answers for your beds and
+          fields.
+        </p>
+        <h2>What it answers</h2>
+        <ul>
+          <li>Where the season stands: heat since January, against the last ten seasons.</li>
+          <li>First and last frost for your ground, and this week's risk to its coldest spot.</li>
+          <li>When the soil is ready, when to start seed and set it out, and the last sowing that still finishes.</li>
+          <li>Each planting's progress toward harvest, and whether it beats the frost.</li>
+          <li>When pest stages arrive, and when your own wildlife or livestock events fall.</li>
+          <li>Whether a fruit tree survives the winters here and gets its chill.</li>
+          <li>Disease weather from five published models, and the dry days for cutting, picking and mowing.</li>
+          <li>Tasks with a calendar feed, field notes, and sharing a plot with another grower.</li>
+        </ul>
+        <h2>What it will not do</h2>
+        <p>
+          It never recommends a pesticide or treatment — those questions go to
+          your local extension service. Crop targets and pest thresholds are
+          yours, and wetness is estimated from weather models, never measured.
+        </p>
+        <h2>How it is paid for</h2>
+        <p>
+          No account, card or email. You sign in with a Nostr key and keep a
+          small prepaid Bitcoin Lightning balance that pays for each answer.
+          The guides, glossary and sources are free to read. Good Earth runs on
+          the Tollbooth DPYC network, which is its payment layer.
+        </p>
+        <h2>Free to read</h2>
+        <ul>
+          <li><a href="/#/welcome">Guides</a> — the life of a <a href="/#/plant">plant</a>, an <a href="/#/pest">insect</a>, a <a href="/#/tree">tree</a>, an <a href="/#/animal">animal</a> and a <a href="/#/disease">fungus</a></li>
+          <li><a href="/#/glossary">What the words mean</a></li>
+          <li><a href="/#/references">Sources and models</a> · <a href="/#/about">About</a></li>
+          <li><a href="/llms.txt">A plain-text summary for AI assistants</a> · <a href="https://github.com/lonniev/goodearth-mcp">Source code</a></li>
+        </ul>
+        <noscript>
+          <p><strong>The app needs JavaScript.</strong> Everything above describes it; turn JavaScript on to draw your plot.</p>
+        </noscript>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

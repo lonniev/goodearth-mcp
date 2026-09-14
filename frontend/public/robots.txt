@@ -1,0 +1,7 @@
+# Good Earth — climate timing for cottage gardens and small farms.
+# Everything here is public to read. The app itself runs in the browser;
+# /llms.txt describes it in plain text.
+User-agent: *
+Allow: /
+
+Sitemap: https://goodearth.tollbooth-dpyc.com/sitemap.xml
