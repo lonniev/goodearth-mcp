@@ -11,7 +11,7 @@ import asyncio
 from datetime import UTC, date, datetime
 from typing import Any
 
-from goodearth_mcp import frost, gdd, planting, record_cache, soil, sources
+from goodearth_mcp import frost, planting, record_cache, soil, sources
 from goodearth_mcp.region import Region
 
 RECORD_SPAN_YEARS = 10
@@ -70,6 +70,7 @@ async def region_planting_window(
 
     last_frost = date.fromisoformat(spring["median"]) if spring else None
     first_frost = date.fromisoformat(fall["median"]) if fall else None
+    earliest_frost = date.fromisoformat(fall["earliest"]) if fall and fall.get("earliest") else None
 
     # ── Soil warming dates, one per distinct threshold ───────────────────
     soil_dates: dict[float, date] = {}
@@ -94,33 +95,22 @@ async def region_planting_window(
         except (sources.UpstreamError, ValueError):
             soil_dates = {}
 
-    # ── The season's accumulation rate, per base temperature ─────────────
-    rates: dict[float, float] = {}
-    if last_frost and first_frost:
-        season_days = max((first_frost - last_frost).days, 1)
-        for b in sorted({c["base_temp_f"] for c in parsed}):
-            # Heat inside a median frost-free window, averaged over the record.
-            per_year: list[float] = []
-            for y in years:
-                idx = [i for i, d in enumerate(dates) if d[:4] == str(y)]
-                if not idx:
-                    continue
-                lo = next((i for i in idx if dates[i][5:] >= last_frost.strftime("%m-%d")), idx[0])
-                hi = next((i for i in idx if dates[i][5:] >= first_frost.strftime("%m-%d")), idx[-1])
-                if hi <= lo:
-                    continue
-                curve = gdd.accumulate(tmax[lo:hi], tmin[lo:hi], b)
-                if curve:
-                    per_year.append(curve[-1])
-            if per_year:
-                rates[b] = (sum(per_year) / len(per_year)) / season_days
+    # ── This ground's typical heat for each calendar day, per base ───────
+    # Day by day rather than one season-long average, so a September sowing
+    # is given September's heat. The latest sowing date and every
+    # succession's finish are the same arithmetic over the same table.
+    climates = {
+        b: planting.climatology(dates, tmax, tmin, b)
+        for b in sorted({c["base_temp_f"] for c in parsed})
+    }
 
     rows = [
         planting.assess(
             c, last_frost, first_frost,
             soil_dates.get(c["min_soil_f"]) if c["min_soil_f"] is not None else None,
-            rates.get(c["base_temp_f"], 0.0),
+            climates.get(c["base_temp_f"], {}),
             today,
+            earliest_frost,
         )
         for c in parsed
     ]
@@ -147,9 +137,10 @@ async def region_planting_window(
         ),
         "note": (
             "Dates are medians from this ground's own record, not a zone map. "
-            "The latest-sowing date uses the season's average accumulation rate, "
-            "so it is optimistic at the very end of the window — heat comes "
-            "slower in September than in July. Requirements are the caller's own."
+            "The latest-sowing date, and each succession's finish, count this "
+            "ground's typical heat day by day, so a late sowing is given the "
+            "slower heat of September rather than July's. A typical year, not a "
+            "forecast. Requirements are the caller's own."
         ),
         "sources": [
             {**sources.feed_of(air),

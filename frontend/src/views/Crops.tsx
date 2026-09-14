@@ -5,7 +5,7 @@
 // the way the server does, so a grower is corrected here rather than by a
 // failed paid call.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import CropLedger, { type LedgerRow } from "../components/CropLedger";
 import UndoBar, { remembered } from "../components/UndoBar";
 import Term from "../components/Term";
@@ -30,6 +30,9 @@ import { useBlockItems, type ItemSort } from "../lib/blockItems";
 import { reportCodec, type FieldReport } from "../lib/reports";
 import { lastUnit, makeHarvest, summarize, type HarvestInput } from "../lib/harvests";
 import { cropWatch } from "../lib/diseaseRows";
+import type { SuccessionRow } from "../lib/mcp";
+import { baseName, toPlantings } from "../lib/successions";
+import SuccessionRows from "../components/SuccessionRows";
 import { useSubmit } from "../lib/useSubmit";
 import { withId } from "../lib/submit";
 import type { SavedRegion } from "../lib/regions";
@@ -288,6 +291,48 @@ export default function Crops({
     } catch (e) { setError((e as Error).message); }
     finally { setWhenBusy(false); }
   }, [region]);
+
+  /// Succession schedules, per crop, asked for one crop at a time — a tomato
+  /// is not succession-sown, and asking for it would spend a fare on nothing.
+  const [plans, setPlans] = useState<Record<string, { every: number; rows: SuccessionRow[] }>>({});
+  const [planning, setPlanning] = useState("");
+  const [addingPlan, setAddingPlan] = useState("");
+
+  async function planSuccessions(cropName: string, every: number) {
+    const src = heatRated.find((p) => p.crop === cropName);
+    if (!src) return;
+    if (!every) { setPlans(({ [cropName]: _gone, ...rest }) => rest); return; }
+    setPlanning(cropName); setError("");
+    try {
+      const r = await plantingWindow(region.id, [{
+        crop: src.crop, gdd_target: src.gddTarget!,
+        base_temp: src.baseTempF ?? region.baseTempF,
+        frost_hardy: src.frostHardy ?? false,
+        succession_days: every,
+      }]);
+      if (!r.success) { setError(r.error || "The succession schedule could not be read."); return; }
+      setPlans((p) => ({ ...p, [cropName]: { every, rows: r.crops[0]?.successions ?? [] } }));
+    } catch (e) { setError((e as Error).message); }
+    finally { setPlanning(""); }
+  }
+
+  /// Every sowing of the plan onto the ledger, in one write and one fare.
+  async function addPlan(cropName: string) {
+    const plan = plans[cropName];
+    const src = heatRated.find((p) => p.crop === cropName);
+    if (!plan || !src) return;
+    setAddingPlan(cropName); setFormErr("");
+    try {
+      const { made, skipped } = toPlantings(src, plan.rows, plantings, region.id);
+      if (made.length) await storeMany(made);
+      setAdded(
+        `${made.length} succession${made.length === 1 ? "" : "s"} of ${baseName(src.crop)} on the ledger`
+        + (skipped ? ` · ${skipped} already there.` : "."),
+      );
+    } catch (e) {
+      setFormErr(String((e as Error).message ?? e));
+    } finally { setAddingPlan(""); }
+  }
 
   const verdictOf = (crop: string): Verdict | null =>
     fit?.crops.find((r) => r.crop === crop)?.verdict ?? null;
@@ -777,7 +822,7 @@ export default function Crops({
           <div className="mb-3 overflow-x-auto rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">
             <table className="w-full text-[13px]">
               <thead><tr>
-                {["Crop", "Seed indoors", "Out", "Last sowing", "Window"].map((h) => (
+                {["Crop", "Seed indoors", "Out", "Last sowing", "Window", "Successions"].map((h) => (
                   <th key={h} className="data border-b-[1.5px] border-ink px-3 py-2.5 text-left text-[10px] font-medium uppercase tracking-[.1em] text-ink-soft">{h}</th>
                 ))}
               </tr></thead>
@@ -787,7 +832,8 @@ export default function Crops({
                     for what the grower chose rather than offering a catalogue
                     to choose from. */}
                 {when.crops.map((r) => (
-                  <tr key={r.crop}
+                  <Fragment key={r.crop}>
+                  <tr
                     className={`border-b border-rule last:border-b-0 ${
                       r.state === "will_not_fit" ? "opacity-50" : ""}`}>
                     <td className="px-3 py-2.5 font-semibold whitespace-nowrap">{r.crop}</td>
@@ -802,7 +848,34 @@ export default function Crops({
                           : <span className="text-ink-soft">{r.window_days}d</span>}
                       {r.sow_now && <span className="ml-1.5 rounded-full bg-growth/15 px-2 py-0.5 text-[11px] font-semibold text-growth">now</span>}
                     </td>
+                    <td className="px-3 py-2">
+                      {/* A native select, so a phone shows its own picker. */}
+                      <select
+                        aria-label={`Sow ${r.crop} in succession`}
+                        value={plans[r.crop]?.every ?? 0}
+                        disabled={r.state === "will_not_fit" || planning === r.crop}
+                        onChange={(e) => void planSuccessions(r.crop, Number(e.target.value))}
+                        className="min-h-9 rounded-md border border-rule bg-white px-2 text-[12.5px] disabled:opacity-40"
+                      >
+                        <option value={0}>{planning === r.crop ? "Reading…" : "—"}</option>
+                        {[7, 10, 14, 21, 28].map((d) => (
+                          <option key={d} value={d}>every {d} days</option>
+                        ))}
+                      </select>
+                    </td>
                   </tr>
+                  {plans[r.crop] && (
+                    <tr className="border-b border-rule bg-growth/5 last:border-b-0">
+                      <td colSpan={6} className="px-3 py-2.5">
+                        <div className="sticky left-3 max-w-[calc(100vw-3.5rem)]">
+                          <SuccessionRows crop={baseName(r.crop)} every={plans[r.crop].every}
+                            rows={plans[r.crop].rows} adding={addingPlan === r.crop}
+                            onAdd={() => void addPlan(r.crop)} />
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
@@ -814,9 +887,10 @@ export default function Crops({
           <p className="mb-4 text-[12px] leading-relaxed text-ink-soft">
             A tender crop's "out" date is the <b>median</b> last frost — half of
             seasons frost later than that, so it is a coin toss rather than a
-            green light. The last-sowing date uses the season's average heat
-            rate, so it flatters the very end of the window: heat comes slower
-            in September than in July.
+            green light. The last-sowing date, and each succession&rsquo;s
+            finish, count this ground&rsquo;s typical heat day by day, so a late
+            sowing is given September&rsquo;s slower heat rather than
+            July&rsquo;s. A typical year, not a forecast.
           </p>
         </>
       ) : (

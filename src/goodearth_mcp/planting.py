@@ -16,6 +16,10 @@ Three dates, and they are three different questions:
   before the first fall frost. This is the one that decides whether an August
   succession is worth the seed.
 
+And, when asked, the **successions** between them: a sowing every so many days
+from the first to the last, each with the day it typically finishes here and
+how much room that leaves before the frost.
+
 All three come from this block's own record. The crop's requirements —
 hardiness, germination soil temperature, weeks indoors — come from the caller,
 as everywhere else here.
@@ -28,9 +32,21 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any
 
+from goodearth_mcp import gdd
+
 # How far before the last frost a hardy crop can reasonably go out. Hardy means
 # it survives a light frost, not that it ignores winter.
 HARDY_HEAD_START_DAYS = 14
+
+# How often a succession may be sown. Under three days is one sowing twice;
+# over sixty is a second crop, not a succession.
+MIN_SUCCESSION_DAYS, MAX_SUCCESSION_DAYS = 3, 60
+
+# A sowing that has not banked its heat within a year never will.
+YEAR_DAYS = 366
+
+#: This ground's typical heat for each calendar day, keyed by MM-DD.
+Climate = dict[str, float]
 
 
 class PlantingError(ValueError):
@@ -81,6 +97,17 @@ def validate(c: Any) -> dict[str, Any]:
         if not 0 < indoors <= 20:
             raise PlantingError(f"{name}: {indoors:g} weeks indoors is outside any real range")
 
+    every = c.get("succession_days")
+    succession = None
+    if every is not None:
+        if isinstance(every, bool) or not isinstance(every, int | float) or every != int(every):
+            raise PlantingError(f"{name}: succession_days must be a whole number of days")
+        succession = int(every)
+        if not MIN_SUCCESSION_DAYS <= succession <= MAX_SUCCESSION_DAYS:
+            raise PlantingError(
+                f"{name}: sow a succession every {MIN_SUCCESSION_DAYS}–{MAX_SUCCESSION_DAYS} days"
+            )
+
     return {
         "crop": name,
         "gdd_target": target,
@@ -89,6 +116,7 @@ def validate(c: Any) -> dict[str, Any]:
         "direct_sow": bool(c.get("direct_sow", False)),
         "min_soil_f": min_soil_f,
         "start_indoors_weeks": indoors,
+        "succession_days": succession,
         "emoji": str(c.get("emoji") or "").strip()[:4] or None,
     }
 
@@ -132,22 +160,112 @@ def earliest_out(
     return when, why
 
 
+def climatology(
+    dates: list[str], tmax: list[float | None], tmin: list[float | None], base_f: float,
+) -> Climate:
+    """This ground's typical heat for each calendar day, over the record.
+
+    One average rate for the whole season treated a September day as a July
+    day, which made the last sowing date optimistic at exactly the end of the
+    window, where a succession is decided. Averaged day by day instead, a late
+    sowing is given the heat the late season actually has.
+    """
+    sums: dict[str, float] = {}
+    counts: dict[str, int] = {}
+    for d, hi, lo in zip(dates, tmax, tmin, strict=False):
+        if hi is None or lo is None:
+            continue
+        k = d[5:10]
+        sums[k] = sums.get(k, 0.0) + gdd.daily_gdd(hi, lo, base_f)
+        counts[k] = counts.get(k, 0) + 1
+    return {k: sums[k] / counts[k] for k in sums}
+
+
+def _heat(clim: Climate, day: date) -> float:
+    k = day.strftime("%m-%d")
+    if k == "02-29" and k not in clim:
+        k = "02-28"
+    return clim.get(k, 0.0)
+
+
+def finish_date(out_on: date, target: float, clim: Climate) -> date | None:
+    """The day a sowing typically banks its heat target here.
+
+    A median year, not a forecast. None when it does not within a year.
+    """
+    if not clim:
+        return None
+    total, day = 0.0, out_on
+    for _ in range(YEAR_DAYS):
+        total += _heat(clim, day)
+        if total >= target:
+            return day
+        day += timedelta(days=1)
+    return None
+
+
 def latest_out(
     crop: dict[str, Any],
     first_frost: date | None,
-    daily_rate: float,
+    clim: Climate,
 ) -> tuple[date | None, int | None]:
     """The last day a sowing still finishes before the first fall frost.
 
-    Uses the season's own average accumulation rate, which is a simplification
-    worth naming: heat comes slower in September than in July, so a late sowing
-    has less time than this suggests. The answer is therefore optimistic at the
-    very end of the window, and the caller says so.
+    Walked back from the day before the median first frost through this
+    ground's typical heat for each calendar day, so it is the same arithmetic
+    as `finish_date` run backwards: a sowing on this day finishes before the
+    frost, and one a day later does not.
     """
-    if not first_frost or daily_rate <= 0:
+    if not first_frost or not clim:
         return None, None
-    days_needed = round(crop["gdd_target"] / daily_rate)
-    return first_frost - timedelta(days=days_needed), days_needed
+    total, day = 0.0, first_frost - timedelta(days=1)
+    for _ in range(YEAR_DAYS):
+        total += _heat(clim, day)
+        if total >= crop["gdd_target"]:
+            return day, (first_frost - day).days
+        day -= timedelta(days=1)
+    return None, None
+
+
+def successions(
+    crop: dict[str, Any],
+    first: date | None,
+    last: date | None,
+    clim: Climate,
+    first_frost: date | None,
+    earliest_frost: date | None,
+    today: date,
+) -> list[dict[str, Any]]:
+    """A sowing every `succession_days`, from the first day it can go out —
+    or today, once that has passed — to the last that still finishes.
+
+    Each carries its own typical finish, the days that leaves before the
+    median first frost, and whether it lands after the EARLIEST frost on
+    record: the late ones are the bet, and the grower should see which.
+    """
+    every = crop.get("succession_days")
+    if not every or not first or not last:
+        return []
+    out: list[dict[str, Any]] = []
+    weeks = crop.get("start_indoors_weeks")
+    on, n = max(first, today), 1
+    while on <= last:
+        fin = finish_date(on, crop["gdd_target"], clim)
+        margin = (first_frost - fin).days if fin and first_frost else None
+        out.append({
+            "n": n,
+            "out": on.isoformat(),
+            "start_seed_indoors": (
+                (on - timedelta(days=round(weeks * 7))).isoformat() if weeks else None
+            ),
+            "finish": fin.isoformat() if fin else None,
+            "margin_days": margin,
+            "verdict": "unknown" if margin is None else ("finishes" if margin > 0 else "wont_finish"),
+            "at_risk_of_early_frost": bool(fin and earliest_frost and fin >= earliest_frost),
+        })
+        on += timedelta(days=every)
+        n += 1
+    return out
 
 
 def assess(
@@ -155,12 +273,13 @@ def assess(
     last_frost: date | None,
     first_frost: date | None,
     soil_ready: date | None,
-    daily_rate: float,
+    clim: Climate,
     today: date,
+    earliest_frost: date | None = None,
 ) -> dict[str, Any]:
     """The three dates for one crop, with the reasoning attached."""
     out_on, why = earliest_out(crop, last_frost, soil_ready)
-    last_on, days_needed = latest_out(crop, first_frost, daily_rate)
+    last_on, days_needed = latest_out(crop, first_frost, clim)
 
     start_indoors = None
     if out_on and crop["start_indoors_weeks"]:
@@ -171,7 +290,11 @@ def assess(
         window_days = (last_on - out_on).days
 
     if window_days is None:
-        state = "unknown"
+        # A frost record, a table of this ground's heat, and still no last
+        # sowing: not even a whole year of heat here reaches the target. That
+        # is an answer — it will not fit — not a gap in the record.
+        cannot_finish = bool(out_on and first_frost and clim and last_on is None)
+        state = "will_not_fit" if cannot_finish else "unknown"
     elif window_days < 0:
         state = "will_not_fit"
     elif window_days < 14:
@@ -183,6 +306,12 @@ def assess(
     # sometimes in a previous year. That is arithmetic, not advice, so it is
     # withheld and the state carries the answer instead.
     show_latest = last_on if (last_on and out_on and last_on >= out_on) else None
+
+    extra: dict[str, Any] = {}
+    if crop.get("succession_days"):
+        extra["successions"] = successions(
+            crop, out_on, show_latest, clim, first_frost, earliest_frost, today,
+        )
 
     return {
         "crop": crop["crop"],
@@ -196,6 +325,7 @@ def assess(
         "state": state,
         "sow_now": bool(out_on and last_on and out_on <= today <= last_on),
         "note": _note(state, window_days, crop, start_indoors, today),
+        **extra,
     }
 
 
