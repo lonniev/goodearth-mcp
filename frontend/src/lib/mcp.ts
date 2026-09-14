@@ -1621,6 +1621,22 @@ export interface PlantingRow {
   state: "open" | "narrow" | "will_not_fit" | "unknown";
   sow_now: boolean;
   note: string;
+  /// Present only when the crop was sent with `succession_days`.
+  successions?: SuccessionRow[];
+}
+
+/// One sowing of a succession: when it goes out, and when it typically
+/// finishes on this ground — a median year, not a forecast.
+export interface SuccessionRow {
+  n: number;
+  out: string;
+  start_seed_indoors: string | null;
+  finish: string | null;
+  /// Days between the finish and the median first frost.
+  margin_days: number | null;
+  verdict: "finishes" | "wont_finish" | "unknown";
+  /// Finishes after the EARLIEST first frost on record — the late bets.
+  at_risk_of_early_frost: boolean;
 }
 
 export interface PlantingWindowResult {
@@ -1648,6 +1664,8 @@ export async function plantingWindow(
     crop: string; gdd_target: number; base_temp: number;
     frost_hardy?: boolean; direct_sow?: boolean;
     min_soil_f?: number; start_indoors_weeks?: number; emoji?: string;
+    /// Sow again every this many days (3–60) and get the schedule back.
+    succession_days?: number;
   }[],
 ): Promise<PlantingWindowResult> {
   return callTool<PlantingWindowResult>("planting_window", { block, crops });

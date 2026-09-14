@@ -1902,7 +1902,12 @@ async def planting_window(
                 "The crops to date, with your own requirements. Each is "
                 '{"crop": "Tomato", "gdd_target": 1300, "base_temp": 50} plus '
                 'any of "frost_hardy", "direct_sow", "min_soil_f" (germination '
-                'soil temperature) and "start_indoors_weeks".'
+                'soil temperature) and "start_indoors_weeks". Add '
+                '"succession_days" (3–60) to get the succession schedule: a '
+                "sowing every that many days from the first day out to the last "
+                "that still finishes, each with its typical finish date, its "
+                "margin before the median first frost, and whether it lands "
+                "after the earliest frost on record."
             ),
         ),
     ],
