@@ -103,9 +103,9 @@ def _number(raw: Any, name: str, field: str) -> float | None:
 def winter_lows(dates: list[str], tmin: list[float | None]) -> list[dict[str, Any]]:
     """The coldest night of each winter on record.
 
-    Grouped by `chill.dormancy_ending`, so a December night belongs to the
-    winter it starts rather than the calendar year it falls in — the whole
-    point being that a tree experiences one cold season, not two year-halves.
+    Grouped by winter, so an October or December night belongs to the winter
+    it starts rather than the calendar year it falls in — the whole point
+    being that a tree experiences one cold season, not two year-halves.
 
     Unlike chill, this is NOT restricted to the accumulation window: the
     coldest night of the year is often in late February or early March, past
@@ -126,7 +126,11 @@ def winter_lows(dates: list[str], tmin: list[float | None]) -> list[dict[str, An
         if lo is None:
             continue
 
-        w = chill.dormancy_ending(d)
+        # October opens the coming winter. `chill.dormancy_ending` starts its
+        # winter on Nov 1 — right for chill, which only counts from then — and
+        # so filed an October freeze under the winter that ended the spring
+        # before.
+        w = d.year + 1 if d.month >= 10 else d.year
         got = by_winter.get(w)
         if got is None or lo < got["low_f"]:
             by_winter[w] = {"winter": w, "low_f": round(lo, 1), "on": iso}

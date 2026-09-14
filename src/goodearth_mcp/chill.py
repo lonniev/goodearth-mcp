@@ -172,6 +172,17 @@ def banked(
 MIN_WINTER_DAYS = 70
 
 
+def finished(winter: dict[str, Any], today: date) -> bool:
+    """Whether a winter's chill window has closed — Feb 15 of the year it ends in.
+
+    A winter still under way has banked only part of its hours. From early
+    January it had enough days on record to pass as whole, and was scored as a
+    winter that fell short: counted against the requirement, and pulling the
+    median and the lowest down with it.
+    """
+    return date(winter["winter"], *DORMANCY_END) <= today
+
+
 def summarize(winters: list[dict[str, Any]]) -> dict[str, Any] | None:
     """The record's chill, as a grower would plan against it.
 

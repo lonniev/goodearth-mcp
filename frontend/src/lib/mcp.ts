@@ -1210,12 +1210,17 @@ export interface SpringStage {
 }
 
 export interface SapRun {
-  state: "running" | "over" | "not_started" | "none_recorded";
+  /// "paused": no cycle for ten days before April — a hard freeze, not the end.
+  state: "running" | "paused" | "over" | "not_started" | "none_recorded";
   started_on?: string;
   last_cycle_on?: string;
   cycles: number;
   days_since_last_cycle?: number;
+  /// The sap winter, Dec 1 to May 15, named by the years it spans ("2026–27").
+  winter?: string;
   window?: string;
+  /// Past May 15: the day the next winter's window opens.
+  next_window_opens?: string;
   note: string;
 }
 

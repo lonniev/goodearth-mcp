@@ -699,7 +699,15 @@ export default function Crops({
                 <span className="data ml-1.5 text-[11px] text-ink-soft">
                   sap days{year.sap.started_on && <> from {short(year.sap.started_on)}</>}
                   {year.sap.state === "over" && " · run over"}
+                  {year.sap.state === "paused" && " · paused by the cold"}
                 </span>
+              </span>
+            )}
+            {/* An open window with no sap day yet is an answer, and a tapped
+                block used to show nothing at all until the first thaw. */}
+            {year.sap && year.sap.cycles === 0 && year.sap.state === "not_started" && (
+              <span className="data text-[11px] text-ink-soft">
+                🍁 the sap window is open — no freeze-and-thaw day yet
               </span>
             )}
           </div>

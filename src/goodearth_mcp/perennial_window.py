@@ -102,7 +102,9 @@ async def region_tree_window(
     if not dates:
         raise PerennialWindowError("the record for this ground is unreadable")
 
-    winters = chill.banked(dates, tmax, tmin)
+    # Only winters whose chill window has closed: one still under way would be
+    # scored as a winter that fell short.
+    winters = [w for w in chill.banked(dates, tmax, tmin) if chill.finished(w, today)]
     lows = perennial.winter_lows(dates, tmin)
 
     rows = [perennial.assess(t, winters, lows) for t in parsed]
