@@ -12,11 +12,7 @@ export default function Preferences({
 }) {
   return (
     <div className="mb-6 rounded-xl border border-rule bg-panel p-5">
-      <div className="eyebrow mb-1">Viewing</div>
-      <p className="mb-3 text-[12px] text-ink-soft">
-        Kept on this device — a preference for the tablet in the shed need not
-        follow you to the laptop.
-      </p>
+      <div className="eyebrow mb-3">Viewing</div>
 
       {/* The seasons shift hue and never polarity — this is a change of light,
           not a dark mode. "Follow the season" is the default because a farm
