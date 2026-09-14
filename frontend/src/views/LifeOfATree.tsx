@@ -20,7 +20,7 @@ const YEAR = [
 
 export default function LifeOfATree() {
   return (
-    <article className="max-w-3xl">
+    <article>
       <h1 className="figure mb-1 text-[24px] font-bold">The life of a tree</h1>
       <p className="eyebrow mb-4">a year that closes rather than ends</p>
 

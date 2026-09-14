@@ -34,7 +34,7 @@ export default function Welcome({ onView, onSignIn, signedIn }: {
   signedIn?: boolean;
 }) {
   return (
-    <div className="max-w-3xl">
+    <div>
       <h1 className="figure text-[30px] leading-tight font-bold">
         {signedIn ? "Guides" : "Natural phenomena for your Acreage."}
       </h1>
