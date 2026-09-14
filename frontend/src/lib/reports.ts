@@ -38,15 +38,21 @@ export interface FieldReport {
   /// saw is otherwise a note that happens to share a date with a projection,
   /// and nothing joins the two.
   ref?: string;
+  /// What a harvest gave, in the grower's own unit — stems, bunches, lb.
+  amount?: number;
+  unit?: string;
   createdAt: string;
 }
 
-export const TAGS: { key: string; label: string; hint: string; calibrates: boolean }[] = [
+/// `pick: false` is a kind recorded elsewhere — a harvest is recorded against
+/// its planting on the Crops page — which this page still names and lists.
+export const TAGS: { key: string; label: string; hint: string; calibrates: boolean; pick?: boolean }[] = [
   { key: "frost", label: "Frost", hint: "Frost seen on the ground", calibrates: true },
   { key: "first_bloom", label: "First bloom", hint: "A planting reached its stage", calibrates: true },
   { key: "emergence", label: "Emergence", hint: "A sowing came up", calibrates: true },
   { key: "pest", label: "Pest seen", hint: "Sighting or trap catch", calibrates: false },
   { key: "note", label: "Note", hint: "Anything worth remembering", calibrates: false },
+  { key: "harvest", label: "Harvest", hint: "A cut or a pick, recorded on Crops", calibrates: true, pick: false },
 ];
 
 /// Whether a kind carries the extra fields the calibration model needs.
@@ -82,11 +88,21 @@ export function makeReport(
 /// cannot correct a degree-day curve.
 export function toObservations(reports: FieldReport[]): FieldObservation[] {
   const out: FieldObservation[] = [];
+  // A planting's FIRST cut is the stage its heat target predicted. The later
+  // cuts of a cut-and-come-again crop are yield, not timing; counted, they
+  // would read one planting as a string of ever-later arrivals.
+  const firstCut = new Map<string, FieldReport>();
+  for (const r of reports) {
+    if (r.tag !== "harvest" || !r.ref) continue;
+    const f = firstCut.get(r.ref);
+    if (!f || r.observedOn < f.observedOn) firstCut.set(r.ref, r);
+  }
   for (const r of reports) {
     if (r.tag === "frost") {
       out.push({ kind: "frost", observed_on: r.observedOn, note: r.note });
     } else if (
-      (r.tag === "first_bloom" || r.tag === "emergence") &&
+      (r.tag === "first_bloom" || r.tag === "emergence" ||
+       (r.tag === "harvest" && r.ref != null && firstCut.get(r.ref) === r)) &&
       r.crop && r.gddTarget && r.setOut
     ) {
       out.push({
@@ -118,6 +134,8 @@ export const reportCodec: ItemCodec<FieldReport> = {
     gddTarget: r.gdd_target == null ? undefined : Number(r.gdd_target),
     setOut: r.set_out == null ? undefined : String(r.set_out),
     ref: r.ref == null ? undefined : String(r.ref),
+    amount: r.amount == null ? undefined : Number(r.amount),
+    unit: r.unit == null ? undefined : String(r.unit),
     createdAt: String(r.created_at ?? r.observed_on ?? ""),
   }),
   to: (f: FieldReport) => ({
@@ -132,5 +150,7 @@ export const reportCodec: ItemCodec<FieldReport> = {
     ...(f.gddTarget != null ? { gdd_target: f.gddTarget } : {}),
     ...(f.setOut ? { set_out: f.setOut } : {}),
     ...(f.ref ? { ref: f.ref } : {}),
+    ...(f.amount != null ? { amount: f.amount } : {}),
+    ...(f.unit ? { unit: f.unit } : {}),
   }),
 };

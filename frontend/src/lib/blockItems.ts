@@ -29,6 +29,9 @@ export interface ItemQuery {
   /// Regex over the name and the event. Set only when the grower asks for it
   /// — never while they are still typing.
   search?: string;
+  /// Only rows observed on or after this day (YYYY-MM-DD). Observations are
+  /// dated rather than seasonal, so a season of them is a date range.
+  since?: string;
   sortCol?: ItemSort;
   sortDir?: "asc" | "desc";
   page?: number;
@@ -101,6 +104,7 @@ export function useBlockItems<T>(
       const page = await blockItemList(block, kind, {
         ...(season != null ? { season } : {}),
         ...(query?.search ? { search: query.search } : {}),
+        ...(query?.since ? { since: query.since } : {}),
         ...(query?.sortCol ? { sort_col: query.sortCol } : {}),
         ...(query?.sortDir ? { sort_dir: query.sortDir } : {}),
         ...(query?.page != null ? { page: query.page } : {}),
@@ -139,7 +143,7 @@ export function useBlockItems<T>(
     // Every field is named rather than depending on the object, which a caller
     // rebuilds on each render — that would refetch forever.
   }, [block, kind, season, from,
-      query?.search, query?.sortCol, query?.sortDir, query?.page, query?.pageSize]);
+      query?.search, query?.since, query?.sortCol, query?.sortDir, query?.page, query?.pageSize]);
 
   useEffect(() => { setLoading(true); void reload(); }, [reload]);
 
