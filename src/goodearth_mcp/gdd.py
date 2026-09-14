@@ -98,6 +98,39 @@ def accumulate(
     return out
 
 
+#: A ground's typical heat for each calendar day, keyed by MM-DD.
+Climate = dict[str, float]
+
+
+def climatology(
+    dates: list[str], tmax: list[float | None], tmin: list[float | None], base_f: float,
+) -> Climate:
+    """A ground's typical heat for each calendar day, averaged over a record.
+
+    One average rate for a whole season treats a September day as a July day.
+    Averaged day by day, the late season is given the heat it actually has —
+    which is what dates a late sowing, and what carries the season chart past
+    its projection to the end of the year.
+    """
+    sums: dict[str, float] = {}
+    counts: dict[str, int] = {}
+    for d, hi, lo in zip(dates, tmax, tmin, strict=False):
+        if hi is None or lo is None:
+            continue
+        k = d[5:10]
+        sums[k] = sums.get(k, 0.0) + daily_gdd(hi, lo, base_f)
+        counts[k] = counts.get(k, 0) + 1
+    return {k: sums[k] / counts[k] for k in sums}
+
+
+def typical_heat(clim: Climate, day: date) -> float:
+    """The typical heat on one calendar day. February 29 borrows the 28th's."""
+    k = day.strftime("%m-%d")
+    if k == "02-29" and k not in clim:
+        k = "02-28"
+    return clim.get(k, 0.0)
+
+
 def season_start(today: date) -> date:
     """January 1 of the season in progress.
 

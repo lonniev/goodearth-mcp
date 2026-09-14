@@ -44,12 +44,25 @@ export interface LedgerFlag {
   endIndex?: number;
   /// True once the curve has passed it.
   reached: boolean;
+  /// It lands past the projection, on the typical year — a typical season's
+  /// answer rather than this one's, and drawn so.
+  typical?: boolean;
   /// Set when the threshold's base temperature differs from the curve's.
   baseMismatch?: number;
 }
 
-/// The full day axis: recorded season, then forecast, then projection.
-function combinedSeries(curve: SeasonCurveResult): { values: number[]; dates: (string | null)[] } {
+/// The full day axis: recorded season, then forecast, then projection, then —
+/// past the projection — this ground's typical year to Dec 31.
+///
+/// The projection stops 75 days out. A succession set out in August either
+/// fell off its end, so its bar was never drawn, or landed past the timeline,
+/// where its start was read as zero heat and its bar ended before it began.
+/// The typical year gives every date this season a place and a heat.
+export function combinedSeries(curve: SeasonCurveResult): {
+  values: number[]; dates: (string | null)[];
+  /// The first index that is the typical year rather than this season.
+  typicalFrom: number;
+} {
   const mean = curve.curve?.cumulative_mean ?? [];
   const fc = curve.forecast?.cumulative ?? [];
   const proj = curve.projection?.cumulative ?? [];
@@ -57,7 +70,20 @@ function combinedSeries(curve: SeasonCurveResult): { values: number[]; dates: (s
   const fcDates = curve.forecast?.dates ?? [];
   fc.forEach((_, i) => dates.push(fcDates[i] ?? null));
   proj.forEach(() => dates.push(null));
-  return { values: [...mean, ...fc, ...proj], dates };
+  const values = [...mean, ...fc, ...proj];
+  const typicalFrom = values.length;
+  const typ = curve.typical;
+  if (typ?.daily?.length && values.length) {
+    // The typical days begin tomorrow; the forecast and the projection have
+    // already covered the first stretch of them.
+    let run = values[values.length - 1];
+    for (let i = fc.length + proj.length; i < typ.daily.length; i++) {
+      run += typ.daily[i];
+      values.push(run);
+      dates.push(typ.dates[i] ?? null);
+    }
+  }
+  return { values, dates, typicalFrom };
 }
 
 /// Where a cumulative total first reaches `gdd`, interpolated between days.
@@ -130,7 +156,7 @@ export function buildFlags(
   // looking authoritative, and meaning nothing.
   if ((curve.curve?.cumulative_mean?.length ?? 0) < 2) return [];
 
-  const { values, dates } = combinedSeries(curve);
+  const { values, dates, typicalFrom } = combinedSeries(curve);
   if (values.length < 2) return [];
   const today = (curve.curve?.dates?.length ?? 1) - 1;
   const base = curve.base_temp_f;
@@ -154,6 +180,7 @@ export function buildFlags(
       anchor: stated ? "date" : "heat",
       ...(stated ? { end: on, endIndex: idx } : {}),
       reached: idx <= today,
+      ...(idx >= typicalFrom ? { typical: true } : {}),
       ...(Math.abs(evBase - base) > 0.5 ? { baseMismatch: evBase } : {}),
       ...(extra ?? {}),
     });
@@ -166,7 +193,11 @@ export function buildFlags(
     // to flag. It is on the record; it is not on this chart.
     if (p.gddTarget == null || !p.setOut) continue;
     const startIdx = indexOfDate(dates, p.setOut);
-    const offset = startIdx != null && startIdx < values.length ? values[Math.round(startIdx)] : 0;
+    // A set-out past the end of the timeline has no heat to count from. It
+    // used to count from ZERO — Jan 1 — which put its finish months before
+    // it went in the ground. Better no bar than a bar that runs backwards.
+    if (startIdx == null || startIdx >= values.length) continue;
+    const offset = values[Math.round(startIdx)];
     // The one mark with an anchor of each kind: it BEGINS on the day the
     // grower put it in the ground, and ENDS on the day the curve says its heat
     // target arrives. Left end stated, right end computed, same bar.

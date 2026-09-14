@@ -11,7 +11,7 @@ import asyncio
 from datetime import UTC, date, datetime
 from typing import Any
 
-from goodearth_mcp import frost, planting, record_cache, soil, sources
+from goodearth_mcp import frost, gdd, planting, record_cache, soil, sources
 from goodearth_mcp.region import Region
 
 RECORD_SPAN_YEARS = 10
@@ -100,7 +100,7 @@ async def region_planting_window(
     # is given September's heat. The latest sowing date and every
     # succession's finish are the same arithmetic over the same table.
     climates = {
-        b: planting.climatology(dates, tmax, tmin, b)
+        b: gdd.climatology(dates, tmax, tmin, b)
         for b in sorted({c["base_temp_f"] for c in parsed})
     }
 

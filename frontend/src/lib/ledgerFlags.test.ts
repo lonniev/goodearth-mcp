@@ -154,6 +154,61 @@ describe("dates on the timeline", () => {
   });
 });
 
+describe("plantings set out past the projection", () => {
+  // May 1–14 recorded at 20 a day, a 3-day forecast and a 5-day projection at
+  // 20 a day, then the typical year at 10 a day from May 15 to Dec 31.
+  const day = (n: number) => new Date(Date.UTC(2026, 4, 1 + n)).toISOString().slice(0, 10);
+  const typicalDays = Array.from({ length: 231 }, (_, i) => day(14 + i));
+  const withTypical = (typical: boolean) => ({
+    season_start: "2026-05-01", base_temp_f: 50,
+    curve: { dates: Array.from({ length: 14 }, (_, i) => day(i)), cumulative_mean: Array.from({ length: 14 }, (_, i) => i * 20) },
+    forecast: { dates: [day(14), day(15), day(16)], cumulative: [280, 300, 320] },
+    projection: { cumulative: [340, 360, 380, 400, 420] },
+    ...(typical ? { typical: { dates: typicalDays, daily: typicalDays.map(() => 10), span_years: 10, note: "" } } : {}),
+  }) as never;
+  const planting = (crop: string, setOut: string, gddTarget: number) =>
+    ({ id: crop, crop, gddTarget, setOut, baseTempF: 50, regionId: "b" });
+  const crops = (typical: boolean, ...p: ReturnType<typeof planting>[]) =>
+    buildFlags(withTypical(typical), p as never, [], []).filter((f) => f.kind === "crop");
+
+  it("draws a succession set out in June, ending on its typical finish", () => {
+    // Set out Jun 15 (day 45) at 660 on the typical line; +200 reaches 860 on day 65, Jul 5.
+    const [f] = crops(true, planting("Zinnia · succession 4", "2026-06-15", 200));
+    assert.ok(f, "the succession was not drawn at all");
+    assert.equal(f.begin, "2026-06-15");
+    assert.equal(f.endIndex, 65);
+    assert.equal(f.end, "2026-07-05");
+    assert.equal(f.typical, true);
+  });
+
+  it("never draws a bar that ends before it begins", () => {
+    for (const typical of [true, false]) {
+      for (const f of crops(typical,
+        planting("Mar", "2026-05-03", 100), planting("Jun", "2026-06-15", 200),
+        planting("Aug", "2026-08-21", 300), planting("next year", "2027-03-01", 100))) {
+        const begin = (Date.parse(f.begin + "T12:00:00Z") - Date.parse("2026-05-01T12:00:00Z")) / 864e5;
+        assert.ok((f.endIndex ?? begin) >= begin, `${f.label} ends before it begins`);
+      }
+    }
+  });
+
+  it("leaves a set-out past the end of the timeline off, rather than counting it from Jan 1", () => {
+    assert.deepEqual(crops(false, planting("Aug", "2026-08-21", 300)), []);
+    assert.deepEqual(crops(true, planting("next year", "2027-03-01", 100)), []);
+  });
+
+  it("leaves a planting that finishes inside the projection exactly as it was", () => {
+    const [f] = crops(true, planting("early", "2026-05-03", 100));
+    assert.equal(f.typical, undefined);
+    assert.equal(f.endIndex, 7);
+  });
+
+  it("behaves as before when the server sends no typical year", () => {
+    const [f] = crops(false, planting("early", "2026-05-03", 100));
+    assert.equal(f.endIndex, 7);
+  });
+});
+
 describe("taskFlags", () => {
   it("puts a task on its stated day, whatever the heat did", () => {
     // The owner's example: "Buy seeds Jan 13 2027" belongs on Jan 13 2027.
