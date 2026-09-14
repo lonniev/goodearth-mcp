@@ -83,11 +83,6 @@ export default function About() {
           the pricing model at the moment you ask, never from anything baked
           into this page.
         </p>
-        <p className="mt-2 text-ink-soft">
-          Your regions, crops, pests, wildlife and field reports stay on your
-          device, and are yours to carry to another. They are not the operator's
-          asset and are not the product.
-        </p>
       </div>
 
       {/* ── For an AI assistant ────────────────────────────────────────── */}
