@@ -49,9 +49,12 @@ async def region_tree_year(
     # its sap run when that happens.
     index, record, per_species = await asyncio.gather(
         biota.fetch_spring_index(region.centroid.lat, region.centroid.lon),
+        # From the start of the sap winter when that is earlier than Jan 1 —
+        # read from Jan 1 alone, a December run was never seen.
         record_cache.daily_history(
             [region.centroid.lat], [region.centroid.lon],
-            gdd.season_start(today).isoformat(), today.isoformat(),
+            min(gdd.season_start(today), tree_year.sap_winter(today)[0]).isoformat(),
+            today.isoformat(),
         ),
         catalog.species_phenophases(list(labelled), today),
         return_exceptions=True,

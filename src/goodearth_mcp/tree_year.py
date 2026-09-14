@@ -30,10 +30,18 @@ from typing import Any
 SAP_NIGHT_MAX_F = 32.0
 SAP_DAY_MIN_F = 40.0
 
-#: The run is looked for from here. Sap moves at the end of dormancy, and a
-#: freeze-thaw pair in November is not the start of a season.
-SAP_SEARCH_FROM = (1, 15)
+#: The sap winter: from the first of December — sugarmakers tap early now, and
+#: a December thaw runs sap — to mid-May, when the buds break. A freeze-thaw
+#: pair in November is still not the start of a season. The window crosses the
+#: new year, and a winter is named by the year it ends in. It was Jan 15 to
+#: May 15 of the calendar year: a December run was never counted, and on Dec 20
+#: the section reported the spring before.
+SAP_SEARCH_FROM = (12, 1)
 SAP_SEARCH_TO = (5, 15)
+
+#: Before this, a quiet spell is a PAUSE — a hard January freeze — not the end
+#: of the run. From April a quiet fortnight is the buds breaking.
+SAP_QUIET_ENDS_FROM = (4, 1)
 
 #: The run is over when this many days pass with no cycle — in practice when
 #: nights stop freezing, and shortly after that the buds break and the sap
@@ -98,7 +106,14 @@ def spring_note(sp: dict[str, Any]) -> str:
 
 
 def _in_sap_window(d: date) -> bool:
-    return SAP_SEARCH_FROM <= (d.month, d.day) <= SAP_SEARCH_TO
+    md = (d.month, d.day)
+    return md >= SAP_SEARCH_FROM or md <= SAP_SEARCH_TO
+
+
+def sap_winter(today: date) -> tuple[date, date]:
+    """The sap winter in question: the one under way, or the one just past."""
+    ends = today.year + 1 if (today.month, today.day) >= SAP_SEARCH_FROM else today.year
+    return date(ends - 1, *SAP_SEARCH_FROM), date(ends, *SAP_SEARCH_TO)
 
 
 def sap_days(
@@ -130,20 +145,24 @@ def sap_run(
     tmin: list[float | None],
     today: date,
 ) -> dict[str, Any] | None:
-    """This year's sap run: when it started, how many days it has had, and
-    whether it is over.
+    """This winter's sap run: when it started, how many days it has had, and
+    whether it is running, paused or over.
 
-    Returns None outside the season entirely, because a sugarmaker asking in
-    August wants to be told there is no run rather than shown last spring's
-    arithmetic dressed as now.
+    The winter runs Dec 1 to May 15 and is named by the year it ends in. Past
+    May 15 the answer is the winter just gone, stated as over, with the day the
+    next window opens — a sugarmaker asking in August is told the run is over
+    rather than shown last spring's arithmetic dressed as now. None when the
+    record does not reach the winter at all.
     """
-    year_days = [
-        (iso, i) for i, iso in enumerate(dates) if iso.startswith(f"{today.year}-")
-    ]
-    if not year_days:
+    start, end = sap_winter(today)
+    lo_iso, hi_iso = start.isoformat(), end.isoformat()
+    idx = [i for i, iso in enumerate(dates) if lo_iso <= iso <= hi_iso]
+    if not idx:
         return None
 
-    idx = [i for _, i in year_days]
+    winter = f"{start.year}–{str(end.year)[2:]}"
+    window = f"{SAP_SEARCH_FROM[1]} Dec – {SAP_SEARCH_TO[1]} May"
+    past = today > end
     days = sap_days(
         [dates[i] for i in idx],
         [tmax[i] if i < len(tmax) else None for i in idx],
@@ -151,33 +170,44 @@ def sap_run(
     )
     if not days:
         # Inside the window with no cycle yet is a real answer; past it with
-        # none is a year this ground did not run.
-        pending = (today.month, today.day) < SAP_SEARCH_FROM
+        # none is a winter this ground did not run.
         return {
-            "state": "not_started" if pending else "none_recorded",
+            "state": "none_recorded" if past else "not_started",
             "cycles": 0,
+            "winter": winter,
+            "window": window,
             "note": (
-                "Before the season's window." if pending
-                else "No freeze-and-thaw day recorded inside the window this year."
+                f"No freeze-and-thaw day recorded in the winter of {winter}." if past
+                else f"The sap window opened on {start.strftime('%b %-d')}; no "
+                     "freeze-and-thaw day yet this winter."
             ),
         }
 
     last = date.fromisoformat(days[-1])
     quiet = (today - last).days
-    past_window = (today.month, today.day) > SAP_SEARCH_TO
-    over = past_window or quiet >= SAP_QUIET_DAYS
+    buds = (today.month, today.day) >= SAP_QUIET_ENDS_FROM and today.month < SAP_SEARCH_FROM[0]
+    if past or (quiet >= SAP_QUIET_DAYS and buds):
+        state = "over"
+    elif quiet >= SAP_QUIET_DAYS:
+        state = "paused"
+    else:
+        state = "running"
 
     return {
-        "state": "over" if over else "running",
+        "state": state,
         "started_on": days[0],
         "last_cycle_on": days[-1],
         "cycles": len(days),
         "days_since_last_cycle": quiet,
-        "window": f"{SAP_SEARCH_FROM[1]} Jan – {SAP_SEARCH_TO[1]} May",
+        "winter": winter,
+        "window": window,
+        **({"next_window_opens": date(today.year, *SAP_SEARCH_FROM).isoformat()} if past else {}),
         "note": (
             f"{len(days)} freeze-and-thaw day{'s' if len(days) != 1 else ''} "
-            f"from {days[0]}"
-            + (f", last on {days[-1]}." if over else f"; the most recent was {days[-1]}.")
+            f"this winter ({winter}) from {days[0]}"
+            + (f", last on {days[-1]}." if state == "over"
+               else f"; none for {quiet} days — a cold spell, not the end." if state == "paused"
+               else f"; the most recent was {days[-1]}.")
         ),
     }
 
