@@ -236,7 +236,9 @@ export function buildFlags(
       // are the only honest source, and with none there is no event to place.
       const year = (curve.season_start ?? dates[0] ?? "").slice(0, 4);
       if (!/^\d{4}$/.test(year)) continue;
-      const iso = `${year}-${m}-${d}`;
+      // A day that happened once keeps its own date; an annual one is
+      // re-dated to the season the curve is about.
+      const iso = w.on ?? `${year}-${m}-${d}`;
       const idx = indexOfDate(dates, iso);
       if (idx != null) {
         out.push({

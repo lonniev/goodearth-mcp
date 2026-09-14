@@ -800,6 +800,9 @@ export default function Crops({
         <>
           <div className="mb-2.5 rounded-md border border-rule border-l-4 border-l-frost bg-panel px-4 py-3">
             <p className="text-[13px]">
+              {when.season != null && when.season > new Date().getFullYear() && (
+                <b className="mr-1.5">Planning {when.season}:</b>
+              )}
               Last spring frost <b>{when.frost.last_spring_median && short(when.frost.last_spring_median)}</b>
               {" · "}first fall frost <b>{when.frost.first_fall_median && short(when.frost.first_fall_median)}</b>
               {" — medians over "}{when.frost.seasons_on_record} seasons.

@@ -18,8 +18,10 @@ Pure domain logic: no billing, no npubs, no MCP.
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date
 from typing import Any
+
+from goodearth_mcp import gdd
 
 # Frost forms at the plant well before the thermometer in the shelter reads
 # 32 °F, because the shelter sits 1.5 m up and the coldest air is at the
@@ -39,8 +41,14 @@ SPRING_SEARCH_END = (6, 30)  # Jun 30
 
 
 def first_fall_frost(dates: list[str], tmin: list[float | None], year: int) -> str | None:
-    """The first date on or after Jul 15 of ``year`` with a min at or below freezing."""
+    """The first date on or after Jul 15 of ``year`` with a min at or below freezing.
+
+    The search runs on into the next spring. On the Gulf Coast a season's
+    first frost can come in January, and stopping at Dec 31 dropped that
+    season from the record and pulled the median early.
+    """
     cutoff = date(year, *FALL_SEARCH_START)
+    end = date(year + 1, *SPRING_SEARCH_END)
     for d, lo in zip(dates, tmin, strict=False):
         if lo is None:
             continue
@@ -48,23 +56,9 @@ def first_fall_frost(dates: list[str], tmin: list[float | None], year: int) -> s
             day = date.fromisoformat(d)
         except ValueError:
             continue
-        if day.year == year and day >= cutoff and lo <= FROST_F:
+        if cutoff <= day <= end and lo <= FROST_F:
             return d
     return None
-
-
-def _month_day(iso: str) -> tuple[int, int]:
-    """Sort key for a frost date: (month, day).
-
-    Deliberately NOT day-of-year. A leap year shifts every autumn date's
-    day-of-year by one, so a median taken across leap and common years lands a
-    day off the calendar date growers actually think in — Oct 6 in a leap year
-    and Oct 6 in a common year are the same date to a farmer and must compare
-    equal here. Feb 29 never appears in a fall-frost record, so (month, day)
-    is total for this purpose.
-    """
-    d = date.fromisoformat(iso)
-    return (d.month, d.day)
 
 
 def frost_dates(dates: list[str], tmin: list[float | None], years: list[int]) -> list[str]:
@@ -84,29 +78,16 @@ def summarize_frost_dates(iso_dates: list[str], reference_year: int) -> dict[str
     against ``reference_year`` — a grower planning this August does not care
     that the median fell in 2019.
     """
-    if not iso_dates:
+    got = gdd.typical_dates(iso_dates, reference_year)
+    if got is None:
         return None
-    keys = sorted(_month_day(d) for d in iso_dates)
-    n = len(keys)
-
-    if n % 2:
-        median_key = keys[n // 2]
-    else:
-        # Even count: take the midpoint between the two central dates by day
-        # offset within the reference year, so the answer can fall between
-        # them rather than arbitrarily picking one.
-        lo = date(reference_year, *keys[n // 2 - 1])
-        hi = date(reference_year, *keys[n // 2])
-        mid = lo + timedelta(days=(hi - lo).days // 2)
-        median_key = (mid.month, mid.day)
-
-    def to_date(key: tuple[int, int]) -> str:
-        return date(reference_year, key[0], key[1]).isoformat()
+    median, earliest, latest = got
+    n = len(iso_dates)
 
     return {
-        "median": to_date(median_key),
-        "earliest": to_date(keys[0]),
-        "latest": to_date(keys[-1]),
+        "median": median.isoformat(),
+        "earliest": earliest.isoformat(),
+        "latest": latest.isoformat(),
         "years_on_record": n,
         "note": (
             f"First fall frost (min at or below {FROST_F:.0f} °F) in each of the "

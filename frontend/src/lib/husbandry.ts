@@ -200,7 +200,10 @@ export function cycleRows(
   };
 
   const inputs: WildlifeEventInput[] = [
-    { ...shared, event: d.startLabel.trim(), driver: "calendar", typical_on: on },
+    // The start happened once, on its own day. Stored as month-and-day alone
+    // it was re-dated to each year, and a hen set on Dec 20 read "Dec 20
+    // expected" — next December — from Jan 1.
+    { ...shared, event: d.startLabel.trim(), driver: "calendar", typical_on: on, on: d.startOn },
     ...d.steps.map((s) => ({
       ...shared,
       event: s.label.trim(),

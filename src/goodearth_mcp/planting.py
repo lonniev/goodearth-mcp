@@ -118,6 +118,19 @@ def validate(c: Any) -> dict[str, Any]:
     }
 
 
+def plan_year(first_fall_median: date | None, today: date) -> int:
+    """The season to plan for.
+
+    Once this year's first fall frost has typically come, what a grower plans
+    next is the coming spring. In November the window answered with the
+    season gone by — "start onions indoors Feb 2", a February already past —
+    and offered no successions at all.
+    """
+    if first_fall_median and today > first_fall_median:
+        return today.year + 1
+    return today.year
+
+
 def earliest_out(
     crop: dict[str, Any],
     last_frost: date | None,

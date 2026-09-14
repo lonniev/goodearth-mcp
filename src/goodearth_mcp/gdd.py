@@ -131,6 +131,50 @@ def typical_heat(clim: Climate, day: date) -> float:
     return clim.get(k, 0.0)
 
 
+def on_year(year: int, month: int, day: int) -> date:
+    """A calendar day in ``year``. February 29 is the 28th in a common year.
+
+    Re-expressing a typical date in another year raised on Feb 29, and a
+    spring frost or a soil crossing on that day is on record across the South.
+    """
+    if (month, day) == (2, 29):
+        try:
+            return date(year, 2, 29)
+        except ValueError:
+            return date(year, 2, 28)
+    return date(year, month, day)
+
+
+def typical_dates(iso_dates: list[str], reference_year: int) -> tuple[date, date, date] | None:
+    """Median, earliest and latest of one event's date across seasons,
+    expressed in ``reference_year``.
+
+    Compared by (month, day) so leap and common years line up. When the dates
+    cross the new year — an October first frost in most seasons, a January one
+    in a mild one — they are ordered by the SEASON, so January comes after
+    December rather than before October, and lands in the following year.
+    """
+    if not iso_dates:
+        return None
+    md = [(int(d[5:7]), int(d[8:10])) for d in iso_dates]
+    wraps = any(m >= 7 for m, _ in md) and any(m < 7 for m, _ in md)
+    keys = sorted((m + 12 if wraps and m < 7 else m, dd) for m, dd in md)
+
+    def on(k: tuple[int, int]) -> date:
+        later = k[0] > 12
+        return on_year(reference_year + later, k[0] - 12 * later, k[1])
+
+    n = len(keys)
+    if n % 2:
+        median = on(keys[n // 2])
+    else:
+        # Even count: the midpoint between the two central dates, so the
+        # answer can fall between them rather than arbitrarily picking one.
+        lo, hi = on(keys[n // 2 - 1]), on(keys[n // 2])
+        median = lo + timedelta(days=(hi - lo).days // 2)
+    return median, on(keys[0]), on(keys[-1])
+
+
 def season_start(today: date) -> date:
     """January 1 of the season in progress.
 

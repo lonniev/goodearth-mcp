@@ -61,8 +61,14 @@ async def region_planting_window(
 
     years = list(range(today.year - RECORD_SPAN_YEARS, today.year))
 
-    spring = frost.summarize_frost_dates(frost.spring_frost_dates(dates, tmin, years), today.year)
-    fall = frost.summarize_frost_dates(frost.frost_dates(dates, tmin, years), today.year)
+    spring_hits = frost.spring_frost_dates(dates, tmin, years)
+    fall_hits = frost.frost_dates(dates, tmin, years)
+    fall_now = frost.summarize_frost_dates(fall_hits, today.year)
+    season = planting.plan_year(
+        date.fromisoformat(fall_now["median"]) if fall_now else None, today,
+    )
+    spring = frost.summarize_frost_dates(spring_hits, season)
+    fall = frost.summarize_frost_dates(fall_hits, season)
     if not spring and not fall:
         raise PlantingWindowError(
             "No frost record could be built for this ground — the archive may be too short."
@@ -89,7 +95,7 @@ async def region_planting_window(
                     c = soil.crossing(by_year[y][0], by_year[y][1], threshold, "warming")
                     if c:
                         hits.append(c)
-                got = soil.typical_crossing(hits, today.year)
+                got = soil.typical_crossing(hits, season)
                 if got:
                     soil_dates[threshold] = date.fromisoformat(got["median"])
         except (sources.UpstreamError, ValueError):
@@ -119,6 +125,9 @@ async def region_planting_window(
     return {
         "success": True,
         "as_of": today.isoformat(),
+        # The season these dates are for — next year's, once this year's
+        # first frost has typically come.
+        "season": season,
         "region": region.describe(),
         "frost": {
             "last_spring_median": spring["median"] if spring else None,
@@ -141,6 +150,8 @@ async def region_planting_window(
             "ground's typical heat day by day, so a late sowing is given the "
             "slower heat of September rather than July's. A typical year, not a "
             "forecast. Requirements are the caller's own."
+            + (f" This year's first frost has typically come, so these dates are for {season}."
+               if season > today.year else "")
         ),
         "sources": [
             {**sources.feed_of(air),
