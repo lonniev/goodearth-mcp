@@ -5,6 +5,35 @@ monetized with Tollbooth DPYC™ Bitcoin Lightning micropayments.
 
 Sibling of the [Good Brew](https://cafe.tollbooth-dpyc.com) store.
 
+- **For growers:** the web app at <https://goodearth.tollbooth-dpyc.com>
+- **For AI agents:** the MCP server at `https://goodearth-mcp.fastmcp.app/mcp`
+  (streamable HTTP) — the same tools the web app calls.
+
+## Connect an AI agent
+
+Any MCP client that takes a remote server URL can connect; there is no
+account and no API key.
+
+| Client | How |
+|---|---|
+| Claude.ai / Claude Desktop | Settings → Connectors → Add custom connector → `https://goodearth-mcp.fastmcp.app/mcp` |
+| Claude Code | `claude mcp add --transport http goodearth https://goodearth-mcp.fastmcp.app/mcp` |
+| Cursor | `.cursor/mcp.json`: `{"mcpServers": {"goodearth": {"url": "https://goodearth-mcp.fastmcp.app/mcp"}}}` |
+
+### First connection walkthrough
+
+1. Ask the grower for their **Nostr npub** — never their nsec.
+2. `goodearth_request_npub_proof(patron_npub=…)` sends them a DM. They reply
+   from their Nostr client; then call `goodearth_receive_npub_proof(patron_npub=…,
+   dpop_token=…)` **once**, and pass `npub` + `dpop_token` on every paid call.
+3. `goodearth_check_balance`; top up with `goodearth_purchase_credits` (a
+   Lightning invoice the grower pays) and `goodearth_check_payment`.
+4. `goodearth_block_list` — their saved ground, or a worked example to start from.
+
+Free with no proof: `goodearth_service_status` and the `goodearth_oracle_*`
+tools. `goodearth_check_price` previews a fare. The server's own
+`instructions` repeat all of this for an agent that connects cold.
+
 ## The idea
 
 **A farm is not a point.** A bench and a hollow on the same acreage do not
