@@ -7,14 +7,14 @@ from itertools import pairwise
 
 import pytest
 
-from goodearth_mcp import planting
+from goodearth_mcp import gdd, planting
 
 TODAY = date(2026, 3, 1)
 SPRING = date(2026, 4, 22)
 FALL = date(2026, 11, 1)
 
 
-def climate(rate_for) -> planting.Climate:
+def climate(rate_for) -> gdd.Climate:
     """Typical heat for every calendar day, from a function of the month."""
     day, out = date(2024, 1, 1), {}
     while day.year == 2024:
@@ -142,7 +142,7 @@ def test_the_closing_date_and_the_finish_are_the_same_arithmetic():
 
 
 def test_the_typical_heat_of_a_day_is_its_average_over_the_record():
-    clim = planting.climatology(
+    clim = gdd.climatology(
         ["2024-07-01", "2025-07-01", "2025-07-02"], [90.0, 80.0, 70.0], [70.0, 60.0, 50.0], 50.0,
     )
     assert clim == {"07-01": 25.0, "07-02": 10.0}

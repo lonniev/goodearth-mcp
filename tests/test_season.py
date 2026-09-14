@@ -109,6 +109,59 @@ async def test_terrain_variation_produces_a_real_spread(monkeypatch):
     assert out["accumulated_gdd"]["spread"] > 0
 
 
+def _feeds(monkeypatch, normals=None):
+    """The ordinary feeds, with the normals optionally replaced."""
+    async def fake_elev(lats, lons):
+        return [100.0] * len(lats)
+
+    async def fake_history(lats, lons, start, end):
+        return [_record(60) for _ in range(len(lats))]
+
+    async def fake_forecast(lat, lon, days=7):
+        return _record(days)
+
+    monkeypatch.setattr(sources, "fetch_elevations", fake_elev)
+    monkeypatch.setattr(sources, "fetch_daily_history", fake_history)
+    monkeypatch.setattr(sources, "fetch_daily_forecast", fake_forecast)
+    if normals is not None:
+        monkeypatch.setattr(sources, "fetch_normals_history", normals)
+
+
+async def test_the_rest_of_the_year_carries_on_at_this_grounds_typical_heat(monkeypatch):
+    """The projection stops 75 days out. A planting set out past it needs the
+    heat the late season typically brings here, so the curve carries the
+    typical day through Dec 31."""
+    from datetime import timedelta
+
+    year = [date(2025, 1, 1) + timedelta(days=i) for i in range(365)]
+
+    async def normals(lat, lon, start, end):
+        rec = {"elevation": 100.0, "daily": {
+            "time": [d.isoformat() for d in year],
+            "temperature_2m_max": [75.0] * 365, "temperature_2m_min": [55.0] * 365,
+        }}
+        return [rec], "Daymet v4 (NASA ORNL)", 1_000
+
+    _feeds(monkeypatch, normals)
+    out = await season.region_season_curve(parse_region(PIN), 50.0, today=date(2026, 9, 14))
+    typ = out["typical"]
+    assert typ["dates"][0] == "2026-09-15"
+    assert typ["dates"][-1] == "2026-12-31"
+    assert len(typ["dates"]) == len(typ["daily"]) == 108
+    # 75/55 °F on base 50 is 15 degree-days every typical day.
+    assert set(typ["daily"]) == {15.0}
+
+
+async def test_no_typical_year_without_a_normals_record(monkeypatch):
+    async def down(lat, lon, start, end):
+        raise sources.UpstreamError("the normals feed is down")
+
+    _feeds(monkeypatch, down)
+    out = await season.region_season_curve(parse_region(PIN), 50.0, today=date(2026, 9, 14))
+    assert out["typical"] is None
+    assert out["curve"]["cumulative_mean"], "the season itself still answers"
+
+
 async def test_flat_elevation_reports_honest_zero_spread(monkeypatch):
     """Identical terrain must not be dressed up as variation."""
     region = parse_region(PIN)

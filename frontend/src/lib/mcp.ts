@@ -769,6 +769,10 @@ export interface SeasonCurveResult {
   } | null;
   forecast: { dates: string[]; cumulative: number[]; resolution_m: number; note: string } | null;
   projection: { days: number; cumulative: number[]; note: string } | null;
+  /// This ground's typical heat for each day from tomorrow to Dec 31 — where
+  /// a planting set out past the projection finds its heat. Absent from a
+  /// server older than the web app, which deploys first.
+  typical?: { dates: string[]; daily: number[]; span_years: number; note: string } | null;
   sources: { name: string; role: string; resolution_m: number }[];
 }
 

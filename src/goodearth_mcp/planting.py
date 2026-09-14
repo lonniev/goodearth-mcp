@@ -45,9 +45,6 @@ MIN_SUCCESSION_DAYS, MAX_SUCCESSION_DAYS = 3, 60
 # A sowing that has not banked its heat within a year never will.
 YEAR_DAYS = 366
 
-#: This ground's typical heat for each calendar day, keyed by MM-DD.
-Climate = dict[str, float]
-
 
 class PlantingError(ValueError):
     """A crop's planting requirements cannot be read."""
@@ -160,35 +157,7 @@ def earliest_out(
     return when, why
 
 
-def climatology(
-    dates: list[str], tmax: list[float | None], tmin: list[float | None], base_f: float,
-) -> Climate:
-    """This ground's typical heat for each calendar day, over the record.
-
-    One average rate for the whole season treated a September day as a July
-    day, which made the last sowing date optimistic at exactly the end of the
-    window, where a succession is decided. Averaged day by day instead, a late
-    sowing is given the heat the late season actually has.
-    """
-    sums: dict[str, float] = {}
-    counts: dict[str, int] = {}
-    for d, hi, lo in zip(dates, tmax, tmin, strict=False):
-        if hi is None or lo is None:
-            continue
-        k = d[5:10]
-        sums[k] = sums.get(k, 0.0) + gdd.daily_gdd(hi, lo, base_f)
-        counts[k] = counts.get(k, 0) + 1
-    return {k: sums[k] / counts[k] for k in sums}
-
-
-def _heat(clim: Climate, day: date) -> float:
-    k = day.strftime("%m-%d")
-    if k == "02-29" and k not in clim:
-        k = "02-28"
-    return clim.get(k, 0.0)
-
-
-def finish_date(out_on: date, target: float, clim: Climate) -> date | None:
+def finish_date(out_on: date, target: float, clim: gdd.Climate) -> date | None:
     """The day a sowing typically banks its heat target here.
 
     A median year, not a forecast. None when it does not within a year.
@@ -197,7 +166,7 @@ def finish_date(out_on: date, target: float, clim: Climate) -> date | None:
         return None
     total, day = 0.0, out_on
     for _ in range(YEAR_DAYS):
-        total += _heat(clim, day)
+        total += gdd.typical_heat(clim, day)
         if total >= target:
             return day
         day += timedelta(days=1)
@@ -207,7 +176,7 @@ def finish_date(out_on: date, target: float, clim: Climate) -> date | None:
 def latest_out(
     crop: dict[str, Any],
     first_frost: date | None,
-    clim: Climate,
+    clim: gdd.Climate,
 ) -> tuple[date | None, int | None]:
     """The last day a sowing still finishes before the first fall frost.
 
@@ -220,7 +189,7 @@ def latest_out(
         return None, None
     total, day = 0.0, first_frost - timedelta(days=1)
     for _ in range(YEAR_DAYS):
-        total += _heat(clim, day)
+        total += gdd.typical_heat(clim, day)
         if total >= crop["gdd_target"]:
             return day, (first_frost - day).days
         day -= timedelta(days=1)
@@ -231,7 +200,7 @@ def successions(
     crop: dict[str, Any],
     first: date | None,
     last: date | None,
-    clim: Climate,
+    clim: gdd.Climate,
     first_frost: date | None,
     earliest_frost: date | None,
     today: date,
@@ -273,7 +242,7 @@ def assess(
     last_frost: date | None,
     first_frost: date | None,
     soil_ready: date | None,
-    clim: Climate,
+    clim: gdd.Climate,
     today: date,
     earliest_frost: date | None = None,
 ) -> dict[str, Any]:

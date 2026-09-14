@@ -11,7 +11,7 @@ Pure domain logic. The server module adds billing and identity.
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from goodearth_mcp import gdd, record_cache, sources
@@ -154,6 +154,7 @@ async def region_season_curve(
 
     # ── Normals band from the same window in prior seasons ───────────────
     normals_curves: list[list[float]] = []
+    normals_clim: gdd.Climate = {}
     normals_source = "Open-Meteo archived model runs"
     normals_resolution = sources.HISTORY_RESOLUTION_M
     if not isinstance(normals_raw, BaseException) and normals_raw:
@@ -163,8 +164,11 @@ async def region_season_curve(
             normals_curves = gdd.yearly_curves(
                 n_dates, n_max, n_min, today, NORMALS_SPAN_YEARS, base
             )
+            # The same whole seasons, read day by day for the rest of the year.
+            normals_clim = gdd.climatology(n_dates, n_max, n_min, base)
         except (sources.UpstreamError, IndexError):
             normals_curves = []
+            normals_clim = {}
 
     normals_band = gdd.band(normals_curves)
     normals_today = normals_band[min(len(mean_series), len(normals_band)) - 1] if normals_band and mean_series else None
@@ -189,6 +193,32 @@ async def region_season_curve(
     # ── Projection on the recent rate ────────────────────────────────────
     recent = gdd.daily_increments(mean_series)[-14:]
     projected = gdd.project(running, recent, projection_days)
+
+    # ── The rest of the year, as it typically goes here ──────────────────
+    # The projection is a straight line at the recent rate: honest for a few
+    # weeks, wrong by autumn, and it stops 75 days out. A planting set out in
+    # August needs the heat August and September actually bring, so the chart
+    # can carry on past the projection on this ground's typical day — averaged
+    # over the same seasons as the band — to the end of the year.
+    typical_block: dict[str, Any] | None = None
+    if normals_clim:
+        days: list[date] = []
+        day, end = today + timedelta(days=1), date(today.year, 12, 31)
+        while day <= end:
+            days.append(day)
+            day += timedelta(days=1)
+        if days:
+            typical_block = {
+                "dates": [d.isoformat() for d in days],
+                "daily": [round(gdd.typical_heat(normals_clim, d), 2) for d in days],
+                "span_years": len(normals_curves),
+                "note": (
+                    f"This ground's typical heat for each day from tomorrow to Dec 31, "
+                    f"averaged over the last {len(normals_curves)} seasons at the region "
+                    "centroid. A typical year, not a forecast — it is where a planting "
+                    "set out beyond the projection finds its heat."
+                ),
+            }
 
     ahead_by = None
     if normals_today and mean_series:
@@ -238,6 +268,7 @@ async def region_season_curve(
             if projected
             else None
         ),
+        "typical": typical_block,
         "sources": [
             {**sources.feed_of(history), "role": "observed daily max/min"},
             {"name": "Open-Meteo forecast", "role": "7-day extension", "resolution_m": sources.FORECAST_RESOLUTION_M},

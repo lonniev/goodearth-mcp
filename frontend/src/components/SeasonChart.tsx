@@ -17,7 +17,7 @@
 import { useUnits } from "./Units";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { SeasonCurveResult } from "../lib/mcp";
-import type { LedgerFlag } from "../lib/ledgerFlags";
+import { combinedSeries, type LedgerFlag } from "../lib/ledgerFlags";
 import type { Band } from "../lib/diseaseBands";
 import { placeLabels } from "../lib/labelPlacement";
 import { dateFor, dayNumber, timelineDomain } from "../lib/seasonDays";
@@ -165,7 +165,6 @@ export default function SeasonChart({
     const totalDays = mean.length + fc.length + proj.length;
     // Day zero of the timeline. Every date on this chart is measured from here.
     const origin = dates[0] ?? data.season_start ?? "";
-    const gFull = Math.max(...mean, ...fc, ...proj, ...band.map((b) => b.max), 1);
 
     // Where a mark sits on the timeline.
     //
@@ -184,6 +183,16 @@ export default function SeasonChart({
       if (f.endIndex != null) return f.endIndex;
       return f.end ? dayNumber(f.end, origin) : null;
     };
+
+    // Past the projection, the typical year — drawn only as far as a mark on
+    // it reaches, so a season with nothing planned out there keeps exactly
+    // the chart it always had, scale and all.
+    const series = combinedSeries(data);
+    const reach = Math.max(-1, ...flags.filter((f) => f.typical)
+      .map((f) => Math.ceil(endDayOf(f) ?? dayOf(f))));
+    const typVals = reach >= series.typicalFrom
+      ? series.values.slice(series.typicalFrom, Math.min(reach + 3, series.values.length)) : [];
+    const gFull = Math.max(...mean, ...fc, ...proj, ...typVals, ...band.map((b) => b.max), 1);
 
     // The timeline is as long as it needs to be to hold everything on it.
     //
@@ -251,6 +260,9 @@ export default function SeasonChart({
     const projStart = fcPts.length ? fcPts[fcPts.length - 1] : ([last, mean[last]] as [number, number]);
     const projPts: [number, number][] = proj.length
       ? [projStart, ...proj.map((g, i) => [projStart[0] + 1 + i, g] as [number, number])] : [];
+    const typPts: [number, number][] = typVals.length
+      ? [[series.typicalFrom - 1, series.values[series.typicalFrom - 1]],
+         ...typVals.map((g, i) => [series.typicalFrom + i, g] as [number, number])] : [];
 
     // Months, then weeks, then days, chosen by how much is on screen — the
     // same scale the Almanac's charts use, so one axis is learned once.
@@ -265,7 +277,7 @@ export default function SeasonChart({
     const gridLines: number[] = [];
     for (let g = Math.ceil(gLo / step) * step; g <= gHi; g += step) gridLines.push(Math.round(g));
 
-    return { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, totalDays, placement, dayOf, endDayOf, domLo, domHi, seriesHi, extended, origin };
+    return { x, y, line, bandPath, ribbon, actual, fcPts, projPts, typPts, ticks, gridLines, last, mean, totalDays, placement, dayOf, endDayOf, domLo, domHi, seriesHi, extended, origin };
   }, [data, zoom, flags, B]);
 
   if (!view) {
@@ -357,7 +369,7 @@ export default function SeasonChart({
     }
   }, [full, slotH, svgRef]);
 
-  const { x, y, line, bandPath, ribbon, actual, fcPts, projPts, ticks, gridLines, last, mean, placement, dayOf, endDayOf, origin } = view;
+  const { x, y, line, bandPath, ribbon, actual, fcPts, projPts, typPts, ticks, gridLines, last, mean, placement, dayOf, endDayOf, origin } = view;
   const todayGdd = mean[last];
   /// The meteorological quarter the curve's last recorded day falls in — the
   /// name on the Season button, and the window it opens.
@@ -496,6 +508,11 @@ export default function SeasonChart({
           {projPts.length > 1 && (
             <path d={line(projPts)} fill="none" stroke="var(--color-ink-soft)" strokeWidth={1.6} strokeDasharray="2 5" />
           )}
+          {/* The typical year: fainter than the projection, because it is
+              not even this season — only where a later planting is read. */}
+          {typPts.length > 1 && (
+            <path d={line(typPts)} fill="none" stroke="var(--color-ink-soft)" strokeWidth={1.2} strokeDasharray="1 6" opacity={0.7} />
+          )}
           {frostDayIndex != null && (
             <line x1={x(frostDayIndex)} x2={x(frostDayIndex)} y1={T} y2={B} stroke="var(--color-frost)" strokeWidth={2.2} strokeDasharray="7 4" />
           )}
@@ -553,12 +570,22 @@ export default function SeasonChart({
                     An instant draws no bar at all. Most of what a season marks
                     really is a moment: an egg hatch happens on a day, and
                     giving it a width would be inventing a duration. */}
+                {/* A bar that ends on the typical year is an outline, dashed:
+                    a typical season's answer, not this one's. */}
                 {endDay != null && Math.abs(ex - cx) > 1.5 && (
-                  <rect
-                    x={Math.min(cx, ex)} y={cy - 3}
-                    width={Math.abs(ex - cx)} height={6} rx={3}
-                    fill={tone} opacity={f.reached ? 0.34 : 0.2}
-                  />
+                  f.typical ? (
+                    <rect
+                      x={Math.min(cx, ex)} y={cy - 3}
+                      width={Math.abs(ex - cx)} height={6} rx={3}
+                      fill="none" stroke={tone} strokeWidth={1.2} strokeDasharray="3 3" opacity={0.7}
+                    />
+                  ) : (
+                    <rect
+                      x={Math.min(cx, ex)} y={cy - 3}
+                      width={Math.abs(ex - cx)} height={6} rx={3}
+                      fill={tone} opacity={f.reached ? 0.34 : 0.2}
+                    />
+                  )
                 )}
                 {/* The stem can be long now, so it is drawn lighter than the
                     dot it belongs to — a leader should point, not compete. */}
@@ -666,6 +693,11 @@ export default function SeasonChart({
         {data.projection && (
           <span className="inline-flex items-center gap-1.5">
             <i className="inline-block w-4.5 border-t-[3px] border-dotted border-ink-soft" />projection at the recent rate
+          </span>
+        )}
+        {typPts.length > 1 && (
+          <span className="inline-flex items-center gap-1.5">
+            <i className="inline-block w-4.5 border-t-[2px] border-dotted border-ink-soft opacity-70" />a typical year after that
           </span>
         )}
         {bands.length > 0 && (
