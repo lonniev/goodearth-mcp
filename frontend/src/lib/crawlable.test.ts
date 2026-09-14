@@ -32,6 +32,14 @@ describe("the front door a crawler reads", () => {
     }
   });
 
+  it("tells an agent the tools are there, and where", () => {
+    // An assistant asked about the site reported no MCP address anywhere it
+    // looked. The front door is the first thing it reads.
+    const text = words(root).join(" ");
+    assert.match(text, /agent-ready/);
+    assert.match(text, /https:\/\/goodearth-mcp\.fastmcp\.app\/mcp/);
+  });
+
   it("never names a treatment it would recommend", () => {
     assert.match(words(root).join(" "), /never recommends a pesticide or treatment/);
   });
@@ -61,6 +69,16 @@ describe("the plain files a crawler asks for first", () => {
     const t = await readFile("public/llms.txt", "utf8");
     assert.match(t, /^# Good Earth\n\n> .*garden/);
     assert.match(t, /^## What it deliberately does not do$/m);
+  });
+
+  it("llms.txt leads with how an agent connects, before the product detail", async () => {
+    const t = await readFile("public/llms.txt", "utf8");
+    const connect = t.indexOf("## For AI agents");
+    assert.ok(connect > 0 && connect < t.indexOf("## What it answers"),
+      "the agent section should come before the feature list");
+    assert.match(t, /https:\/\/goodearth-mcp\.fastmcp\.app\/mcp/);
+    for (const step of ["goodearth_request_npub_proof", "goodearth_receive_npub_proof", "Never ask for an nsec"])
+      assert.ok(t.includes(step), `llms.txt no longer says ${step}`);
   });
 
   it("names no one's own plot or town in anything a stranger reads", async () => {

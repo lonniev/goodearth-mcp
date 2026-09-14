@@ -90,6 +90,32 @@ export default function About() {
         </p>
       </div>
 
+      {/* ── For an AI assistant ────────────────────────────────────────── */}
+      {/* An assistant asked about Good Earth could not find how to use it,
+          and said so: the page was built for a person, and the address its
+          own tools answer on was written nowhere a reader would look. */}
+      <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold">🤖 Use it from your AI assistant</h2>
+      <div className="rounded-md border border-rule bg-panel px-4 py-3.5 text-[13px] leading-relaxed">
+        <p>
+          Everything on this site is also an MCP server, so an assistant such as
+          Claude or Cursor can ask Good Earth the same questions for you — same
+          answers, same balance, same Nostr key.
+        </p>
+        <p className="data mt-2 break-all rounded bg-band px-2.5 py-1.5 text-[12.5px]">
+          https://goodearth-mcp.fastmcp.app/mcp
+        </p>
+        <ul className="mt-2 list-disc space-y-1 pl-5">
+          <li><b>Claude.ai or Claude Desktop:</b> Settings → Connectors → Add custom connector, and paste the address.</li>
+          <li><b>Claude Code:</b> <span className="data">claude mcp add --transport http goodearth</span> and the address.</li>
+          <li><b>Cursor:</b> add it under <span className="data">mcpServers</span> as a <span className="data">url</span>.</li>
+        </ul>
+        <p className="mt-2 text-ink-soft">
+          The assistant asks for your npub and sends you a direct message to
+          confirm it is you — reply from your Nostr client, as you do to sign in
+          here. <a href="/llms.txt" className="underline">A plain-text summary for assistants</a> says the rest.
+        </p>
+      </div>
+
       {/* ── What is running ────────────────────────────────────────────── */}
       <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold">🔧 What is running</h2>
       {err ? (
