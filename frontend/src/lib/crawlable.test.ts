@@ -90,7 +90,9 @@ describe("the plain files a crawler asks for first", () => {
     assert.equal(catalog.specVersion, "1.0");
     const [card] = catalog.entries;
     assert.equal(card.type, "application/mcp-server-card+json");
-    assert.equal(card.identifier, "urn:air:tollbooth-dpyc.com:mcp:goodearth-mcp");
+    // urn:air:{publisher}:{namespace}:{name}, the publisher being the card
+    // name's reverse-DNS prefix read forwards: io.github.lonniev → lonniev.github.io.
+    assert.equal(card.identifier, "urn:air:lonniev.github.io:mcp:goodearth-mcp");
     for (const k of ["name", "title", "description", "version", "websiteUrl", "repository", "remotes"])
       assert.deepEqual(card.data[k], entry[k], `the card's ${k} differs from server.json`);
   });

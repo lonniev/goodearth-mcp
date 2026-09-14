@@ -13,7 +13,7 @@ The web app is one client of an MCP server. An agent can call the same tools dir
 - Claude Code: `claude mcp add --transport http goodearth https://goodearth-mcp.fastmcp.app/mcp`, or a project `.mcp.json`: `{"mcpServers": {"goodearth": {"type": "http", "url": "https://goodearth-mcp.fastmcp.app/mcp"}}}`
 - Cursor (`.cursor/mcp.json`): `{"mcpServers": {"goodearth": {"url": "https://goodearth-mcp.fastmcp.app/mcp"}}}`
 - VS Code (`.vscode/mcp.json`): `{"servers": {"goodearth": {"type": "http", "url": "https://goodearth-mcp.fastmcp.app/mcp"}}}`
-- Machine-readable: the MCP Registry entry `com.tollbooth-dpyc/goodearth-mcp`, and an AI catalog at https://goodearth.tollbooth-dpyc.com/.well-known/ai-catalog.json
+- Machine-readable: the MCP Registry name `io.github.lonniev/goodearth-mcp`, and an AI catalog at https://goodearth.tollbooth-dpyc.com/.well-known/ai-catalog.json
 
 First connection:
 

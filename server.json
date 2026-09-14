@@ -1,6 +1,6 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "com.tollbooth-dpyc/goodearth-mcp",
+  "name": "io.github.lonniev/goodearth-mcp",
   "title": "Good Earth",
   "description": "Climate timing for gardens and small farms: frost, heat, soil and planting dates for your plot.",
   "version": "0.1.0",

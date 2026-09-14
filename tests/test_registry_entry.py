@@ -1,8 +1,11 @@
 """The MCP Registry entry says what the server is, and stays in step with it.
 
-``server.json`` is published to the official MCP Registry by hand, and a
-publish is refused for a version already published. So the entry's version
-is the service's own, and its endpoint is the one every page names.
+``server.json`` is published to the official MCP Registry by
+``publish-mcp-registry.yml`` on every ``v*`` tag, with GitHub OIDC — which
+grants only ``io.github.lonniev/*``, the namespace the rest of the fleet is
+listed under. A publish is refused for a version already published, so the
+committed version is the service's own, and the endpoint is the one every
+page names.
 """
 
 import json
@@ -14,8 +17,10 @@ ENTRY = json.loads((ROOT / "server.json").read_text())
 ENDPOINT = "https://goodearth-mcp.fastmcp.app/mcp"
 
 
-def test_it_is_under_the_domain_verified_namespace():
-    assert ENTRY["name"] == "com.tollbooth-dpyc/goodearth-mcp"
+def test_it_is_under_the_namespace_the_publish_workflow_can_log_in_to():
+    assert ENTRY["name"] == "io.github.lonniev/goodearth-mcp"
+    workflow = (ROOT / ".github" / "workflows" / "publish-mcp-registry.yml").read_text()
+    assert "login github-oidc" in workflow
 
 
 def test_its_version_is_the_services_own():
