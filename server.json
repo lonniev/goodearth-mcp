@@ -1,8 +1,10 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.lonniev/goodearth-mcp",
-  "description": "Good Earth — region-scoped farm climate analytics, monetized with Tollbooth DPYC",
+  "title": "Good Earth",
+  "description": "Climate timing for gardens and small farms: frost, heat, soil and planting dates for your plot.",
   "version": "0.1.0",
+  "websiteUrl": "https://goodearth.tollbooth-dpyc.com",
   "repository": {
     "url": "https://github.com/lonniev/goodearth-mcp",
     "source": "github"

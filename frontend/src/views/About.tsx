@@ -100,7 +100,7 @@ export default function About() {
           https://goodearth-mcp.fastmcp.app/mcp
         </p>
         <ul className="mt-2 list-disc space-y-1 pl-5">
-          <li><b>Claude.ai or Claude Desktop:</b> Settings → Connectors → Add custom connector, and paste the address.</li>
+          <li><b>Claude.ai or Claude Desktop:</b> Customize → Connectors → Add custom connector, and paste the address.</li>
           <li><b>Claude Code:</b> <span className="data">claude mcp add --transport http goodearth</span> and the address.</li>
           <li><b>Cursor:</b> add it under <span className="data">mcpServers</span> as a <span className="data">url</span>.</li>
         </ul>

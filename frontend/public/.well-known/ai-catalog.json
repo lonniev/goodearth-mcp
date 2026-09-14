@@ -1,0 +1,26 @@
+{
+  "specVersion": "1.0",
+  "entries": [
+    {
+      "identifier": "urn:air:lonniev.github.io:mcp:goodearth-mcp",
+      "type": "application/mcp-server-card+json",
+      "data": {
+        "name": "io.github.lonniev/goodearth-mcp",
+        "title": "Good Earth",
+        "description": "Climate timing for gardens and small farms: frost, heat, soil and planting dates for your plot.",
+        "version": "0.1.0",
+        "websiteUrl": "https://goodearth.tollbooth-dpyc.com",
+        "repository": {
+          "url": "https://github.com/lonniev/goodearth-mcp",
+          "source": "github"
+        },
+        "remotes": [
+          {
+            "type": "streamable-http",
+            "url": "https://goodearth-mcp.fastmcp.app/mcp"
+          }
+        ]
+      }
+    }
+  ]
+}

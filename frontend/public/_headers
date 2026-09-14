@@ -1,0 +1,12 @@
+# Cloudflare Pages response headers.
+#
+# The AI catalog is read by agents and by browser-based MCP clients from other
+# origins, so it carries its own media type and open CORS — it holds only
+# public metadata and is read-only (MCP Server Cards draft, "CORS Requirements").
+/.well-known/ai-catalog.json
+  Content-Type: application/ai-catalog+json
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET
+  Access-Control-Allow-Headers: Content-Type, If-None-Match
+  Access-Control-Expose-Headers: ETag
+  Cache-Control: public, max-age=3600

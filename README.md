@@ -16,9 +16,18 @@ account and no API key.
 
 | Client | How |
 |---|---|
-| Claude.ai / Claude Desktop | Settings → Connectors → Add custom connector → `https://goodearth-mcp.fastmcp.app/mcp` |
-| Claude Code | `claude mcp add --transport http goodearth https://goodearth-mcp.fastmcp.app/mcp` |
+| Claude.ai / Claude Desktop | Customize → Connectors → Add custom connector → `https://goodearth-mcp.fastmcp.app/mcp` (leave the OAuth fields blank) |
+| Claude Code | `claude mcp add --transport http goodearth https://goodearth-mcp.fastmcp.app/mcp`, or in a project's `.mcp.json`: `{"mcpServers": {"goodearth": {"type": "http", "url": "https://goodearth-mcp.fastmcp.app/mcp"}}}` |
 | Cursor | `.cursor/mcp.json`: `{"mcpServers": {"goodearth": {"url": "https://goodearth-mcp.fastmcp.app/mcp"}}}` |
+| VS Code | `.vscode/mcp.json`: `{"servers": {"goodearth": {"type": "http", "url": "https://goodearth-mcp.fastmcp.app/mcp"}}}` |
+
+`server.json` at the repo root is the entry for the official
+[MCP Registry](https://registry.modelcontextprotocol.io), as
+`io.github.lonniev/goodearth-mcp` — the namespace the rest of the DPYC fleet
+is listed under. `.github/workflows/publish-mcp-registry.yml` publishes it on
+every `v*` tag, logging in with GitHub OIDC and taking the version from the
+tag, so there is no key to keep. A test holds the committed `version` to
+`pyproject.toml`.
 
 ### First connection walkthrough
 
