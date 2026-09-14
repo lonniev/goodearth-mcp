@@ -9,11 +9,17 @@
 import { useUnits } from "./Units";
 import { useMemo } from "react";
 import type { Measure } from "../lib/mcp";
-import { dateTicks } from "../lib/dateTicks";
+import { dateTicks, labelFits, spaceTicks } from "../lib/dateTicks";
+import { drawWidth } from "../lib/chartBox";
+import { useBoxWidth } from "../lib/useBoxWidth";
 import { useChartZoom, windowToDomain } from "../lib/useChartZoom";
 import ZoomControls, { AxisZoom } from "./ZoomControls";
 
-const W = 740, H = 150, L = 46, R = 726, T = 10, B = 118;
+/// Height, gutters and type are pixels; the WIDTH is the box's own. It was a
+/// fixed 740-unit drawing held at a 520 px minimum, which on a phone ran each
+/// chart 229 px past the right edge of its card — cutting off exactly the
+/// recent weeks and the forecast.
+const H = 150, L = 46, RIGHT_PAD = 14, T = 10, B = 118;
 
 export default function MeasureChart({
   measure, dates, forecastDates, label, emoji, color = "var(--color-growth)", zoomable = true,
@@ -27,7 +33,13 @@ export default function MeasureChart({
   zoomable?: boolean;
 }) {
   const u = useUnits();
-  const { zoom, zoomX, zoomY, reset, isZoomed, svgRef } = useChartZoom();
+  const { ref: box, width: boxW } = useBoxWidth<HTMLDivElement>();
+  const W = drawWidth(boxW);
+  const R = W - RIGHT_PAD;
+  // The gutters are fixed pixels, so the drag zones are this drawing's own
+  // fractions rather than the 740-wide defaults.
+  const { zoom, zoomX, zoomY, reset, isZoomed, svgRef } =
+    useChartZoom({ plotLeft: L / W, plotBottom: B / H });
 
   const view = useMemo(() => {
     const act = measure.actual ?? [];
@@ -69,14 +81,20 @@ export default function MeasureChart({
     // used to emit month labels only, so a six-week window showed two labels
     // and nothing between them — the closer you looked, the less it said.
     const combined = [...dates, ...forecastDates];
-    const ticks = dateTicks(dLo, dHi, (d) => combined[d] ?? null)
-      .map((t) => ({ i: t.d, label: t.label, major: t.major }));
+    const ticks = spaceTicks(
+      dateTicks(dLo, dHi, (d) => combined[d] ?? null)
+        .map((t) => ({ i: t.d, label: t.label, major: t.major }))
+        // On the plot, and wholly inside the drawing: a label half past the
+        // right edge reads as a different word.
+        .filter((t) => x(t.i) >= L - 1 && labelFits(x(t.i) + 2, t.label, W)),
+      (t) => x(t.i) + 2,
+    );
 
     const mid = (vLo + vHi) / 2;
     const gridVals = [vLo + (vHi - vLo) * 0.15, mid, vHi - (vHi - vLo) * 0.15];
 
     return { x, y, path, bandPath, ticks, gridVals, act, fc, total };
-  }, [measure, zoom, dates, forecastDates]);
+  }, [measure, zoom, dates, forecastDates, W, R]);
 
   if (!view) {
     return (
@@ -119,8 +137,9 @@ export default function MeasureChart({
           inches or hours. */}
       <div className="flex items-stretch">
       {zoomable && <AxisZoom onZoom={zoomY} label={unitLabel || label} />}
+      <div ref={box} className="min-w-0 flex-1">
       <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`}
-        className={`ge-chart block h-auto w-full min-w-[520px] touch-none select-none ${isZoomed ? "cursor-grab" : ""}`}
+        className={`ge-chart block h-auto w-full touch-none select-none ${isZoomed ? "cursor-grab" : ""}`}
         role="img" aria-label={`${label}, this season against the normal range`}>
         <defs>
           <clipPath id={`clip-${label.replace(/\W/g, "")}`}>
@@ -157,6 +176,7 @@ export default function MeasureChart({
         ))}
         <line x1={L} x2={R} y1={B} y2={B} stroke="var(--color-ink)" strokeWidth={1.2} />
       </svg>
+      </div>
       </div>
 
       {zoomable && (
