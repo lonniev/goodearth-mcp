@@ -741,6 +741,18 @@ def _clean_day(value: Any, field: str) -> str | None:
         raise BlockError(f"{field} must be an ISO date (YYYY-MM-DD)") from exc
 
 
+def season_for(starts_on: str | None, fallback_year: int) -> int:
+    """The season a row belongs to: the year of its own date, when it has one.
+
+    It was the year the row was SAVED, so an onion entered in November to go
+    out in January was filed under the season it will never grow in.
+    """
+    try:
+        return date.fromisoformat(str(starts_on)[:10]).year
+    except (TypeError, ValueError):
+        return fallback_year
+
+
 async def save_items(
     npub: str, block_id: str, kind: str, items: list[dict[str, Any]],
     *, season_year: int | None = None,
@@ -757,7 +769,7 @@ async def save_items(
     if len(items) > MAX_ITEMS_PER_CALL:
         raise BlockError(f"at most {MAX_ITEMS_PER_CALL} items in one call")
 
-    year = season_year if season_year is not None else datetime.now(UTC).year
+    fallback_year = datetime.now(UTC).year
     cols: list[str] = []
     args: list[Any] = []
     ids: list[str] = []
@@ -778,7 +790,10 @@ async def save_items(
         )
         args.extend([
             npub, iid, block_id, k,
-            None if k == "observation" else year,
+            None if k == "observation" else (
+                season_year if season_year is not None
+                else season_for(clear["starts_on"], fallback_year)
+            ),
             seen, json.dumps(payload),
             str(item.get("source") or "") or None,
             clear["name"], clear["event"], clear["driver"],

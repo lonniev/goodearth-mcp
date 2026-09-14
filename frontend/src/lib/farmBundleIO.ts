@@ -12,14 +12,15 @@ import {
 } from "./farmBundle";
 import type { SavedRegion } from "./regions";
 
-/// This season's plantings, pests and wildlife on a plot, and all its tasks.
+/// Every planting, pest and wildlife row on a plot that has not been removed,
+/// and all its tasks. It was this calendar year's rows only, so a bundle made
+/// in January left behind the garlic in the ground and the whole roster.
 export async function exportPlot(plot: SavedRegion): Promise<FarmBundle> {
-  const season = new Date().getFullYear();
   const items: Partial<Record<BundleKind, ItemRow[]>> = {};
   for (const kind of BUNDLE_KINDS) {
     const rows: ItemRow[] = [];
     for (let page = 0; ; page += 1) {
-      const r = await blockItemList(plot.id, kind, { season, page, page_size: 200 });
+      const r = await blockItemList(plot.id, kind, { page, page_size: 200 });
       if (!r.success) throw new Error(r.error || `The ${kind} list could not be read.`);
       rows.push(...(r.items ?? []));
       if (page + 1 >= (r.pages ?? 1)) break;

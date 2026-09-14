@@ -32,6 +32,7 @@ from goodearth_mcp import (
     record_cache,
     roster,
     season,
+    seasons,
     sources,
     task_store,
 )
@@ -896,18 +897,22 @@ async def calibration(
     parsed, _found = await _block_region(npub, block)
 
     try:
-        year = season if season is not None else datetime.now(UTC).year
         seen = observations
         if seen is None:
-            # Bounded by the season on purpose: unbounded, this would quietly
-            # calibrate this year's ground against every observation ever
-            # recorded, and a correction drawn from six seasons of weather is
-            # not a correction for this one.
-            seen = await _stored_items(npub, _found["block_id"], "observation")
-            seen = [o for o in seen if str(o.get("observed_on", "")).startswith(str(year))]
+            # Bounded on purpose: unbounded, this would quietly calibrate this
+            # season's ground against every observation ever recorded, and a
+            # correction drawn from six seasons of weather is not a correction
+            # for this one. Bounded by the last twelve months rather than the
+            # calendar year, though, or December's reports stop counting in
+            # January.
+            seen = seasons.recent_observations(
+                await _stored_items(npub, _found["block_id"], "observation"),
+                season, datetime.now(UTC).date(),
+            )
         if not seen:
+            span = str(season) if season is not None else "the last twelve months"
             return {"success": False, "error_code": "no_observations",
-                    "error": (f"No field reports recorded for {year} on this ground — "
+                    "error": (f"No field reports recorded for {span} on this ground — "
                               "file some observations first, and they will sharpen the model.")}
         return await calibration_impl(parsed, seen, float(base_temp))
     except (CalibrateError, CalibrationError) as exc:
@@ -1068,9 +1073,11 @@ async def review_roster(
         # and what makes accepting a finding an ordinary item write rather than
         # a separate tool.
         block_id = _found["block_id"]
-        year = season if season is not None else datetime.now(UTC).year
-        stored_pests = pests if pests is not None else await _stored_items(npub, block_id, "pest", season=year)
-        stored_wild = wildlife if wildlife is not None else await _stored_items(npub, block_id, "wildlife", season=year)
+        # A roster outlives the calendar year. Defaulting to this year's rows
+        # emptied the review every Jan 1 — the same voles, the same heron —
+        # until each was entered again. A named season still narrows it.
+        stored_pests = pests if pests is not None else await _stored_items(npub, block_id, "pest", season=season)
+        stored_wild = wildlife if wildlife is not None else await _stored_items(npub, block_id, "wildlife", season=season)
         stored_obs = observations if observations is not None else await _stored_items(npub, block_id, "observation")
         return {"success": True, "block_id": block_id, "block_name": _found.get("name", ""),
                 **roster.review(
@@ -1686,14 +1693,21 @@ async def calendar_dataset(
     """
     parsed, found = await _block_region(npub, block)
     block_id = found["block_id"]
-    year = season if season is not None else datetime.now(UTC).year
+    today = datetime.now(UTC).date()
     base_temp = float(found.get("base_temp_f") or 50.0)
     region_name = found.get("name") or "My block"
 
     async def _items(kind: str) -> list[dict[str, Any]]:
+        # Unnamed, the season is not the calendar year: it was, and a hen set
+        # on Dec 20 lost her Jan 10 hatch from the feed at midnight. Every row
+        # the grower has not removed, less the dated ones from past seasons
+        # that would come back as phantoms — see seasons.feed_rows.
+        rows = await _all_rows(npub, block_id, kind, season)
+        if season is None:
+            rows = seasons.feed_rows(kind, rows, date(today.year, 1, 1))
         return [
             {k: v for k, v in row.items() if k not in ("item_id", "kind", "retired", "source")}
-            for row in await _all_rows(npub, block_id, kind, year)
+            for row in rows
         ]
 
     try:
@@ -1707,6 +1721,9 @@ async def calendar_dataset(
         while True:
             tasks = await task_store.listing(
                 npub, block_id, timeframe="season",
+                # A named season is that year; unnamed, the rolling season
+                # around today, so next January's tasks publish in November.
+                season_start=date(season, 1, 1) if season is not None else None,
                 page=page_no, page_size=task_store.MAX_PAGE_SIZE,
             )
             todos.extend(tasks.get("rows") or [])

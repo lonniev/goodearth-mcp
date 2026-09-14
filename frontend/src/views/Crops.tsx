@@ -94,9 +94,14 @@ export default function Crops({
   // projected to do. They are field observations, dated rather than seasonal,
   // so the season is a date range; the newest come first, so a page that
   // cannot hold them all drops the oldest note rather than today's cut.
+  // From the earliest set-out on the ledger, or a year back. It was Jan 1,
+  // which split a winter crop's cuts at midnight on Dec 31: greens cut in
+  // December and January read as one cut in January.
+  const yearAgo = new Date(Date.now() - 365 * 86_400_000).toLocaleDateString("en-CA");
+  const cutsSince = plantings.reduce((m, p) => (p.setOut && p.setOut < m ? p.setOut : m), yearAgo);
   const { items: seen, save: storeSeen, total: seenTotal } =
     useBlockItems<FieldReport>(region.id, "observation", reportCodec, undefined, {
-      since: `${new Date().getFullYear()}-01-01`, sortCol: "observed_on", sortDir: "desc", pageSize: 200,
+      since: cutsSince, sortCol: "observed_on", sortDir: "desc", pageSize: 200,
     });
   const harvests = useMemo(() => summarize(seen), [seen]);
   const [cutting, setCutting] = useState("");
