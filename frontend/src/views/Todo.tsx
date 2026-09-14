@@ -26,9 +26,10 @@ import {
   CELL, Empty, ErrorBox, FIELD, ICON, IconButton, Pill, RowActions, Section, TrashGlyph,
 } from "../components/ui";
 import {
-  taskDelete, taskList, taskSave, taskSetDone,
+  getStoredNpub, taskDelete, taskList, taskSave, taskSetDone,
   type TaskInput, type TaskRow, type TaskSort, type Timeframe,
 } from "../lib/mcp";
+import { entries, isNetworkFailure, overlayTasks, subscribe } from "../lib/outbox";
 import { migrateLocalTodos } from "../lib/todos";
 import { makeFeedRefresher, publishedToken } from "../lib/publishFeed";
 import type { SavedRegion } from "../lib/regions";
@@ -87,9 +88,35 @@ export default function TodoView({
       if (!r.success) { setErr(r.error || "The task list could not be read."); return; }
       setPage({ rows: r.rows ?? [], total: r.total ?? 0, page: r.page ?? 0, pages: r.pages ?? 1 });
       setRanAt(new Date());
-    } catch (e) { setErr((e as Error).message); }
+    } catch (e) {
+      if (isNetworkFailure(e, navigator.onLine)) {
+        setErr("No signal. The list loads when the signal is back — tasks you add now wait and are sent then.");
+        setPage((p) => p ?? { rows: [], total: 0, page: 0, pages: 1 });
+      } else setErr((e as Error).message);
+    }
     finally { setBusy(false); }
   }, [region.id, frame, search, sortCol, sortDir, pageNo]);
+
+  // Tasks written without signal, laid over the list until they are sent. The
+  // list is read again whenever the outbox shrinks, so a sent task trades its
+  // waiting mark for the server's own row.
+  const [queue, setQueue] = useState(() => entries());
+  useEffect(() => subscribe(setQueue), []);
+  const lastQueued = useRef(queue.length);
+  useEffect(() => {
+    if (queue.length < lastQueued.current) void load();
+    lastQueued.current = queue.length;
+  }, [queue.length, load]);
+  const shown = useMemo(() => page && overlayTasks<TaskRow>(
+    page.rows, queue, getStoredNpub(), region.id,
+    (a) => ({
+      id: String(a.task_id), title: String(a.title ?? ""),
+      note: (a.note as string | undefined) ?? null, due: (a.due as string | undefined) ?? null,
+      starts_at: (a.starts_at as string | undefined) || null,
+      ends_at: (a.ends_at as string | undefined) || null,
+      reminder_only: a.reminder_only !== false, done: Boolean(a.done),
+    }),
+  ), [page, queue, region.id]);
 
   // Lift any device-local tasks before the first read, so the page never shows
   // an empty list to someone who had tasks a moment ago.
@@ -266,7 +293,7 @@ export default function TodoView({
 
       {busy && !page ? (
         <div className="rounded-md border border-rule bg-panel"><QuoteScroller heading="Reading your list" /></div>
-      ) : page && page.rows.length ? (
+      ) : shown && shown.rows.length ? (
         <>
           <div className="overflow-x-auto rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">
             <table className="w-full text-[13px]">
@@ -274,7 +301,7 @@ export default function TodoView({
                 <SortHeaders cols={COLS} sort={sortCol} dir={sortDir} onSort={sortBy} />
               </thead>
               <tbody>
-                {page.rows.map((t) => (draft?.task_id === t.id ? (
+                {shown.rows.map((t) => (draft?.task_id === t.id ? (
                   <Editor key={t.id} draft={draft} onChange={setDraft} onCommit={commit}
                     onCancel={() => setDraft(null)} saving={saving} />
                 ) : (
@@ -288,7 +315,10 @@ export default function TodoView({
                     <td onClick={() => startEdit(t)}
                       className={`cursor-text px-3 py-2.5 ${t.done ? "text-ink-soft line-through" : "font-medium"}`}>
                       {t.title}
-                      {t.note && <small className="block text-[11px] font-normal text-ink-soft">{t.note}</small>}
+                      {shown.pending.has(t.id) && (
+                        <small className="ml-1.5 text-[10.5px] font-normal text-ink-soft">⇡ waiting for signal</small>
+                      )}
+                      {t.note &&<small className="block text-[11px] font-normal text-ink-soft">{t.note}</small>}
                     </td>
                     <td onClick={() => startEdit(t)}
                       className="data cursor-text px-3 py-2.5 whitespace-nowrap text-[12px]">{nice(t.due)}</td>
@@ -325,7 +355,7 @@ export default function TodoView({
             </table>
           </div>
 
-          <Pager page={page.page} pages={page.pages} total={page.total}
+          <Pager page={page?.page ?? 0} pages={page?.pages ?? 1} total={page?.total ?? 0}
             noun="task" onPage={setPageNo} />
         </>
       ) : (
