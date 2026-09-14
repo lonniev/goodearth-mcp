@@ -147,8 +147,12 @@ def window_for(timeframe: str, today: date, season_start: date | None = None) ->
         start = today.replace(day=1)
         nxt = (start + timedelta(days=32)).replace(day=1)
         return (start, nxt - timedelta(days=1))
-    start = season_start or date(today.year, 1, 1)
-    return (start, date(today.year, 12, 31))
+    if season_start is not None:
+        return (season_start, season_start + timedelta(days=364))
+    # No stated start: the season around today — the last two months and the
+    # year ahead. It was Jan 1 to Dec 31 of the calendar year, which in
+    # November hid a task due Jan 5, from this list and from the feed.
+    return (today - timedelta(days=60), today + timedelta(days=365))
 
 
 def clean_search(pattern: str) -> str:

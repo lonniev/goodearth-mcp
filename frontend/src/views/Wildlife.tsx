@@ -165,7 +165,9 @@ export default function Wildlife({
 
   useEffect(() => { void run(models); }, [run, models]);
 
-  const today = new Date().toISOString().slice(0, 10);
+  // The grower's own date, not Greenwich's: after 7 pm in Vermont the UTC
+  // date is already tomorrow, and the due list ran a day ahead.
+  const today = new Date().toLocaleDateString("en-CA");
 
   /// Watches whose day is near, and the ones whose day has just been and gone
   /// with nothing recorded against them. `due_soon` answers only the first
