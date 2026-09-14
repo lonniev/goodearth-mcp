@@ -135,6 +135,10 @@ export type Grab = "plot" | "x-axis" | "y-axis";
 
 /// The plot area as a fraction of the SVG box, matching the charts' L/R/T/B.
 /// Anything left of the plot scales Y; anything below it scales X.
+///
+/// 0.062 is L/W for a 740-wide box. Also a DEFAULT: a chart drawn at its
+/// box's own width keeps a fixed 46 px gutter, which is a quarter of a phone
+/// and a sixteenth of a laptop, so it passes its own fraction.
 const PLOT_LEFT = 0.062;
 
 /// Where the plot stops and the date axis begins, as a fraction of the box.
@@ -146,13 +150,15 @@ const PLOT_LEFT = 0.062;
 /// standing when a second shape arrived.
 export const PLOT_BOTTOM = 0.87;
 
-export function grabZone(fx: number, fy: number, plotBottom = PLOT_BOTTOM): Grab {
-  if (fx < PLOT_LEFT) return "y-axis";
+export function grabZone(
+  fx: number, fy: number, plotBottom = PLOT_BOTTOM, plotLeft = PLOT_LEFT,
+): Grab {
+  if (fx < plotLeft) return "y-axis";
   if (fy > plotBottom) return "x-axis";
   return "plot";
 }
 
-export function useChartZoom({ plotBottom = PLOT_BOTTOM } = {}) {
+export function useChartZoom({ plotBottom = PLOT_BOTTOM, plotLeft = PLOT_LEFT } = {}) {
   const [zoom, setZoom] = useState<ZoomState>(FULL);
   const svgRef = useRef<SVGSVGElement | null>(null);
 
@@ -272,6 +278,7 @@ export function useChartZoom({ plotBottom = PLOT_BOTTOM } = {}) {
           (e.clientX - box.left) / box.width,
           (e.clientY - box.top) / box.height,
           plotBottom,
+          plotLeft,
         );
       }
       active.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -341,7 +348,7 @@ export function useChartZoom({ plotBottom = PLOT_BOTTOM } = {}) {
       el.removeEventListener("pointerup", up);
       el.removeEventListener("pointercancel", up);
     };
-  }, [isZoomed, panX, panY, plotBottom, zoomX, zoomY]);
+  }, [isZoomed, panX, panY, plotBottom, plotLeft, zoomX, zoomY]);
 
   return { zoom, setZoom, zoomX, zoomY, panX, panY, reset, showSpan, isZoomed, isPanned, svgRef };
 }

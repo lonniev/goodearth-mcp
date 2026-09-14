@@ -138,3 +138,25 @@ export function labelFits(
 ): boolean {
   return x + label.length * (fontSize * 0.6 + letterSpacing) <= boxW;
 }
+
+/// The ticks whose labels do not run into one another at this width.
+///
+/// `unitFor` sizes the divisions by how many DAYS are on screen, which is the
+/// right question on a laptop and the wrong one on a phone: a season is a
+/// dozen month labels either way, and at 300 px "JAN 2026" runs straight into
+/// "FEB". This keeps a label only where it clears every label already kept.
+/// Month boundaries are placed first, so the coarse structure survives and the
+/// finer ticks fill in around it — the same promise the major ticks make.
+export function spaceTicks<T extends { label: string; major?: boolean }>(
+  ticks: T[], xOf: (t: T) => number, fontSize = 9, letterSpacing = 1, gap = 6,
+): T[] {
+  const w = (t: T) => t.label.length * (fontSize * 0.6 + letterSpacing);
+  const kept: T[] = [];
+  const clear = (t: T) => kept.every((k) => {
+    const a = xOf(t), b = xOf(k);
+    return a >= b ? a >= b + w(k) + gap : b >= a + w(t) + gap;
+  });
+  for (const t of ticks) if (t.major && clear(t)) kept.push(t);
+  for (const t of ticks) if (!t.major && clear(t)) kept.push(t);
+  return kept.sort((a, b) => xOf(a) - xOf(b));
+}
