@@ -9,7 +9,7 @@ import { lookUp } from "../lib/growstuff";
 import { makeSeedLot, onHand, type SeedInput, type SeedLot } from "../lib/seeds";
 import { Empty, FIELD, ICON, IconButton, TrashGlyph } from "./ui";
 
-export default function SeedShelf({ lots, crops, taxonOf, onSave, onRetire, busy }: {
+export default function SeedShelf({ lots, crops, taxonOf, onSave, onRetire, onSow, busy }: {
   lots: SeedLot[];
   /// The ledger's crop names, offered as the phone's own suggestions.
   crops: string[];
@@ -17,6 +17,8 @@ export default function SeedShelf({ lots, crops, taxonOf, onSave, onRetire, busy
   taxonOf: (crop: string) => number | undefined;
   onSave: (lot: SeedLot) => Promise<string | null>;
   onRetire: (lot: SeedLot) => void;
+  /// Sow this lot — it fills the planting form. Absent, crops are plain text.
+  onSow?: (lot: SeedLot) => void;
   busy?: boolean;
 }) {
   const [err, setErr] = useState("");
@@ -154,7 +156,14 @@ export default function SeedShelf({ lots, crops, taxonOf, onSave, onRetire, busy
             <tbody>
               {lots.map((l) => (
                 <tr key={l.id} className="border-b border-rule last:border-b-0">
-                  <td className="px-3 py-2 font-semibold whitespace-nowrap">{l.crop}</td>
+                  <td className="px-3 py-2 font-semibold whitespace-nowrap">
+                    {onSow ? (
+                      <button type="button" onClick={() => onSow(l)} title={`Sow ${l.crop}`}
+                        className="inline-flex min-h-9 items-center rounded px-1 underline decoration-dotted underline-offset-2 active:bg-band">
+                        {l.crop}
+                      </button>
+                    ) : l.crop}
+                  </td>
                   <td className="px-3 py-2 whitespace-nowrap">{l.variety ?? ""}</td>
                   <td className="px-3 py-2 whitespace-nowrap">{l.daysToMaturity ?? ""}</td>
                   <td className="px-3 py-2 whitespace-nowrap">
