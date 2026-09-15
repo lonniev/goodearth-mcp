@@ -8,8 +8,8 @@
 // an upsert never moves a row to another block — and leave the new plot empty.
 // So ids never leave, and never come back in, whatever a hand-edited file says.
 //
-// What travels: the plot's name, outline and base temperature, this season's
-// plantings, pests and wildlife, and every task on the plot, done or not.
+// What travels: the plot's name, outline and base temperature, its plantings,
+// pests, wildlife and seed lots, and every task on the plot, done or not.
 // What does not: the npub (a bundle names no patron), the plot's other names
 // (a nickname is the sharer's own), and field reports (one grower's dated
 // sightings). Tasks carry the same hazard as items — the task record upserts
@@ -23,7 +23,7 @@ import type { SavedRegion } from "./regions.ts";
 
 export const BUNDLE_FORMAT = "goodearth.farm-bundle";
 export const BUNDLE_VERSION = 1;
-export const BUNDLE_KINDS = ["planting", "pest", "wildlife"] as const;
+export const BUNDLE_KINDS = ["planting", "pest", "wildlife", "seed"] as const;
 export type BundleKind = (typeof BUNDLE_KINDS)[number];
 
 /// Above this the page asks "are you sure" before opening a file. A question,
@@ -219,13 +219,14 @@ export function bundleFileName(name: string): string {
   return `${slug || "plot"}.goodearth.json`;
 }
 
-/// "3 plantings · 1 pest · 2 wildlife", or that nothing is tracked.
+/// "3 plantings · 1 pest · 2 wildlife · 4 seed lots", or that nothing is tracked.
 export function countLine(b: FarmBundle): string {
   const n = (k: BundleKind) => b.items[k].length;
   const parts = [
     n("planting") && `${n("planting")} planting${n("planting") === 1 ? "" : "s"}`,
     n("pest") && `${n("pest")} pest${n("pest") === 1 ? "" : "s"}`,
     n("wildlife") && `${n("wildlife")} wildlife`,
+    n("seed") && `${n("seed")} seed lot${n("seed") === 1 ? "" : "s"}`,
     b.tasks.length && `${b.tasks.length} task${b.tasks.length === 1 ? "" : "s"}`,
   ].filter(Boolean);
   return parts.length ? parts.join(" · ") : "nothing tracked yet";

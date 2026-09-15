@@ -59,6 +59,7 @@ import hashlib
 import hmac
 import json
 import logging
+import math
 import re
 import unicodedata
 import uuid
@@ -84,7 +85,9 @@ _BACKFILL_BATCH = 500
 #: was seen. The vocabulary is the server's — the grower's own word for a
 #: sighting rides inside the payload as ``tag``, because the app has always
 #: allowed any string there while ``calibration`` accepts only frost and stage.
-KINDS = ("planting", "pest", "wildlife", "observation")
+#: A ``seed`` lot is scoped to neither: a packet bought for 2025 is still on the
+#: shelf in 2026, and filing it under a season would hide it from the next one.
+KINDS = ("planting", "pest", "wildlife", "observation", "seed")
 SEASON_KINDS = ("planting", "pest", "wildlife")
 
 MAX_NAME_LEN = 120
@@ -214,11 +217,14 @@ _CLEAR_COLUMNS: dict[str, tuple[str, ...]] = {
     "name": ("crop", "pest", "species", "tag"),
     # Wildlife alone distinguishes several events for one creature — the
     # owner's case: migration arrival and migration departure are two rows
-    # about one species, and only `event` tells them apart.
-    "event": ("event",),
+    # about one species, and only `event` tells them apart. A seed lot's
+    # variety does the same work for two lots of one crop, and sits here so a
+    # search for "Benary" finds it.
+    "event": ("event", "variety"),
     "driver": ("driver",),
-    # The day the clock starts: a set-out, a pest's biofix, a typical date.
-    "starts_on": ("set_out", "biofix", "typical_on", "from"),
+    # The day the clock starts: a set-out, a pest's biofix, a typical date, the
+    # day a seed lot's germination was tested.
+    "starts_on": ("set_out", "biofix", "typical_on", "from", "tested_on"),
     # The heat it is counting toward. A pest carries one per stage rather than
     # one per model, so it has none here and sorts by name instead.
     "target_gdd": ("gdd_target", "gdd"),
@@ -730,6 +736,51 @@ def check_item_shape(kind: str, item: dict[str, Any]) -> None:
             '"interval", "from": "2026-09-05", "days": 21} as one item, and '
             "one item per event."
         )
+    if kind == "seed":
+        _check_seed(item)
+
+
+#: The range a seed packet's figure could honestly take. A bound on what a
+#: number can MEAN — a germination of 140 % is a typo — never on how much seed
+#: a grower may hold, so quantity has a floor and no ceiling.
+_SEED_FIGURES: dict[str, tuple[float, float]] = {
+    "days_to_maturity": (1, 730),
+    "germination_pct": (0, 100),
+    "packed_for": (1900, 2200),
+}
+
+
+def _check_seed(item: dict[str, Any]) -> None:
+    """A seed lot names its crop, and every figure on it is a real number."""
+    if not str(item.get("crop") or "").strip():
+        raise BlockError(
+            "a seed lot names the crop it is seed of — save "
+            '{"crop": "Zinnia", "variety": "Benary\'s Giant", "days_to_maturity": 75, '
+            '"germination_pct": 88, "tested_on": "2026-02-01"}.'
+        )
+    for field, (lo, hi) in _SEED_FIGURES.items():
+        n = _seed_number(item, field)
+        if n is not None and not lo <= n <= hi:
+            raise BlockError(f"{field} must be between {lo:g} and {hi:g}")
+    q = _seed_number(item, "quantity")
+    if q is not None and q < 0:
+        raise BlockError("quantity cannot be negative")
+    _clean_day(item.get("tested_on"), "tested_on")
+
+
+def _seed_number(item: dict[str, Any], field: str) -> float | None:
+    v = item.get(field)
+    if v in (None, ""):
+        return None
+    if isinstance(v, bool):
+        raise BlockError(f"{field} must be a number")
+    try:
+        n = float(v)
+    except (TypeError, ValueError) as exc:
+        raise BlockError(f"{field} must be a number") from exc
+    if not math.isfinite(n):
+        raise BlockError(f"{field} must be a number")
+    return n
 
 
 def _clean_day(value: Any, field: str) -> str | None:
@@ -790,7 +841,7 @@ async def save_items(
         )
         args.extend([
             npub, iid, block_id, k,
-            None if k == "observation" else (
+            None if k not in SEASON_KINDS else (
                 season_year if season_year is not None
                 else season_for(clear["starts_on"], fallback_year)
             ),

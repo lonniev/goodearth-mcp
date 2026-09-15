@@ -1893,7 +1893,7 @@ export interface BlockListResult {
   error_code?: string;
 }
 
-export type ItemKind = "planting" | "pest" | "wildlife" | "observation";
+export type ItemKind = "planting" | "pest" | "wildlife" | "observation" | "seed";
 
 export interface ItemRow {
   item_id: string;

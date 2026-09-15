@@ -36,6 +36,8 @@ import SuccessionRows from "../components/SuccessionRows";
 import RotationPanel from "../components/RotationPanel";
 import { fromRow, rotation, type SeasonRow } from "../lib/rotation";
 import { familiesFor } from "../lib/family";
+import SeedShelf from "../components/SeedShelf";
+import { lotLine, lotsFor, seedCodec, type SeedLot } from "../lib/seeds";
 import { useSubmit } from "../lib/useSubmit";
 import { withId } from "../lib/submit";
 import type { SavedRegion } from "../lib/regions";
@@ -108,6 +110,31 @@ export default function Crops({
     });
   const harvests = useMemo(() => summarize(seen), [seen]);
   const [cutting, setCutting] = useState("");
+
+  /// The seed shelf: every lot on this plot, whatever season it was packed
+  /// for. One read, sorted by crop, and every lot rides in it — a shelf is a
+  /// few dozen packets, not a ledger to page through.
+  const { items: lots, save: storeLot, retire: retireLot, reload: reloadLots, total: lotTotal } =
+    useBlockItems<SeedLot>(region.id, "seed", seedCodec, undefined, {
+      sortCol: "name", sortDir: "asc", pageSize: 200,
+    });
+  const [savingLot, setSavingLot] = useState(false);
+
+  async function saveLot(l: SeedLot): Promise<string | null> {
+    setSavingLot(true);
+    try { await storeLot(l); return null; }
+    catch (e) { return String((e as Error).message ?? e); }
+    finally { setSavingLot(false); }
+  }
+
+  function removeLot(l: SeedLot) {
+    remembered({
+      kind: "seed", blockId: region.id,
+      label: `${l.crop}${l.variety ? ` · ${l.variety}` : ""} seed`,
+      item: seedCodec.to(l),
+    });
+    void retireLot(l.id).catch((e) => setFormErr(String(e.message ?? e)));
+  }
 
   async function saveHarvest(p: Planting, h: HarvestInput, id: string): Promise<string | null> {
     const made = makeHarvest(p, region.id, h, { id });
@@ -518,7 +545,8 @@ export default function Crops({
         <ErrorBox>{error}</ErrorBox>
       )}
 
-      <UndoBar kinds={["planting"]} blockId={region.id} onRestored={() => void reloadPlantings()} />
+      <UndoBar kinds={["planting", "seed"]} blockId={region.id}
+        onRestored={() => { void reloadPlantings(); void reloadLots(); }} />
 
       {/* ── Add a planting ─────────────────────────────────────────────── */}
       <form id="new-planting" onSubmit={add} className="mb-4 rounded-md border border-rule bg-panel p-4">
@@ -844,6 +872,28 @@ export default function Crops({
         </p>
       )}
 
+      {/* ── Seeds ──────────────────────────────────────────────────── */}
+      <Section emoji="🌰" title="Seeds" />
+      <p className="mb-2.5 text-[12.5px] leading-relaxed text-ink-soft">
+        Each lot you hold seed of, with what its packet says — days to
+        maturity, germination and when it was tested. A lot sits beside its
+        crop in Sowing below.
+      </p>
+      <SeedShelf
+        lots={lots}
+        crops={[...new Set(plantings.map((p) => baseName(p.crop)))].sort()}
+        taxonOf={(crop) => plantings.find((p) =>
+          baseName(p.crop).toLowerCase() === crop.trim().toLowerCase())?.taxonId}
+        onSave={saveLot}
+        onRetire={removeLot}
+        busy={savingLot}
+      />
+      {lotTotal > lots.length && (
+        <p className="data -mt-1.5 mb-3 text-[11px] text-ink-soft">
+          The first {lots.length} of {lotTotal} lots on record.
+        </p>
+      )}
+
       {/* ── Sowing ─────────────────────────────────────────────────── */}
       <Section emoji="🌱" title="Sowing">
         {!when && (
@@ -897,7 +947,16 @@ export default function Crops({
                   <tr
                     className={`border-b border-rule last:border-b-0 ${
                       r.state === "will_not_fit" ? "opacity-50" : ""}`}>
-                    <td className="px-3 py-2.5 font-semibold whitespace-nowrap">{r.crop}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <span className="font-semibold">{r.crop}</span>
+                      {/* The packet beside the crop it sows. Facts off the
+                          shelf; what they mean for this sowing is the
+                          grower's to weigh. */}
+                      {lotsFor(r.crop, plantings.find((p) => p.crop === r.crop)?.taxonId, lots)
+                        .map((l) => lotLine(l)).filter(Boolean).slice(0, 2).map((line) => (
+                          <div key={line} className="data text-[10.5px] text-ink-soft">🌰 {line}</div>
+                        ))}
+                    </td>
                     <td className="px-3 py-2.5 whitespace-nowrap">{r.start_seed_indoors ? short(r.start_seed_indoors) : <span className="text-ink-soft">direct sow</span>}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap">{r.earliest_out ? short(r.earliest_out) : "—"}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap">{r.latest_out ? short(r.latest_out) : "—"}</td>
