@@ -181,6 +181,7 @@ describe("the rest", () => {
 
   it("counts what is inside", () => {
     assert.equal(countLine(made()), "1 planting · 1 pest · 1 task");
-    assert.equal(countLine({ ...made(), items: { planting: [], pest: [], wildlife: [] }, tasks: [] }), "nothing tracked yet");
+    assert.equal(countLine({ ...made(), items: { planting: [], pest: [], wildlife: [], seed: [] }, tasks: [] }), "nothing tracked yet");
+    assert.equal(countLine({ ...made(), items: { planting: [], pest: [], wildlife: [], seed: [{ crop: "Kale" }, { crop: "Zinnia" }] }, tasks: [] }), "2 seed lots");
   });
 });

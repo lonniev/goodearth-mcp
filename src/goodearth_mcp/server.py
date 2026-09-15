@@ -2162,7 +2162,7 @@ async def block_item_save(
     ],
     kind: Annotated[
         str,
-        Field(description="One of: planting, pest, wildlife, observation."),
+        Field(description="One of: planting, pest, wildlife, observation, seed."),
     ],
     items: Annotated[
         list[dict[str, Any]] | None,
@@ -2171,7 +2171,10 @@ async def block_item_save(
                 "What to record, as a list. A planting is {crop, gdd_target, set_out}; "
                 "a pest is a model as pest_threshold takes it; wildlife is an event as "
                 "wildlife_calendar takes it; an observation is {observed_on, tag, note} "
-                "plus whatever you saw. Pass item_id to amend something already recorded."
+                "plus whatever you saw; a seed lot is {crop, variety, days_to_maturity, "
+                "germination_pct, tested_on, packed_for, quantity, unit, source, lot}, "
+                "everything but crop optional. Pass item_id to amend something already "
+                "recorded."
             )
         ),
     ] = None,
@@ -2181,7 +2184,10 @@ async def block_item_save(
     ] = None,
     season: Annotated[
         int | None,
-        Field(description="The season year these belong to. Defaults to this one."),
+        Field(description=(
+            "The season year these belong to. Defaults to the year of each one's "
+            "own date. Observations and seed lots belong to no season."
+        )),
     ] = None,
     npub: Annotated[
         str,
@@ -2189,7 +2195,7 @@ async def block_item_save(
     ] = "",
     dpop_token: str = "",
 ) -> dict[str, Any]:
-    """Record what you grow, watch for, or saw on a plot.
+    """Record what you grow, watch for, saw, or hold seed for on a plot.
 
     A whole batch in one call, because an afternoon in the field produces
     several notes at once and each one should not be its own fare.
@@ -2228,11 +2234,11 @@ async def block_item_list(
     ],
     kind: Annotated[
         str,
-        Field(description="One of: planting, pest, wildlife, observation."),
+        Field(description="One of: planting, pest, wildlife, observation, seed."),
     ],
     season: Annotated[
         int | None,
-        Field(description="Limit to one season year. Ignored for observations."),
+        Field(description="Limit to one season year. Ignored for observations and seed lots."),
     ] = None,
     since: Annotated[
         str,
