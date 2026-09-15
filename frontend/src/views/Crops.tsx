@@ -34,7 +34,8 @@ import type { SuccessionRow } from "../lib/mcp";
 import { baseName, toPlantings } from "../lib/successions";
 import SuccessionRows from "../components/SuccessionRows";
 import RotationPanel from "../components/RotationPanel";
-import { fromRow, rotation, type SeasonRow } from "../lib/rotation";
+import { fromRow, repeatDraft, rotation,
+  type RepeatDraft, type RotationPlanting, type SeasonRow } from "../lib/rotation";
 import { familiesFor } from "../lib/family";
 import SeedShelf from "../components/SeedShelf";
 import { lotLine, lotsFor, seedCodec, type SeedLot } from "../lib/seeds";
@@ -197,6 +198,11 @@ export default function Crops({
   /// species is a fact about this country; what you do with it is yours.
   /// A name handed to the picker from elsewhere on the page.
   const [seed, setSeed] = useState("");
+  /// A past planting the add form was filled from, by a tap in Rotation. The
+  /// form's fields are uncontrolled, so a new draft remounts it (`formKey`)
+  /// with these as its defaults.
+  const [repeating, setRepeating] = useState<RepeatDraft | null>(null);
+  const [formKey, setFormKey] = useState(0);
   /// A planting is rated on heat if it carries a target, and on winter if it
   /// is a perennial, and **these overlap**: alfalfa is a perennial that also
   /// answers "750 GDD per cutting". Membership is by what a row carries, never
@@ -375,6 +381,30 @@ export default function Crops({
     } finally { setRotationBusy(false); }
   }
 
+  /// Plant a crop from Rotation again: the same plant, with the figures the
+  /// grower gave it, in the add form — and nothing saved until they choose the
+  /// day and press add. A crop recorded without a species seeds the picker's
+  /// search instead, since the form needs a plant picked.
+  async function plantAgain(p: RotationPlanting, season: number) {
+    const d = repeatDraft(p);
+    setFormErr("");
+    if (d.taxonId) {
+      const hit = (await speciesByIds([d.taxonId])).get(d.taxonId);
+      setSeed("");
+      setPicked(hit ?? {
+        id: d.taxonId, scientificName: d.scientificName ?? d.searchFor,
+        commonName: d.commonName ?? null, rank: null, matched: null, thumb: null, observations: 0,
+      });
+    } else {
+      setPicked(null);
+      setSeed(d.searchFor);
+    }
+    setRepeating(d);
+    setFormKey((k) => k + 1);
+    setAdded(`${p.crop} from ${season} — choose the day it goes in, then add it.`);
+    document.getElementById("new-planting")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   /// Every sowing of the plan onto the ledger, in one write and one fare.
   async function addPlan(cropName: string) {
     const plan = plans[cropName];
@@ -477,6 +507,9 @@ export default function Crops({
       setAdded(`${named} — on the ledger.`);
       setPicked(null);
       form.reset();
+      // A reset returns the fields to their defaults, which after a Rotation
+      // tap are that crop's figures. Clear the draft so the form is empty.
+      if (repeating) { setRepeating(null); setFormKey((k) => k + 1); }
     });
   }
 
@@ -549,7 +582,7 @@ export default function Crops({
         onRestored={() => { void reloadPlantings(); void reloadLots(); }} />
 
       {/* ── Add a planting ─────────────────────────────────────────────── */}
-      <form id="new-planting" onSubmit={add} className="mb-4 rounded-md border border-rule bg-panel p-4">
+      <form key={formKey} id="new-planting" onSubmit={add} className="mb-4 rounded-md border border-rule bg-panel p-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {/* A div, never a label element. The picker's suggestions are buttons,
               and a tap inside a label can be handed to the label's input
@@ -571,14 +604,17 @@ export default function Crops({
           </div>
           <label className="block text-[11px] text-ink-soft">
             Your name for it <span className="opacity-60">(optional)</span>
-            <input name="label" placeholder="succession 4, north lot" className={FIELD} />
+            <input name="label" placeholder="succession 4, north lot" className={FIELD}
+              defaultValue={repeating?.label ?? ""} />
           </label>
           <label className="block text-[11px] text-ink-soft">
             <Term label="GDD target" of="gdd_target">
               Leave it blank for a tree, or for anything you are not pacing.
             </Term>{" "}
             <span className="opacity-60">(optional)</span>
-            <input name="target" inputMode="numeric" placeholder="780" className={FIELD} />
+            <input name="target" inputMode="numeric" placeholder="780" className={FIELD}
+              defaultValue={repeating?.gddTargetF != null
+                ? String(Math.round(u.degreeDays(repeating.gddTargetF))) : ""} />
           </label>
           <label className="block text-[11px] text-ink-soft">
             Planted <span className="opacity-60">(set out or sown)</span>
@@ -597,17 +633,21 @@ export default function Crops({
                 reader's scale. `submit` checks it again: a number field still
                 lets a thumb type 780 into it. */}
             <input name="base" type="number" inputMode="decimal" step="1"
+              defaultValue={repeating?.baseTempF != null
+                ? String(Math.round(u.temp(repeating.baseTempF))) : ""}
               min={baseBounds(u).min} max={baseBounds(u).max}
               placeholder={String(Math.round(u.temp(region.baseTempF)))}
               className={FIELD} />
           </label>
           <div className="flex flex-wrap items-end gap-4 text-[12px] sm:col-span-2">
             <label className="flex min-h-11 items-center gap-2">
-              <input type="checkbox" name="hardy" className="size-4" />
+              <input type="checkbox" name="hardy" className="size-4"
+                defaultChecked={!!repeating?.frostHardy} />
               Handles Light Frost
             </label>
             <label className="flex min-h-11 items-center gap-2">
-              <input type="checkbox" name="taps" className="size-4" />
+              <input type="checkbox" name="taps" className="size-4"
+                defaultChecked={!!repeating?.taps} />
               Sap Producer
             </label>
             {/* The act, AFTER the fields it acts on — a tester read the page
@@ -706,7 +746,8 @@ export default function Crops({
         )}
       </Section>
       {rotationRows ? (
-        <RotationPanel rows={rotationRows} more={rotationMore} />
+        <RotationPanel rows={rotationRows} more={rotationMore}
+          onRepeat={(p, season) => void plantAgain(p, season)} />
       ) : (
         <p className="mb-3 text-[12.5px] leading-relaxed text-ink-soft">
           Every planting on this plot, season by season and grouped by plant
