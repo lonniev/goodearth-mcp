@@ -40,6 +40,7 @@
 import { useEffect, useRef } from "react";
 import type { HiveMood } from "./Hive";
 import { aimBee } from "../lib/beeAim";
+import { activityOf, flightSize } from "../lib/beeFlight";
 
 type Phase = "leaving" | "foraging" | "returning" | "resting";
 
@@ -72,19 +73,6 @@ function hivePoint(): { x: number; y: number } {
     x: (r.left + r.width * 0.5) / window.innerWidth,
     y: (r.top + r.height * 0.72) / window.innerHeight,   // the door, not the crown
   };
-}
-
-/// 0 at the flight threshold, 1 in real working heat.
-function activityOf(tempF: number | null): number {
-  if (tempF == null) return 0.4;
-  return Math.max(0, Math.min(1, (tempF - 55) / 30));
-}
-
-function beeCount(mood: HiveMood, activity: number): number {
-  if (mood === "closed") return 0;
-  if (mood === "quiet") return 1;
-  if (mood === "unknown") return 2;
-  return 2 + Math.round(activity * 4);
 }
 
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
@@ -120,7 +108,7 @@ export default function Bees({
 }: { mood?: HiveMood; tempF?: number | null; enabled?: boolean }) {
   // Respawn only when the NUMBER of bees would change, never merely because
   // the temperature moved a degree.
-  const beeTier = enabled ? beeCount(mood, activityOf(tempF)) : 0;
+  const beeTier = flightSize(enabled, mood, activityOf(tempF));
   const layer = useRef<HTMLDivElement | null>(null);
   const raf = useRef<number>(0);
   const pointer = useRef<{ x: number; y: number; until: number } | null>(null);
@@ -156,8 +144,10 @@ export default function Bees({
     if (!host) return;
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-    const activity = activityRef.current;
-    const n = beeCount(mood, activity);
+    // The same count the restart was keyed on, switch included. This line used
+    // to recount from the mood alone, so switching the bees off restarted the
+    // flight and then spawned it again.
+    const n = flightSize(enabled, mood, activityRef.current);
     host.replaceChildren();
     if (!n) return;
 
