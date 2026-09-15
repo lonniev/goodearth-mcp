@@ -15,7 +15,7 @@ import { Pager } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
 import { baseBounds, parseBase } from "../lib/baseTemp";
 import QuoteScroller from "../components/QuoteScroller";
-import { cropGddStatus, cropSuitability, diseaseRisk, plantingWindow,
+import { blockItemList, cropGddStatus, cropSuitability, diseaseRisk, plantingWindow,
   treeSuitability, treeYear,
   type CropLedgerResult, type DiseaseRiskResult, type PlantingWindowResult, type SuitabilityResult,
   type TreeAssessment, type TreeSuitabilityResult,
@@ -33,6 +33,9 @@ import { cropWatch } from "../lib/diseaseRows";
 import type { SuccessionRow } from "../lib/mcp";
 import { baseName, toPlantings } from "../lib/successions";
 import SuccessionRows from "../components/SuccessionRows";
+import RotationPanel from "../components/RotationPanel";
+import { fromRow, rotation, type SeasonRow } from "../lib/rotation";
+import { familiesFor } from "../lib/family";
 import { useSubmit } from "../lib/useSubmit";
 import { withId } from "../lib/submit";
 import type { SavedRegion } from "../lib/regions";
@@ -319,6 +322,30 @@ export default function Crops({
       setPlans((p) => ({ ...p, [cropName]: { every, rows: r.crops[0]?.successions ?? [] } }));
     } catch (e) { setError((e as Error).message); }
     finally { setPlanning(""); }
+  }
+
+  /// What grew on this plot, season by season — asked for, because reading
+  /// every planting ever recorded here, removed ones included, is a paid read.
+  const [rotationRows, setRotationRows] = useState<SeasonRow[] | null>(null);
+  const [rotationMore, setRotationMore] = useState("");
+  const [rotationBusy, setRotationBusy] = useState(false);
+  useEffect(() => { setRotationRows(null); setRotationMore(""); }, [region.id]);
+
+  async function readRotation() {
+    setRotationBusy(true); setError("");
+    try {
+      const r = await blockItemList(region.id, "planting", {
+        include_retired: true, sort_col: "starts_on", sort_dir: "desc", page_size: 200,
+      });
+      if (!r.success) { setError(r.error || "The record could not be read."); return; }
+      const rows = (r.items ?? []).map(fromRow);
+      const fams = await familiesFor(rows.map((p) => p.taxonId).filter((n): n is number => n != null));
+      setRotationRows(rotation(rows, fams));
+      setRotationMore((r.total ?? 0) > rows.length
+        ? `The latest ${rows.length} of ${r.total} plantings on record.` : "");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally { setRotationBusy(false); }
   }
 
   /// Every sowing of the plan onto the ledger, in one write and one fare.
@@ -640,6 +667,24 @@ export default function Crops({
             : `No plantings on ${region.name} yet. Add one above and the ledger will `
               + "tell you where it stands and whether it finishes before frost."}
         </Empty>
+      )}
+
+      {/* ── Rotation ───────────────────────────────────────────────── */}
+      <Section emoji="🔄" title="Rotation">
+        {!rotationRows && (
+          <Pill onClick={() => void readRotation()} disabled={rotationBusy} active>
+            {rotationBusy ? "Reading…" : "What grew here?"}
+          </Pill>
+        )}
+      </Section>
+      {rotationRows ? (
+        <RotationPanel rows={rotationRows} more={rotationMore} />
+      ) : (
+        <p className="mb-3 text-[12.5px] leading-relaxed text-ink-soft">
+          Every planting on this plot, season by season and grouped by plant
+          family — the ones since cleared from the ledger included. What grew
+          where, as your record has it.
+        </p>
       )}
 
       {/* ── Grows here ─────────────────────────────────────────────── */}
