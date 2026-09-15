@@ -82,6 +82,13 @@ const SOURCES: {
     note: "About 1 km per pixel and roughly two hours of frames — a regional instrument, not a field one.",
   },
   {
+    name: "Growstuff",
+    url: "https://www.growstuff.org/",
+    role: "Days to maturity for a seed lot, when the Seeds shelf is asked to look one up: the median days to first harvest members of that commons recorded for the crop or the variety.",
+    resolution: "per crop or variety, from members' own harvests",
+    note: "Data under CC BY-SA 3.0, © Growstuff contributors. Medians of what growers logged, not a seed house's claim — firm where many recorded a harvest, thin where few did, absent where none have. A variety it does not know returns nothing rather than the species' figure. Germination percentage, its test date, the packed-for year, how much is on hand, the supplier and the lot number are not looked up anywhere: they belong to the packet in your hand, from the seller's own test of that lot.",
+  },
+  {
     name: "iNaturalist",
     url: "https://api.inaturalist.org/v1/docs/",
     role: "Which species are actually recorded around your ground, ranked by how often each has been seen — the Wildlife and Pests catalogues — plus the photograph shown for each, and importing your own observations into Field Reports. It is also the dictionary that turns a shelf name into a scientific one: every plant in the crop library carries the binomial iNaturalist resolved for it, which is what lets USA-NPN be asked about that plant by name.",
