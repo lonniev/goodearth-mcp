@@ -4,7 +4,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { fromRow, rotation, type Family } from "./rotation.ts";
+import { fromRow, repeatDraft, rotation, type Family } from "./rotation.ts";
 import { familyFromTaxon } from "./family.ts";
 
 const brassica: Family = { name: "Brassicaceae", common: "Cabbages and Mustards" };
@@ -72,6 +72,54 @@ describe("a family from iNaturalist", () => {
 
   it("is nothing above the rank of family", () => {
     assert.equal(familyFromTaxon({ id: 47125, name: "Angiospermae", rank: "subphylum", ancestors: [] }), null);
+  });
+});
+
+describe("planting a crop again", () => {
+  const zinnia = fromRow(row("Zinnia · succession 3", {
+    item_id: "pl-z", set_out: "2025-06-10", gdd_target: 900, base_temp: 45,
+    frost_hardy: true, taxon_id: 3, common_name: "Zinnia", scientific_name: "Zinnia elegans",
+  }));
+
+  it("keeps the whole record, so the figures can carry over", () => {
+    assert.equal(zinnia.planting?.gddTarget, 900);
+    assert.equal(zinnia.planting?.baseTempF, 45);
+  });
+
+  it("carries the figures over, and never the day or the succession number", () => {
+    const d = repeatDraft(zinnia);
+    assert.deepEqual(d, {
+      label: "", gddTargetF: 900, baseTempF: 45, frostHardy: true, taps: false,
+      taxonId: 3, scientificName: "Zinnia elegans", commonName: "Zinnia", searchFor: "Zinnia",
+    });
+  });
+
+  it("keeps the grower's own name when it is not the plant's", () => {
+    const d = repeatDraft(fromRow(row("North lot kale", { set_out: "2025-05-01", gdd_target: 700, common_name: "Kale" })));
+    assert.equal(d.label, "North lot kale");
+  });
+
+  it("searches for a crop the record names without a species", () => {
+    const d = repeatDraft(fromRow(row("Mystery squash", { set_out: "2026-05-01" })));
+    assert.equal(d.taxonId, undefined);
+    assert.equal(d.searchFor, "Mystery squash");
+  });
+
+  it("repeats a crop's newest planting that season", () => {
+    const rows = rotation([
+      { crop: "Kale", season: 2026, taxonId: 1, planting: { id: "new" } as never },
+      { crop: "Kale", season: 2026, taxonId: 1, planting: { id: "old" } as never },
+      { crop: "Mystery squash", season: 2026 },
+    ], families);
+    assert.equal(rows[0].repeat.Kale.planting?.id, "new");
+    assert.ok(rows[0].repeat["Mystery squash"], "an unplaced crop can be planted again too");
+  });
+
+  it("the panel's crops plant again, and Crops wires it to the add form", () => {
+    const panel = readFileSync(new URL("../components/RotationPanel.tsx", import.meta.url), "utf8");
+    const crops = readFileSync(new URL("../views/Crops.tsx", import.meta.url), "utf8");
+    assert.match(panel, /onClick=\{\(\) => onRepeat\(from, r\.season\)\}/);
+    assert.match(crops, /<RotationPanel[^>]*onRepeat=/);
   });
 });
 
