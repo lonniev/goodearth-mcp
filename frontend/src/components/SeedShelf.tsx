@@ -4,7 +4,8 @@
 // Nothing is supplied from elsewhere and nothing is recommended: what a lot's
 // age or germination means for a sowing is the grower's to judge.
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { lookUp } from "../lib/growstuff";
 import { makeSeedLot, onHand, type SeedInput, type SeedLot } from "../lib/seeds";
 import { Empty, FIELD, ICON, IconButton, TrashGlyph } from "./ui";
 
@@ -20,6 +21,28 @@ export default function SeedShelf({ lots, crops, taxonOf, onSave, onRetire, busy
 }) {
   const [err, setErr] = useState("");
   const [saved, setSaved] = useState("");
+  /// Days to maturity is the one field a lookup can fill, so it is the one
+  /// field this form holds rather than reads at submit.
+  const [dtm, setDtm] = useState("");
+  const [looking, setLooking] = useState(false);
+  const [nothingFound, setNothingFound] = useState(false);
+  const form = useRef<HTMLFormElement>(null);
+
+  /// Ask the growers' commons what this crop takes, from the crop and variety
+  /// already typed. A miss leaves the field alone — nothing is guessed.
+  async function look() {
+    const f = form.current ? new FormData(form.current) : null;
+    const crop = String(f?.get("crop") ?? "").trim();
+    if (!crop) { setErr("Name the crop first."); return; }
+    setErr(""); setNothingFound(false); setLooking(true);
+    try {
+      const found = await lookUp({ crop, variety: String(f?.get("variety") ?? "").trim() });
+      if (found?.daysToMaturity != null) setDtm(String(found.daysToMaturity));
+      else setNothingFound(true);
+    } finally {
+      setLooking(false);
+    }
+  }
 
   async function add(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -39,11 +62,13 @@ export default function SeedShelf({ lots, crops, taxonOf, onSave, onRetire, busy
     if (failed) { setErr(failed); return; }
     setSaved(`${made.crop}${made.variety ? ` · ${made.variety}` : ""} — on the shelf.`);
     form.reset();
+    // A reset does not clear a held field.
+    setDtm(""); setNothingFound(false);
   }
 
   return (
     <>
-      <form id="new-seed" onSubmit={(e) => void add(e)}
+      <form id="new-seed" ref={form} onSubmit={(e) => void add(e)}
         className="mb-3 rounded-md border border-rule bg-panel p-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="block text-[11px] text-ink-soft">
@@ -57,10 +82,22 @@ export default function SeedShelf({ lots, crops, taxonOf, onSave, onRetire, busy
             Variety <span className="opacity-60">(optional)</span>
             <input name="variety" placeholder="Benary's Giant" className={FIELD} />
           </label>
-          <label className="block text-[11px] text-ink-soft">
-            Days to maturity <span className="opacity-60">(optional)</span>
-            <input name="dtm" inputMode="numeric" placeholder="75" className={FIELD} />
-          </label>
+          {/* The button is a sibling of the label, never inside it: a tap
+              inside a label can be handed to the label's own input. */}
+          <div className="block text-[11px] text-ink-soft">
+            <div className="flex items-center gap-2">
+              <label htmlFor="seed-dtm">
+                Days to maturity <span className="opacity-60">(optional)</span>
+              </label>
+              <button type="button" onClick={() => void look()} disabled={looking}
+                className="ml-auto min-h-9 underline decoration-dotted underline-offset-2 disabled:opacity-40">
+                {looking ? "Looking…" : "Look it up"}
+              </button>
+              {nothingFound && !looking && <span className="opacity-60">nothing published</span>}
+            </div>
+            <input id="seed-dtm" name="dtm" inputMode="numeric" placeholder="75" className={FIELD}
+              value={dtm} onChange={(e) => { setDtm(e.target.value); setNothingFound(false); }} />
+          </div>
           <label className="block text-[11px] text-ink-soft">
             Germination % <span className="opacity-60">(optional)</span>
             <input name="germ" inputMode="decimal" placeholder="88" className={FIELD} />
