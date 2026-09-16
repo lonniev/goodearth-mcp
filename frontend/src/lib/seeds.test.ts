@@ -4,7 +4,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { lotLine, lotsFor, makeSeedLot, onHand, seedCodec, type SeedLot } from "./seeds.ts";
+import { draftFromLot, lotLine, lotsFor, makeSeedLot, needsTarget, onHand, seedCodec,
+  type SeedLot } from "./seeds.ts";
 import { BUNDLE_KINDS } from "./farmBundle.ts";
 
 const lot = (over: Partial<SeedLot> = {}): SeedLot => ({ id: "se-1", crop: "Zinnia", ...over });
@@ -83,6 +84,47 @@ describe("a lot in words", () => {
   });
 });
 
+describe("sowing a lot", () => {
+  it("makes the variety the grower's own name for the planting", () => {
+    assert.equal(draftFromLot(lot({ variety: "Benary's Giant Mix" })).label, "Benary's Giant Mix");
+    assert.equal(draftFromLot(lot()).label, "");
+    assert.equal(draftFromLot(lot()).searchFor, "Zinnia");
+  });
+
+  it("never turns the packet's days into a heat target — different clocks", () => {
+    const d = draftFromLot(lot({ daysToMaturity: 75 }));
+    assert.equal(d.gddTargetF, undefined);
+  });
+
+  it("carries the crop's own figures when the ledger already has them", () => {
+    const d = draftFromLot(lot({ taxonId: 3 }), {
+      gddTarget: 900, baseTempF: 45, frostHardy: true, commonName: "Zinnia",
+    });
+    assert.deepEqual(d, {
+      label: "", gddTargetF: 900, baseTempF: 45, frostHardy: true, taps: false,
+      taxonId: 3, commonName: "Zinnia", searchFor: "Zinnia",
+    });
+  });
+});
+
+describe("which seed When to sow cannot date", () => {
+  const lots = [
+    lot({ id: "a", crop: "Zinnia", daysToMaturity: 75 }),
+    lot({ id: "b", crop: "Zinnia", daysToMaturity: 80 }),
+    lot({ id: "c", crop: "Kale", daysToMaturity: 60 }),
+    lot({ id: "d", crop: "Sweet pea" }),
+  ];
+
+  it("names each crop once, in order, and only where the packet gave days", () => {
+    // Kale is dated; Sweet pea has no days on the packet, so nothing is missing.
+    assert.deepEqual(needsTarget(lots, (c) => c === "Kale"), ["Zinnia"]);
+  });
+
+  it("says nothing when every crop is dated", () => {
+    assert.deepEqual(needsTarget(lots, () => true), []);
+  });
+});
+
 describe("the seed kind, end to end", () => {
   it("is a kind the server declares, the page types, and a bundle carries", () => {
     const py = readFileSync(new URL("../../../src/goodearth_mcp/block_store.py", import.meta.url), "utf8");
@@ -92,6 +134,15 @@ describe("the seed kind, end to end", () => {
     assert.ok(kinds.includes("seed"));
     for (const k of kinds) assert.ok(typed.includes(`"${k}"`), `ItemKind is missing ${k}`);
     assert.ok((BUNDLE_KINDS as readonly string[]).includes("seed"));
+  });
+
+  it("a lot is a way onto the ledger, and the two sections name their question", () => {
+    const shelf = readFileSync(new URL("../components/SeedShelf.tsx", import.meta.url), "utf8");
+    const crops = readFileSync(new URL("../views/Crops.tsx", import.meta.url), "utf8");
+    assert.match(shelf, /onClick=\{\(\) => onSow\(l\)\}/);
+    assert.match(crops, /<SeedShelf[\s\S]*?onSow=/);
+    assert.match(crops, /title="Seeds on hand"/);
+    assert.match(crops, /title="When to sow"/);
   });
 
   it("the shelf records and never advises", () => {
