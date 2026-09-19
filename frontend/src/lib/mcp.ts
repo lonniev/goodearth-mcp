@@ -773,7 +773,7 @@ export interface SeasonCurveResult {
   /// a planting set out past the projection finds its heat. Absent from a
   /// server older than the web app, which deploys first.
   typical?: { dates: string[]; daily: number[]; span_years: number; note: string } | null;
-  sources: { name: string; role: string; resolution_m: number }[];
+  sources: { name: string; role: string; resolution_m: number; as_of?: string }[];
 }
 
 /// Season-to-date growing degree days across a region, with the spread that
@@ -872,7 +872,7 @@ export interface FrostWindowResult {
   nights: FrostNight[];
   worst_night: FrostNight | null;
   thresholds_f: { frost: number; watch: number; hard_freeze: number };
-  sources: { name: string; role: string; resolution_m: number }[];
+  sources: { name: string; role: string; resolution_m: number; as_of?: string }[];
 }
 
 /// When frost normally arrives on this ground, and whether it is coming this
@@ -965,6 +965,7 @@ export interface SoilWindowResult {
   typical: { median: string; earliest: string; latest: string; years_on_record: number } | null;
   days_to_typical_crossing: number | null;
   note: string;
+  sources?: { name: string; role: string; resolution_m?: number; as_of?: string }[];
 }
 
 /// One published disease model's verdict on this ground.
@@ -1017,7 +1018,7 @@ export interface DiseaseRiskResult {
   skipped: { name: string; reason: string }[];
   summary: string;
   note: string;
-  sources: { name: string; role: string; resolution_m: number }[];
+  sources: { name: string; role: string; resolution_m: number; as_of?: string }[];
 }
 
 export interface DewOff {
@@ -1050,7 +1051,7 @@ export interface DryingWindowResult {
   next_rain: { at: string; mm: number } | null;
   days: DryDay[];
   note: string;
-  sources: { name: string; role: string; resolution_m: number }[];
+  sources: { name: string; role: string; resolution_m: number; as_of?: string }[];
 }
 
 /// When the dew burns off this ground, the dry days ahead, and the next rain.
@@ -1401,6 +1402,7 @@ export interface AlmanacResult {
   success: boolean;
   error?: string;
   as_of: string;
+  sources?: { name: string; role: string; resolution_m?: number; as_of?: string }[];
   season_start: string;
   dates: string[];
   forecast_dates: string[];

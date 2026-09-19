@@ -19,6 +19,7 @@ import Term from "../components/Term";
 import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
 import { buildFlags, taskFlags, type LedgerFlag } from "../lib/ledgerFlags";
+import { readingTime } from "../lib/readingTime";
 import { findEvent, MIN_QUERY } from "../lib/findEvent";
 import { plantingCodec, type Planting } from "../lib/plantings";
 import { pestCodec, type SavedPest } from "../lib/pestModels";
@@ -319,9 +320,9 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
             </label>
           )}
           {almanacAt && (
-            <Provenance tool="goodearth_almanac" at={almanacAt} onCost={onCost} />
+            <Provenance tool="goodearth_almanac" at={almanacAt} onCost={onCost} from={readingTime(almanac)} />
           )}
-          <Provenance tool="goodearth_gdd_season_curve" at={ranAt} onCost={onCost} />
+          <Provenance tool="goodearth_gdd_season_curve" at={ranAt} onCost={onCost} from={readingTime(data)} />
         </span>
       </div>
 
@@ -351,7 +352,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
       {frost && (
         <>
           <TrendLabel emoji="❄️" label="Freezing">
-            <Provenance tool="goodearth_frost_window" at={frostAt} onCost={onCost} />
+            <Provenance tool="goodearth_frost_window" at={frostAt} onCost={onCost} from={readingTime(frost)} />
           </TrendLabel>
           <FrostCard data={frost} />
         </>
@@ -360,7 +361,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
       {soil && (
         <>
           <TrendLabel emoji="🪱" label="Soil Temp">
-            <Provenance tool="goodearth_soil_temp_projection" at={soilAt} onCost={onCost} />
+            <Provenance tool="goodearth_soil_temp_projection" at={soilAt} onCost={onCost} from={readingTime(soil)} />
           </TrendLabel>
           <SoilCard data={soil} />
         </>
@@ -371,7 +372,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
       {dryLine && (
         <>
           <TrendLabel emoji="🌾" label="Drying">
-            <Provenance tool="goodearth_drying_window" at={dryingAt} onCost={onCost} />
+            <Provenance tool="goodearth_drying_window" at={dryingAt} onCost={onCost} from={readingTime(drying)} />
           </TrendLabel>
           <p className="mb-3 flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-md border border-rule bg-panel px-4 py-2.5 text-[13.5px]">
             <span>{dryLine}</span>
@@ -383,7 +384,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
       {sick && (
         <>
           <TrendLabel emoji="🍄" label="Diseases">
-            <Provenance tool="goodearth_disease_risk" at={sickAt} onCost={onCost} />
+            <Provenance tool="goodearth_disease_risk" at={sickAt} onCost={onCost} from={readingTime(sick)} />
           </TrendLabel>
           <DiseaseCard data={sick} plantings={cropNames} />
         </>

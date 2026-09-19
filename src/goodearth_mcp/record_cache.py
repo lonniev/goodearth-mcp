@@ -201,6 +201,65 @@ def _open(npub: str, cache_key: str, stored: str) -> Any:
         return None
 
 
+def _iso(when: Any) -> str:
+    """The driver's timestamp as an ISO string, or "" if it will not read.
+
+    Neon's HTTP driver hands back a string, not a ``datetime``, and its exact
+    shape is the driver's business rather than ours. Anything unreadable
+    becomes "", which means the answer is served WITHOUT a reading time — a
+    missing label, never an invented one.
+    """
+    if isinstance(when, datetime):
+        return when.isoformat()
+    text = str(when or "").strip().replace(" ", "T")
+    if not text:
+        return ""
+    try:
+        # Tolerates the driver's "+00" offset, which is not ISO-legal alone.
+        datetime.fromisoformat(text if len(text.rsplit("+", 1)[-1]) != 2 else text + ":00")
+    except ValueError:
+        logger.warning("weather cache: unreadable created_at %r", when)
+        return ""
+    return text
+
+
+def _stamp_as_of(value: Any, when: Any) -> Any:
+    """Mark these numbers with when they were actually read.
+
+    Recurses into lists, which covers both a multi-cell record and the normals'
+    ``[records, name, resolution]`` triple without either caller knowing.
+    """
+    at = _iso(when)
+    if not at:
+        return value
+    if isinstance(value, dict):
+        value[sources.AS_OF] = at
+    elif isinstance(value, list):
+        for item in value:
+            _stamp_as_of(item, when)
+    return value
+
+
+async def _or_what_we_have(kind: str, subject: str, start: str, end: str, exc: Exception) -> Any:
+    """Upstream refused. Serve the last reading we took, or let the error out.
+
+    The freshness window exists because upstream revises the running day, not
+    because the numbers rot — this morning's accumulated heat is a fine answer
+    to this afternoon's question, and an incomparably better one than an error
+    message where the season should be. So an expired row, which the ordinary
+    read steps straight over, becomes the answer once the alternative is
+    nothing.
+
+    Stamped with its own reading time on the way out, because serving it
+    silently would make the page claim a freshness it does not have.
+    """
+    found = await _read(kind, subject, start, end, stale_ok=True)
+    if found is None:
+        raise exc
+    logger.warning("upstream refused (%s) — serving the reading already held", exc)
+    return found
+
+
 def _fresh_until(end: str, now: datetime | None = None) -> str | None:
     """When this answer stops being usable — None if it never does.
 
@@ -227,20 +286,25 @@ def _fresh_until(end: str, now: datetime | None = None) -> str | None:
 # ── The cache proper ─────────────────────────────────────────────────────
 
 
-async def _read(kind: str, subject: str, start: str, end: str) -> Any:
-    """What we already know, or None. Never raises."""
+async def _read(kind: str, subject: str, start: str, end: str, *, stale_ok: bool = False) -> Any:
+    """What we already know, or None. Never raises.
+
+    ``stale_ok`` drops the freshness test, and is only ever passed after
+    upstream has already refused. See ``_or_what_we_have``.
+    """
     npub = _patron.get()
     if not npub:
         return None
     cache_key = _key(kind, subject, start, end)
+    fresh_only = "" if stale_ok else "AND (fresh_until IS NULL OR fresh_until > NOW()) "
     try:
         v = await _vault_for()
         if v is None:
             return None
         r = await v._execute(
             _t(
-                f"SELECT payload_enc FROM {CACHE} WHERE npub = $1 AND cache_key = $2 "
-                "AND (fresh_until IS NULL OR fresh_until > NOW())"
+                f"SELECT payload_enc, created_at FROM {CACHE} "
+                f"WHERE npub = $1 AND cache_key = $2 {fresh_only}"
             ),
             [npub, cache_key],
         )
@@ -250,6 +314,11 @@ async def _read(kind: str, subject: str, start: str, end: str) -> Any:
         found = _open(npub, cache_key, rows[0]["payload_enc"])
         if found is None:
             return None
+        if stale_ok:
+            # No hit to note: this is not the cache doing its job, it is the
+            # cache covering for upstream, and letting it hold its own slot
+            # against eviction would be the wrong lesson from a bad minute.
+            return _stamp_as_of(found, rows[0].get("created_at"))
         # Last-used drives eviction, so record the hit. Its failure is
         # immaterial — we already have the answer.
         try:
@@ -285,6 +354,12 @@ async def _write(kind: str, subject: str, start: str, end: str, value: Any) -> N
                 "ON CONFLICT (npub, cache_key) DO UPDATE SET "
                 "payload_enc = EXCLUDED.payload_enc, "
                 "fresh_until = EXCLUDED.fresh_until, "
+                # The row is the same key but these are NEW numbers, so the
+                # timestamp has to move with them. Left alone, it would say
+                # when the span was first read — and a stale answer served
+                # months later would carry a reading time from the day the
+                # ground was saved.
+                "created_at = NOW(), "
                 "used_at = NOW()"
             ),
             [
@@ -337,7 +412,10 @@ async def daily_history(
     found = await _read("daily", subject, start, end)
     if found is not None:
         return found
-    fresh = await sources.fetch_daily_history(lats, lons, start, end)
+    try:
+        fresh = await sources.fetch_daily_history(lats, lons, start, end)
+    except sources.UpstreamError as exc:
+        return await _or_what_we_have("daily", subject, start, end, exc)
     await _write("daily", subject, start, end, fresh)
     return fresh
 
@@ -363,7 +441,10 @@ async def almanac_history(lat: float, lon: float, start: str, end: str) -> dict[
     found = await _read("almanac", subject, start, end)
     if found is not None:
         return found
-    fresh = await sources.fetch_almanac_history(lat, lon, start, end)
+    try:
+        fresh = await sources.fetch_almanac_history(lat, lon, start, end)
+    except sources.UpstreamError as exc:
+        return await _or_what_we_have("almanac", subject, start, end, exc)
     await _write("almanac", subject, start, end, fresh)
     return fresh
 
@@ -387,7 +468,12 @@ async def normals_history(
     if isinstance(found, list) and len(found) == 3:
         records, name, res = found
         return records, str(name), int(res)
-    records, name, res = await sources.fetch_normals_history(lat, lon, start, end)
+    try:
+        records, name, res = await sources.fetch_normals_history(lat, lon, start, end)
+    except sources.UpstreamError as exc:
+        held = await _or_what_we_have("normals", subject, start, end, exc)
+        records, name, res = held
+        return records, str(name), int(res)
     await _write("normals", subject, start, end, [records, name, res])
     return records, name, res
 
@@ -453,7 +539,13 @@ def stitch(parts: list[dict[str, Any]]) -> dict[str, Any]:
     order: list[str] = []
     fields = ("temperature_2m", "relative_humidity_2m", "dew_point_2m", "precipitation")
     worst: dict[str, Any] | None = None
+    # A season stitched from twelve months is only as freshly read as its
+    # oldest month, and one stale chunk makes the whole answer stale.
+    oldest: str | None = None
     for rec in parts:
+        when = rec.get(sources.AS_OF)
+        if isinstance(when, str) and (oldest is None or when < oldest):
+            oldest = when
         block = rec.get("hourly") or {}
         times = block.get("time") or []
         for i, t in enumerate(times):
@@ -476,6 +568,7 @@ def stitch(parts: list[dict[str, Any]]) -> dict[str, Any]:
             **{f: [hours[t][f] for t in order] for f in fields},
         },
         **({"_feed": worst} if worst else {}),
+        **({sources.AS_OF: oldest} if oldest else {}),
     }
 
 
@@ -504,10 +597,23 @@ async def wetness_history(lat: float, lon: float, start: str, end: str) -> dict[
     # in the service where a single question can become nine requests.
     for i in range(0, len(missing), _CHUNK_BATCH):
         batch = missing[i : i + _CHUNK_BATCH]
-        got = await asyncio.gather(*(
-            sources.fetch_wetness_history(lat, lon, chunks[j][0], chunks[j][1]) for j in batch
-        ))
+        got = await asyncio.gather(
+            *(sources.fetch_wetness_history(lat, lon, chunks[j][0], chunks[j][1]) for j in batch),
+            return_exceptions=True,
+        )
         for j, rec in zip(batch, got, strict=True):
+            if isinstance(rec, BaseException):
+                # A month that cannot be had is not a month of dry weather.
+                # Serving the season with a hole in it would report "no
+                # infection period" over hours nobody looked at, so the last
+                # reading of that month stands in, and if there is none the
+                # failure travels — which is the honest end of this road.
+                if not isinstance(rec, sources.UpstreamError):
+                    raise rec
+                parts[j] = await _or_what_we_have(
+                    "hourly", subject, chunks[j][0], chunks[j][1], rec
+                )
+                continue
             parts[j] = rec
             await _write("hourly", subject, chunks[j][0], chunks[j][1], rec)
 
@@ -522,7 +628,10 @@ async def soil_history(
     found = await _read("soil", subject, start, end)
     if found is not None:
         return found
-    fresh = await sources.fetch_soil_history(lat, lon, archive_field, start, end)
+    try:
+        fresh = await sources.fetch_soil_history(lat, lon, archive_field, start, end)
+    except sources.UpstreamError as exc:
+        return await _or_what_we_have("soil", subject, start, end, exc)
     await _write("soil", subject, start, end, fresh)
     return fresh
 

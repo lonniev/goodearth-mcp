@@ -14,12 +14,16 @@ import { useEffect } from "react";
 import { checkPrice } from "../lib/mcp";
 
 export default function Provenance({
-  tool, at, onCost,
+  tool, at, onCost, from,
 }: {
   tool: string;
   at: Date | null;
   /// Reported up so the Account page can total the session's spend.
   onCost?: (sats: number) => void;
+  /// When the NUMBERS were read, if that is not when the call was made. The
+  /// server serves its last reading when the weather service is busy — better
+  /// than an outage on the page, but only if the page says so.
+  from?: Date | null;
 }) {
   useEffect(() => {
     if (!at || !onCost) return;
@@ -34,10 +38,21 @@ export default function Provenance({
 
   if (!at) return null;
 
+  const clock = (d: Date) => d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  // A reading from an earlier day needs its day named. Within today the time
+  // alone is the whole story, and the date would only be noise.
+  const when = (d: Date) =>
+    d.toDateString() === at.toDateString()
+      ? clock(d)
+      : `${d.toLocaleDateString([], { month: "short", day: "numeric" })} ${clock(d)}`;
+
   return (
     <span className="data ml-auto text-right text-[10.5px] font-normal text-ink-soft"
-      title="When this answer was read">
-      read {at.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+      title={from
+        ? "The weather service was busy, so this is the last reading taken of this ground"
+        : "When this answer was read"}>
+      read {clock(at)}
+      {from && ` · weather from ${when(from)}`}
     </span>
   );
 }
