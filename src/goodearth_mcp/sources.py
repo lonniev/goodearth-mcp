@@ -227,6 +227,67 @@ def _retry_after(resp: httpx.Response, attempt: int) -> float:
         return _BACKOFF[min(attempt, len(_BACKOFF) - 1)]
 
 
+#: One pooled client for the whole service, rebuilt if the loop underneath it
+#: changes.
+#:
+#: Every fetcher here used to open its own ``AsyncClient`` and close it again,
+#: which meant a fresh TCP connection and a fresh TLS handshake for each of the
+#: twenty requests one Dashboard load makes — to four hosts, most of them
+#: several times over. Pooled, the handshake is paid once per host and the rest
+#: of the page rides the open connection.
+#:
+#: The loop is tracked because a client's pool belongs to the loop that opened
+#: it. A serverless host that starts a new loop between requests would
+#: otherwise hand the second request a pool of sockets nobody is watching.
+_client: httpx.AsyncClient | None = None
+_client_loop: Any = None
+
+
+def _shared_client() -> httpx.AsyncClient:
+    """The pooled client, made on first use and reused after."""
+    global _client, _client_loop
+    loop = asyncio.get_running_loop()
+    if _client is None or _client.is_closed or _client_loop is not loop:
+        _client = httpx.AsyncClient(
+            timeout=_TIMEOUT,
+            # Bounded so this service cannot become the reason a free feed
+            # rate-limits it: twenty requests queue through six connections
+            # rather than arriving as twenty.
+            limits=httpx.Limits(max_connections=6, max_keepalive_connections=6),
+            headers={"user-agent": "goodearth-mcp (+https://github.com/lonniev/goodearth-mcp)"},
+        )
+        _client_loop = loop
+    return _client
+
+
+#: Requests asked for while an identical one is already in flight.
+#:
+#: One Dashboard load asks for the same terrain twice — the season wants it and
+#: so does the frost window — and for the same wetness forecast twice, once for
+#: disease and once for drying. They are started within milliseconds of each
+#: other by five concurrent tools, so neither is in the cache yet when the
+#: other goes out. Coalescing them here is invisible to the callers: both get
+#: the same answer, one request pays for it.
+_inflight: dict[str, asyncio.Task[Any]] = {}
+
+
+def _request_key(url: str, params: dict[str, Any]) -> str:
+    """Two requests are the same request when they ask the same thing."""
+    return f"{url}?{sorted((str(k), str(v)) for k, v in params.items())}"
+
+
+def _forget(key: str, task: asyncio.Task[Any]) -> None:
+    """Drop a finished request, and read its failure so nobody logs it later.
+
+    If every caller has walked away — a cancelled tool call, a closed page —
+    an unretrieved exception surfaces at loop teardown as a stray traceback
+    about weather nobody is waiting for any more.
+    """
+    _inflight.pop(key, None)
+    if not task.cancelled():
+        task.exception()
+
+
 async def _once(client: httpx.AsyncClient, url: str, params: dict[str, Any], attempt: int) -> Any:
     try:
         resp = await client.get(url, params=params)
@@ -245,7 +306,27 @@ async def _once(client: httpx.AsyncClient, url: str, params: dict[str, Any], att
         raise UpstreamError(f"{url} returned malformed JSON") from exc
 
 
-async def _get(client: httpx.AsyncClient, url: str, params: dict[str, Any]) -> Any:
+async def _get(url: str, params: dict[str, Any]) -> Any:
+    """One request — or a share of one already going out for the same thing.
+
+    A caller that asks for something already in flight waits on that request
+    rather than making a second. It gets the same answer and the same failure,
+    which is the point: the duplicates this removes are two tools asking one
+    question at the same moment, and there was never a reason for the feed to
+    hear it twice.
+    """
+    key = _request_key(url, params)
+    task = _inflight.get(key)
+    if task is None:
+        task = asyncio.create_task(_get_now(url, params))
+        _inflight[key] = task
+        task.add_done_callback(lambda t, k=key: _forget(k, t))
+    # Shielded: a caller who gives up must not cancel the request the others
+    # are still waiting on.
+    return await asyncio.shield(task)
+
+
+async def _get_now(url: str, params: dict[str, Any]) -> Any:
     """One request, with backpressure honoured rather than reported.
 
     A 429 is the only failure retried here. It is also the only one that is
@@ -254,6 +335,7 @@ async def _get(client: httpx.AsyncClient, url: str, params: dict[str, Any]) -> A
     caller's alternative — failing over to a feed on the same exhausted
     budget — cannot.
     """
+    client = _shared_client()
     last: RateLimited | None = None
     for attempt in range(_RETRIES + 1):
         held = _hold_for(url)
@@ -295,12 +377,13 @@ async def fetch_elevations(lats: list[float], lons: list[float]) -> list[float]:
     """
     if not lats:
         return []
-    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-        data = await _get(client, _ELEVATION, {"latitude": _join(lats), "longitude": _join(lons)})
+    data = await _get(_ELEVATION, {"latitude": _join(lats), "longitude": _join(lons)})
     elevations = data.get("elevation") if isinstance(data, dict) else None
     if not isinstance(elevations, list) or len(elevations) != len(lats):
         raise UpstreamError("elevation service returned an unexpected shape")
     return [float(e) for e in elevations]
+
+
 async def fetch_daily_forecast(lat: float, lon: float, days: int = 7) -> dict[str, Any]:
     """Forecast daily max/min °F at the region centroid.
 
@@ -309,19 +392,17 @@ async def fetch_daily_forecast(lat: float, lon: float, days: int = 7) -> dict[st
     times and dress a single value up as a spread.
     """
     days = max(1, min(days, 16))
-    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-        payload = await _get(
-            client,
-            _FORECAST,
-            {
-                "latitude": lat,
-                "longitude": lon,
-                "daily": _DAILY,
-                "forecast_days": days,
-                "timezone": "auto",
-                **_US_UNITS,
-            },
-        )
+    payload = await _get(
+        _FORECAST,
+        {
+            "latitude": lat,
+            "longitude": lon,
+            "daily": _DAILY,
+            "forecast_days": days,
+            "timezone": "auto",
+            **_US_UNITS,
+        },
+    )
     results = _as_list(payload)
     if not results:
         raise UpstreamError("forecast returned no locations")
@@ -362,19 +443,17 @@ async def fetch_frost_forecast(lat: float, lon: float, days: int = 10) -> dict[s
     pretended to be resolved upstream.
     """
     days = max(1, min(days, 16))
-    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-        payload = await _get(
-            client,
-            _FORECAST,
-            {
-                "latitude": lat,
-                "longitude": lon,
-                "daily": _DAILY_FROST,
-                "forecast_days": days,
-                "timezone": "auto",
-                **_US_UNITS,
-            },
-        )
+    payload = await _get(
+        _FORECAST,
+        {
+            "latitude": lat,
+            "longitude": lon,
+            "daily": _DAILY_FROST,
+            "forecast_days": days,
+            "timezone": "auto",
+            **_US_UNITS,
+        },
+    )
     results = _as_list(payload)
     if not results:
         raise UpstreamError("frost forecast returned no locations")
@@ -433,19 +512,17 @@ async def fetch_soil_forecast(lat: float, lon: float, hourly_field: str, days: i
     no soil data at all.
     """
     days = max(1, min(days, 16))
-    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-        payload = await _get(
-            client,
-            _FORECAST,
-            {
-                "latitude": lat,
-                "longitude": lon,
-                "hourly": hourly_field,
-                "forecast_days": days,
-                "timezone": "auto",
-                **_US_UNITS,
-            },
-        )
+    payload = await _get(
+        _FORECAST,
+        {
+            "latitude": lat,
+            "longitude": lon,
+            "hourly": hourly_field,
+            "forecast_days": days,
+            "timezone": "auto",
+            **_US_UNITS,
+        },
+    )
     results = _as_list(payload)
     if not results:
         raise UpstreamError("soil forecast returned no locations")
@@ -500,8 +577,7 @@ async def fetch_wetness_history(lat: float, lon: float, start: str, end: str) ->
     last: UpstreamError | None = None
     for url, name, res in _HISTORY_FEEDS:
         try:
-            async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-                payload = await _get(client, url, params)
+            payload = await _get(url, params)
         except UpstreamError as exc:
             last = exc
             logger.warning("wetness history: %s did not answer (%s)", name, exc)
@@ -527,19 +603,17 @@ async def fetch_wetness_forecast(
     the drying line passes `_HOURLY_DRYING`.
     """
     days = max(1, min(days, 16))
-    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-        payload = await _get(
-            client,
-            _FORECAST,
-            {
-                "latitude": lat,
-                "longitude": lon,
-                "hourly": hourly,
-                "forecast_days": days,
-                "timezone": "auto",
-                **_US_UNITS,
-            },
-        )
+    payload = await _get(
+        _FORECAST,
+        {
+            "latitude": lat,
+            "longitude": lon,
+            "hourly": hourly,
+            "forecast_days": days,
+            "timezone": "auto",
+            **_US_UNITS,
+        },
+    )
     results = _as_list(payload)
     if not results:
         raise UpstreamError("wetness forecast returned no locations")
@@ -729,8 +803,7 @@ async def _history_any_feed(params: dict[str, Any]) -> tuple[Any, str, int]:
     last: UpstreamError | None = None
     for url, name, res in feeds:
         try:
-            async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-                return await _get(client, url, params), name, res
+            return await _get(url, params), name, res
         except RateLimited:
             # Not a failure of THIS feed, so the next one is no answer. Both
             # hosts bill the same caller's quota, and asking the second only
@@ -790,17 +863,16 @@ def daily_field(record: dict[str, Any], field: str) -> tuple[list[str], list[flo
 async def fetch_almanac_forecast(lat: float, lon: float, days: int = 14) -> dict[str, Any]:
     """Everything the sky is about to do, at the region centroid."""
     days = max(1, min(days, 16))
-    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-        payload = await _get(
-            client, _FORECAST,
-            {
-                "latitude": lat, "longitude": lon,
-                "daily": _DAILY_ALMANAC_FORECAST,
-                "forecast_days": days, "timezone": "auto",
-                "precipitation_unit": "inch",
-                **_US_UNITS,
-            },
-        )
+    payload = await _get(
+        _FORECAST,
+        {
+            "latitude": lat, "longitude": lon,
+            "daily": _DAILY_ALMANAC_FORECAST,
+            "forecast_days": days, "timezone": "auto",
+            "precipitation_unit": "inch",
+            **_US_UNITS,
+        },
+    )
     results = _as_list(payload)
     if not results:
         raise UpstreamError("almanac forecast returned no locations")
@@ -927,23 +999,22 @@ async def fetch_daymet_history(lat: float, lon: float, start: str, end: str) -> 
         "start": start,
         "end": end,
     }
-    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-        try:
-            resp = await client.get(_DAYMET, params=params)
-            resp.raise_for_status()
-        except httpx.HTTPStatusError as exc:
-            # Say WHICH point and WHICH span. A bare status is unfalsifiable:
-            # Daymet answers 400 for a coordinate it has no tile for, and
-            # without the coordinate there is no way to tell a point outside
-            # North America from one a few km too far out to sea from a fault
-            # of ours. Two decimal places is about a kilometre — the grid this
-            # feed works at, and coarser than the ground it describes.
-            raise UpstreamError(
-                f"Daymet returned HTTP {exc.response.status_code} "
-                f"for {lat:.2f},{lon:.2f} over {start}..{end}"
-            ) from exc
-        except httpx.HTTPError as exc:
-            raise UpstreamError(f"Daymet unreachable: {_why(exc)}") from exc
+    try:
+        resp = await _shared_client().get(_DAYMET, params=params)
+        resp.raise_for_status()
+    except httpx.HTTPStatusError as exc:
+        # Say WHICH point and WHICH span. A bare status is unfalsifiable:
+        # Daymet answers 400 for a coordinate it has no tile for, and
+        # without the coordinate there is no way to tell a point outside
+        # North America from one a few km too far out to sea from a fault
+        # of ours. Two decimal places is about a kilometre — the grid this
+        # feed works at, and coarser than the ground it describes.
+        raise UpstreamError(
+            f"Daymet returned HTTP {exc.response.status_code} "
+            f"for {lat:.2f},{lon:.2f} over {start}..{end}"
+        ) from exc
+    except httpx.HTTPError as exc:
+        raise UpstreamError(f"Daymet unreachable: {_why(exc)}") from exc
 
     dates, tmax, tmin = parse_daymet_csv(resp.text, start, end)
     return {

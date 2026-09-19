@@ -252,8 +252,14 @@ async def test_a_span_reaching_today_is_stored_with_an_expiry(monkeypatch):
 
     monkeypatch.setattr(rc.sources, "fetch_daily_history", fake)
     await rc.daily_history([44.4], [-73.2], "2026-04-01", today)
-    insert = vault.statements("INSERT")[0]
-    assert isinstance(insert[1][6], str), "the running day gets revised upstream"
+
+    # A running span is stored in two rows: the months that have finished,
+    # which nothing will revise, and the tail, which upstream is still moving.
+    # See `running_split` — this is the shape that stops a grower re-reading
+    # the whole season every morning.
+    expiries = [i[1][6] for i in vault.statements("INSERT")]
+    assert None in expiries, "the finished months must not expire"
+    assert any(isinstance(e, str) for e in expiries), "the running day gets revised upstream"
 
 
 @pytest.mark.asyncio

@@ -36,7 +36,7 @@ async def region_frost_window(
     today = today or datetime.now(UTC).date()
 
     try:
-        elevs = await sources.fetch_elevations(
+        elevs = await record_cache.elevations(
             [p.lat for p in region.points], [p.lon for p in region.points]
         )
         elev_note = None
