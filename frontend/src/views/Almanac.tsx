@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import MeasureChart from "../components/MeasureChart";
 import OutlookSummary from "../components/OutlookSummary";
 import Provenance from "../components/Provenance";
+import { readingTime } from "../lib/readingTime";
 import QuoteScroller from "../components/QuoteScroller";
 import { almanacFor, type AlmanacResult, type MeasureKey } from "../lib/mcp";
 import type { SavedRegion } from "../lib/regions";
@@ -231,7 +232,7 @@ export default function Almanac({
       {/* ── Measures ───────────────────────────────────────────────────── */}
       <h2 className="figure mb-2 flex items-baseline gap-2.5 text-[18px] font-semibold">
         The season so far
-        <Provenance tool="goodearth_almanac" at={ranAt} onCost={onCost} />
+        <Provenance tool="goodearth_almanac" at={ranAt} onCost={onCost} from={readingTime(data)} />
       </h2>
 
       {/* Left to right here is top to bottom below. Drag one along the row to

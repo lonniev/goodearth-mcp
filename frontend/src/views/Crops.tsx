@@ -38,7 +38,8 @@ import { fromRow, repeatDraft, rotation,
   type RepeatDraft, type RotationPlanting, type SeasonRow } from "../lib/rotation";
 import { familiesFor } from "../lib/family";
 import SeedShelf from "../components/SeedShelf";
-import { lotLine, lotsFor, seedCodec, type SeedLot } from "../lib/seeds";
+import { draftFromLot, lotLine, lotsFor, needsTarget, seedCodec,
+  type SeedLot } from "../lib/seeds";
 import { useSubmit } from "../lib/useSubmit";
 import { withId } from "../lib/submit";
 import type { SavedRegion } from "../lib/regions";
@@ -209,6 +210,10 @@ export default function Crops({
   /// by a category, so nothing reaches a call that would have to invent the
   /// figure it is missing.
   const heatRated = plantings.filter((p) => p.gddTarget != null);
+  /// Seed on the shelf that "When to sow" cannot reach: dating is done on
+  /// heat, and no planting of that crop carries a target to date it against.
+  const undated = needsTarget(lots, (crop) => heatRated.some((p) =>
+    baseName(p.crop).toLowerCase() === crop.trim().toLowerCase()));
   const winterRated = plantings.filter(
     (p) => p.perennial || p.chillHours != null || p.hardyToF != null);
 
@@ -402,6 +407,32 @@ export default function Crops({
     setRepeating(d);
     setFormKey((k) => k + 1);
     setAdded(`${p.crop} from ${season} — choose the day it goes in, then add it.`);
+    document.getElementById("new-planting")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  /// Sow a lot off the shelf: the same form a Rotation tap fills, so a packet
+  /// and a past planting reach the ledger the same way. The crop's own figures
+  /// come with it when the ledger has them; the packet's days never become a
+  /// heat target.
+  async function sowLot(l: SeedLot) {
+    const like = plantings.find((p) =>
+      baseName(p.crop).toLowerCase() === l.crop.trim().toLowerCase());
+    const d = draftFromLot(l, like ?? undefined);
+    setFormErr("");
+    if (d.taxonId) {
+      const hit = (await speciesByIds([d.taxonId])).get(d.taxonId);
+      setSeed("");
+      setPicked(hit ?? {
+        id: d.taxonId, scientificName: d.scientificName ?? d.searchFor,
+        commonName: d.commonName ?? null, rank: null, matched: null, thumb: null, observations: 0,
+      });
+    } else {
+      setPicked(null);
+      setSeed(d.searchFor);
+    }
+    setRepeating(d);
+    setFormKey((k) => k + 1);
+    setAdded(`${l.crop}${l.variety ? ` · ${l.variety}` : ""} — choose the day it goes in.`);
     document.getElementById("new-planting")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -914,11 +945,10 @@ export default function Crops({
       )}
 
       {/* ── Seeds ──────────────────────────────────────────────────── */}
-      <Section emoji="🌰" title="Seeds" />
+      <Section emoji="🌰" title="Seeds on hand" />
       <p className="mb-2.5 text-[12.5px] leading-relaxed text-ink-soft">
-        Each lot you hold seed of, with what its packet says — days to
-        maturity, germination and when it was tested. A lot sits beside its
-        crop in Sowing below.
+        What you hold, and what each packet says. Tap a crop to sow it; When to
+        sow dates it once it carries a heat target.
       </p>
       <SeedShelf
         lots={lots}
@@ -927,6 +957,7 @@ export default function Crops({
           baseName(p.crop).toLowerCase() === crop.trim().toLowerCase())?.taxonId}
         onSave={saveLot}
         onRetire={removeLot}
+        onSow={(l) => void sowLot(l)}
         busy={savingLot}
       />
       {lotTotal > lots.length && (
@@ -935,8 +966,16 @@ export default function Crops({
         </p>
       )}
 
-      {/* ── Sowing ─────────────────────────────────────────────────── */}
-      <Section emoji="🌱" title="Sowing">
+      {/* Which seed the dates below cannot reach, named once rather than
+          marked on every row. */}
+      {undated.length > 0 && (
+        <p className="data mb-3 text-[11px] text-ink-soft">
+          Not in When to sow yet: {undated.join(" · ")} — each needs a heat target on its planting.
+        </p>
+      )}
+
+      {/* ── When to sow ────────────────────────────────────────────── */}
+      <Section emoji="🌱" title="When to sow">
         {!when && (
           <Pill onClick={checkWhen} disabled={whenBusy} active>
             {whenBusy ? "🧠 Reading…" : "🧠 When?"}

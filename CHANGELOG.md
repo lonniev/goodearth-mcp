@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- A busy weather service no longer reads as a broken one. Open-Meteo's HTTP 429
+  is waited out and asked again rather than reported, and one refusal holds
+  back every other request sharing that provider's quota instead of becoming a
+  second burst. A rate refusal is no longer failed over to the sibling feed —
+  both hosts bill the same caller, so the fallback only spent what was left and
+  reported its own refusal, which is how the Dashboard came to say
+  "could not read the season's observations: archive-api.open-meteo.com
+  returned HTTP 429".
+- When upstream still will not answer, the last reading of that ground is
+  served instead of an error, labelled with when it was actually taken — the
+  Dashboard shows "read 9:14 · weather from 6:12". A page with this morning's
+  season on it beats a page with no season on it; a page that hides which one
+  it is showing beats neither.
+
 ## [0.2.0] - 2026-09-14
 
 ### Added

@@ -29,9 +29,13 @@ so it cannot see the running season at all.
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import random
+import time
 from datetime import date, timedelta
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -112,6 +116,23 @@ class UpstreamError(RuntimeError):
     """An upstream feed failed or answered in a shape we don't recognise."""
 
 
+class RateLimited(UpstreamError):
+    """The feed is not broken — we asked for too much of it, too fast.
+
+    Kept apart from every other upstream failure because the right response is
+    the opposite one. A timeout or a 502 is a reason to ask SOMEWHERE ELSE, and
+    that is what ``_history_any_feed`` does. A 429 is a reason to ask nowhere
+    for a moment: Open-Meteo counts a free caller's quota against their IP
+    across its endpoints, so the sibling host shares the budget that was just
+    exhausted. Failing over to it spends the quota twice and reports the
+    second refusal — which is exactly the error a grower saw.
+    """
+
+    def __init__(self, message: str, retry_after: float | None = None):
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
 def _why(exc: Exception) -> str:
     """Why a feed did not answer, in words.
 
@@ -139,17 +160,117 @@ def _why(exc: Exception) -> str:
     return said or type(exc).__name__
 
 
-async def _get(client: httpx.AsyncClient, url: str, params: dict[str, Any]) -> Any:
+#: How many times a rate-refused request is asked again. Only a 429 is retried:
+#: every other failure already has somewhere else to go.
+_RETRIES = 2
+
+#: The longest this service will wait on backpressure before giving up and
+#: letting the caller serve what it already has. A grower staring at a spinner
+#: for a minute is a worse answer than this morning's reading, so the cap is
+#: short even when upstream asks for longer.
+_MAX_BACKOFF = 8.0
+
+#: How long to hold off after a refusal when upstream does not say.
+_BACKOFF = (1.0, 3.0)
+
+#: When each provider may be asked again, on the monotonic clock.
+#:
+#: A quota is per CALLER, not per request, so one page load's twenty requests
+#: share one budget and a refusal is news for all of them. Without this, the
+#: first 429 turns into twenty retries arriving together — the burst that
+#: caused it, repeated, which is how a polite retry becomes a denial of service
+#: against the feed we depend on.
+#:
+#: Held per PROVIDER rather than per host, because that is the shape of the
+#: budget: Open-Meteo's forecast, archive and historical-forecast subdomains
+#: draw on one quota, so a refusal from any of them is a refusal from all
+#: three. Daymet is somebody else's service entirely and keeps its own clock —
+#: one provider's busy minute must not stall a feed that is answering fine.
+_cooloff_until: dict[str, float] = {}
+
+
+def _provider(url: str) -> str:
+    """Who owns the quota this URL spends — the registrable domain."""
+    host = urlsplit(url).hostname or url
+    return ".".join(host.rsplit(".", 2)[-2:])
+
+
+def _hold_for(url: str) -> float:
+    """Seconds to wait before asking again, jittered so waiters do not sync.
+
+    Jitter is not decoration. Twenty requests held by the same deadline wake on
+    the same millisecond and rebuild the burst exactly.
+    """
+    left = _cooloff_until.get(_provider(url), 0.0) - time.monotonic()
+    if left <= 0:
+        return 0.0
+    return min(left, _MAX_BACKOFF) + random.uniform(0, 0.4)
+
+
+def _start_cooloff(url: str, seconds: float) -> None:
+    """Tell every other request to this provider to wait too. Never shortens one."""
+    who = _provider(url)
+    _cooloff_until[who] = max(
+        _cooloff_until.get(who, 0.0), time.monotonic() + min(seconds, _MAX_BACKOFF)
+    )
+
+
+def _retry_after(resp: httpx.Response, attempt: int) -> float:
+    """How long upstream asked us to wait, or our own growing guess."""
+    said = resp.headers.get("retry-after", "").strip()
+    try:
+        # Open-Meteo sends the delta-seconds form. An HTTP-date is legal too,
+        # and unparseable here — falling through to our own guess is right,
+        # since the guess is bounded and a misread date might not be.
+        return max(float(said), 0.0)
+    except ValueError:
+        return _BACKOFF[min(attempt, len(_BACKOFF) - 1)]
+
+
+async def _once(client: httpx.AsyncClient, url: str, params: dict[str, Any], attempt: int) -> Any:
     try:
         resp = await client.get(url, params=params)
         resp.raise_for_status()
         return resp.json()
     except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 429:
+            wait = _retry_after(exc.response, attempt)
+            raise RateLimited(
+                f"{url} is rate-limiting this service (HTTP 429)", wait
+            ) from exc
         raise UpstreamError(f"{url} returned HTTP {exc.response.status_code}") from exc
     except httpx.HTTPError as exc:
         raise UpstreamError(f"{url} unreachable: {_why(exc)}") from exc
     except ValueError as exc:
         raise UpstreamError(f"{url} returned malformed JSON") from exc
+
+
+async def _get(client: httpx.AsyncClient, url: str, params: dict[str, Any]) -> Any:
+    """One request, with backpressure honoured rather than reported.
+
+    A 429 is the only failure retried here. It is also the only one that is
+    ever WORTH retrying without moving hosts: the minute-quota it usually
+    means has recovered by the time the second attempt goes out, and the
+    caller's alternative — failing over to a feed on the same exhausted
+    budget — cannot.
+    """
+    last: RateLimited | None = None
+    for attempt in range(_RETRIES + 1):
+        held = _hold_for(url)
+        if held:
+            await asyncio.sleep(held)
+        try:
+            return await _once(client, url, params, attempt)
+        except RateLimited as exc:
+            last = exc
+            _start_cooloff(url, exc.retry_after or _BACKOFF[0])
+            if attempt == _RETRIES:
+                break
+            logger.warning(
+                "upstream is busy: %s — waiting %.1fs and asking again",
+                exc, exc.retry_after or _BACKOFF[0],
+            )
+    raise last if last else UpstreamError(f"{url} was never asked")
 
 
 def _as_list(payload: Any) -> list[dict[str, Any]]:
@@ -520,6 +641,11 @@ async def fetch_daily_history(
     return [_stamp(r, name, res) for r in _as_list(payload)]
 
 
+#: Set on a record that came out of the cache because upstream would not
+#: answer. Its value is when those numbers were actually read.
+AS_OF = "_as_of"
+
+
 def feed_of(records: Any) -> dict[str, Any]:
     """Which feed answered for these records, for a provenance block.
 
@@ -530,14 +656,32 @@ def feed_of(records: Any) -> dict[str, Any]:
 
     Names the preferred feed only when nothing was stamped — an empty or failed
     read, where there are no numbers to misattribute anyway.
+
+    Carries ``as_of`` when these numbers were served from the record rather
+    than read fresh. Every window module builds its provenance through here, so
+    one line puts the true reading time on all of them — and an answer that
+    says "read 9:14" over figures fetched at 6:12 is the kind of small lie this
+    service does not get to tell.
     """
     if isinstance(records, dict):
         records = [records]
     if isinstance(records, (list, tuple)):
+        stale: str | None = None
+        found: dict[str, Any] | None = None
         for r in records:
-            stamped = r.get("_feed") if isinstance(r, dict) else None
-            if stamped:
-                return dict(stamped)
+            if not isinstance(r, dict):
+                continue
+            # The answer is only as fresh as its oldest part.
+            when = r.get(AS_OF)
+            if isinstance(when, str) and (stale is None or when < stale):
+                stale = when
+            if found is None and r.get("_feed"):
+                found = dict(r["_feed"])
+        if found is not None:
+            return {**found, **({"as_of": stale} if stale else {})}
+        if stale:
+            name, res = _HISTORY_FEEDS[0][1], _HISTORY_FEEDS[0][2]
+            return {"name": name, "resolution_m": res, "as_of": stale}
     _, name, res = _HISTORY_FEEDS[0]
     return {"name": name, "resolution_m": res}
 
@@ -587,6 +731,14 @@ async def _history_any_feed(params: dict[str, Any]) -> tuple[Any, str, int]:
         try:
             async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
                 return await _get(client, url, params), name, res
+        except RateLimited:
+            # Not a failure of THIS feed, so the next one is no answer. Both
+            # hosts bill the same caller's quota, and asking the second only
+            # spends what is left and reports its refusal instead of the
+            # first's — which is how a busy minute came back to a grower as
+            # "archive-api.open-meteo.com returned HTTP 429". Let it out: the
+            # cache above this knows how to serve what it already has.
+            raise
         except UpstreamError as exc:
             last = exc
             logger.warning("history: %s did not answer (%s)", name, exc)
