@@ -47,7 +47,7 @@ def _validate_base(base_f: float) -> float:
 async def _elevations(region: Region) -> tuple[list[float] | None, str | None]:
     """Terrain height per sample point, or ``None`` with a reason if unavailable."""
     try:
-        elevs = await sources.fetch_elevations(
+        elevs = await record_cache.elevations(
             [p.lat for p in region.points],
             [p.lon for p in region.points],
         )
