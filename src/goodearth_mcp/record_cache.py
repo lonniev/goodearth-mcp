@@ -336,8 +336,14 @@ async def _read(kind: str, subject: str, start: str, end: str, *, stale_ok: bool
         return None
 
 
-async def _write(kind: str, subject: str, start: str, end: str, value: Any) -> None:
-    """Remember an answer. Never raises, and never blocks the answer."""
+async def _write(
+    kind: str, subject: str, start: str, end: str, value: Any, *, immutable: bool = False,
+) -> None:
+    """Remember an answer. Never raises, and never blocks the answer.
+
+    ``immutable`` is for an answer with no span to expire — terrain height,
+    which is the same this afternoon as it was when the ice left.
+    """
     npub = _patron.get()
     if not npub or not value:
         return
@@ -363,9 +369,9 @@ async def _write(kind: str, subject: str, start: str, end: str, value: Any) -> N
                 "used_at = NOW()"
             ),
             [
-                npub, cache_key, kind, start[:10], end[:10],
+                npub, cache_key, kind, start[:10] or None, end[:10] or None,
                 _seal(npub, cache_key, value),
-                _fresh_until(end),
+                None if immutable else _fresh_until(end),
             ],
         )
         await _prune(v, npub)
@@ -404,11 +410,114 @@ async def _prune(v: Any, npub: str) -> None:
 # persistence, no npubs and no billing.
 
 
-async def daily_history(
-    lats: list[float], lons: list[float], start: str, end: str,
+#: The fields a daily record carries, read from the request that asks for them
+#: so the two cannot drift apart.
+def _daily_fields() -> tuple[str, ...]:
+    return tuple(f.strip() for f in sources._DAILY.split(",") if f.strip())
+
+
+def running_split(
+    start: str, end: str, today: date,
+) -> tuple[tuple[str, str], tuple[str, str]] | None:
+    """A running span's finished head and its still-moving tail, or None.
+
+    THE COST OF A NEW MORNING. A cache key carries its span, so "January 1
+    through today" is a different key tomorrow and the whole season is read
+    again — nine months of dailies, every day, for a grower whose first eight
+    months have not moved since August ended.
+
+    Split at the first of the month, the head has entirely happened and is kept
+    without expiry. Tomorrow asks for the same head, hits, and fetches only the
+    handful of days since the month began. The head re-keys once a month rather
+    than once a day, and that one refetch is a single request, not thirty.
+
+    Two parts, not twelve: a calendar-month chunk each would make the FIRST
+    load nine requests to save one later, which is the wrong trade for a page
+    whose complaint is that it is slow to open.
+
+    None when there is nothing to split — a span already wholly in the past is
+    one immutable row, and a span that started this month is short already.
+    """
+    try:
+        first, last = date.fromisoformat(start[:10]), date.fromisoformat(end[:10])
+    except (TypeError, ValueError):
+        return None
+    if last < today:
+        return None
+    month_start = today.replace(day=1)
+    if first >= month_start:
+        return None
+    return (
+        (first.isoformat(), (month_start - timedelta(days=1)).isoformat()),
+        (month_start.isoformat(), last.isoformat()),
+    )
+
+
+def stitch_daily(parts: list[list[dict[str, Any]]]) -> list[dict[str, Any]] | None:
+    """Join a span's parts back into one record per cell, or None if they disagree.
+
+    None rather than a guess. The parts are one request's worth of cells split
+    in time, so they should arrive the same width; if they do not, something is
+    wrong that a merge would hide, and a cell silently dropped here is a corner
+    of the farm missing from the spread. The caller reads the whole span
+    instead, which is slower and right.
+    """
+    fields = _daily_fields()
+    if not parts or not all(parts):
+        return None
+    cells = len(parts[0])
+    if any(len(p) != cells for p in parts):
+        return None
+
+    joined: list[dict[str, Any]] = []
+    for i in range(cells):
+        by_day: dict[str, dict[str, Any]] = {}
+        cell: dict[str, Any] = {}
+        worst: dict[str, Any] | None = None
+        oldest: str | None = None
+        for part in parts:
+            record = part[i]
+            if not isinstance(record, dict):
+                return None
+            block = record.get("daily") or {}
+            times = block.get("time") or []
+            for j, t in enumerate(times):
+                # Months do not overlap, so first copy winning is a formality —
+                # but a day counted twice is a day of heat that never fell.
+                by_day.setdefault(str(t), {
+                    f: (block.get(f) or [None] * len(times))[j] for f in fields
+                })
+            # The cell's own identity, elevation above all: it is what the
+            # terrain correction in ``gdd.downscale`` reads.
+            for k in ("latitude", "longitude", "elevation", "timezone", "utc_offset_seconds"):
+                if k in record and k not in cell:
+                    cell[k] = record[k]
+            feed = record.get("_feed")
+            if isinstance(feed, dict) and (
+                worst is None
+                or int(feed.get("resolution_m") or 0) > int(worst.get("resolution_m") or 0)
+            ):
+                worst = feed
+            when = record.get(sources.AS_OF)
+            if isinstance(when, str) and (oldest is None or when < oldest):
+                oldest = when
+        order = sorted(by_day)
+        joined.append({
+            **cell,
+            "daily": {
+                "time": order,
+                **{f: [by_day[t][f] for t in order] for f in fields},
+            },
+            **({"_feed": worst} if worst else {}),
+            **({sources.AS_OF: oldest} if oldest else {}),
+        })
+    return joined
+
+
+async def _daily_span(
+    subject: str, lats: list[float], lons: list[float], start: str, end: str,
 ) -> list[dict[str, Any]]:
-    """Observed daily max/min, remembered. See ``sources.fetch_daily_history``."""
-    subject = ",".join(f"{a:.5f}/{b:.5f}" for a, b in zip(lats, lons, strict=False))
+    """One span of dailies, read through the cache."""
     found = await _read("daily", subject, start, end)
     if found is not None:
         return found
@@ -417,6 +526,54 @@ async def daily_history(
     except sources.UpstreamError as exc:
         return await _or_what_we_have("daily", subject, start, end, exc)
     await _write("daily", subject, start, end, fresh)
+    return fresh
+
+
+async def daily_history(
+    lats: list[float], lons: list[float], start: str, end: str, today: date | None = None,
+) -> list[dict[str, Any]]:
+    """Observed daily max/min, remembered. See ``sources.fetch_daily_history``.
+
+    A span still running is read in two pieces so that the finished part of it
+    is read once and never again — see ``running_split``.
+    """
+    subject = ",".join(f"{a:.5f}/{b:.5f}" for a, b in zip(lats, lons, strict=False))
+    today = today or datetime.now(UTC).date()
+
+    split = running_split(start, end, today)
+    if split is not None:
+        head, tail = split
+        parts = await asyncio.gather(
+            _daily_span(subject, lats, lons, *head),
+            _daily_span(subject, lats, lons, *tail),
+        )
+        joined = stitch_daily(list(parts))
+        if joined is not None:
+            return joined
+        logger.warning(
+            "daily history: the season's parts disagreed on cells — reading the whole span"
+        )
+
+    return await _daily_span(subject, lats, lons, start, end)
+
+
+async def elevations(lats: list[float], lons: list[float]) -> list[float]:
+    """Terrain height per point, remembered for good.
+
+    The one reading in this service with no span at all. Ground does not move,
+    so this row never expires — and it was being fetched TWICE on every
+    Dashboard load, once for the season's terrain correction and once for the
+    frost window's, on ground whose height was last news to anybody in the
+    Pleistocene.
+    """
+    if not lats:
+        return []
+    subject = ",".join(f"{a:.5f}/{b:.5f}" for a, b in zip(lats, lons, strict=False))
+    found = await _read("elevation", subject, "", "")
+    if isinstance(found, list) and len(found) == len(lats):
+        return [float(e) for e in found]
+    fresh = await sources.fetch_elevations(lats, lons)
+    await _write("elevation", subject, "", "", fresh, immutable=True)
     return fresh
 
 

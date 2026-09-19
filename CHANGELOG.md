@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The Dashboard opens faster, and asks the weather service for far less to do
+  it. A season still running is now read in two pieces — the months that have
+  finished, kept without expiry, and the few days since the month began — so
+  the second morning reads a handful of days instead of the whole season
+  again. Terrain is read once for the life of the ground rather than twice per
+  page. Two tools asking the same question at the same moment now share one
+  request. And every feed rides one pooled connection instead of opening a
+  fresh one, twenty times a load.
+- The Dashboard draws the heat curve first and reads its trends after, rather
+  than starting five calls at once. The chart is what a grower opened the page
+  for; the trends arrive under it.
+
 ### Fixed
 - A busy weather service no longer reads as a broken one. Open-Meteo's HTTP 429
   is waited out and asked again rather than reported, and one refusal holds

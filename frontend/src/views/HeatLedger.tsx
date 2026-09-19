@@ -141,8 +141,20 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
   }, [region]);
 
   // Re-read whenever the active region changes — the whole app is scoped by it.
+  //
+  // The curve first, alone, and the trends after it lands. These five calls
+  // used to start together, and between them they ask the weather service for
+  // about twenty readings at once — which is slow to finish and is what tipped
+  // it into refusing us. Staged, the chart arrives while the trends are still
+  // being read, and the chart is what a grower opened this page for.
   useEffect(() => {
-    void run(); void runFrost(); void runSoil(); void runDisease(); void runDrying();
+    let live = true;
+    void (async () => {
+      await run();
+      if (!live) return;
+      await Promise.all([runFrost(), runSoil(), runDisease(), runDrying()]);
+    })();
+    return () => { live = false; };
   }, [run, runFrost, runSoil, runDisease, runDrying]);
 
   // Every threshold the grower has entered is a GDD number, and where it meets
