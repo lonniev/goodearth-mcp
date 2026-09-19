@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-18
+
+### Added
+- **Rotation on Crops** — what grew on this plot, season by season, grouped by
+  plant family, including plantings since cleared from the ledger. One paid
+  read, and only when asked (#135). Every crop in it is a button: a tap fills
+  the add-a-planting form with that plant and the figures it was given last
+  time, and nothing is saved until the grower picks the date (#138).
+- **Seed lots** — what the grower actually holds seed of: crop, variety, days
+  to maturity, germination and when it was tested, the year it was packed for,
+  quantity, supplier and lot number. Everything but the crop is optional. Each
+  sowing row shows its seed, and farm bundles carry the lots with them (#137).
+- **Look it up** beside Days to maturity, which fills that one field from
+  Growstuff. Only that field: germination and its test date belong to the
+  packet in the grower's hand, and no catalogue holds them (#139).
+- **Seeds and Sowing, named and joined** — a drawer and a calendar, not one
+  feature. Tap a lot to draft a planting from it; a packet's days never become
+  a heat target, because they are different clocks (#140).
+
 ### Changed
 - The Dashboard opens faster, and asks the weather service for far less to do
   it. A season still running is now read in two pieces — the months that have
@@ -15,10 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   again. Terrain is read once for the life of the ground rather than twice per
   page. Two tools asking the same question at the same moment now share one
   request. And every feed rides one pooled connection instead of opening a
-  fresh one, twenty times a load.
+  fresh one, twenty times a load (#143).
 - The Dashboard draws the heat curve first and reads its trends after, rather
   than starting five calls at once. The chart is what a grower opened the page
-  for; the trends arrive under it.
+  for; the trends arrive under it (#143).
 
 ### Fixed
 - A busy weather service no longer reads as a broken one. Open-Meteo's HTTP 429
@@ -28,12 +47,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   both hosts bill the same caller, so the fallback only spent what was left and
   reported its own refusal, which is how the Dashboard came to say
   "could not read the season's observations: archive-api.open-meteo.com
-  returned HTTP 429".
+  returned HTTP 429" (#141).
 - When upstream still will not answer, the last reading of that ground is
   served instead of an error, labelled with when it was actually taken — the
   Dashboard shows "read 9:14 · weather from 6:12". A page with this morning's
   season on it beats a page with no season on it; a page that hides which one
-  it is showing beats neither.
+  it is showing beats neither (#141).
+- Turning the bees off keeps them off. Unticking them in Preferences made them
+  vanish and then come back, with the box still unticked (#136).
 
 ## [0.2.0] - 2026-09-14
 
