@@ -3,7 +3,7 @@
   "name": "io.github.lonniev/goodearth-mcp",
   "title": "Good Earth",
   "description": "Climate timing for gardens and small farms: frost, heat, soil and planting dates for your plot.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "websiteUrl": "https://goodearth.tollbooth-dpyc.com",
   "repository": {
     "url": "https://github.com/lonniev/goodearth-mcp",
