@@ -16,9 +16,9 @@ import { useRef, useState } from "react";
 import { lookUp } from "../lib/growstuff";
 import { makeSeedLot, type SeedInput, type SeedLot } from "../lib/seeds";
 import QuantityField from "./QuantityField";
-import { CELL, ICON, IconButton } from "./ui";
+import { Field, FIELD } from "./ui";
 
-export default function SeedForm({ crop, taxonId, varieties, units, onSave, busy }: {
+export default function SeedForm({ crop, taxonId, varieties, units, onSave }: {
   /// The plant this packet is seed of, from the row this opened on.
   crop: string;
   taxonId?: number;
@@ -31,7 +31,6 @@ export default function SeedForm({ crop, taxonId, varieties, units, onSave, busy
   /// Units this grower has used, from their own lots.
   units?: readonly string[];
   onSave: (lot: SeedLot) => Promise<string | null>;
-  busy?: boolean;
 }) {
   const [err, setErr] = useState("");
   /// Days to maturity is the one field a lookup can fill, so it is the one
@@ -81,76 +80,63 @@ export default function SeedForm({ crop, taxonId, varieties, units, onSave, busy
   return (
     <form id="new-seed" ref={form} onSubmit={(e) => void add(e)}
       className="mt-2 rounded-md border border-rule bg-panel p-3">
-      <div className="flex flex-wrap items-end gap-x-3 gap-y-2.5">
-        <label className="block min-w-[10rem] flex-1 text-[11px] text-ink-soft">
-          Variety
-          <input name="variety" list="seed-varieties" placeholder="Benary's Giant"
-            className={CELL} />
+      {/* One component per field, so every caption sits on one line and every
+          box is one height. It was a flex of hand-built labels, and a date
+          input, a select and a text box do not agree on a height by
+          themselves. */}
+      <div className="flex flex-wrap items-start gap-x-3 gap-y-2.5">
+        <Field label="Variety" htmlFor="seed-variety" width="min-w-[10rem] flex-1">
+          <input id="seed-variety" name="variety" list="seed-varieties"
+            placeholder="Benary's Giant" className={FIELD} />
           {varieties?.length ? (
             <datalist id="seed-varieties">
               {varieties.map((v) => <option key={v} value={v} />)}
             </datalist>
           ) : null}
-        </label>
+        </Field>
 
-        {/* The button is a sibling of the label, never inside it: a tap
-            inside a label can be handed to the label's own input. */}
-        <span className="block w-[7.5rem] text-[11px] text-ink-soft">
-          <span className="flex items-center gap-1.5">
-            <label htmlFor="seed-dtm">Days</label>
+        {/* The lookup rides in the caption row, which is why that row has a
+            fixed height: a button under the word pushed this one field's box
+            below every other. It is a sibling of the label, never inside it —
+            a tap inside a label can be handed to the label's own input. */}
+        <Field label="Days" htmlFor="seed-dtm" width="w-[8rem]"
+          hint={
             <button type="button" onClick={() => void look()} disabled={looking}
-              className="ml-auto min-h-9 underline decoration-dotted underline-offset-2 disabled:opacity-40">
-              {looking ? "…" : "Look it up"}
+              className="ml-auto underline decoration-dotted underline-offset-2 disabled:opacity-40">
+              {looking ? "…" : nothingFound ? "none published" : "Look it up"}
             </button>
-          </span>
-          <input id="seed-dtm" name="dtm" inputMode="numeric" placeholder="75" className={CELL}
+          }>
+          <input id="seed-dtm" name="dtm" inputMode="numeric" placeholder="75" className={FIELD}
             value={dtm} onChange={(e) => { setDtm(e.target.value); setNothingFound(false); }} />
-        </span>
-        {nothingFound && !looking && (
-          <span className="text-[11px] text-ink-soft opacity-60">nothing published</span>
-        )}
+        </Field>
 
-        <label className="block w-[6.5rem] text-[11px] text-ink-soft">
-          Germination %
-          <input name="germ" type="number" min={0} max={100} step={1} placeholder="88"
-            className={CELL} />
-        </label>
+        <Field label="Germination %" htmlFor="seed-germ" width="w-[7rem]">
+          <input id="seed-germ" name="germ" type="number" min={0} max={100} step={1}
+            placeholder="88" className={FIELD} />
+        </Field>
         {/* Named in full, because "Tested on" beside a date said nothing about
-            WHAT was tested — the germination above it, by the seller or by the
-            grower. */}
-        <label className="block w-[10rem] text-[11px] text-ink-soft">
-          Germination tested
-          <input name="tested" type="date" className={CELL} />
-        </label>
+            WHAT was tested — the germination beside it, by the seller or by
+            the grower. */}
+        <Field label="Germination tested" htmlFor="seed-tested" width="w-[10rem]">
+          <input id="seed-tested" name="tested" type="date" className={FIELD} />
+        </Field>
 
-        <label className="block w-[6.5rem] text-[11px] text-ink-soft">
-          Packed for
-          <input name="packed" type="number" min={1900} max={2200} step={1}
-            placeholder={String(new Date().getFullYear())} className={CELL} />
-        </label>
+        <Field label="Packed for" htmlFor="seed-packed" width="w-[7rem]">
+          <input id="seed-packed" name="packed" type="number" min={1900} max={2200} step={1}
+            placeholder={String(new Date().getFullYear())} className={FIELD} />
+        </Field>
 
-        <span className="w-[11rem]">
-          <QuantityField id="seed-qty" label="Inventory count"
-            amount={qty} unit={unit} units={units}
-            onAmount={setQty} onUnit={setUnit} />
-        </span>
+        <QuantityField id="seed-qty" label="Inventory count" width="w-[11rem]"
+          amount={qty} unit={unit} units={units} onAmount={setQty} onUnit={setUnit} />
 
-        <label className="block w-[9rem] text-[11px] text-ink-soft">
-          Supplier
-          <input name="source" placeholder="a seed house" className={CELL} />
-        </label>
-        <label className="block w-[8rem] text-[11px] text-ink-soft">
-          Supplier&rsquo;s lot
-          <input name="lot" placeholder="Z-114" className={CELL} />
-        </label>
+        <Field label="Supplier" htmlFor="seed-source" width="w-[10rem]">
+          <input id="seed-source" name="source" placeholder="a seed house" className={FIELD} />
+        </Field>
+        <Field label="Supplier’s lot" htmlFor="seed-lot" width="w-[8rem]">
+          <input id="seed-lot" name="lot" placeholder="Z-114" className={FIELD} />
+        </Field>
       </div>
-      <div className="mt-3 flex flex-wrap items-center gap-3">
-        {err && <p className="text-[12px] text-clay">{err}</p>}
-        <div className="ml-auto">
-          <IconButton path={ICON.add} label="Seed lot" form="new-seed"
-            title="Add a seed lot" disabled={busy} />
-        </div>
-      </div>
+      {err && <p className="mt-2 text-[12px] text-clay">{err}</p>}
     </form>
   );
 }
