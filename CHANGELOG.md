@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- The Dashboard and the Almanac are read together, so each now starts the
+  other's reading in the background while the grower is on the first one. Flip
+  across and the page is already there. A page revisited within a few minutes
+  is served from what was already asked for rather than asked again — so a
+  grower who moves between the two several times pays one fare each instead of
+  one per visit. A reader who opens only one of the two pays for a reading of
+  the other they never look at.
+
+### Changed
 - The heat chart gives its top corner back to the season. "MEDIAN FIRST FROST"
   ran nearly a fifth of the chart's width in words; it is now one ice-crystal
   mark sitting on the line it names. And today's dot no longer spells out
