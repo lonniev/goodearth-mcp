@@ -5,7 +5,7 @@
 // specific to Good Earth is everything below the gate — the region scoping and
 // the views that read from it.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import AppShell, { type ViewKey } from "./components/AppShell";
 import { DEFAULT_VIEW, GUEST_VIEW, onRouteChange, viewFromHash, writeView } from "./lib/route";
 import { isPublic } from "./lib/views";
@@ -50,6 +50,9 @@ import {
   type SavedRegion,
 } from "./lib/regions";
 import { migrateToBlocks } from "./lib/migrateBlocks";
+import { peerOf, WARM_AFTER_MS } from "./lib/peerPage";
+import { warmPage } from "./lib/pageLoads";
+import { forgetAll } from "./lib/pageCache";
 
 /// The day's high — the temperature that decides whether bees are working.
 ///
@@ -172,6 +175,38 @@ export default function App() {
   }, []);
 
   useEffect(() => { if (signedIn) void refreshBalance(); }, [signedIn, refreshBalance]);
+
+  // Start the page the reader is most likely to open next.
+  //
+  // The Dashboard and the Almanac are two readings of the same week, and a
+  // grower checking the season reads both — so whichever one is on screen,
+  // the other one's headline call goes out behind it and is waiting by the
+  // time they tap across. What they then pay for is the wait on ONE page
+  // rather than on two.
+  //
+  // Behind it, deliberately: the page in front of them is asking for its own
+  // answers right now, and a call thrown in beside those competes for the
+  // same connection and the same upstream quota. The peer is wanted soon, not
+  // first. Cancelled if they move on before it goes out, because a reader who
+  // has already left for My Plots has answered the question this was guessing
+  // at.
+  // Held by value, not by the region object: a new object with the same plot
+  // and the same base would otherwise restart the timer on every render and
+  // the warm would never actually fire.
+  const ground = useMemo(
+    () => (region?.id ? { id: region.id, baseTempF: region.baseTempF } : null),
+    [region?.id, region?.baseTempF],
+  );
+  useEffect(() => {
+    if (!signedIn || !ground) return;
+    const peer = peerOf(view);
+    if (!peer) return;
+    const t = window.setTimeout(() => warmPage(peer, ground), WARM_AFTER_MS);
+    return () => window.clearTimeout(t);
+  }, [signedIn, view, ground]);
+
+  // A held answer is about this grower's ground and must not outlive them.
+  useEffect(() => { if (!signedIn) forgetAll(); }, [signedIn]);
 
   // The blocks the server holds become the truth behind the cache. The grower
   // sees their ground immediately from localStorage and it is confirmed a

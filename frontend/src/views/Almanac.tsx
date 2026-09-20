@@ -15,7 +15,8 @@ import OutlookSummary from "../components/OutlookSummary";
 import Provenance from "../components/Provenance";
 import { readingTime } from "../lib/readingTime";
 import QuoteScroller from "../components/QuoteScroller";
-import { almanacFor, type AlmanacResult, type MeasureKey } from "../lib/mcp";
+import { type AlmanacResult, type MeasureKey } from "../lib/mcp";
+import { loadAlmanac } from "../lib/pageLoads";
 import type { SavedRegion } from "../lib/regions";
 import { dropIndex, mergeOrder, moveItem } from "../lib/reorder";
 import { ChartFrame } from "../components/ui";
@@ -108,7 +109,7 @@ export default function Almanac({
   const run = useCallback(async () => {
     setBusy(true); setError("");
     try {
-      const r = await almanacFor(region.id);
+      const r = await loadAlmanac(region);
       if (!r.success) { setError(r.error || "The almanac could not be read."); return; }
       setData(r); setRanAt(new Date());
     } catch (e) { setError((e as Error).message); }

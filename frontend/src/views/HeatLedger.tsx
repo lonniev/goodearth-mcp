@@ -25,9 +25,10 @@ import { plantingCodec, type Planting } from "../lib/plantings";
 import { pestCodec, type SavedPest } from "../lib/pestModels";
 import { wildlifeCodec, type SavedWildlife } from "../lib/wildlifeModels";
 import { useBlockItems } from "../lib/blockItems";
-import { almanacFor, type AlmanacResult, type MeasureKey,
-  diseaseRisk, dryingWindow, frostWindow, gddSeasonCurve, soilTempProjection, taskList, type TaskRow, type DiseaseRiskResult, type DryingWindowResult, type FrostWindowResult, type SeasonCurveResult, type SoilWindowResult } from "../lib/mcp";
+import { type AlmanacResult, type MeasureKey,
+  diseaseRisk, dryingWindow, frostWindow, soilTempProjection, taskList, type TaskRow, type DiseaseRiskResult, type DryingWindowResult, type FrostWindowResult, type SeasonCurveResult, type SoilWindowResult } from "../lib/mcp";
 import type { SavedRegion } from "../lib/regions";
+import { loadAlmanac, loadLedger } from "../lib/pageLoads";
 
 interface Props {
   region: SavedRegion;
@@ -81,7 +82,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
   const run = useCallback(async () => {
     setBusy(true); setError("");
     try {
-      const r = await gddSeasonCurve(region.id, region.baseTempF);
+      const r = await loadLedger(region);
       if (!r.success) { setError(r.error || "The service could not answer for this ground."); return; }
       setData(r);
       setRanAt(new Date());
@@ -186,16 +187,17 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
   const findMiss = find.trim().length >= MIN_QUERY && !findEvent(flags, find, todayIdx);
 
   // One chiclet, one tap per measure, and a tap that clears it. The almanac is
-  // fetched lazily on the first tap rather than with the page: a reader who
-  // never opens the weather never triggers the call, and once it is here the
-  // rest of the cycle reads from what was already fetched.
+  // asked for on the first tap rather than with the page, and it goes through
+  // the same held answer the Almanac page itself reads — so a reader who has
+  // been on that page, or who has been on this one long enough for it to be
+  // warmed behind them, gets the overlay without a second fare or a wait.
   const cycleWeather = useCallback(async () => {
     const next = (wx + 1) % (WEATHER.length + 1);
     setWx(next);
     if (next === 0 || almanac) return;
     setWxBusy(true);
     try {
-      const a = await almanacFor(region.id);
+      const a = await loadAlmanac(region);
       if (a.success) { setAlmanac(a); setAlmanacAt(new Date()); }
       else setError(a.error || "The weather could not be read.");
     } catch (e) { setError((e as Error).message); }
