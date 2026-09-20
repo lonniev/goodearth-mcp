@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mark sitting on the line it names. And today's dot no longer spells out
   "today" — the dot says that, and a tick on the date axis says it again, so
   all that is written is the figure a reader cannot get from the picture.
+- The historical range now runs to the right-hand edge of every chart instead
+  of stopping at today. A normal range is history, and history has a figure
+  for November as readily as for September — so the forecast and the
+  projection, the part a grower is actually asking about, finally have
+  something behind them to be read against. Nothing else about the band
+  changes: same ten seasons, same min/mean/max, same fill.
 
 ## [0.3.0] - 2026-09-18
 

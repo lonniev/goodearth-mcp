@@ -272,6 +272,12 @@ def yearly_curves(
     costs one upstream request instead of ``span`` of them — which matters,
     because a burst of long-range requests is exactly what a free feed's
     rate limiter exists to stop.
+
+    Each season runs to its own year end, not to today's day of it. The band
+    is history, and history has a figure for November as readily as for
+    September — cutting it at today left the right-hand half of the chart
+    with nothing behind the forecast and the projection to read them against,
+    which is the half where a reader most wants something to compare.
     """
     by_date: dict[str, tuple[float, float]] = {}
     for d, hi, lo in zip(dates, tmax, tmin, strict=False):
@@ -282,10 +288,7 @@ def yearly_curves(
     for back in range(1, span + 1):
         year = today.year - back
         day = date(year, 1, 1)
-        try:
-            end = today.replace(year=year)
-        except ValueError:
-            end = today.replace(year=year, day=today.day - 1)
+        end = date(year, 12, 31)
 
         highs: list[float | None] = []
         lows: list[float | None] = []

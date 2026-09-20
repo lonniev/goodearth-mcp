@@ -88,29 +88,61 @@ async def region_almanac(
     if not a_dates:
         raise AlmanacError("the archive returned no days for this region")
 
+    # ── Forecast ─────────────────────────────────────────────────────────
+    # Read before the normals, because the normal band is drawn across the
+    # whole chart and the forecast is what says how wide that is.
+    f_block: dict[str, list[Any]] = {}
+    f_dates: list[str] = []
+    if not isinstance(forecast, BaseException):
+        f_block = sources.daily_block(forecast)
+        f_dates = [str(d) for d in (f_block.get("time") or [])]
+
+    # Every day the chart will draw, in order: the season so far, then the
+    # days ahead. The band is quoted against THESE days rather than against
+    # the season's record alone — a normal range is history, and history has
+    # a figure for next Tuesday as readily as for last Tuesday. Stopping it at
+    # today left the right-hand end of every measure chart empty for no reason
+    # but the shape of the loop that built it.
+    chart_days: list[date] = [start + timedelta(days=i) for i in range(len(a_dates))]
+    for d in f_dates:
+        try:
+            chart_days.append(date.fromisoformat(d[:10]))
+        except ValueError:
+            continue
+
     # ── Normals, sliced per season from one span ─────────────────────────
     n_by_field: dict[str, list[dict[str, float]] | None] = {}
     if not isinstance(normals, BaseException):
         n_block = sources.daily_block(normals)
         n_dates = [str(d) for d in (n_block.get("time") or [])]
-        index: dict[int, list[int]] = {}
-        for i, d in enumerate(n_dates):
-            index.setdefault(int(d[:4]), []).append(i)
+        # Which seasons the record carries, and where every day of it sits.
+        #
+        # One flat map rather than a per-year bucket searched day by day. The
+        # buckets were keyed by the season's own year, which was fine while
+        # every day asked for belonged to that year — and stopped being fine
+        # the moment the chart reached past New Year, because the day wanted
+        # then lives in the year AFTER the bucket. It is also the difference
+        # between ten linear scans per day and ten lookups.
+        years = sorted({int(d[:4]) for d in n_dates})
+        pos_of = {d: i for i, d in enumerate(n_dates)}
         for key, spec in MEASURES.items():
             full = _series(n_block, spec["field"])
             per_year: list[list[float | None]] = []
-            for y in sorted(index):
-                idxs = index[y]
-                # Align each season to the same calendar window as the actuals.
+            for y in years:
+                # Align each season to the same calendar days the chart draws.
                 aligned: list[float | None] = []
-                for offset in range(len(a_dates)):
-                    day = start + timedelta(days=offset)
+                for day in chart_days:
                     try:
-                        want = day.replace(year=y).isoformat()
+                        # Counted back in whole years, not set to `y`, so a
+                        # forecast reaching into January still lands on the
+                        # January that FOLLOWED each season rather than on the
+                        # one that opened it — a twelve-month error for the
+                        # fortnight of the year when it could happen.
+                        want = day.replace(year=day.year - (today.year - y)).isoformat()
                     except ValueError:
                         aligned.append(None)
                         continue
-                    pos = next((i for i in idxs if n_dates[i] == want), None)
+                    pos = pos_of.get(want)
                     # `pos` indexes the DATE list and is used against the VALUE
                     # list. They are the same length only while every measure's
                     # field is present in the block — and the day humidity was
@@ -127,13 +159,6 @@ async def region_almanac(
     else:
         n_by_field = {k: None for k in MEASURES}
 
-    # ── Forecast ─────────────────────────────────────────────────────────
-    f_block: dict[str, list[Any]] = {}
-    f_dates: list[str] = []
-    if not isinstance(forecast, BaseException):
-        f_block = sources.daily_block(forecast)
-        f_dates = [str(d) for d in (f_block.get("time") or [])]
-
     measures: dict[str, Any] = {}
     for key, spec in MEASURES.items():
         act = _series(a_block, spec["field"])
@@ -149,7 +174,12 @@ async def region_almanac(
         if spec["accumulate"]:
             entry["actual_total"] = almanac.running_total(act)[-1] if act else 0.0
             if band:
-                entry["normal_total"] = round(sum(b["mean"] for b in band), 2)
+                # "Normally X BY NOW" — so it counts the season's days only.
+                # The band now runs past today for the chart's sake, and a
+                # total that swept the days ahead in with it would answer a
+                # different question than the one the sentence asks.
+                entry["normal_total"] = round(
+                    sum(b["mean"] for b in band[:len(a_dates)]), 2)
         else:
             clean = [v for v in act if v is not None]
             entry["latest"] = clean[-1] if clean else None
