@@ -385,6 +385,13 @@ export const ICON = {
   // edit. It was a ×, which is also what removed a row: one glyph for two
   // opposite acts, beside each other.
   cancelEdit: "M12.126 8.125l1.937-1.937 3.747 3.747-1.937 1.938zM20.71 5.63l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75L20.71 7a1 1 0 0 0 0-1.37zM2 5l6.63 6.63L3 17.25V21h3.75l5.63-5.62L18 21l2-2L4 3 2 5z",
+  // Material Design Icons "seed" — a packet, and the plant it is seed of.
+  // It was 🌰, a chestnut: a nut, not a seed, and in Apple's colours beside
+  // glyphs in the page's ink.
+  seed: "M20.7,3.3C20.7,3.3 19.3,3 17.2,3C11.7,3 1.6,5.1 3.2,20.8C4.3,20.9 5.4,21 6.4,21C24.3,21 20.7,3.3 20.7,3.3M7,17C7,17 7,7 17,7C17,7 11,9 7,17Z",
+  // Material Design Icons "content-cut" — taking a cut, which on this ledger
+  // is a harvest. It was ✂, which renders in colour and at the font's mercy.
+  cut: "M19,3L13,9L15,11L22,4V3M12,12.5A0.5,0.5 0 0,1 11.5,12A0.5,0.5 0 0,1 12,11.5A0.5,0.5 0 0,1 12.5,12A0.5,0.5 0 0,1 12,12.5M6,20A2,2 0 0,1 4,18C4,16.89 4.9,16 6,16A2,2 0 0,1 8,18C8,19.11 7.1,20 6,20M6,8A2,2 0 0,1 4,6C4,4.89 4.9,4 6,4A2,2 0 0,1 8,6C8,7.11 7.1,8 6,8M9.64,7.64C9.87,7.14 10,6.59 10,6A4,4 0 0,0 6,2A4,4 0 0,0 2,6A4,4 0 0,0 6,10C6.59,10 7.14,9.87 7.64,9.64L10,12L7.64,14.36C7.14,14.13 6.59,14 6,14A4,4 0 0,0 2,18A4,4 0 0,0 6,22A4,4 0 0,0 10,18C10,17.41 9.87,16.86 9.64,16.36L12,14L19,21H22V20L9.64,7.64Z",
   // Material Design "share" — handing a plot to another patron as a bundle.
   share: "M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z",
   // Material Design "file_upload" — bringing a bundle in as a plot.
@@ -402,6 +409,21 @@ export const ICON = {
 
 /// The bin that removes a row. Every ledger's delete, so a grower learns it
 /// once. It was a ×, the same glyph that abandoned an edit in the same column.
+/// One glyph, drawn from the same set as the rest and in the same ink.
+///
+/// A colour emoji beside monochrome Material glyphs reads as something
+/// pasted in from elsewhere, and it cannot take the ink of the button it
+/// sits in — so a row's actions were half in the page's colours and half in
+/// Apple's.
+export function Glyph({ path, size = 18 }: { path: string; size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" style={{ width: size, height: size }}
+      fill="currentColor" aria-hidden="true">
+      <path d={path} />
+    </svg>
+  );
+}
+
 export function TrashGlyph() {
   return (
     <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="currentColor" aria-hidden="true">

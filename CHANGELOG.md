@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- The seed row asks for a packet the way a packet reads. Each field is as wide
+  as what goes in it — a three-digit day count and a four-digit year no longer
+  take a quarter of the row each; germination is a percent spinner; how much
+  you hold is **one** field, "500 seeds", rather than a count and a unit asked
+  for separately. "Tested on" is **Germination tested**, which says what was
+  tested; "From" is **Supplier** and "Lot" is **Supplier's lot**; "On hand" is
+  **Inventory count**. Variety offers back the varieties of that plant you have
+  already named.
+- The seed and the cut are Material Design glyphs in the page's own ink,
+  where they were a chestnut and a pair of scissors in Apple's colours. The
+  sowing date and the seed list no longer run into each other.
+
+### Changed
 - A plant's seed is stated on the plant's own row. "Seeds on hand" was a
   section of its own, with a dropdown re-picking a plant the ledger already had
   on screen, and a saved packet whose only gesture was a jump back to the form
