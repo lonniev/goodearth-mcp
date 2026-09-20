@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The heat chart gives its top corner back to the season. "MEDIAN FIRST FROST"
+  ran nearly a fifth of the chart's width in words; it is now one ice-crystal
+  mark sitting on the line it names. And today's dot no longer spells out
+  "today" — the dot says that, and a tick on the date axis says it again, so
+  all that is written is the figure a reader cannot get from the picture.
+
 ## [0.3.0] - 2026-09-18
 
 ### Added
