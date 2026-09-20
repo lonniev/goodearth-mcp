@@ -738,6 +738,8 @@ def check_item_shape(kind: str, item: dict[str, Any]) -> None:
         )
     if kind == "seed":
         _check_seed(item)
+    if kind == "planting":
+        _check_planting(item)
 
 
 #: The range a seed packet's figure could honestly take. A bound on what a
@@ -766,6 +768,18 @@ def _check_seed(item: dict[str, Any]) -> None:
     if q is not None and q < 0:
         raise BlockError("quantity cannot be negative")
     _clean_day(item.get("tested_on"), "tested_on")
+
+
+def _check_planting(item: dict[str, Any]) -> None:
+    """A planting's sowing date is a date.
+
+    The one field here that a writer can get wrong in a way nothing downstream
+    catches. It rides in the payload rather than in a typed column, so a
+    ``"Feb 14"`` would be stored happily, read back as a string the chart
+    cannot place, and show up as a planting that silently has no sowing —
+    which reads as "never sown" rather than as "we could not understand this".
+    """
+    _clean_day(item.get("sown_on"), "sown_on")
 
 
 def _seed_number(item: dict[str, Any], field: str) -> float | None:

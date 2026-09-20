@@ -45,6 +45,25 @@ export interface Planting {
   /// Survives a light frost, so it can use the shoulders of the season. Moves
   /// the earliest out-date; a seed-packet fact, and therefore the grower's.
   frostHardy?: boolean;
+
+  // ── The seed half of its life ──────────────────────────────────────────
+  //
+  // `setOut` is the day the plant went in the ground. A seed-started planting
+  // has an earlier day too — seed under lights, or direct-sown — and "When to
+  // sow" already PREDICTS that pair. Recording it closes a loop the service
+  // could only forecast in one direction.
+  //
+  // Direct-sown, the two are the same day, and the model says so by holding
+  // the same date twice rather than by inventing a flag.
+
+  /// The day seed went in, as the grower states it. YYYY-MM-DD.
+  sownOn?: string;
+
+  /// Which packet it was sown from, when the grower says. Independent of
+  /// `sownOn` and optional after it: garlic cloves, asparagus crowns, a
+  /// nursery start and a grafted tree all have a planting date and no packet
+  /// at all, and each must record its day without one.
+  seedLotId?: string;
 }
 
 // ── There is no crop library ─────────────────────────────────────────────
@@ -168,6 +187,8 @@ export const plantingCodec: ItemCodec<Planting> = {
     commonName: r.common_name ? String(r.common_name) : undefined,
     taps: r.taps === true ? true : undefined,
     frostHardy: r.frost_hardy === true ? true : undefined,
+    sownOn: r.sown_on ? String(r.sown_on) : undefined,
+    seedLotId: r.seed_lot ? String(r.seed_lot) : undefined,
   }),
   to: (p: Planting) => ({
     ...(p.id ? { item_id: p.id } : {}),
@@ -183,5 +204,7 @@ export const plantingCodec: ItemCodec<Planting> = {
     ...(p.commonName ? { common_name: p.commonName } : {}),
     ...(p.taps ? { taps: true } : {}),
     ...(p.frostHardy ? { frost_hardy: true } : {}),
+    ...(p.sownOn ? { sown_on: p.sownOn } : {}),
+    ...(p.seedLotId ? { seed_lot: p.seedLotId } : {}),
   }),
 };

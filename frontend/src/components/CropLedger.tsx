@@ -28,6 +28,8 @@ import { describeHarvest, UNITS, type HarvestInput, type HarvestSummary } from "
 import { newItemId } from "../lib/submit";
 import type { PlantingStatus } from "../lib/mcp";
 import { SEEDLING, type Planting } from "../lib/plantings";
+import { lotLine, onHand, type SeedLot } from "../lib/seeds";
+import SeedForm from "./SeedForm";
 import { SortHeaders, type Column } from "./RecordTable";
 import { CELL, RowActions, TrashGlyph } from "./ui";
 import type { ItemSort } from "../lib/blockItems";
@@ -76,8 +78,30 @@ export interface Harvesting {
   onSave: (p: Planting, h: HarvestInput, id: string) => Promise<string | null>;
 }
 
+/// Seed, handed in by the page: which planting the row is open on, this
+/// plant's packets, and the two writes — one onto the planting, one onto the
+/// shelf.
+///
+/// A plant's sowing date and the packet it came from are stated here, in the
+/// plant's own row, because they are facts ABOUT the plant. They were a
+/// section of their own, with a dropdown re-picking a plant the page already
+/// had on screen.
+export interface Seeding {
+  open: string;
+  onOpen: (p: Planting) => void;
+  onClose: () => void;
+  /// The packets that are seed of this plant.
+  lotsFor: (p: Planting) => SeedLot[];
+  /// The sowing date and the packet, written onto the planting. Either may be
+  /// empty: a clove has a day and no packet.
+  onBind: (p: Planting, sownOn: string, seedLotId: string) => Promise<string | null>;
+  onSaveLot: (p: Planting, lot: SeedLot) => Promise<string | null>;
+  onRetireLot: (lot: SeedLot) => void;
+  saving?: boolean;
+}
+
 const COLS: Column<ItemSort>[] = [
-  { key: "name", label: "Crop" },
+  { key: "name", label: "Plant" },
   { key: "starts_on", label: "Set out" },
   { key: "target_gdd", label: "Heat to target", width: "34%",
     info: <>Growing degree days this planting has banked since it was set out,
@@ -100,7 +124,7 @@ const COLS: Column<ItemSort>[] = [
 
 export default function CropLedger({
   rows, sort, dir, onSort, editing, onEdit, onCancel, onCommit, draft, onDraft,
-  saving, onDelete, harvesting,
+  saving, onDelete, harvesting, seeding,
 }: {
   rows: LedgerRow[];
   sort?: ItemSort;
@@ -116,6 +140,7 @@ export default function CropLedger({
   saving: boolean;
   onDelete: (id: string) => void;
   harvesting?: Harvesting;
+  seeding?: Seeding;
 }) {
   const u = useUnits();
   return (
@@ -206,6 +231,11 @@ export default function CropLedger({
                     {r ? (STATUS[r.state] ?? STATUS.on_pace).label
                        : p.perennial ? "Perennial" : "Not tracked"}
                   </span>
+                  {seeding && (
+                    <button onClick={() => seeding.onOpen(p)}
+                      aria-label={`Seed for ${p.crop}`} title="Seed"
+                      className="inline-flex h-11 w-11 items-center justify-center text-[16px] text-ink-soft active:text-growth">🌰</button>
+                  )}
                   {harvesting && (
                     <button onClick={() => harvesting.onOpen(p)}
                       aria-label={`Record a cut of ${p.crop}`} title="Record a harvest"
@@ -215,6 +245,12 @@ export default function CropLedger({
                     className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-clay"><TrashGlyph /></button>
                 </td>
               </tr>
+              {seeding?.open === p.id && (
+                <SeedRow planting={p} lots={seeding.lotsFor(p)} saving={seeding.saving}
+                  onBind={(on, lot) => seeding.onBind(p, on, lot)}
+                  onSaveLot={(l) => seeding.onSaveLot(p, l)}
+                  onRetireLot={seeding.onRetireLot} onCancel={seeding.onClose} />
+              )}
               {harvesting?.open === p.id && (
                 <HarvestRow planting={p} unit={harvesting.unitFor(p.crop)}
                   onSave={(h, id) => harvesting.onSave(p, h, id)} onCancel={harvesting.onClose} />
@@ -282,6 +318,112 @@ function Verdict({ r }: { r: PlantingStatus }) {
 /// Under the row rather than in a dialog, so the planting it belongs to is the
 /// thing directly above it. The date starts at today — most cuts are recorded
 /// the day they are made, often standing in the bed.
+/// One planting's seed: the day it went in, and the packet it came from.
+///
+/// Both are facts about THIS planting, not about the packet — two successions
+/// from one packet each have their own day, which is why the date lives here
+/// and not on the lot.
+///
+/// The packet is optional after the date, and deliberately so: garlic cloves,
+/// asparagus crowns, a nursery start and a grafted tree all have a day they
+/// went in and no packet at all.
+function SeedRow({ planting, lots, saving, onBind, onSaveLot, onRetireLot, onCancel }: {
+  planting: Planting;
+  lots: SeedLot[];
+  saving?: boolean;
+  onBind: (sownOn: string, seedLotId: string) => Promise<string | null>;
+  onSaveLot: (lot: SeedLot) => Promise<string | null>;
+  onRetireLot: (lot: SeedLot) => void;
+  onCancel: () => void;
+}) {
+  const [sown, setSown] = useState(planting.sownOn ?? "");
+  const [lotId, setLotId] = useState(planting.seedLotId ?? "");
+  const [adding, setAdding] = useState(false);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function commit() {
+    if (busy) return;
+    setBusy(true); setErr("");
+    const why = await onBind(sown, lotId);
+    setBusy(false);
+    if (why) setErr(why); else onCancel();
+  }
+  const keys = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") { e.preventDefault(); void commit(); }
+    if (e.key === "Escape") onCancel();
+  };
+
+  const bound = lots.find((l) => l.id === lotId);
+
+  return (
+    <tr className="border-b border-rule bg-growth/5 last:border-b-0">
+      <td colSpan={6} className="px-3 py-2">
+        {/* Pinned to the left of whatever part of the table is in view, and
+            no wider than the screen — the same reason HarvestRow does it. */}
+        <div className="sticky left-3 max-w-[calc(100vw-3.5rem)]">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[12.5px] font-semibold">🌰 {planting.crop}</span>
+            <label className="text-[11px] text-ink-soft">
+              Sown
+              <span className="ml-1.5 inline-block w-[9.5rem] align-middle">
+                <input type="date" value={sown} className={CELL} onKeyDown={keys}
+                  aria-label={`Sown ${planting.crop}`}
+                  onChange={(e) => setSown(e.target.value)} />
+              </span>
+            </label>
+            {/* The caption is a sibling of the select, never its parent: a
+                tap inside a label can be handed to the label's own control,
+                and on an iPad that swallows the tap entirely. */}
+            <span className="min-w-[10rem] flex-1 text-[11px] text-ink-soft">
+              <label htmlFor={`seed-lot-${planting.id}`}>Seed</label>
+              <span className="ml-1.5 inline-block w-full align-middle">
+                <select id={`seed-lot-${planting.id}`} value={lotId} className={CELL}
+                  onKeyDown={keys} onChange={(e) => setLotId(e.target.value)}>
+                  <option value="">—</option>
+                  {lots.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {[l.variety, lotLine(l), onHand(l)].filter(Boolean).join(" · ") || l.crop}
+                    </option>
+                  ))}
+                </select>
+              </span>
+            </span>
+            <button type="button" onClick={() => setAdding((a) => !a)}
+              aria-label={`Add a seed lot of ${planting.crop}`} title="Add a seed lot"
+              className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-growth">
+              {adding ? "×" : "＋"}
+            </button>
+            {bound && (
+              <button type="button" onClick={() => { onRetireLot(bound); setLotId(""); }}
+                aria-label={`Remove ${bound.crop} seed`} title="Remove this lot"
+                className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-clay">
+                <TrashGlyph />
+              </button>
+            )}
+            <span className="whitespace-nowrap">
+              <RowActions onCommit={() => void commit()} onCancel={onCancel}
+                saving={!!busy || !!saving} what="seed" />
+            </span>
+          </div>
+          {adding && (
+            <SeedForm crop={planting.crop} taxonId={planting.taxonId} busy={saving}
+              onSave={async (l) => {
+                const why = await onSaveLot(l);
+                // Bound on the way in: a packet added from a plant's own row is
+                // the packet that plant was sown from, and making the grower
+                // then pick it from a list would be asking twice.
+                if (!why) { setLotId(l.id); setAdding(false); }
+                return why;
+              }} />
+          )}
+          {err && <p className="mt-1 text-[12px] text-clay">{err}</p>}
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 function HarvestRow({ planting, unit, onSave, onCancel }: {
   planting: Planting;
   unit?: string;

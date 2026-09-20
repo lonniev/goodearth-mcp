@@ -95,6 +95,41 @@ describe("the scientific name survives the round trip to the record", () => {
     assert.equal(row.scientificName, "Acer saccharum");
   });
 
+  it("carries the day seed went in, and the packet it came from", () => {
+    const wire = plantingCodec.to({
+      id: "pl-3", crop: "Asparagus", setOut: "2026-04-10", regionId: "b1",
+      sownOn: "2026-02-14", seedLotId: "se-9",
+    });
+    assert.equal(wire.sown_on, "2026-02-14");
+    assert.equal(wire.seed_lot, "se-9");
+    const back = plantingCodec.from({
+      item_id: "pl-3", block_id: "b1", crop: "Asparagus",
+      sown_on: "2026-02-14", seed_lot: "se-9",
+    });
+    assert.equal(back.sownOn, "2026-02-14");
+    assert.equal(back.seedLotId, "se-9");
+  });
+
+  it("takes a sowing date with no packet behind it", () => {
+    // Garlic cloves, asparagus crowns, a nursery start, a grafted tree: all
+    // have a day they went in and no packet at all. The date is the fact; the
+    // packet is the annotation, and it must be droppable.
+    const wire = plantingCodec.to({
+      id: "pl-4", crop: "Garlic", setOut: "2026-10-15", regionId: "b1",
+      sownOn: "2026-10-15",
+    });
+    assert.equal(wire.sown_on, "2026-10-15");
+    assert.equal("seed_lot" in wire, false);
+  });
+
+  it("leaves both absent when neither was stated", () => {
+    const wire = plantingCodec.to({
+      id: "pl-5", crop: "Columbine", setOut: "", regionId: "b1",
+    });
+    assert.equal("sown_on" in wire, false);
+    assert.equal("seed_lot" in wire, false);
+  });
+
   it("stays absent rather than becoming an empty string", () => {
     // A blank binomial would be asked about, and USA-NPN would be sent a
     // query for nothing.

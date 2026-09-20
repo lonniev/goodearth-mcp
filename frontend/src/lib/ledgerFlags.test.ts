@@ -39,6 +39,54 @@ describe("buildFlags", () => {
     assert.doesNotThrow(() => buildFlags(curve, plantings, [], []));
   });
 
+  it("marks the day seed went in, as a date the grower stated", () => {
+    // The sowing is a CALENDAR fact — it happened on the day it happened,
+    // whatever the heat did. Anchored anywhere else it would move.
+    const plantings = [
+      { id: "1", crop: "Asparagus", sownOn: "2026-05-03", regionId: "b" },
+    ] as never;
+    const sown = buildFlags(curve, plantings, [], []).filter((f) => f.emoji === "🌰");
+    assert.equal(sown.length, 1);
+    assert.equal(sown[0].anchor, "date");
+    assert.equal(sown[0].begin, "2026-05-03");
+    assert.equal(sown[0].label, "Sown · Asparagus");
+  });
+
+  it("marks a sowing even where there is no target to count to", () => {
+    // Crowns and cloves go in on a day and may carry no heat target at all.
+    // The sowing happened regardless; it is not the target's dependant.
+    const plantings = [{ id: "1", crop: "Garlic", sownOn: "2026-05-02", regionId: "b" }] as never;
+    assert.equal(buildFlags(curve, plantings, [], []).filter((f) => f.emoji === "🌰").length, 1);
+  });
+
+  it("marks nothing when no day was stated", () => {
+    const plantings = [
+      { id: "1", crop: "Dahlia", gddTarget: 100, setOut: "2026-05-01", regionId: "b" },
+    ] as never;
+    assert.equal(buildFlags(curve, plantings, [], []).filter((f) => f.emoji === "🌰").length, 0);
+  });
+
+  it("leaves the set-out bar exactly as it was", () => {
+    // The sowing is a separate mark, never a widening of this one: the bar
+    // means set-out to heat target, and moving its left end back to the
+    // sowing would quietly redefine what it says.
+    const base = { id: "2", crop: "Dahlia", gddTarget: 100, setOut: "2026-05-01", regionId: "b" };
+    const without = buildFlags(curve, [base] as never, [], []).find((f) => f.emoji === "🌱");
+    const with_ = buildFlags(curve, [{ ...base, sownOn: "2026-03-01" }] as never, [], [])
+      .find((f) => f.emoji === "🌱");
+    assert.deepEqual(with_, without);
+  });
+
+  it("places a sowing from before the curve's first day", () => {
+    // Seed under lights in February, on a curve that starts in May. The
+    // chart's timeline is a union that already holds a task dated next
+    // January, so this must survive rather than be dropped.
+    const plantings = [{ id: "1", crop: "Leek", sownOn: "2026-02-14", regionId: "b" }] as never;
+    const sown = buildFlags(curve, plantings, [], []).filter((f) => f.emoji === "🌰");
+    assert.equal(sown.length, 1);
+    assert.equal(sown[0].begin, "2026-02-14");
+  });
+
   it("still flags the rows that DO carry dates", () => {
     const plantings = [
       { id: "1", crop: "Columbine", regionId: "b" },                                  // presence

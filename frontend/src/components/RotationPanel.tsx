@@ -40,7 +40,7 @@ export default function RotationPanel({ rows, more, onRepeat }: {
     <div className="mb-3 rounded-md border border-rule bg-panel px-4 py-3 text-[13px] leading-relaxed">
       {onRepeat && (
         <p className="mb-2 text-[12px] text-ink-soft">
-          Tap a crop to plant it again — the form above fills in, and you choose the day.
+          Tap a plant to grow it again — the form above fills in, and you choose the day.
         </p>
       )}
       <ul className="space-y-3">
