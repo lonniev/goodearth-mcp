@@ -10,16 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - A plant with seed on the shelf shows its seed mark in green, so the ledger
   says which rows hold a packet without opening each one in turn.
-
-### Changed
+- Recording a cut is marked with a pair of secateurs rather than office
+  scissors. Plain scissors on a row of actions read as "delete this", and
+  taking a cut of a plant is the opposite of removing it. Credited on the
+  References page, where the rest of this app's sources are.
 - The seed row is one tidy form. Every field goes through one component, so
   the captions sit on one line and the boxes are one height — a date input, a
   select and a text box do not agree on a height by themselves, which is what
   made it look home-made. Its four controls — add a lot, remove one, cancel,
   save — are together at the top right of the form rather than scattered
   through it, and the plant is not named again inside its own row.
-
-### Changed
 - The seed row asks for a packet the way a packet reads. Each field is as wide
   as what goes in it — a three-digit day count and a four-digit year no longer
   take a quarter of the row each; germination is a percent spinner; how much
@@ -31,8 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The seed and the cut are Material Design glyphs in the page's own ink,
   where they were a chestnut and a pair of scissors in Apple's colours. The
   sowing date and the seed list no longer run into each other.
-
-### Changed
 - A plant's seed is stated on the plant's own row. "Seeds on hand" was a
   section of its own, with a dropdown re-picking a plant the ledger already had
   on screen, and a saved packet whose only gesture was a jump back to the form
@@ -40,16 +38,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **Plant ledger** — the Crop ledger, renamed — and its sowing date and its
   packet are there.
 - Every plant on the page is called a plant.
-
-### Added
-- A planting records **the day its seed went in**, beside the day it was set
-  out. "When to sow" already predicted that pair; now the grower can record
-  against it. The sowing shows on the heat chart as a dated mark — a calendar
-  fact, kept apart from the heat the chart counts.
-- A packet may name the planting it was sown from, or not: cloves, crowns and
-  nursery starts have a day they went in and no packet at all.
-
-### Changed
 - The Dashboard and the Almanac are read together, so each now starts the
   other's reading in the background while the grower is on the first one. Flip
   across and the page is already there. A page revisited within a few minutes
@@ -57,8 +45,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   grower who moves between the two several times pays one fare each instead of
   one per visit. A reader who opens only one of the two pays for a reading of
   the other they never look at.
-
-### Changed
 - The heat chart gives its top corner back to the season. "MEDIAN FIRST FROST"
   ran nearly a fifth of the chart's width in words; it is now one ice-crystal
   mark sitting on the line it names. And today's dot no longer spells out
@@ -70,6 +56,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   projection, the part a grower is actually asking about, finally have
   something behind them to be read against. Nothing else about the band
   changes: same ten seasons, same min/mean/max, same fill.
+
+### Added
+- A planting records **the day its seed went in**, beside the day it was set
+  out. "When to sow" already predicted that pair; now the grower can record
+  against it. The sowing shows on the heat chart as a dated mark — a calendar
+  fact, kept apart from the heat the chart counts.
+- A packet may name the planting it was sown from, or not: cloves, crowns and
+  nursery starts have a day they went in and no packet at all.
 
 ## [0.3.0] - 2026-09-18
 

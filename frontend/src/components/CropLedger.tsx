@@ -194,8 +194,7 @@ export default function CropLedger({
                   {/* What it gave, under what it was asked to do. The heat
                       target is "usually harvest"; this is when harvest was. */}
                   {harvest && (
-                    <span className="data mt-0.5 flex items-center gap-1 text-[10.5px] font-normal text-growth">
-                      <Glyph path={ICON.cut} size={12} />
+                    <span className="data mt-0.5 block text-[10.5px] font-normal text-growth">
                       {describeHarvest(harvest, shortDate)}
                     </span>
                   )}
@@ -252,7 +251,7 @@ export default function CropLedger({
                     <button onClick={() => harvesting.onOpen(p)}
                       aria-label={`Record a cut of ${p.crop}`} title="Record a harvest"
                       className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-growth">
-                      <Glyph path={ICON.cut} /></button>
+                      <Glyph path={ICON.shears} size={24} grid={512} /></button>
                   )}
                   <button onClick={() => onDelete(p.id)} aria-label={`Remove ${p.crop}`} title="Remove"
                     className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-clay"><TrashGlyph /></button>
@@ -498,7 +497,7 @@ function HarvestRow({ planting, unit, onSave, onCancel }: {
             of reach and the crop's name scrolled away. */}
         <div className="sticky left-3 flex max-w-[calc(100vw-3.5rem)] flex-wrap items-center gap-2">
           <span className="flex items-center gap-1.5 text-[12.5px] font-semibold">
-            <Glyph path={ICON.cut} size={16} />A cut of {planting.crop}
+            <Glyph path={ICON.shears} size={20} grid={512} />A cut of {planting.crop}
           </span>
           <span className="w-[9.5rem]">
             <input type="date" value={on} max={today} className={CELL} onKeyDown={keys}
