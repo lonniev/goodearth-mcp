@@ -614,23 +614,51 @@ export default function SeasonChart({
             );
           })}
 
-        <circle cx={x(last)} cy={y(todayGdd)} r={4.5} fill="var(--color-ink)" />
-          <text x={x(last) + 7} y={y(todayGdd) - 1} fontSize={10.5} fontWeight={700} fill="var(--color-ink)"
-            paintOrder="stroke" stroke="var(--color-panel)" strokeWidth={3.5} strokeLinejoin="round">
-            <tspan x={x(last) + 7}>today</tspan>
-            <tspan x={x(last) + 7} dy={11}>
-              {Math.round(u.degreeDays(todayGdd)).toLocaleString()}
-            </tspan>
-          </text>
+        {/* The dot IS today — the word cost two lines of chart to say what the
+            mark and the axis tick already say between them. What the reader
+            cannot get from the picture is the figure, so that is all that is
+            written. */}
+        <circle cx={x(last)} cy={y(todayGdd)} r={4.5} fill="var(--color-ink)">
+          <title>Today</title>
+        </circle>
+          {(() => {
+            // The figure is now the only thing written here, so it cannot be
+            // allowed to run off the right edge and be clipped — which is
+            // where today sits whenever the reader zooms in to a week.
+            const text = Math.round(u.degreeDays(todayGdd)).toLocaleString();
+            const flip = x(last) + 7 + text.length * 6.5 > R;
+            return (
+              <text x={flip ? x(last) - 7 : x(last) + 7} y={y(todayGdd) + 3.5}
+                textAnchor={flip ? "end" : "start"}
+                fontSize={10.5} fontWeight={700} fill="var(--color-ink)"
+                paintOrder="stroke" stroke="var(--color-panel)" strokeWidth={3.5}
+                strokeLinejoin="round">
+                {text}
+              </text>
+            );
+          })()}
         </g>
 
-        {frostDayIndex != null && (
-          <text x={x(frostDayIndex) - 5} y={T + 10} textAnchor="end" fontSize={9.5} fontWeight={600}
-            fill="var(--color-frost)" fontFamily="var(--font-data)"
-            paintOrder="stroke" stroke="var(--color-panel)" strokeWidth={3.5} strokeLinejoin="round">
-            MEDIAN FIRST FROST
-          </text>
-        )}
+        {/* The median first frost, as one mark rather than three words.
+            "MEDIAN FIRST FROST" ran nearly a fifth of the chart's width along
+            the top, over the part of the season it is describing. The line
+            below it was always the answer; this only says which line it is.
+            Material Design's `ac_unit` (Apache 2.0), sitting on the line and
+            clamped inside the frame so a late frost cannot push it off. */}
+        {frostDayIndex != null && x(frostDayIndex) >= L && x(frostDayIndex) <= R && (() => {
+          const s = 15;
+          // Clamped only for a frost date sitting within a few pixels of the
+          // frame. Panned out of view entirely it is not drawn at all — an
+          // icon pinned to the edge would mark a day that is not there.
+          const cx = Math.min(Math.max(x(frostDayIndex), L + s / 2), R - s / 2);
+          return (
+            <g transform={`translate(${cx - s / 2} ${T}) scale(${s / 24})`}
+              fill="var(--color-frost)">
+              <title>Median first frost</title>
+              <path d="M22 11h-4.17l3.24-3.24-1.41-1.42L15 11h-2V9l4.66-4.66-1.42-1.41L13 6.17V2h-2v4.17L7.76 2.93 6.34 4.34 11 9v2H9L4.34 6.34 2.93 7.76 6.17 11H2v2h4.17l-3.24 3.24 1.41 1.42L9 13h2v2l-4.66 4.66 1.42 1.41L11 17.83V22h2v-4.17l3.24 3.24 1.42-1.41L13 15v-2h2l4.66 4.66 1.41-1.42L16.83 13H22z" />
+            </g>
+          );
+        })()}
 
         {/* Axis handles. Faint, but present — an invisible affordance is one
             nobody finds, and these are the gestures that cannot escape to the
@@ -653,6 +681,17 @@ export default function SeasonChart({
             )}
           </g>
         ))}
+        {/* Today, on the axis. No word: it is the same ink as the dot standing
+            directly above it on the curve, and the two read as one mark. Drawn
+            after the month ticks so it sits over any boundary it lands on, and
+            only while today is actually in view — the chart pans and zooms,
+            and a tick pinned to the frame's edge would name the wrong day. */}
+        {x(last) >= L && x(last) <= R && (
+          <line x1={x(last)} x2={x(last)} y1={B} y2={B + 9}
+            stroke="var(--color-ink)" strokeWidth={2.5} strokeLinecap="round">
+            <title>Today</title>
+          </line>
+        )}
         <line x1={L} x2={R} y1={B} y2={B} stroke="var(--color-ink)" strokeWidth={1.5} />
       </svg>
       </GestureHint>
