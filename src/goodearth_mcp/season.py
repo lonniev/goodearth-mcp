@@ -248,7 +248,10 @@ async def region_season_curve(
                 "band": normals_band,
                 "today": normals_today,
                 "ahead_of_normal_gdd": ahead_by,
-                "note": f"Band is the same calendar window in each of the last {len(normals_curves)} seasons, at the region centroid.",
+                "note": f"Band is each of the last {len(normals_curves)} seasons over the same "
+                         f"calendar year, at the region centroid — it runs to the year's "
+                         f"end, so the forecast and the projection have something to be "
+                         f"read against.",
             }
             if normals_band
             else None

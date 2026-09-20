@@ -236,7 +236,10 @@ export default function SeasonChart({
 
     let bandPath = "";
     if (band.length > 1) {
-      const n = Math.min(band.length, mean.length);
+      // The whole timeline, not just the days already lived. The band is
+      // history and history reaches December; cut at today it left the
+      // forecast and the projection with nothing to be read against.
+      const n = band.length;
       const up = band.slice(0, n).map((b, i) => `${x(i).toFixed(1)} ${y(b.max).toFixed(1)}`);
       const dn = band.slice(0, n).reverse().map((b, i) =>
         `${x(n - 1 - i).toFixed(1)} ${y(b.min).toFixed(1)}`);

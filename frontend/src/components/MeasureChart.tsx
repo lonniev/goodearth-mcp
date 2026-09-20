@@ -71,7 +71,11 @@ export default function MeasureChart({
 
     let bandPath = "";
     if (band.length > 1) {
-      const n = Math.min(band.length, act.length || band.length);
+      // As far right as the chart goes. The band used to stop at the last
+      // recorded day, which left the forecast with nothing behind it —
+      // exactly where a reader is asking "is that a lot?". A server that
+      // still sends the shorter band simply draws the shorter band.
+      const n = Math.min(band.length, total);
       const up = band.slice(0, n).map((b, i) => `${x(i).toFixed(1)} ${y(b.max).toFixed(1)}`);
       const dn = band.slice(0, n).reverse().map((b, i) => `${x(n - 1 - i).toFixed(1)} ${y(b.min).toFixed(1)}`);
       bandPath = `M${up.join(" L")} L${dn.join(" L")} Z`;
