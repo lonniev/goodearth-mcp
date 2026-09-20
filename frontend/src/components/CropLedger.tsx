@@ -233,12 +233,21 @@ export default function CropLedger({
                     {r ? (STATUS[r.state] ?? STATUS.on_pace).label
                        : p.perennial ? "Perennial" : "Not tracked"}
                   </span>
-                  {seeding && (
-                    <button onClick={() => seeding.onOpen(p)}
-                      aria-label={`Seed for ${p.crop}`} title="Seed"
-                      className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-growth">
-                      <Glyph path={ICON.seed} /></button>
-                  )}
+                  {/* Green where there is seed on the shelf for this plant.
+                      The ledger is read down a column, and a row that holds a
+                      packet is worth knowing at a glance rather than by
+                      opening every row in turn to find out. */}
+                  {seeding && (() => {
+                    const held = seeding.lotsFor(p).length > 0;
+                    return (
+                      <button onClick={() => seeding.onOpen(p)}
+                        aria-label={held ? `Seed for ${p.crop} — on hand` : `Seed for ${p.crop}`}
+                        title={held ? "Seed on hand" : "Seed"}
+                        className={`inline-flex h-11 w-11 items-center justify-center ${
+                          held ? "text-growth" : "text-ink-soft active:text-growth"}`}>
+                        <Glyph path={ICON.seed} /></button>
+                    );
+                  })()}
                   {harvesting && (
                     <button onClick={() => harvesting.onOpen(p)}
                       aria-label={`Record a cut of ${p.crop}`} title="Record a harvest"
