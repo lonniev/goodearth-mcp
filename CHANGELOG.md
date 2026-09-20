@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- A plant with seed on the shelf shows its seed mark in green, so the ledger
+  says which rows hold a packet without opening each one in turn.
+
+### Changed
 - The seed row is one tidy form. Every field goes through one component, so
   the captions sit on one line and the boxes are one height — a date input, a
   select and a text box do not agree on a height by themselves, which is what

@@ -195,6 +195,15 @@ describe("the seed kind, end to end", () => {
     assert.doesNotMatch(row, /\{planting\.crop\}</, "the row hangs under the plant's own name");
   });
 
+  it("shows at a glance which plants have seed on the shelf", () => {
+    // The ledger is read down a column. Without this the only way to learn
+    // which rows hold a packet was to open every one of them in turn.
+    const ledger = readFileSync(new URL("../components/CropLedger.tsx", import.meta.url), "utf8");
+    const row = ledger.slice(ledger.indexOf("{seeding && (()"), ledger.indexOf("{harvesting && ("));
+    assert.match(row, /seeding\.lotsFor\(p\)\.length > 0/);
+    assert.match(row, /held \? "text-growth"/);
+  });
+
   it("the shelf records and never advises", () => {
     const src = [
       readFileSync(new URL("../components/SeedForm.tsx", import.meta.url), "utf8"),
