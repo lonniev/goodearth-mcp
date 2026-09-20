@@ -136,6 +136,36 @@ describe("the seed kind, end to end", () => {
     assert.doesNotMatch(form, /seed-crops/);
   });
 
+  it("asks how much once, not as two fields of the same thought", () => {
+    // "500" and "seeds" are two halves of one answer. Two separately-labelled
+    // boxes made the grower say it twice.
+    const form = readFileSync(new URL("../components/SeedForm.tsx", import.meta.url), "utf8");
+    assert.match(form, /<QuantityField[\s\S]*?label="Inventory count"/);
+    assert.doesNotMatch(form, /name="qty"/);
+    assert.doesNotMatch(form, /name="unit"/);
+  });
+
+  it("names what was tested, and who the lot number belongs to", () => {
+    // "Tested on" beside a date said nothing about WHAT was tested, and "Lot"
+    // alone could as easily have meant the grower's own numbering.
+    const form = readFileSync(new URL("../components/SeedForm.tsx", import.meta.url), "utf8");
+    assert.match(form, /Germination tested/);
+    assert.match(form, /Supplier&rsquo;s lot/);
+    assert.doesNotMatch(form, /^\s*Tested on$/m);
+  });
+
+  it("draws its marks in the page's ink, not in Apple's", () => {
+    // A colour emoji beside monochrome Material glyphs reads as something
+    // pasted in, and it cannot take the ink of the button it sits in.
+    const ledger = readFileSync(new URL("../components/CropLedger.tsx", import.meta.url), "utf8");
+    // The two this ledger draws: a seed and a cut. Other marks on the page
+    // are a different question and keep their emoji until they are asked
+    // about — this pins what was, not everything that could be.
+    assert.doesNotMatch(ledger, /\u{1F330}|\u2702/u);
+    assert.match(ledger, /<Glyph path=\{ICON\.seed\}/);
+    assert.match(ledger, /<Glyph path=\{ICON\.cut\}/);
+  });
+
   it("the shelf records and never advises", () => {
     const src = [
       readFileSync(new URL("../components/SeedForm.tsx", import.meta.url), "utf8"),

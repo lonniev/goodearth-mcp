@@ -31,7 +31,8 @@ import { SEEDLING, type Planting } from "../lib/plantings";
 import { lotLine, onHand, type SeedLot } from "../lib/seeds";
 import SeedForm from "./SeedForm";
 import { SortHeaders, type Column } from "./RecordTable";
-import { CELL, RowActions, TrashGlyph } from "./ui";
+import { CELL, Glyph, ICON, RowActions, TrashGlyph } from "./ui";
+import QuantityField from "./QuantityField";
 import type { ItemSort } from "../lib/blockItems";
 import { baseBounds } from "../lib/baseTemp";
 
@@ -193,8 +194,9 @@ export default function CropLedger({
                   {/* What it gave, under what it was asked to do. The heat
                       target is "usually harvest"; this is when harvest was. */}
                   {harvest && (
-                    <span className="data mt-0.5 block text-[10.5px] font-normal text-growth">
-                      ✂ {describeHarvest(harvest, shortDate)}
+                    <span className="data mt-0.5 flex items-center gap-1 text-[10.5px] font-normal text-growth">
+                      <Glyph path={ICON.cut} size={12} />
+                      {describeHarvest(harvest, shortDate)}
                     </span>
                   )}
                 </td>
@@ -234,12 +236,14 @@ export default function CropLedger({
                   {seeding && (
                     <button onClick={() => seeding.onOpen(p)}
                       aria-label={`Seed for ${p.crop}`} title="Seed"
-                      className="inline-flex h-11 w-11 items-center justify-center text-[16px] text-ink-soft active:text-growth">🌰</button>
+                      className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-growth">
+                      <Glyph path={ICON.seed} /></button>
                   )}
                   {harvesting && (
                     <button onClick={() => harvesting.onOpen(p)}
                       aria-label={`Record a cut of ${p.crop}`} title="Record a harvest"
-                      className="inline-flex h-11 w-11 items-center justify-center text-[16px] text-ink-soft active:text-growth">✂</button>
+                      className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-growth">
+                      <Glyph path={ICON.cut} /></button>
                   )}
                   <button onClick={() => onDelete(p.id)} aria-label={`Remove ${p.crop}`} title="Remove"
                     className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-clay"><TrashGlyph /></button>
@@ -362,32 +366,32 @@ function SeedRow({ planting, lots, saving, onBind, onSaveLot, onRetireLot, onCan
         {/* Pinned to the left of whatever part of the table is in view, and
             no wider than the screen — the same reason HarvestRow does it. */}
         <div className="sticky left-3 max-w-[calc(100vw-3.5rem)]">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[12.5px] font-semibold">🌰 {planting.crop}</span>
-            <label className="text-[11px] text-ink-soft">
+          {/* Every label ABOVE its input, never beside it: inline captions
+              let the date field and the select run into each other the moment
+              the row was narrower than their two widths together. */}
+          <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
+            <span className="flex items-center gap-1.5 pb-1.5 text-[12.5px] font-semibold">
+              <Glyph path={ICON.seed} size={16} />{planting.crop}
+            </span>
+            <label className="block w-[9.5rem] text-[11px] text-ink-soft">
               Sown
-              <span className="ml-1.5 inline-block w-[9.5rem] align-middle">
-                <input type="date" value={sown} className={CELL} onKeyDown={keys}
-                  aria-label={`Sown ${planting.crop}`}
-                  onChange={(e) => setSown(e.target.value)} />
-              </span>
+              <input type="date" value={sown} className={CELL} onKeyDown={keys}
+                onChange={(e) => setSown(e.target.value)} />
             </label>
             {/* The caption is a sibling of the select, never its parent: a
                 tap inside a label can be handed to the label's own control,
                 and on an iPad that swallows the tap entirely. */}
-            <span className="min-w-[10rem] flex-1 text-[11px] text-ink-soft">
+            <span className="block min-w-[12rem] flex-1 text-[11px] text-ink-soft">
               <label htmlFor={`seed-lot-${planting.id}`}>Seed</label>
-              <span className="ml-1.5 inline-block w-full align-middle">
-                <select id={`seed-lot-${planting.id}`} value={lotId} className={CELL}
-                  onKeyDown={keys} onChange={(e) => setLotId(e.target.value)}>
-                  <option value="">—</option>
-                  {lots.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {[l.variety, lotLine(l), onHand(l)].filter(Boolean).join(" · ") || l.crop}
-                    </option>
-                  ))}
-                </select>
-              </span>
+              <select id={`seed-lot-${planting.id}`} value={lotId} className={CELL}
+                onKeyDown={keys} onChange={(e) => setLotId(e.target.value)}>
+                <option value="">—</option>
+                {lots.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {[l.variety, lotLine(l), onHand(l)].filter(Boolean).join(" · ") || l.crop}
+                  </option>
+                ))}
+              </select>
             </span>
             <button type="button" onClick={() => setAdding((a) => !a)}
               aria-label={`Add a seed lot of ${planting.crop}`} title="Add a seed lot"
@@ -408,6 +412,8 @@ function SeedRow({ planting, lots, saving, onBind, onSaveLot, onRetireLot, onCan
           </div>
           {adding && (
             <SeedForm crop={planting.crop} taxonId={planting.taxonId} busy={saving}
+              varieties={[...new Set(lots.map((l) => l.variety).filter(Boolean))] as string[]}
+              units={[...new Set(lots.map((l) => l.unit).filter(Boolean))] as string[]}
               onSave={async (l) => {
                 const why = await onSaveLot(l);
                 // Bound on the way in: a packet added from a plant's own row is
@@ -462,23 +468,17 @@ function HarvestRow({ planting, unit, onSave, onCancel }: {
             without this the form opened half off-screen, its save button out
             of reach and the crop's name scrolled away. */}
         <div className="sticky left-3 flex max-w-[calc(100vw-3.5rem)] flex-wrap items-center gap-2">
-          <span className="text-[12.5px] font-semibold">✂ A cut of {planting.crop}</span>
+          <span className="flex items-center gap-1.5 text-[12.5px] font-semibold">
+            <Glyph path={ICON.cut} size={16} />A cut of {planting.crop}
+          </span>
           <span className="w-[9.5rem]">
             <input type="date" value={on} max={today} className={CELL} onKeyDown={keys}
               aria-label="Cut on" onChange={(e) => setOn(e.target.value)} />
           </span>
-          <span className="w-24">
-            <input autoFocus inputMode="decimal" value={amount} className={CELL} onKeyDown={keys}
-              placeholder="how many" aria-label="How many"
-              onChange={(e) => setAmount(e.target.value)} />
-          </span>
-          <span className="w-28">
-            <input list="harvest-units" value={unitText} className={CELL} onKeyDown={keys}
-              placeholder="stems, lb…" aria-label="Unit"
-              onChange={(e) => setUnitText(e.target.value)} />
-            <datalist id="harvest-units">
-              {UNITS.map((x) => <option key={x} value={x} />)}
-            </datalist>
+          <span className="w-[11rem]">
+            <QuantityField id={`cut-${planting.id}`} label="How much" amount={amount}
+              unit={unitText} units={UNITS} placeholder="12" unitPlaceholder="stems"
+              onAmount={setAmount} onUnit={setUnitText} onKeyDown={keys} />
           </span>
           <span className="min-w-[8rem] flex-1">
             <input value={note} className={CELL} onKeyDown={keys} placeholder="note (optional)"
