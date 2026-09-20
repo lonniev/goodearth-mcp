@@ -206,6 +206,30 @@ export function buildFlags(
     });
   }
 
+  // The day seed went in, as its own mark.
+  //
+  // Not a widening of the bar above. That bar means set-out to heat target,
+  // and a sowing is a different fact on a different clock — stretching its
+  // left end back to the sowing would quietly redefine what the bar says.
+  //
+  // Dated, never computed: the grower states this one and it stands whatever
+  // the heat did that day. Placed like a task, which is the other mark on this
+  // chart the grower simply asserts. A planting with no target still gets one,
+  // because the sowing happened whether or not there is a finish to count to.
+  for (const p of plantings) {
+    if (!p.sownOn) continue;
+    out.push({
+      kind: "crop",
+      label: `Sown · ${p.crop}`,
+      emoji: "🌰",
+      index: 0,          // unused for a date-anchored mark; the date decides
+      date: p.sownOn,
+      begin: p.sownOn,
+      anchor: "date",
+      reached: p.sownOn <= (dates[today] ?? ""),
+    });
+  }
+
   for (const m of pests) {
     // A watched pest carries no stages — the grower keeps an eye out for voles
     // all season and there is no degree-day figure to flag. This used to be

@@ -151,53 +151,24 @@ export function lotLine(l: SeedLot): string {
   ].filter(Boolean).join(" · ");
 }
 
-/// What the ledger already knows about this crop on this plot. Nothing here is
-/// derived from the packet — a heat target is the grower's own figure.
-export interface LikeThis {
-  gddTarget?: number;
-  baseTempF?: number;
-  frostHardy?: boolean;
-  taps?: boolean;
-  taxonId?: number;
-  scientificName?: string;
-  commonName?: string;
-}
-
-/// Sowing a lot: the same add-form draft a Rotation tap makes, so a packet and
-/// a past planting reach the ledger by one road.
+/// Putting the plant a packet is seed of onto the ledger: the same add-form
+/// draft a Rotation tap makes, so a packet and a past planting reach the
+/// ledger by one road.
 ///
-/// The variety becomes the grower's own name for the row — "Benary's Giant Mix"
-/// is how they will find it again. The packet's days to maturity do NOT become
-/// a heat target: days assume an average year and a target counts this ground's
-/// own warmth, so converting one to the other would be inventing a figure. When
-/// the crop is already on the ledger its figures carry over, because those the
-/// grower gave.
-export function draftFromLot(lot: SeedLot, like?: LikeThis): RepeatDraft {
+/// Reached only for a packet whose plant the ledger does NOT hold — that is
+/// what strands it — so there is no row here to carry figures from. The
+/// variety becomes the grower's own name for it: "Benary's Giant Mix" is how
+/// they will find it again. The packet's days to maturity do NOT become a
+/// heat target: days assume an average year and a target counts this ground's
+/// own warmth, so converting one to the other would be inventing a figure.
+export function draftFromLot(lot: SeedLot): RepeatDraft {
   return {
     label: lot.variety ?? "",
-    ...(like?.gddTarget != null ? { gddTargetF: like.gddTarget } : {}),
-    ...(like?.baseTempF != null ? { baseTempF: like.baseTempF } : {}),
-    frostHardy: !!like?.frostHardy,
-    taps: !!like?.taps,
-    ...(lot.taxonId ?? like?.taxonId ? { taxonId: lot.taxonId ?? like?.taxonId } : {}),
-    ...(like?.scientificName ? { scientificName: like.scientificName } : {}),
-    ...(like?.commonName ? { commonName: like.commonName } : {}),
+    frostHardy: false,
+    taps: false,
+    ...(lot.taxonId ? { taxonId: lot.taxonId } : {}),
     searchFor: lot.crop,
   };
-}
-
-/// Crops with seed on the shelf and a days-to-maturity on the packet, that
-/// "When to sow" cannot date — because dating is done on heat, and no planting
-/// of that crop carries a heat target. A fact about the two lists, stated once
-/// rather than marked on every row.
-export function needsTarget(
-  lots: readonly SeedLot[], hasTarget: (crop: string) => boolean,
-): string[] {
-  const want = new Set<string>();
-  for (const l of lots) {
-    if (l.daysToMaturity != null && !hasTarget(l.crop)) want.add(l.crop.trim());
-  }
-  return [...want].sort((a, b) => a.localeCompare(b));
 }
 
 /// How much is on hand, in the grower's unit.

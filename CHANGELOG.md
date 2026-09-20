@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- A plant's seed is stated on the plant's own row. "Seeds on hand" was a
+  section of its own, with a dropdown re-picking a plant the ledger already had
+  on screen, and a saved packet whose only gesture was a jump back to the form
+  to add a second row for a plant that was already there. Open a plant on the
+  **Plant ledger** — the Crop ledger, renamed — and its sowing date and its
+  packet are there.
+- Every plant on the page is called a plant.
+
+### Added
+- A planting records **the day its seed went in**, beside the day it was set
+  out. "When to sow" already predicted that pair; now the grower can record
+  against it. The sowing shows on the heat chart as a dated mark — a calendar
+  fact, kept apart from the heat the chart counts.
+- A packet may name the planting it was sown from, or not: cloves, crowns and
+  nursery starts have a day they went in and no packet at all.
+
+### Changed
 - The Dashboard and the Almanac are read together, so each now starts the
   other's reading in the background while the grower is on the first one. Flip
   across and the page is already there. A page revisited within a few minutes

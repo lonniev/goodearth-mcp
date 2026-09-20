@@ -4,7 +4,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { draftFromLot, lotLine, lotsFor, makeSeedLot, needsTarget, onHand, seedCodec,
+import { draftFromLot, lotLine, lotsFor, makeSeedLot, onHand, seedCodec,
   type SeedLot } from "./seeds.ts";
 import { BUNDLE_KINDS } from "./farmBundle.ts";
 
@@ -96,32 +96,13 @@ describe("sowing a lot", () => {
     assert.equal(d.gddTargetF, undefined);
   });
 
-  it("carries the crop's own figures when the ledger already has them", () => {
-    const d = draftFromLot(lot({ taxonId: 3 }), {
-      gddTarget: 900, baseTempF: 45, frostHardy: true, commonName: "Zinnia",
+  it("carries the packet's plant and nothing it did not state", () => {
+    // Reached only for a packet the ledger has no plant for, so there is no
+    // row to take a heat target or a base temperature from. Inventing either
+    // is the thing this must not do.
+    assert.deepEqual(draftFromLot(lot({ taxonId: 3 })), {
+      label: "", frostHardy: false, taps: false, taxonId: 3, searchFor: "Zinnia",
     });
-    assert.deepEqual(d, {
-      label: "", gddTargetF: 900, baseTempF: 45, frostHardy: true, taps: false,
-      taxonId: 3, commonName: "Zinnia", searchFor: "Zinnia",
-    });
-  });
-});
-
-describe("which seed When to sow cannot date", () => {
-  const lots = [
-    lot({ id: "a", crop: "Zinnia", daysToMaturity: 75 }),
-    lot({ id: "b", crop: "Zinnia", daysToMaturity: 80 }),
-    lot({ id: "c", crop: "Kale", daysToMaturity: 60 }),
-    lot({ id: "d", crop: "Sweet pea" }),
-  ];
-
-  it("names each crop once, in order, and only where the packet gave days", () => {
-    // Kale is dated; Sweet pea has no days on the packet, so nothing is missing.
-    assert.deepEqual(needsTarget(lots, (c) => c === "Kale"), ["Zinnia"]);
-  });
-
-  it("says nothing when every crop is dated", () => {
-    assert.deepEqual(needsTarget(lots, () => true), []);
   });
 });
 
@@ -136,18 +117,28 @@ describe("the seed kind, end to end", () => {
     assert.ok((BUNDLE_KINDS as readonly string[]).includes("seed"));
   });
 
-  it("a lot is a way onto the ledger, and the two sections name their question", () => {
-    const shelf = readFileSync(new URL("../components/SeedShelf.tsx", import.meta.url), "utf8");
+  it("a packet is stated on its plant's own row, not in a section of its own", () => {
+    // The redundancy this replaced: a Seeds section with a dropdown re-picking
+    // a plant the ledger already had on screen, and a saved lot whose only
+    // gesture was a jump back to the add-form to create a SECOND row for a
+    // plant that was already there.
+    const ledger = readFileSync(new URL("../components/CropLedger.tsx", import.meta.url), "utf8");
     const crops = readFileSync(new URL("../views/Crops.tsx", import.meta.url), "utf8");
-    assert.match(shelf, /onClick=\{\(\) => onSow\(l\)\}/);
-    assert.match(crops, /<SeedShelf[\s\S]*?onSow=/);
-    assert.match(crops, /title="Seeds on hand"/);
+    assert.match(ledger, /<SeedRow[\s\S]*?onBind=/);
+    assert.match(crops, /<CropLedger[\s\S]*?seeding=\{\{/);
+    assert.doesNotMatch(crops, /title="Seeds on hand"/);
     assert.match(crops, /title="When to sow"/);
+  });
+
+  it("the form asks for a packet, never for the plant it is already on", () => {
+    const form = readFileSync(new URL("../components/SeedForm.tsx", import.meta.url), "utf8");
+    assert.doesNotMatch(form, /name="crop"/);
+    assert.doesNotMatch(form, /seed-crops/);
   });
 
   it("the shelf records and never advises", () => {
     const src = [
-      readFileSync(new URL("../components/SeedShelf.tsx", import.meta.url), "utf8"),
+      readFileSync(new URL("../components/SeedForm.tsx", import.meta.url), "utf8"),
       readFileSync(new URL("./seeds.ts", import.meta.url), "utf8"),
     ].join("\n").replace(/\/\/.*$/gm, "");
     assert.doesNotMatch(src, /\b(should sow|you should|recommend|discard|throw (it|them) out|too old|sow extra|over-?sow)\b/i);

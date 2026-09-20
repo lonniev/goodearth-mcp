@@ -37,9 +37,7 @@ import RotationPanel from "../components/RotationPanel";
 import { fromRow, repeatDraft, rotation,
   type RepeatDraft, type RotationPlanting, type SeasonRow } from "../lib/rotation";
 import { familiesFor } from "../lib/family";
-import SeedShelf from "../components/SeedShelf";
-import { draftFromLot, lotLine, lotsFor, needsTarget, seedCodec,
-  type SeedLot } from "../lib/seeds";
+import { draftFromLot, lotLine, lotsFor, seedCodec, type SeedLot } from "../lib/seeds";
 import { useSubmit } from "../lib/useSubmit";
 import { withId } from "../lib/submit";
 import type { SavedRegion } from "../lib/regions";
@@ -116,7 +114,7 @@ export default function Crops({
   /// The seed shelf: every lot on this plot, whatever season it was packed
   /// for. One read, sorted by crop, and every lot rides in it — a shelf is a
   /// few dozen packets, not a ledger to page through.
-  const { items: lots, save: storeLot, retire: retireLot, reload: reloadLots, total: lotTotal } =
+  const { items: lots, save: storeLot, retire: retireLot, reload: reloadLots } =
     useBlockItems<SeedLot>(region.id, "seed", seedCodec, undefined, {
       sortCol: "name", sortDir: "asc", pageSize: 200,
     });
@@ -136,6 +134,25 @@ export default function Crops({
       item: seedCodec.to(l),
     });
     void retireLot(l.id).catch((e) => setFormErr(String(e.message ?? e)));
+  }
+
+  const [seeding, setSeeding] = useState("");
+
+  /// The sowing date and the packet, written onto the PLANTING.
+  ///
+  /// Both are facts about this planting: two successions from one packet each
+  /// have their own day. Either may be blank — a clove has a day and no
+  /// packet, and a packet may be named before the day is decided.
+  async function bindSeed(p: Planting, sownOn: string, seedLotId: string): Promise<string | null> {
+    setSavingRow(true);
+    try {
+      await storePlanting({ ...p, sownOn: sownOn || undefined, seedLotId: seedLotId || undefined });
+      return null;
+    } catch (e) {
+      return String((e as Error).message ?? e);
+    } finally {
+      setSavingRow(false);
+    }
   }
 
   async function saveHarvest(p: Planting, h: HarvestInput, id: string): Promise<string | null> {
@@ -210,10 +227,6 @@ export default function Crops({
   /// by a category, so nothing reaches a call that would have to invent the
   /// figure it is missing.
   const heatRated = plantings.filter((p) => p.gddTarget != null);
-  /// Seed on the shelf that "When to sow" cannot reach: dating is done on
-  /// heat, and no planting of that crop carries a target to date it against.
-  const undated = needsTarget(lots, (crop) => heatRated.some((p) =>
-    baseName(p.crop).toLowerCase() === crop.trim().toLowerCase()));
   const winterRated = plantings.filter(
     (p) => p.perennial || p.chillHours != null || p.hardyToF != null);
 
@@ -410,14 +423,21 @@ export default function Crops({
     document.getElementById("new-planting")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  /// Sow a lot off the shelf: the same form a Rotation tap fills, so a packet
-  /// and a past planting reach the ledger the same way. The crop's own figures
-  /// come with it when the ledger has them; the packet's days never become a
-  /// heat target.
-  async function sowLot(l: SeedLot) {
-    const like = plantings.find((p) =>
-      baseName(p.crop).toLowerCase() === l.crop.trim().toLowerCase());
-    const d = draftFromLot(l, like ?? undefined);
+  /// Seed of a plant this plot's ledger does not hold.
+  ///
+  /// It has nowhere to live now that a lot sits in its plant's own row, and
+  /// it must not simply vanish — a packet on the shelf is a thing the grower
+  /// owns. Naming it here, with the plant it needs, is the honest end.
+  const orphans = lots.filter((l) => !plantings.some((p) =>
+    (l.taxonId && p.taxonId ? l.taxonId === p.taxonId
+      : baseName(p.crop).toLowerCase() === l.crop.trim().toLowerCase())));
+
+  /// Put the plant this packet is seed of onto the ledger.
+  ///
+  /// The one place a jump to the add-form is still right: there is genuinely
+  /// no row for it yet, which is the whole reason the packet is stranded.
+  async function plantForLot(l: SeedLot) {
+    const d = draftFromLot(l);
     setFormErr("");
     if (d.taxonId) {
       const hit = (await speciesByIds([d.taxonId])).get(d.taxonId);
@@ -432,7 +452,6 @@ export default function Crops({
     }
     setRepeating(d);
     setFormKey((k) => k + 1);
-    setAdded(`${l.crop}${l.variety ? ` · ${l.variety}` : ""} — choose the day it goes in.`);
     document.getElementById("new-planting")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -695,7 +714,7 @@ export default function Crops({
         {added && !formErr && <p className="mt-2 text-[12px] text-growth">{added}</p>}
       </form>
 
-      <Section emoji="📒" title="Crop ledger" first>
+      <Section emoji="📒" title="Plant ledger" first>
         {plantings.length > 0 && (
           <Provenance tool="goodearth_crop_gdd_status" at={ranAt} onCost={onCost} />
         )}
@@ -734,9 +753,19 @@ export default function Crops({
             onCancel={() => { setEditing(""); setDraft(null); }}
             onCommit={commitRow}
             onDelete={remove}
+            seeding={{
+              open: seeding,
+              onOpen: (pl) => { setSeeding(pl.id); setCutting(""); },
+              onClose: () => setSeeding(""),
+              lotsFor: (pl) => lotsFor(pl.crop, pl.taxonId, lots),
+              onBind: bindSeed,
+              onSaveLot: (_pl, l) => saveLot(l),
+              onRetireLot: removeLot,
+              saving: savingLot || savingRow,
+            }}
             harvesting={{
               open: cutting,
-              onOpen: (pl) => setCutting(pl.id),
+              onOpen: (pl) => { setCutting(pl.id); setSeeding(""); },
               onClose: () => setCutting(""),
               unitFor: (crop) => lastUnit(seen, crop),
               onSave: saveHarvest,
@@ -744,6 +773,18 @@ export default function Crops({
           />
           <Pager page={page} pages={pages} total={total} noun="planting"
             onPage={setPageNo} />
+          {orphans.length > 0 && (
+            <p className="data mt-1 flex flex-wrap items-center gap-x-1.5 text-[11px] text-ink-soft">
+              <span>Seed with no plant here:</span>
+              {orphans.map((l) => (
+                <button key={l.id} onClick={() => void plantForLot(l)}
+                  title={`Add ${l.crop} to the ledger`}
+                  className="min-h-9 rounded px-1 underline decoration-dotted underline-offset-2 active:bg-band">
+                  {l.crop}{l.variety ? ` · ${l.variety}` : ""}
+                </button>
+              ))}
+            </p>
+          )}
           {seenTotal > seen.length && (
             <p className="data mt-1 text-[11px] text-ink-soft">
               Harvest totals count your latest {seen.length} field observations of
@@ -894,7 +935,7 @@ export default function Crops({
         <p className="mb-3 text-[12.5px] leading-relaxed text-ink-soft">
           Two farms in the same county — one on a bench, one in a hollow — do not
           grow the same things. Measuring your ground gives its own frost-free
-          window and the heat inside it, then rates every crop below against it.
+          window and the heat inside it, then rates every plant below against it.
         </p>
       )}
 
@@ -944,36 +985,6 @@ export default function Crops({
         </p>
       )}
 
-      {/* ── Seeds ──────────────────────────────────────────────────── */}
-      <Section emoji="🌰" title="Seeds on hand" />
-      <p className="mb-2.5 text-[12.5px] leading-relaxed text-ink-soft">
-        What you hold, and what each packet says. Tap a crop to sow it; When to
-        sow dates it once it carries a heat target.
-      </p>
-      <SeedShelf
-        lots={lots}
-        crops={[...new Set(plantings.map((p) => baseName(p.crop)))].sort()}
-        taxonOf={(crop) => plantings.find((p) =>
-          baseName(p.crop).toLowerCase() === crop.trim().toLowerCase())?.taxonId}
-        onSave={saveLot}
-        onRetire={removeLot}
-        onSow={(l) => void sowLot(l)}
-        busy={savingLot}
-      />
-      {lotTotal > lots.length && (
-        <p className="data -mt-1.5 mb-3 text-[11px] text-ink-soft">
-          The first {lots.length} of {lotTotal} lots on record.
-        </p>
-      )}
-
-      {/* Which seed the dates below cannot reach, named once rather than
-          marked on every row. */}
-      {undated.length > 0 && (
-        <p className="data mb-3 text-[11px] text-ink-soft">
-          Not in When to sow yet: {undated.join(" · ")} — each needs a heat target on its planting.
-        </p>
-      )}
-
       {/* ── When to sow ────────────────────────────────────────────── */}
       <Section emoji="🌱" title="When to sow">
         {!when && (
@@ -1013,7 +1024,7 @@ export default function Crops({
           <div className="mb-3 overflow-x-auto rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">
             <table className="w-full text-[13px]">
               <thead><tr>
-                {["Crop", "Seed indoors", "Out", "Last sowing", "Window", "Successions"].map((h) => (
+                {["Plant", "Seed indoors", "Out", "Last sowing", "Window", "Successions"].map((h) => (
                   <th key={h} className="data border-b-[1.5px] border-ink px-3 py-2.5 text-left text-[10px] font-medium uppercase tracking-[.1em] text-ink-soft">{h}</th>
                 ))}
               </tr></thead>
@@ -1085,7 +1096,7 @@ export default function Crops({
             on each planting.
           </p>
           <p className="mb-4 text-[12px] leading-relaxed text-ink-soft">
-            A tender crop's "out" date is the <b>median</b> last frost — half of
+            A tender plant's "out" date is the <b>median</b> last frost — half of
             seasons frost later than that, so it is a coin toss rather than a
             green light. The last-sowing date, and each succession&rsquo;s
             finish, count this ground&rsquo;s typical heat day by day, so a late
@@ -1095,7 +1106,7 @@ export default function Crops({
         </>
       ) : (
         <p className="mb-3 text-[12.5px] leading-relaxed text-ink-soft">
-          Heat requirement says whether a crop <i>can</i> finish here. It says
+          Heat requirement says whether a plant <i>can</i> finish here. It says
           nothing about when to start — which is the decision you make with a
           seed packet in hand in February. Dating your ground gives three:
           when seed goes in under lights, when the plant can go out, and the
