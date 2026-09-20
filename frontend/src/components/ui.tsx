@@ -455,6 +455,40 @@ export function RowActions({ onCommit, onCancel, saving, what }: {
   );
 }
 
+/// One labelled control in a row of them that has to line up.
+///
+/// A form reads as careless the moment its captions sit at three heights and
+/// its boxes at four. That is not carelessness in the writing, it is what
+/// happens when each field wears its own label markup and the browser gives a
+/// date input, a select and a text box three different intrinsic heights.
+///
+/// So the caption row is a FIXED height whatever it holds — a word, or a word
+/// and a "look it up" beside it — and every control inside is `FIELD`, which
+/// is a fixed height too. Alignment is then a property of the component
+/// rather than a thing to get right ten times.
+export function Field({ label, htmlFor, width, hint, children }: {
+  label: string;
+  /// Given, the caption is a real <label> pointing at the control. Omitted,
+  /// the caption is plain text — for a control that labels itself, or one a
+  /// label may not wrap (see labelNesting.test.ts).
+  htmlFor?: string;
+  /// A Tailwind width class. Fields are as wide as what goes in them.
+  width?: string;
+  /// Something small to the right of the caption, on the same fixed row.
+  hint?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <span className={`flex flex-col ${width ?? "flex-1"}`}>
+      <span className="flex h-4 items-center gap-2 text-[11px] leading-none text-ink-soft">
+        {htmlFor ? <label htmlFor={htmlFor}>{label}</label> : <span>{label}</span>}
+        {hint}
+      </span>
+      {children}
+    </span>
+  );
+}
+
 /// The cell style inside a row being edited. One definition, four editors.
 export const CELL =
   "w-full rounded border border-rule bg-white px-2 py-1 text-[16px] focus:border-honey focus:outline-none";

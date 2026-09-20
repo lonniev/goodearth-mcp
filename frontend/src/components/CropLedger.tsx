@@ -31,7 +31,7 @@ import { SEEDLING, type Planting } from "../lib/plantings";
 import { lotLine, onHand, type SeedLot } from "../lib/seeds";
 import SeedForm from "./SeedForm";
 import { SortHeaders, type Column } from "./RecordTable";
-import { CELL, Glyph, ICON, RowActions, TrashGlyph } from "./ui";
+import { CELL, Field, FIELD, Glyph, ICON, RowActions, TrashGlyph } from "./ui";
 import QuantityField from "./QuantityField";
 import type { ItemSort } from "../lib/blockItems";
 import { baseBounds } from "../lib/baseTemp";
@@ -362,68 +362,88 @@ function SeedRow({ planting, lots, saving, onBind, onSaveLot, onRetireLot, onCan
 
   return (
     <tr className="border-b border-rule bg-growth/5 last:border-b-0">
-      <td colSpan={6} className="px-3 py-2">
+      <td colSpan={6} className="px-3 py-2.5">
         {/* Pinned to the left of whatever part of the table is in view, and
             no wider than the screen — the same reason HarvestRow does it. */}
         <div className="sticky left-3 max-w-[calc(100vw-3.5rem)]">
-          {/* Every label ABOVE its input, never beside it: inline captions
-              let the date field and the select run into each other the moment
-              the row was narrower than their two widths together. */}
-          <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
-            <span className="flex items-center gap-1.5 pb-1.5 text-[12.5px] font-semibold">
-              <Glyph path={ICON.seed} size={16} />{planting.crop}
-            </span>
-            <label className="block w-[9.5rem] text-[11px] text-ink-soft">
-              Sown
-              <input type="date" value={sown} className={CELL} onKeyDown={keys}
-                onChange={(e) => setSown(e.target.value)} />
-            </label>
-            {/* The caption is a sibling of the select, never its parent: a
-                tap inside a label can be handed to the label's own control,
-                and on an iPad that swallows the tap entirely. */}
-            <span className="block min-w-[12rem] flex-1 text-[11px] text-ink-soft">
-              <label htmlFor={`seed-lot-${planting.id}`}>Seed</label>
-              <select id={`seed-lot-${planting.id}`} value={lotId} className={CELL}
-                onKeyDown={keys} onChange={(e) => setLotId(e.target.value)}>
-                <option value="">—</option>
-                {lots.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {[l.variety, lotLine(l), onHand(l)].filter(Boolean).join(" · ") || l.crop}
-                  </option>
-                ))}
-              </select>
-            </span>
-            <button type="button" onClick={() => setAdding((a) => !a)}
-              aria-label={`Add a seed lot of ${planting.crop}`} title="Add a seed lot"
-              className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-growth">
-              {adding ? "×" : "＋"}
-            </button>
-            {bound && (
-              <button type="button" onClick={() => { onRetireLot(bound); setLotId(""); }}
-                aria-label={`Remove ${bound.crop} seed`} title="Remove this lot"
-                className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-clay">
+          {/* Every control for this form in one place, at the top right of
+              its span. They were scattered: a toggle in the middle of the
+              fields, a save and a cancel after them, and the add button at
+              the far bottom corner of a second box. */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-1 flex-wrap items-start gap-x-3 gap-y-2.5">
+              {/* No plant name here: this row hangs under the plant's own,
+                  and saying it twice is what made the head look like a
+                  heading rather than a form. */}
+              <Field label="Sown" htmlFor={`sown-${planting.id}`} width="w-[10rem]">
+                <input id={`sown-${planting.id}`} type="date" value={sown} className={FIELD}
+                  onKeyDown={keys} onChange={(e) => setSown(e.target.value)} />
+              </Field>
+              {/* The caption is a sibling of the select, never its parent: a
+                  tap inside a label can be handed to the label's own control,
+                  and on an iPad that swallows the tap entirely. */}
+              <Field label="Seed" htmlFor={`seed-lot-${planting.id}`} width="min-w-[14rem] flex-1">
+                <select id={`seed-lot-${planting.id}`} value={lotId} className={FIELD}
+                  onKeyDown={keys} onChange={(e) => setLotId(e.target.value)}>
+                  <option value="">—</option>
+                  {lots.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {[l.variety, lotLine(l), onHand(l)].filter(Boolean).join(" · ") || l.crop}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-0.5 pt-3.5">
+              <button type="button" onClick={() => setAdding((a) => !a)} disabled={adding}
+                aria-label={`Add a seed lot of ${planting.crop}`} title="Add a seed lot"
+                className="inline-flex h-11 w-11 items-center justify-center text-ink-soft
+                  active:text-growth disabled:opacity-30">
+                <Glyph path={ICON.add} />
+              </button>
+              <button type="button" onClick={() => { if (bound) { onRetireLot(bound); setLotId(""); } }}
+                disabled={!bound} aria-label={`Remove ${bound?.crop ?? planting.crop} seed`}
+                title="Remove this lot"
+                className="inline-flex h-11 w-11 items-center justify-center text-ink-soft
+                  active:text-clay disabled:opacity-30">
                 <TrashGlyph />
               </button>
-            )}
-            <span className="whitespace-nowrap">
-              <RowActions onCommit={() => void commit()} onCancel={onCancel}
-                saving={!!busy || !!saving} what="seed" />
-            </span>
+              <button type="button" onClick={onCancel} aria-label="Cancel" title="Cancel"
+                className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-ink">
+                <Glyph path={ICON.cancelEdit} />
+              </button>
+              {/* One affirmative, whose meaning follows the form that is open:
+                  it adds the packet while the packet's fields are showing, and
+                  otherwise writes the sowing and the chosen lot. */}
+              <button type={adding ? "submit" : "button"} form={adding ? "new-seed" : undefined}
+                onClick={adding ? undefined : () => void commit()} disabled={busy || saving}
+                aria-label={adding ? "Add seed lot" : "Save seed"}
+                title={adding ? "Add" : "Save"}
+                className="inline-flex h-11 w-11 items-center justify-center text-[18px]
+                  text-growth disabled:opacity-40">✓</button>
+            </div>
           </div>
+
           {adding && (
-            <SeedForm crop={planting.crop} taxonId={planting.taxonId} busy={saving}
+            <SeedForm crop={planting.crop} taxonId={planting.taxonId}
               varieties={[...new Set(lots.map((l) => l.variety).filter(Boolean))] as string[]}
               units={[...new Set(lots.map((l) => l.unit).filter(Boolean))] as string[]}
               onSave={async (l) => {
                 const why = await onSaveLot(l);
-                // Bound on the way in: a packet added from a plant's own row is
-                // the packet that plant was sown from, and making the grower
-                // then pick it from a list would be asking twice.
-                if (!why) { setLotId(l.id); setAdding(false); }
-                return why;
+                if (why) return why;
+                // Bound and written in the same gesture. A packet added from a
+                // plant's own row is the packet that plant was sown from, so
+                // asking the grower to pick it from a list and then press save
+                // again would be asking twice for something already said.
+                setLotId(l.id);
+                setAdding(false);
+                const failed = await onBind(sown, l.id);
+                if (failed) setErr(failed); else onCancel();
+                return null;
               }} />
           )}
-          {err && <p className="mt-1 text-[12px] text-clay">{err}</p>}
+          {err && <p className="mt-1.5 text-[12px] text-clay">{err}</p>}
         </div>
       </td>
     </tr>

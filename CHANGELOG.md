@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- The seed row is one tidy form. Every field goes through one component, so
+  the captions sit on one line and the boxes are one height — a date input, a
+  select and a text box do not agree on a height by themselves, which is what
+  made it look home-made. Its four controls — add a lot, remove one, cancel,
+  save — are together at the top right of the form rather than scattered
+  through it, and the plant is not named again inside its own row.
+
+### Changed
 - The seed row asks for a packet the way a packet reads. Each field is as wide
   as what goes in it — a three-digit day count and a four-digit year no longer
   take a quarter of the row each; germination is a percent spinner; how much

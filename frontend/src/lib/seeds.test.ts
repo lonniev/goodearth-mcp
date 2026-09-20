@@ -150,7 +150,7 @@ describe("the seed kind, end to end", () => {
     // alone could as easily have meant the grower's own numbering.
     const form = readFileSync(new URL("../components/SeedForm.tsx", import.meta.url), "utf8");
     assert.match(form, /Germination tested/);
-    assert.match(form, /Supplier&rsquo;s lot/);
+    assert.match(form, /Supplier’s lot/);
     assert.doesNotMatch(form, /^\s*Tested on$/m);
   });
 
@@ -164,6 +164,35 @@ describe("the seed kind, end to end", () => {
     assert.doesNotMatch(ledger, /\u{1F330}|\u2702/u);
     assert.match(ledger, /<Glyph path=\{ICON\.seed\}/);
     assert.match(ledger, /<Glyph path=\{ICON\.cut\}/);
+  });
+
+  it("puts every control for the form in one place", () => {
+    // They were scattered: a toggle in the middle of the fields, a save and a
+    // cancel after them, and the add button in the far corner of a second box.
+    const ledger = readFileSync(new URL("../components/CropLedger.tsx", import.meta.url), "utf8");
+    const cluster = ledger.match(/<div className="flex shrink-0 items-center[\s\S]*?<\/div>/)?.[0] ?? "";
+    for (const want of [/ICON\.add/, /TrashGlyph/, /ICON\.cancelEdit/, /✓/]) {
+      assert.match(cluster, want, `the control cluster is missing ${want}`);
+    }
+    // And the packet form no longer carries a submit of its own.
+    const form = readFileSync(new URL("../components/SeedForm.tsx", import.meta.url), "utf8");
+    assert.doesNotMatch(form, /IconButton/);
+  });
+
+  it("lines its fields up by construction, not by hand", () => {
+    // Captions at three heights and boxes at four is what a form looks like
+    // when each field wears its own markup. One component, one caption row
+    // height, one control height.
+    const form = readFileSync(new URL("../components/SeedForm.tsx", import.meta.url), "utf8");
+    const fields = form.match(/<Field |<QuantityField /g) ?? [];
+    assert.ok(fields.length >= 7, `expected every field through the component, saw ${fields.length}`);
+    assert.doesNotMatch(form, /className={CELL}/);
+  });
+
+  it("does not name the plant inside the plant's own row", () => {
+    const ledger = readFileSync(new URL("../components/CropLedger.tsx", import.meta.url), "utf8");
+    const row = ledger.slice(ledger.indexOf("function SeedRow"), ledger.indexOf("function HarvestRow"));
+    assert.doesNotMatch(row, /\{planting\.crop\}</, "the row hangs under the plant's own name");
   });
 
   it("the shelf records and never advises", () => {
