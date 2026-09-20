@@ -163,7 +163,7 @@ describe("the seed kind, end to end", () => {
     // about — this pins what was, not everything that could be.
     assert.doesNotMatch(ledger, /\u{1F330}|\u2702/u);
     assert.match(ledger, /<Glyph path=\{ICON\.seed\}/);
-    assert.match(ledger, /<Glyph path=\{ICON\.cut\}/);
+    assert.match(ledger, /<Glyph path=\{ICON\.shears\}/);
   });
 
   it("puts every control for the form in one place", () => {

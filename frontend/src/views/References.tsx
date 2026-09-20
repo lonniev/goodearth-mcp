@@ -89,6 +89,13 @@ const SOURCES: {
     note: "Data under CC BY-SA 3.0, © Growstuff contributors. Medians of what growers logged, not a seed house's claim — firm where many recorded a harvest, thin where few did, absent where none have. A variety it does not know returns nothing rather than the species' figure. Germination percentage, its test date, the packed-for year, how much is on hand, the supplier and the lot number are not looked up anywhere: they belong to the packet in your hand, from the seller's own test of that lot.",
   },
   {
+    name: "Game Icons",
+    url: "https://game-icons.net/",
+    role: "The pruning-shears mark beside each plant on the ledger, which records a cut.",
+    resolution: "one glyph",
+    note: "CC BY 3.0, © the Game-Icons.net contributors. Every other mark in this app is from Material Design Icons, under Apache 2.0.",
+  },
+  {
     name: "iNaturalist",
     url: "https://api.inaturalist.org/v1/docs/",
     role: "Which species are actually recorded around your ground, ranked by how often each has been seen — the Wildlife and Pests catalogues — plus the photograph shown for each, and importing your own observations into Field Reports. It is also the dictionary that turns a shelf name into a scientific one: every plant in the crop library carries the binomial iNaturalist resolved for it, which is what lets USA-NPN be asked about that plant by name.",

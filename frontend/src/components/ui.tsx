@@ -389,9 +389,15 @@ export const ICON = {
   // It was 🌰, a chestnut: a nut, not a seed, and in Apple's colours beside
   // glyphs in the page's ink.
   seed: "M20.7,3.3C20.7,3.3 19.3,3 17.2,3C11.7,3 1.6,5.1 3.2,20.8C4.3,20.9 5.4,21 6.4,21C24.3,21 20.7,3.3 20.7,3.3M7,17C7,17 7,7 17,7C17,7 11,9 7,17Z",
-  // Material Design Icons "content-cut" — taking a cut, which on this ledger
-  // is a harvest. It was ✂, which renders in colour and at the font's mercy.
-  cut: "M19,3L13,9L15,11L22,4V3M12,12.5A0.5,0.5 0 0,1 11.5,12A0.5,0.5 0 0,1 12,11.5A0.5,0.5 0 0,1 12.5,12A0.5,0.5 0 0,1 12,12.5M6,20A2,2 0 0,1 4,18C4,16.89 4.9,16 6,16A2,2 0 0,1 8,18C8,19.11 7.1,20 6,20M6,8A2,2 0 0,1 4,6C4,4.89 4.9,4 6,4A2,2 0 0,1 8,6C8,7.11 7.1,8 6,8M9.64,7.64C9.87,7.14 10,6.59 10,6A4,4 0 0,0 6,2A4,4 0 0,0 2,6A4,4 0 0,0 6,10C6.59,10 7.14,9.87 7.64,9.64L10,12L7.64,14.36C7.14,14.13 6.59,14 6,14A4,4 0 0,0 2,18A4,4 0 0,0 6,22A4,4 0 0,0 10,18C10,17.41 9.87,16.86 9.64,16.36L12,14L19,21H22V20L9.64,7.64Z",
+  // Game Icons "gardening-shears" by Lorc/Delapouite et al., CC BY 3.0 —
+  // credited on the References page. Secateurs, with the curved beak blade and
+  // the pivot bolt that tell them apart from a pair of office scissors, which
+  // is the whole point: plain scissors on a row of actions read as "delete
+  // this", and taking a cut of a plant is the opposite of removing it.
+  //
+  // Drawn on a 512 grid and at 24px rather than 18 — measured, not chosen. At
+  // 18 it is a scratch; at 24 the blade, the bolt and both handles are there.
+  shears: "M139.8 24.96C155.9 88.06 182 124.7 197 141.5l1.2 1.3l1.6.9c16.4 8 26.8 24.7 26.8 43c0 26.6-21.4 48-48.1 48c-26.6 0-48-21.4-48-48c0-8.6 2.3-16.9 6.6-24.4l2.9-5l-3.2-4.9c-18.1-27.1-19.7-51.4-14.6-76.74c3.3-16.6 10.2-33.6 17.6-50.7m121 114.64c7.6.1 14.9 1.3 20.9 4c4 8.1 6.2 18.7 10.6 29.1c2.5 5.6 5.9 11.4 11.6 15.6c5.4 4 12.5 6.1 20.4 6c56.5 10.3 92.3 26.4 116.3 45.4c24.2 18.9 37 40.9 46.9 64.8v.1c1.7 3.9 1.3 6.4-.1 9.2c-1.5 3-4.6 6-8.4 8.1c-3.9 2.1-8.5 3.1-12.1 3c-3.5-.2-5.8-1.3-7.4-3.1c-12.2-14.9-27-35.3-45.5-51.7c-18.6-16.4-41.9-29.1-69.5-25.9c-21.2 2.4-33.1-6.4-50.4-16.8c-13.5-8.1-30.1-16.6-52.9-17.6c2.7-7.2 4.2-15 4.2-23.1c0-16.3-6-31.6-16.2-43.5c5.6-1 11.7-2.3 18.1-3c3.4-.3 6.8-.6 10.2-.6zM23.39 156.8c27.5 9.1 56.6 17.2 90.11 14.8c-1.1 4.9-1.8 10-1.8 15.1c0 15.4 5.4 29.7 14.2 41.1c-28.81-.2-48.71-10.4-66.11-26.2c-13.3-12.2-24.9-28.2-36.4-44.8m155.11 3.8c-14.3 0-26.1 11.8-26.1 26.1s11.8 26.1 26.1 26.1s26.1-11.8 26.1-26.1s-11.8-26.1-26.1-26.1m0 18.8c4.2 0 7.4 3.1 7.4 7.3c0 4.1-3.2 7.3-7.4 7.3c-4.1 0-7.3-3.2-7.3-7.3c0-4.2 3.2-7.3 7.3-7.3m25.8 69c6.3 52.6 26.9 87.3 51.2 113.8c26.8 29.2 57.1 49.7 78.7 77.3c1.2 3.3 2 10.1 1.2 17.3c-1 7.7-3.5 16-6.9 21.8c-3.4 5.6-6.9 8.1-10.1 8.4c-3 .3-8.6-1.3-17-10.5c-18-33.3-53.7-84.8-100.9-107.4c-18.7-9-27.6-21.7-32.3-37c-4.6-15.2-4.5-33.2-2.9-50.1c1.2-13.9-1.5-23.8-4.7-31c5.7 1.7 11.7 2.5 17.9 2.5c9.1 0 17.9-1.9 25.8-5.1",
   // Material Design "share" — handing a plot to another patron as a bundle.
   share: "M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z",
   // Material Design "file_upload" — bringing a bundle in as a plot.
@@ -415,9 +421,15 @@ export const ICON = {
 /// pasted in from elsewhere, and it cannot take the ink of the button it
 /// sits in — so a row's actions were half in the page's colours and half in
 /// Apple's.
-export function Glyph({ path, size = 18 }: { path: string; size?: number }) {
+export function Glyph({ path, size = 18, grid = 24 }: {
+  path: string;
+  size?: number;
+  /// The square the path was drawn on. Material's own are 24; a glyph borrowed
+  /// from a set that draws at 512 says so rather than being rescaled by hand.
+  grid?: number;
+}) {
   return (
-    <svg viewBox="0 0 24 24" style={{ width: size, height: size }}
+    <svg viewBox={`0 0 ${grid} ${grid}`} style={{ width: size, height: size }}
       fill="currentColor" aria-hidden="true">
       <path d={path} />
     </svg>
