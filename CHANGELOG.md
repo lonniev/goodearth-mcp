@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Recording a cut is as tidy as recording seed: every caption above its
+  control, every box one height, and the two buttons together at the top
+  right. The date wore no caption at all while "How much" wore one, which is
+  why nothing in that row lined up.
 - A plant with seed on the shelf shows a full green seed, and one without shows
   an empty outline, so the ledger says which rows hold a packet without opening
   each one in turn — and says it by shape rather than by two inks that are hard

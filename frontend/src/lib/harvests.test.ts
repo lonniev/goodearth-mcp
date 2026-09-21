@@ -3,6 +3,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describeHarvest, lastUnit, makeHarvest, summarize } from "./harvests.ts";
 import { toObservations, type FieldReport } from "./reports.ts";
 import type { Planting } from "./plantings.ts";
@@ -84,5 +85,35 @@ describe("a first cut calibrates; the rest are yield", () => {
 
   it("cannot calibrate a cut of a planting with no heat target", () => {
     assert.equal(toObservations([cut("2026-08-12", { gddTarget: undefined })]).length, 0);
+  });
+});
+
+describe("the row a cut is recorded in", () => {
+  const ledger = () =>
+    readFileSync(new URL("../components/CropLedger.tsx", import.meta.url), "utf8");
+  const row = () => {
+    const src = ledger();
+    return src.slice(src.indexOf("function HarvestRow"), src.indexOf("/// One planting, open for editing"));
+  };
+
+  it("lines its fields up by construction, not by hand", () => {
+    // The date wore no caption while "How much" wore one, so nothing in the
+    // row could line up however the gaps were tuned — the same fault the seed
+    // row had, and the same cure.
+    const r = row();
+    for (const want of [/<Field label="Cut on"/, /<QuantityField/, /<Field label="Note"/]) {
+      assert.match(r, want, `the cut row is missing ${want}`);
+    }
+    assert.doesNotMatch(r, /className=\{CELL\}/, "every control here is FIELD height");
+  });
+
+  it("keeps its two buttons together, above the fields", () => {
+    assert.match(row(), /flex shrink-0 items-center[\s\S]*?<RowActions/);
+  });
+
+  it("still says which plant the amount belongs to", () => {
+    // Unlike the seed row, a cut can be open while the reader has scrolled
+    // sideways, and this is the only thing naming the plant.
+    assert.match(row(), /A cut of \{planting\.crop\}/);
   });
 });
