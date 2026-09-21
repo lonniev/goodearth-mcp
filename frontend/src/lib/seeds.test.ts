@@ -162,7 +162,7 @@ describe("the seed kind, end to end", () => {
     // are a different question and keep their emoji until they are asked
     // about — this pins what was, not everything that could be.
     assert.doesNotMatch(ledger, /\u{1F330}|\u2702/u);
-    assert.match(ledger, /<Glyph path=\{ICON\.seed\}/);
+    assert.match(ledger, /<Glyph path=\{held \? ICON\.seed : ICON\.seedOutline\}/);
     assert.match(ledger, /<Glyph path=\{ICON\.shears\}/);
   });
 
@@ -202,6 +202,10 @@ describe("the seed kind, end to end", () => {
     const row = ledger.slice(ledger.indexOf("{seeding && (()"), ledger.indexOf("{harvesting && ("));
     assert.match(row, /seeding\.lotsFor\(p\)\.length > 0/);
     assert.match(row, /held \? "text-growth"/);
+    // Shape, not only hue: `ink-soft` is a desaturated olive that at 18px is
+    // all but the growth green, so the two states were told apart by a
+    // difference only their author could see.
+    assert.match(row, /held \? ICON\.seed : ICON\.seedOutline/);
   });
 
   it("the shelf records and never advises", () => {

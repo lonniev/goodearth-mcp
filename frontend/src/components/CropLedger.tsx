@@ -232,10 +232,11 @@ export default function CropLedger({
                     {r ? (STATUS[r.state] ?? STATUS.on_pace).label
                        : p.perennial ? "Perennial" : "Not tracked"}
                   </span>
-                  {/* Green where there is seed on the shelf for this plant.
-                      The ledger is read down a column, and a row that holds a
-                      packet is worth knowing at a glance rather than by
-                      opening every row in turn to find out. */}
+                  {/* Full and green where there is seed on the shelf for this
+                      plant, empty and quiet where there is not. The ledger is
+                      read down a column, and a row that holds a packet is
+                      worth knowing at a glance rather than by opening every
+                      row in turn to find out. */}
                   {seeding && (() => {
                     const held = seeding.lotsFor(p).length > 0;
                     return (
@@ -244,7 +245,7 @@ export default function CropLedger({
                         title={held ? "Seed on hand" : "Seed"}
                         className={`inline-flex h-11 w-11 items-center justify-center ${
                           held ? "text-growth" : "text-ink-soft active:text-growth"}`}>
-                        <Glyph path={ICON.seed} /></button>
+                        <Glyph path={held ? ICON.seed : ICON.seedOutline} /></button>
                     );
                   })()}
                   {harvesting && (
