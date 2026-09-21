@@ -496,28 +496,40 @@ function HarvestRow({ planting, unit, onSave, onCancel }: {
             no wider than the screen. On a phone the ledger scrolls sideways;
             without this the form opened half off-screen, its save button out
             of reach and the crop's name scrolled away. */}
-        <div className="sticky left-3 flex max-w-[calc(100vw-3.5rem)] flex-wrap items-center gap-2">
-          <span className="flex items-center gap-1.5 text-[12.5px] font-semibold">
-            <Glyph path={ICON.shears} size={20} grid={512} />A cut of {planting.crop}
-          </span>
-          <span className="w-[9.5rem]">
-            <input type="date" value={on} max={today} className={CELL} onKeyDown={keys}
-              aria-label="Cut on" onChange={(e) => setOn(e.target.value)} />
-          </span>
-          <span className="w-[11rem]">
-            <QuantityField id={`cut-${planting.id}`} label="How much" amount={amount}
-              unit={unitText} units={UNITS} placeholder="12" unitPlaceholder="stems"
-              onAmount={setAmount} onUnit={setUnitText} onKeyDown={keys} />
-          </span>
-          <span className="min-w-[8rem] flex-1">
-            <input value={note} className={CELL} onKeyDown={keys} placeholder="note (optional)"
-              aria-label="Note" onChange={(e) => setNote(e.target.value)} />
-          </span>
-          <span className="whitespace-nowrap">
-            <RowActions onCommit={() => void commit()} onCancel={onCancel} saving={saving} what="harvest" />
-          </span>
+        <div className="sticky left-3 max-w-[calc(100vw-3.5rem)]">
+          {/* Same shape as the seed row: every caption above its control, all
+              of them one height, and the two buttons together at the top
+              right. The date wore no caption at all while "How much" wore
+              one, which is why nothing in this row lined up. */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-1 flex-wrap items-start gap-x-3 gap-y-2.5">
+              {/* The plant's name stays here, unlike the seed row's: a cut can
+                  be open while the reader has scrolled sideways, and this is
+                  the only thing saying which plant the amount belongs to. */}
+              <span className="flex items-center gap-1.5 pt-3.5 text-[12.5px] font-semibold">
+                <Glyph path={ICON.shears} size={20} grid={512} />A cut of {planting.crop}
+              </span>
+              <Field label="Cut on" htmlFor={`cut-on-${planting.id}`} width="w-[10rem]">
+                <input id={`cut-on-${planting.id}`} type="date" value={on} max={today}
+                  className={FIELD} onKeyDown={keys}
+                  onChange={(e) => setOn(e.target.value)} />
+              </Field>
+              <QuantityField id={`cut-${planting.id}`} label="How much" width="w-[11rem]"
+                amount={amount} unit={unitText} units={UNITS} placeholder="12"
+                unitPlaceholder="stems"
+                onAmount={setAmount} onUnit={setUnitText} onKeyDown={keys} />
+              <Field label="Note" htmlFor={`cut-note-${planting.id}`} width="min-w-[10rem] flex-1">
+                <input id={`cut-note-${planting.id}`} value={note} className={FIELD}
+                  onKeyDown={keys} placeholder="optional"
+                  onChange={(e) => setNote(e.target.value)} />
+              </Field>
+            </div>
+            <span className="flex shrink-0 items-center gap-0.5 pt-3.5">
+              <RowActions onCommit={() => void commit()} onCancel={onCancel} saving={saving} what="harvest" />
+            </span>
+          </div>
+          {err && <p className="mt-1.5 text-[12px] text-clay">{err}</p>}
         </div>
-        {err && <p className="mt-1 text-[12px] text-clay">{err}</p>}
       </td>
     </tr>
   );
