@@ -389,6 +389,9 @@ export const ICON = {
   // It was 🌰, a chestnut: a nut, not a seed, and in Apple's colours beside
   // glyphs in the page's ink.
   seed: "M20.7,3.3C20.7,3.3 19.3,3 17.2,3C11.7,3 1.6,5.1 3.2,20.8C4.3,20.9 5.4,21 6.4,21C24.3,21 20.7,3.3 20.7,3.3M7,17C7,17 7,7 17,7C17,7 11,9 7,17Z",
+  // Material Design Icons "filter-variant" — narrowing a list to the rows a
+  // question is about.
+  filter: "M6 13h12v-2H6M3 6v2h18V6M10 18h4v-2h-4z",
   // Material Design Icons "bug" — watching a creature. The button said the
   // word "Pest" beside a plus, which is a label doing a glyph's work in a row
   // where every other control had already given its word up.
