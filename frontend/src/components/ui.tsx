@@ -389,6 +389,10 @@ export const ICON = {
   // It was 🌰, a chestnut: a nut, not a seed, and in Apple's colours beside
   // glyphs in the page's ink.
   seed: "M20.7,3.3C20.7,3.3 19.3,3 17.2,3C11.7,3 1.6,5.1 3.2,20.8C4.3,20.9 5.4,21 6.4,21C24.3,21 20.7,3.3 20.7,3.3M7,17C7,17 7,7 17,7C17,7 11,9 7,17Z",
+  // Material Design Icons "bug" — watching a creature. The button said the
+  // word "Pest" beside a plus, which is a label doing a glyph's work in a row
+  // where every other control had already given its word up.
+  bug: "M14 12h-4v-2h4m0 6h-4v-2h4m6-6h-2.81a6 6 0 0 0-1.82-1.96L17 4.41L15.59 3l-2.17 2.17a6 6 0 0 0-2.83 0L8.41 3L7 4.41l1.62 1.63C7.88 6.55 7.26 7.22 6.81 8H4v2h2.09c-.05.33-.09.66-.09 1v1H4v2h2v1c0 .34.04.67.09 1H4v2h2.81c1.04 1.79 2.97 3 5.19 3s4.15-1.21 5.19-3H20v-2h-2.09c.05-.33.09-.66.09-1v-1h2v-2h-2v-1c0-.34-.04-.67-.09-1H20z",
   // Material Design Icons "seed-outline" — the same seed, empty.
   //
   // Shape carries this, not colour. The two states were one filled glyph in

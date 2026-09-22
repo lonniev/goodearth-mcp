@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- A pest is named from iNaturalist rather than typed and hoped for, so a row
+  carries the creature's taxon and every later lookup has something to key on.
+  It searches **animals**, not insects — this list already held a chipmunk and
+  a slug — and a name the catalogue has not heard of still stands.
+- The pest form fits one row less: captions on one line, boxes one height, a
+  narrower base field, and the add button at the end of the fields instead of
+  on a row of its own. It shows a bug rather than the word "Pest".
+- "Modelled stages" is **Due on this ground**.
 - Recording a cut is as tidy as recording seed: every caption above its
   control, every box one height, and the two buttons together at the top
   right. The date wore no caption at all while "How much" wore one, which is

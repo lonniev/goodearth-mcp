@@ -2,6 +2,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { makePest, makeWatch } from "./pestModels.ts";
 
 describe("blank stages mean watch it", () => {
@@ -49,5 +50,43 @@ describe("blank stages mean watch it", () => {
       assert.equal((made as { scientific_name?: string }).scientific_name,
         "Boisea trivittata");
     }
+  });
+});
+
+describe("the form a pest is named in", () => {
+  const view = () =>
+    readFileSync(new URL("../views/Pests.tsx", import.meta.url), "utf8");
+
+  it("names a creature from the catalogue rather than a typed hope", () => {
+    // A misspelt pest is a row that no later lookup can key on, and the
+    // catalogue that already knows creatures was two components away.
+    assert.match(view(), /<SpeciesPicker[\s\S]*?kingdom="animals"/);
+  });
+
+  it("searches animals, not insects", () => {
+    // This grower's own list already holds a chipmunk and a slug. Neither is
+    // an insect, and a picker that could not find them would have made the
+    // page refuse rows it already shows.
+    assert.doesNotMatch(view(), /<SpeciesPicker[\s\S]{0,200}kingdom="insects"/);
+  });
+
+  it("still takes a name the catalogue has not heard of", () => {
+    // "Pest" is the grower's word for whatever is eating the crop. Refusing
+    // one because iNaturalist has no row for it would cap what they record.
+    assert.match(view(), /onText=\{setPestName\}/);
+    assert.match(view(), /picked\?\.commonName \|\| picked\?\.scientificName \|\| pestName/);
+  });
+
+  it("carries the taxon through to the record when one was resolved", () => {
+    assert.match(view(), /taxonId: picked\.id, scientificName: picked\.scientificName/);
+  });
+
+  it("puts the act at the end of the fields rather than on a row of its own", () => {
+    // A tester asked for the button to sit AFTER the boxes and it still does;
+    // what it gives up is a whole row of the page to say so.
+    const form = view().slice(view().indexOf('<form id="new-pest"'), view().indexOf("</form>"));
+    assert.match(form, /<IconButton path=\{ICON\.bug\} label="Pest" hideLabel/);
+    assert.ok(form.indexOf("IconButton") > form.indexOf("pest-stages"),
+      "the button must come after the fields it acts on");
   });
 });
