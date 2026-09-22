@@ -2,6 +2,7 @@
 // thing it may never do is claim a row is recoverable when it is not.
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { beforeEach, describe, it } from "node:test";
 
 const store = new Map<string, string>();
@@ -158,5 +159,46 @@ describe("which removals a page may offer back", () => {
   it("shows everything when the page names no block", () => {
     const rows = [e({ id: "a", blockId: "b1" }), e({ id: "b", blockId: "b2" })];
     assert.equal(offerable(rows, ["planting"], "").length, 2);
+  });
+});
+
+describe("where the way back lives", () => {
+  const read = (p: string) => readFileSync(new URL(p, import.meta.url), "utf8");
+
+  it("is one mark in the header, not a row on four pages", () => {
+    assert.match(read("../components/AppShell.tsx"), /<UndoChip blockId=\{region\.id\}/);
+    for (const v of ["Crops", "Pests", "Wildlife", "Todo"]) {
+      assert.doesNotMatch(read(`../views/${v}.tsx`), /<UndoBar/, `${v} still mounts a bar`);
+    }
+  });
+
+  it("offers every kind removed from this ground, not only one page's", () => {
+    // In the header there is no page to scope to. A grower who deleted a task
+    // and walked to Crops should still be able to take it back.
+    const chip = read("../components/UndoChip.tsx");
+    assert.match(chip, /entries\.filter\(\(e\) => e\.blockId === blockId\)/);
+    assert.doesNotMatch(chip, /offerable\(/);
+  });
+
+  it("tells whatever page is open that a row came back", () => {
+    // The thing the old per-page scoping guaranteed and this has to earn: the
+    // row is in the record and must appear on screen without a refresh.
+    assert.match(read("../components/UndoChip.tsx"), /restored\(\)/);
+    assert.match(read("./blockItems.ts"), /addEventListener\(RESTORED_EVENT/);
+    assert.match(read("../views/Todo.tsx"), /addEventListener\(RESTORED_EVENT/);
+  });
+
+  it("shows nothing at all when there is nothing to put back", () => {
+    // Its being there is the whole signal, which is what lets it be an icon
+    // with no count beside it.
+    assert.match(read("../components/UndoChip.tsx"), /if \(!mine\.length\) return null;/);
+  });
+
+  it("keeps the offer when a restore fails, and says why", () => {
+    const chip = read("../components/UndoChip.tsx");
+    assert.match(chip, /could not be put back/);
+    // `drop` runs only on the success path — losing the row silently is the
+    // one thing this must never do.
+    assert.match(chip, /await restore\(e\);\s*\n\s*setEntries\(drop\(e\.id\)\);/);
   });
 });

@@ -15,7 +15,7 @@ import { Pager, SortHeaders, type Column } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
 import SpeciesPicker from "../components/SpeciesPicker";
 import type { SpeciesHit } from "../lib/species";
-import UndoBar, { remembered } from "../components/UndoBar";
+import { remembered } from "../lib/undoEvents";
 import Term from "../components/Term";
 import { useUnits } from "../components/Units";
 import {
@@ -87,7 +87,7 @@ export default function Pests({
 
   // Read from the grower's record under their npub, not from this browser.
   const { items: models, save: storePest, saveMany: storeMany,
-          retire: retirePest, reload: reloadPests,
+          retire: retirePest,
           loading: modelsLoading, error: modelsError,
           unknownBlock: modelsUnknown, total, page, pages } =
     useBlockItems<SavedPest>(region.id, "pest", pestCodec, undefined, {
@@ -238,7 +238,6 @@ export default function Pests({
 
       {error && <ErrorBox>{error}</ErrorBox>}
 
-      <UndoBar kinds={["pest"]} blockId={region.id} onRestored={() => void reloadPests()} />
 
       {data && data.scout_now.length > 0 && (
         <div className="mb-5 rounded-md border border-rule border-l-4 border-l-honey bg-panel px-4 py-3">

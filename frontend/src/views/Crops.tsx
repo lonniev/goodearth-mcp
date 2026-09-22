@@ -7,7 +7,7 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import CropLedger, { type LedgerRow } from "../components/CropLedger";
-import UndoBar, { remembered } from "../components/UndoBar";
+import { remembered } from "../lib/undoEvents";
 import Term from "../components/Term";
 import { useUnits } from "../components/Units";
 import Provenance from "../components/Provenance";
@@ -102,7 +102,7 @@ export default function Crops({
   const narrowed = filterOn(filter);
 
   const { items: plantings, save: storePlanting, saveMany: storeMany,
-          retire: retirePlanting, reload: reloadPlantings,
+          retire: retirePlanting,
           loading: plantingsLoading, error: plantingsError,
           unknownBlock: plantingsUnknown, total, page, pages } =
     useBlockItems<Planting>(region.id, "planting", plantingCodec, undefined, {
@@ -129,7 +129,7 @@ export default function Crops({
   /// The seed shelf: every lot on this plot, whatever season it was packed
   /// for. One read, sorted by crop, and every lot rides in it — a shelf is a
   /// few dozen packets, not a ledger to page through.
-  const { items: lots, save: storeLot, retire: retireLot, reload: reloadLots } =
+  const { items: lots, save: storeLot, retire: retireLot } =
     useBlockItems<SeedLot>(region.id, "seed", seedCodec, undefined, {
       sortCol: "name", sortDir: "asc", pageSize: 200,
     });
@@ -647,9 +647,6 @@ export default function Crops({
       {error && (
         <ErrorBox>{error}</ErrorBox>
       )}
-
-      <UndoBar kinds={["planting", "seed"]} blockId={region.id}
-        onRestored={() => { void reloadPlantings(); void reloadLots(); }} />
 
       {/* ── Add a planting ─────────────────────────────────────────────── */}
       <form key={formKey} id="new-planting" onSubmit={add} className="mb-4 rounded-md border border-rule bg-panel p-4">

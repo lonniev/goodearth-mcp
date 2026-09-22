@@ -392,6 +392,10 @@ export const ICON = {
   // Material Design Icons "filter-variant" — narrowing a list to the rows a
   // question is about.
   filter: "M6 13h12v-2H6M3 6v2h18V6M10 18h4v-2h-4z",
+  // Material Design "undo" — the way back from a removal. It was a local
+  // constant in a component that no longer exists, and before that the
+  // "\u21b6" arrow, which renders as a box in more fonts than it does not.
+  undo: "M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z",
   // Material Design Icons "bug" — watching a creature. The button said the
   // word "Pest" beside a plus, which is a label doing a glyph's work in a row
   // where every other control had already given its word up.
