@@ -13,11 +13,13 @@ import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
 import { Pager, SortHeaders, type Column } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
+import SpeciesPicker from "../components/SpeciesPicker";
+import type { SpeciesHit } from "../lib/species";
 import UndoBar, { remembered } from "../components/UndoBar";
 import Term from "../components/Term";
 import { useUnits } from "../components/Units";
 import {
-  CELL, Chiclet, Empty, ErrorBox, FIELD, ICON, IconButton, Note, PageTitle, Pill,
+  CELL, Chiclet, Empty, ErrorBox, Field, FIELD, ICON, IconButton, Note, PageTitle, Pill,
   RowActions, Section, StatusChip, TrashGlyph,
 } from "../components/ui";
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
@@ -103,12 +105,28 @@ export default function Pests({
   /// Tapping a catalogue entry names the pest and leaves the numbers blank.
   /// The species is a fact about this country; the threshold is the grower's.
   const [pestName, setPestName] = useState("");
+  /// What the catalogue resolved, when it did. A typed name with no pick is
+  /// still a pest — it simply carries no taxon for later lookups.
+  const [picked, setPicked] = useState<SpeciesHit | null>(null);
+  /// A name handed to the picker from elsewhere on the page, so tapping a
+  /// modelled stage searches for that creature rather than dropping a bare
+  /// string into the record.
+  const [seedName, setSeedName] = useState("");
+  const [pickKey, setPickKey] = useState(0);
 
   /// Naming a pest from the catalogue below fills the form, which now lives at
   /// the TOP of the page — so the page goes there too. Without this the tap
   /// looks like it did nothing: the field it filled is off screen.
   function nameFromCatalog(name: string) {
+    // Into the picker rather than into a bare text box, so a tapped stage
+    // arrives with the taxon the catalogue is talking about.
+    setPicked(null);
     setPestName(name);
+    setSeedName(name);
+    // Remount, so tapping the SAME stage twice searches again. The picker
+    // seeds off an effect keyed on the name, and a name that has not changed
+    // fires nothing — the second tap would look like the page ignoring it.
+    setPickKey((k) => k + 1);
     document.getElementById("new-pest")?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
@@ -187,10 +205,11 @@ export default function Pests({
     // scale on screen, converted back to the Fahrenheit the record keeps.
     const typed = String(f.get("base") ?? "").trim();
     const made = makePest(
-      String(f.get("pest") ?? ""),
+      picked?.commonName || picked?.scientificName || pestName,
       typed ? u.toF(Number(typed)) : region.baseTempF,
       String(f.get("stages") ?? ""), region.id,
       String(f.get("biofix") ?? "") || undefined,
+      picked ? { taxonId: picked.id, scientificName: picked.scientificName } : undefined,
     );
     if (typeof made === "string") { setFormErr(made); return; }
     setFormErr("");
@@ -198,7 +217,7 @@ export default function Pests({
     const form = e.currentTarget;
     submit.run(async (key) => {
       await storePest(withId(made, key));
-      setPestName("");
+      setPestName(""); setPicked(null); setSeedName("");
       form.reset();
     });
   }
@@ -232,52 +251,72 @@ export default function Pests({
 
       {/* ── Watch a pest ───────────────────────────────────────────────── */}
       <form id="new-pest" onSubmit={add} className="mb-4 rounded-md border border-rule bg-panel p-4">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="block text-[11px] text-ink-soft">Pest
-            <input name="pest" placeholder="Aster leafhopper"
-              value={pestName} onChange={(e) => setPestName(e.target.value)}
-              className={FIELD} /></label>
+        {/* Every caption on one line, every box one height, and the act at the
+            end of the flow rather than on a row of its own — the same shape
+            the seed and cut rows now have. The button keeps its place AFTER
+            the boxes, which is what a tester asked for; what it gives up is a
+            whole row of the page to say so. */}
+        <div className="flex flex-wrap items-start gap-x-3 gap-y-2.5">
+          {/* Named from the catalogue that knows creatures, rather than typed
+              and hoped for. `animals` and not `insects`: a grower's pest list
+              already holds a chipmunk and a slug, and neither is an insect. A
+              typed name still stands when iNaturalist has not heard of it —
+              "pest" is the grower's word for whatever is eating the crop. */}
+          <Field label="Pest" width="min-w-[15rem] flex-1">
+            <SpeciesPicker key={pickKey} kingdom="animals" seed={seedName}
+              value={picked && {
+                commonName: picked.commonName ?? undefined,
+                scientificName: picked.scientificName,
+                thumb: picked.thumb,
+              }}
+              placeholder="aster leafhopper, vole, slug…"
+              onPick={(hit) => { setPicked(hit); setPestName(hit.commonName || hit.scientificName); }}
+              onClear={() => { setPicked(null); setPestName(""); }}
+              onText={setPestName} />
+          </Field>
+
           {/* The block's own base is the placeholder rather than a hardcoded
               50: it is the number this ground's season curve is accumulated
               from, so leaving the field alone now agrees with the chart
               instead of quietly disagreeing with it. */}
-          <label className="block text-[11px] text-ink-soft">
-            Base{u.tempUnit}
-            <Term of="base_temp">
-              A codling moth counts from 50&nbsp;°F and a cabbage maggot from
-              40&nbsp;°F on the same acre. Left blank it takes{" "}
-              {region.name}&rsquo;s {u.showTemp(region.baseTempF)}.
-            </Term>
-            <input name="base" inputMode="numeric"
+          <Field label={`Base${u.tempUnit}`} htmlFor="pest-base" width="w-[7rem]"
+            hint={
+              <Term of="base_temp">
+                A codling moth counts from 50&nbsp;°F and a cabbage maggot from
+                40&nbsp;°F on the same acre. Left blank it takes{" "}
+                {region.name}&rsquo;s {u.showTemp(region.baseTempF)}.
+              </Term>
+            }>
+            <input id="pest-base" name="base" inputMode="numeric"
               placeholder={String(Math.round(u.temp(region.baseTempF)))}
-              className={FIELD} /></label>
-          <label className="block text-[11px] text-ink-soft">
-            <Term label="Biofix" of="biofix">
-              Leave it empty and the count runs from the first of January.
-            </Term>{" "}
-            <span className="opacity-60">(optional)</span>
-            <input name="biofix" type="date" className={FIELD} /></label>
-          <label className="block text-[11px] text-ink-soft">
-            <Term label="Stages" of="threshold">
-              A life-cycle event and the degree-day total it arrives at, comma
-              separated. Good Earth times them against this ground and does not
-              publish entomology.
-            </Term>{" "}
-            <span className="opacity-60">(leave empty to just watch it)</span>
-            <input name="stages" placeholder="first flight 375, second flight 1400"
-              className={FIELD} /></label>
-        </div>
-        {/* The act, AFTER the fields it acts on.
-          *
-          * It sat in a header row ABOVE the form, submitting it by id — one
-          * compact control instead of a sentence at the foot. A tester read
-          * the page top to bottom and reached the button before the boxes:
-          * "the enter button should be below the boxes to be intuitive". They
-          * are right, and the id still does the submitting; only the position
-          * changed. */}
-        <div className="mt-3 flex justify-end">
-          <IconButton path={ICON.add} label="Pest" form="new-pest" title="Watch a pest"
-            disabled={submit.busy} />
+              className={FIELD} />
+          </Field>
+
+          <Field label="Biofix" htmlFor="pest-biofix" width="w-[10rem]"
+            hint={
+              <Term of="biofix">
+                Leave it empty and the count runs from the first of January.
+              </Term>
+            }>
+            <input id="pest-biofix" name="biofix" type="date" className={FIELD} />
+          </Field>
+
+          <Field label="Stages" htmlFor="pest-stages" width="min-w-[15rem] flex-1"
+            hint={
+              <Term of="threshold">
+                A life-cycle event and the degree-day total it arrives at, comma
+                separated. Good Earth times them against this ground and does not
+                publish entomology. Leave it empty to just watch the creature.
+              </Term>
+            }>
+            <input id="pest-stages" name="stages" placeholder="first flight 375, second flight 1400"
+              className={FIELD} />
+          </Field>
+
+          <span className="pt-3.5">
+            <IconButton path={ICON.bug} label="Pest" hideLabel form="new-pest"
+              title="Watch a pest" disabled={submit.busy} />
+          </span>
         </div>
         {formErr && <p className="mt-2 text-[12px] text-clay">{formErr}</p>}
       </form>
@@ -411,7 +450,7 @@ export default function Pests({
         </Empty>
       )}
 
-      <Section emoji="🐛" title="Modelled stages">
+      <Section emoji="🐛" title="Due on this ground">
         {!cat && (
           <Pill onClick={loadCatalog} disabled={catBusy} active>
             {catBusy ? "🧠 Reading…" : "🧠 What's here?"}

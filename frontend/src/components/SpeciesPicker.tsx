@@ -32,7 +32,7 @@ const shown = (h: SpeciesHit) =>
   `${h.commonName ?? ""} ${h.scientificName}`.toLowerCase();
 
 export default function SpeciesPicker({
-  kingdom, value, onPick, onClear, placeholder, autoFocus, seed,
+  kingdom, value, onPick, onClear, onText, placeholder, autoFocus, seed,
 }: {
   kingdom: Kingdom;
   /// A query to start from, so another part of the page can hand the picker a
@@ -43,6 +43,14 @@ export default function SpeciesPicker({
   value?: { commonName?: string; scientificName?: string; thumb?: string | null } | null;
   onPick: (hit: SpeciesHit) => void;
   onClear?: () => void;
+  /// What is in the box, as it is typed.
+  ///
+  /// For a caller that will take a name the catalogue does not have. A plant
+  /// must be picked — its binomial is what every later lookup is keyed on —
+  /// but "pest" is the grower's word for whatever is eating the crop, and
+  /// refusing a name because iNaturalist has not heard it would be capping
+  /// what they may record.
+  onText?: (text: string) => void;
   placeholder?: string;
   autoFocus?: boolean;
 }) {
@@ -54,7 +62,7 @@ export default function SpeciesPicker({
   const box = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (seed) { setText(seed); setOpen(true); }
+    if (seed) { setText(seed); onText?.(seed); setOpen(true); }
   }, [seed]);
 
   useEffect(() => {
@@ -131,7 +139,7 @@ export default function SpeciesPicker({
       <input
         value={text}
         autoFocus={autoFocus}
-        onChange={(e) => { setText(e.target.value); setOpen(true); }}
+        onChange={(e) => { setText(e.target.value); onText?.(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
         placeholder={placeholder ?? "Start typing a name…"}
         className={FIELD}
