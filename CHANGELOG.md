@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "Plant ledger (at 8:28 PM)".
 - While a filter is on the ledger reads the whole block rather than a page of
   it, so the count is of your ground and not of the first twenty rows.
+- Undo is one mark in the top row rather than a full row under the header on
+  four pages. Tap it for what you have removed from this ground, newest first;
+  tap one to put it back; tap outside and it is a small mark again. It offers
+  every kind, not just the page you happen to be on — so a task deleted before
+  you walked to Crops can still come back — and whatever page is open re-reads
+  when it does.
 - A pest is named from iNaturalist rather than typed and hoped for, so a row
   carries the creature's taxon and every later lookup has something to key on.
   It searches **animals**, not insects — this list already held a chipmunk and

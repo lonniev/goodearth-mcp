@@ -13,7 +13,7 @@ import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
 import { Pager, SortHeaders, type Column } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
-import UndoBar, { remembered } from "../components/UndoBar";
+import { remembered } from "../lib/undoEvents";
 import { wildlifeCalendar, type WildlifeResult, type WildlifeRow } from "../lib/mcp";
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
 import { photosByName } from "../lib/species";
@@ -77,7 +77,7 @@ export default function Wildlife({
   const [savingRow, setSavingRow] = useState(false);
 
   const { items: models, save: storeWildlife, saveMany: storeMany,
-          retire: retireWildlife, retireMany, reload: reloadWildlife,
+          retire: retireWildlife, retireMany,
           loading: modelsLoading, error: modelsError,
           unknownBlock: modelsUnknown, total, page, pages } =
     useBlockItems<SavedWildlife>(region.id, "wildlife", wildlifeCodec, undefined, {
@@ -261,7 +261,6 @@ export default function Wildlife({
 
       {error && <ErrorBox>{error}</ErrorBox>}
 
-      <UndoBar kinds={["wildlife"]} blockId={region.id} onRestored={() => void reloadWildlife()} />
 
       <DueSoon
         due={due}

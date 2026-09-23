@@ -16,6 +16,7 @@ import {
   blockItemList, blockItemSave, getStoredNpub, type ItemKind, type ItemRow, type ItemSort,
 } from "./mcp";
 import { entries, isNetworkFailure, overlay, pendingItems, subscribe } from "./outbox";
+import { RESTORED_EVENT } from "./undoEvents";
 
 export type { ItemKind, ItemSort };
 
@@ -152,6 +153,16 @@ export function useBlockItems<T>(
   // instead of vanishing until the signal returns.
   const [queue, setQueue] = useState(() => entries());
   useEffect(() => subscribe(setQueue), []);
+
+  // A row put back from the header's undo mark is a write this hook did not
+  // make, so nothing here would otherwise know. One subscription covers every
+  // page built on this hook — which was four `onRestored` closures before the
+  // mark moved out of the pages and into the top row.
+  useEffect(() => {
+    const again = () => { void reload(); };
+    window.addEventListener(RESTORED_EVENT, again);
+    return () => window.removeEventListener(RESTORED_EVENT, again);
+  }, [reload]);
   const waitingHere = useMemo(
     () => pendingItems(queue, getStoredNpub(), block, kind, season),
     [queue, block, kind, season],

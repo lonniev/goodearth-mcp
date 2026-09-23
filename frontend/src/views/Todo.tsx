@@ -21,7 +21,7 @@ import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
 import { Pager, SortHeaders, type Column } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
-import UndoBar, { remembered } from "../components/UndoBar";
+import { remembered, RESTORED_EVENT } from "../lib/undoEvents";
 import {
   CELL, Empty, ErrorBox, FIELD, ICON, IconButton, Pill, RowActions, Section, TrashGlyph,
 } from "../components/ui";
@@ -122,6 +122,14 @@ export default function TodoView({
   // an empty list to someone who had tasks a moment ago.
   useEffect(() => { void migrateLocalTodos(region.id).then(() => load()); }, [region.id, load]);
 
+  // Tasks are read here rather than through `useBlockItems`, so this page
+  // needs its own ear for a row put back from the header's undo mark.
+  useEffect(() => {
+    const again = () => { refreshFeed.soon(); void load(); };
+    window.addEventListener(RESTORED_EVENT, again);
+    return () => window.removeEventListener(RESTORED_EVENT, again);
+  }, [load]);
+
   function sortBy(col: TaskSort) {
     if (col === sortCol) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else { setSortCol(col); setSortDir("asc"); }
@@ -221,7 +229,6 @@ export default function TodoView({
 
       {err && <ErrorBox>{err}</ErrorBox>}
 
-      <UndoBar kinds={["task"]} blockId={region.id} onRestored={() => { refreshFeed.soon(); void load(); }} />
 
       {/* ── Write it down ──────────────────────────────────────────────── */}
       {/* Headed by "New Task?" in the row above, not a row of its own: a

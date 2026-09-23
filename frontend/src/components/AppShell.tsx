@@ -11,6 +11,7 @@ import Avatar from "./Avatar";
 import Boundary from "./Boundary";
 import FullscreenButton from "./FullscreenButton";
 import OutboxChip from "./OutboxChip";
+import UndoChip from "./UndoChip";
 import RegionPicker from "./RegionPicker";
 import type { SavedRegion } from "../lib/regions";
 import { applyOrder, move, readCollapsed, readOrder, writeCollapsed, writeOrder } from "../lib/navOrder";
@@ -207,6 +208,7 @@ export default function AppShell({
         {/* One right-aligned group, so the account chip keeps its corner when
             the full-screen button has nothing to offer on this device. */}
         <div className="ml-auto flex shrink-0 items-center gap-2">
+        <UndoChip blockId={region.id} />
         <OutboxChip />
         <FullscreenButton />
         <button
