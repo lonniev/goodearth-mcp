@@ -13,6 +13,7 @@ import Hive, { hiveMood } from "./components/Hive";
 import Bees from "./components/Bees";
 import NpubGate from "./components/NpubGate";
 import NostrProfilePanel from "./components/NostrProfilePanel";
+import SessionKeyClaim from "./components/SessionKeyClaim";
 import Preferences from "./components/Preferences";
 import AccountSummary from "./components/AccountSummary";
 import CalendarFeed from "./components/CalendarFeed";
@@ -350,6 +351,8 @@ export default function App() {
             <AccountSummary balanceSats={balance} spentToday={spent}
               onSignOut={() => { logOut(); setSignedIn(false); }} />
             <NostrProfilePanel npub={getStoredNpub()} />
+            {/* Browser-held session nsec only — silent when NIP-07 / courier. */}
+            <SessionKeyClaim npub={getStoredNpub()} />
             {/* Publishing is a once-per-region setup step, so it sits with the
                 other settings rather than at the top of the working page. */}
             <CalendarFeed region={region} />
