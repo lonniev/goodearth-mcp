@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- The pests page reads like the Plant ledger: one heading carrying its own
+  reading time, a filter beside the search — **due within** so many days,
+  **crossed this season**, **watched with no model** — and the "Nothing
+  crossed or due…" sentence gone, since it was a fact about a list the list
+  already shows. One filter component serves both tables.
+- A pest chosen from iNaturalist can be tapped to read its card, the same card
+  the nearby list opens.
+- "Due on this ground" is **When they appear here** — half of what it lists has
+  already happened this season, so nothing about it is upcoming.
 - The Plant ledger is filtered rather than described. "Median first frost
   Oct 12. 2 on this page will not make it." is gone — the Dashboard carries
   frost — and in its place a filter beside the search: **ready before frost**,

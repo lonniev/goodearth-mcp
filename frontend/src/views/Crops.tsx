@@ -13,8 +13,8 @@ import { useUnits } from "../components/Units";
 import Provenance from "../components/Provenance";
 import { Pager } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
-import LedgerFilter from "../components/LedgerFilter";
-import { apply as applyFilter, isOn as filterOn, NO_FILTER,
+import TableFilter from "../components/TableFilter";
+import { apply as applyFilter, isOn as filterOn, NO_FILTER, summarise as filterWords,
   type LedgerFilter as Filter } from "../lib/ledgerFilter";
 import { baseBounds, parseBase } from "../lib/baseTemp";
 import QuoteScroller from "../components/QuoteScroller";
@@ -745,7 +745,14 @@ export default function Crops({
           )}
         </Section>
         <div className="ml-auto flex items-center gap-2">
-          <LedgerFilter value={filter} onChange={(f) => { setFilter(f); setPageNo(0); }} />
+          <TableFilter value={filter} empty={NO_FILTER} summary={filterWords(filter)}
+            onChange={(f) => { setFilter(f); setPageNo(0); }}
+            questions={[
+              { kind: "toggle", key: "readyBeforeFrost", label: "Ready before frost" },
+              { kind: "toggle", key: "hasSeed", label: "Has seed" },
+              { kind: "number", key: "withinDays", label: "Projected within", unit: "days" },
+              { kind: "number", key: "gddUnder", label: "Heat left under", unit: "GDD" },
+            ]} />
           <SearchBox value={search} placeholder="regex ok, e.g. zinnia|dahlia"
             onSearch={(t) => { setSearch(t); setPageNo(0); }} />
         </div>
