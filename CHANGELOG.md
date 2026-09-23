@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- The form for tracking a creature sits above the Wildlife table, where Plants
+  and Pests keep theirs, instead of below it — past the table, its pager, and
+  the empty state telling a grower to go and find a creature. It has lost its
+  "Track something" heading too: on all three pages the bordered card is the
+  form, and its first field names itself.
 - The Wildlife year reads like the other two tables: one heading carrying its
   own reading time, a filter beside the search — **due within** so many days,
   **already happened**, **on the roster with no date** — and the summary

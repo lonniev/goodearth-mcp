@@ -31,7 +31,7 @@ import { useSubmit } from "../lib/useSubmit";
 import { useUnits } from "./Units";
 import {
   ErrorBox, FIELD, ICON, IconButton, LifecycleMark, MonthDay, Note, Pill,
-  Section, SpeciesMark, Stepper, TrashGlyph,
+  SpeciesMark, Stepper, TrashGlyph,
 } from "./ui";
 
 type Driver = "calendar" | "interval" | "daylight" | "heat" | "condition";
@@ -282,10 +282,13 @@ export default function EventComposer({
 
   return (
     <>
-      <Section emoji="➕" title="Track something" />
       {error && <ErrorBox>{error}</ErrorBox>}
 
-      <div className="rounded-md border border-rule bg-panel p-4">
+      {/* No heading over it. Plants and Pests open with the bordered card
+          itself, and the first field says "Species" — a heading saying
+          "Track something" above a box asking for one is the page reading
+          itself aloud. */}
+      <div id="track-something" className="mb-4 rounded-md border border-rule bg-panel p-4">
         {/* ── What is being tracked ──────────────────────────────────── */}
         {/* "Animal" was wrong as soon as the finder learned about fungi: a
             chanterelle added from Community Observations lands on this same

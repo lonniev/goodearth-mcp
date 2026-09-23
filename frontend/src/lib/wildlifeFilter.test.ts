@@ -115,3 +115,34 @@ describe("the three pages now read alike", () => {
     }
   });
 });
+
+describe("the three pages are laid out alike", () => {
+  const view = (n: string) => readFileSync(new URL(`../views/${n}.tsx`, import.meta.url), "utf8");
+
+  it("each puts its add form above its table, not below", () => {
+    // Wildlife's sat past the table, past its pager, and past the empty state
+    // telling a grower to go and find a creature — so the page asked them to
+    // scroll away from the answer in order to act on it.
+    const where = (src: string, form: RegExp, table: RegExp) => {
+      const f = src.search(form), t = src.search(table);
+      assert.ok(f > -1 && t > -1, "both markers present");
+      return f < t;
+    };
+    assert.ok(where(view("Crops"), /<form key=\{formKey\} id="new-planting"/, /title=\{`Plant ledger/));
+    assert.ok(where(view("Pests"), /<form id="new-pest"/, /What you're watching\$\{ranAt/));
+    assert.ok(where(view("Wildlife"), /<EventComposer/, /title=\{`The year/));
+  });
+
+  it("no page puts a heading over its add form", () => {
+    // The bordered card IS the form on all three, and the first field names
+    // itself — Plant, Pest, Species.
+    const composer = readFileSync(new URL("../components/EventComposer.tsx", import.meta.url), "utf8");
+    assert.doesNotMatch(composer, /title="Track something"/);
+  });
+
+  it("a cycle seeded from a row reaches a form the grower can see", () => {
+    // The form is above the table now, so "start another" on a row far down
+    // would otherwise fill in a form off the top of the screen.
+    assert.match(view("Wildlife"), /getElementById\("track-something"\)\?\.scrollIntoView/);
+  });
+});
