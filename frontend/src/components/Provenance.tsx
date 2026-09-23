@@ -14,7 +14,7 @@ import { useEffect } from "react";
 import { checkPrice } from "../lib/mcp";
 
 export default function Provenance({
-  tool, at, onCost, from,
+  tool, at, onCost, from, hideTime,
 }: {
   tool: string;
   at: Date | null;
@@ -24,6 +24,10 @@ export default function Provenance({
   /// server serves its last reading when the weather service is busy — better
   /// than an outage on the page, but only if the page says so.
   from?: Date | null;
+  /// The caller prints the reading time itself — in its own heading, say — so
+  /// this renders nothing and keeps only the pricing it was already doing.
+  /// Two copies of "read 8:28 PM" on one row is one copy too many.
+  hideTime?: boolean;
 }) {
   useEffect(() => {
     if (!at || !onCost) return;
@@ -36,7 +40,7 @@ export default function Provenance({
     // between one answer and the next, and the total has to follow it.
   }, [tool, at, onCost]);
 
-  if (!at) return null;
+  if (!at || hideTime) return null;
 
   const clock = (d: Date) => d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   // A reading from an earlier day needs its day named. Within today the time

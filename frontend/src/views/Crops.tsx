@@ -13,6 +13,9 @@ import { useUnits } from "../components/Units";
 import Provenance from "../components/Provenance";
 import { Pager } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
+import LedgerFilter from "../components/LedgerFilter";
+import { apply as applyFilter, isOn as filterOn, NO_FILTER,
+  type LedgerFilter as Filter } from "../lib/ledgerFilter";
 import { baseBounds, parseBase } from "../lib/baseTemp";
 import QuoteScroller from "../components/QuoteScroller";
 import { blockItemList, cropGddStatus, cropSuitability, diseaseRisk, plantingWindow,
@@ -86,13 +89,25 @@ export default function Crops({
   const [dir, setDir] = useState<"asc" | "desc">("asc");
   const [pageNo, setPageNo] = useState(0);
   const [search, setSearch] = useState("");
+  /// What the grower is asking of the list. Nothing, usually.
+  const [filter, setFilter] = useState<Filter>(NO_FILTER);
+
+  /// A filter has to see the whole block, not a page of it.
+  ///
+  /// Heat status is computed for the rows the ledger was SENT, so filtering a
+  /// page of twenty would answer "among the first twenty" while the pager
+  /// beneath went on counting the block — a lie with a number on it. While a
+  /// filter is on the ledger reads in one page, at the same ceiling the seed
+  /// shelf and the observations already use, and the pager stands down.
+  const narrowed = filterOn(filter);
 
   const { items: plantings, save: storePlanting, saveMany: storeMany,
           retire: retirePlanting, reload: reloadPlantings,
           loading: plantingsLoading, error: plantingsError,
           unknownBlock: plantingsUnknown, total, page, pages } =
     useBlockItems<Planting>(region.id, "planting", plantingCodec, undefined, {
-      sortCol: sort, sortDir: dir, page: pageNo, search, pageSize: 20,
+      sortCol: sort, sortDir: dir, page: narrowed ? 0 : pageNo, search,
+      pageSize: narrowed ? 200 : 20,
     });
 
   // This season's cuts, to put what each planting GAVE beside what it was
@@ -609,6 +624,11 @@ export default function Crops({
     };
   });
 
+  /// The rows the question is about. `lotsFor` is the same join the seed row
+  /// uses, so "has seed" here and a green mark there can never disagree.
+  const shown = applyFilter(ledgerRows, filter,
+    (r) => lotsFor(r.planting.crop, r.planting.taxonId, lots).length > 0);
+
   /// Remove a row, and remember it. The record retires the row rather than
   /// deleting it, so the undo below restores the row that was there — this
   /// keeps a copy of what it looked like so the bar can name it and the
@@ -714,29 +734,24 @@ export default function Crops({
         {added && !formErr && <p className="mt-2 text-[12px] text-growth">{added}</p>}
       </form>
 
-      <Section emoji="📒" title="Plant ledger" first>
-        {plantings.length > 0 && (
-          <Provenance tool="goodearth_crop_gdd_status" at={ranAt} onCost={onCost} />
-        )}
-      </Section>
-
-      {/* One row: the table's caption on the left, its search on the right
-          (SearchBox pushes itself right). They were two rows, and the ledger
-          is what a grower came to read. */}
+      {/* One row where there were three. The heading carries its own reading
+          time rather than sending it to the far right, and the frost sentence
+          is gone — the Dashboard carries frost, and the questions that
+          sentence was answering are the filter's now. */}
       <div className="mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        {/* The server's summary counts the rows it was SENT, which is now one
-            page. Quoting it over a paged table would say "3 plantings" of a
-            block holding twenty. The pager states the true count; what only
-            the ledger knows is the frost date, so that is what is kept. */}
-        {ledger?.first_frost && (
-          <p className="text-[13px] text-ink-soft">
-            Median first frost {new Date(ledger.first_frost.median + "T12:00:00")
-              .toLocaleDateString("en-US", { month: "short", day: "numeric" })}.
-            {ledger.wont_finish?.length ? ` ${ledger.wont_finish.length} on this page will not make it.` : ""}
-          </p>
-        )}
-        <SearchBox value={search} placeholder="regex ok, e.g. zinnia|dahlia"
-          onSearch={(t) => { setSearch(t); setPageNo(0); }} />
+        <Section emoji="📒" first
+          title={`Plant ledger${ranAt
+            ? ` (at ${ranAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })})`
+            : ""}`}>
+          {plantings.length > 0 && (
+            <Provenance tool="goodearth_crop_gdd_status" at={ranAt} onCost={onCost} hideTime />
+          )}
+        </Section>
+        <div className="ml-auto flex items-center gap-2">
+          <LedgerFilter value={filter} onChange={(f) => { setFilter(f); setPageNo(0); }} />
+          <SearchBox value={search} placeholder="regex ok, e.g. zinnia|dahlia"
+            onSearch={(t) => { setSearch(t); setPageNo(0); }} />
+        </div>
       </div>
 
       {busy && !ledger ? (
@@ -746,7 +761,7 @@ export default function Crops({
       ) : ledger ? (
         <>
           <CropLedger
-            rows={ledgerRows} sort={sort} dir={dir} onSort={sortBy}
+            rows={shown} sort={sort} dir={dir} onSort={sortBy}
             editing={editing} draft={draft} saving={savingRow}
             onEdit={(pl) => { setEditing(pl.id); setDraft(pl); }}
             onDraft={setDraft}
@@ -771,8 +786,19 @@ export default function Crops({
               onSave: saveHarvest,
             }}
           />
-          <Pager page={page} pages={pages} total={total} noun="planting"
-            onPage={setPageNo} />
+          {/* The pager counts the block. While a filter is on the block is
+              already all here and the count that matters is what answered,
+              so the pager stands down rather than counting past a list it is
+              not describing. */}
+          {narrowed ? (
+            <p className="data mt-1 text-[11px] text-ink-soft">
+              {shown.length} of {plantings.length}
+              {total > plantings.length ? ` · filtering the first ${plantings.length} of ${total}` : ""}
+            </p>
+          ) : (
+            <Pager page={page} pages={pages} total={total} noun="planting"
+              onPage={setPageNo} />
+          )}
           {orphans.length > 0 && (
             <p className="data mt-1 flex flex-wrap items-center gap-x-1.5 text-[11px] text-ink-soft">
               <span>Seed with no plant here:</span>

@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- The Plant ledger is filtered rather than described. "Median first frost
+  Oct 12. 2 on this page will not make it." is gone — the Dashboard carries
+  frost — and in its place a filter beside the search: **ready before frost**,
+  **has seed**, **projected within** so many days, **heat left under** so much.
+  The heading took the row back and carries its own reading time, as
+  "Plant ledger (at 8:28 PM)".
+- While a filter is on the ledger reads the whole block rather than a page of
+  it, so the count is of your ground and not of the first twenty rows.
 - A pest is named from iNaturalist rather than typed and hoped for, so a row
   carries the creature's taxon and every later lookup has something to key on.
   It searches **animals**, not insects — this list already held a chipmunk and
