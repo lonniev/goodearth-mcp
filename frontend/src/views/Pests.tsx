@@ -574,10 +574,30 @@ function Editor({ draft, onChange, onCommit, onCancel, saving }: {
   };
   /// Stages round-trip through the same "name 375, name 1400" text the add
   /// form takes, so there is one grammar to learn rather than two.
-  const asText = (draft.stages ?? []).map((s) => `${s.stage} ${s.gdd}`).join(", ");
+  /// A stage whose figure is missing prints its name alone.
+  ///
+  /// It printed "adult undefined". The record's own type says a stage carries
+  /// a number, but a row written through the MCP by an agent need not have
+  /// obeyed it — and the editor's job is to show what is there, not to put
+  /// the word `undefined` in a box a grower can save.
+  const figure = (g: unknown) => (typeof g === "number" && Number.isFinite(g) ? String(g) : "");
+  const asText = (draft.stages ?? [])
+    .map((s) => `${s.stage} ${figure(s.gdd)}`.trim()).join(", ");
+
+  /// Parse the text back, keeping what it cannot parse rather than dropping it.
+  ///
+  /// A chunk naming a stage with no figure used to vanish on save — so
+  /// opening the editor on such a pest and pressing ✓ deleted the stages the
+  /// grower had never touched. Now the original object is carried through
+  /// untouched: this form does not invent a figure, and it does not destroy a
+  /// row for want of one.
   const parseStages = (text: string) => text.split(",").map((chunk) => {
-    const m = chunk.trim().match(/^(.*?)[\s:]+(\d+(?:\.\d+)?)$/);
-    return m ? { stage: m[1].trim(), gdd: Number(m[2]) } : null;
+    const t = chunk.trim();
+    if (!t) return null;
+    const m = t.match(/^(.*?)[\s:]+(\d+(?:\.\d+)?)$/);
+    if (m) return { stage: m[1].trim(), gdd: Number(m[2]) };
+    const kept = (draft.stages ?? []).find((s) => s.stage === t);
+    return kept ?? null;
   }).filter((x): x is { stage: string; gdd: number } => x !== null);
 
   return (
