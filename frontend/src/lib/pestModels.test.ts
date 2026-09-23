@@ -90,3 +90,24 @@ describe("the form a pest is named in", () => {
       "the button must come after the fields it acts on");
   });
 });
+
+describe("the stages a row is edited through", () => {
+  const editor = () => {
+    const src = readFileSync(new URL("../views/Pests.tsx", import.meta.url), "utf8");
+    return src.slice(src.indexOf("Stages round-trip"));
+  };
+
+  it("never prints the word undefined into a box a grower can save", () => {
+    // It read "adult undefined, egg hatch undefined". The record's own type
+    // says a stage carries a number, but a row written through the MCP by an
+    // agent need not have obeyed it.
+    assert.match(editor(), /typeof g === "number" && Number\.isFinite\(g\)/);
+    assert.doesNotMatch(editor(), /`\$\{s\.stage\} \$\{s\.gdd\}`/);
+  });
+
+  it("keeps a stage it cannot parse rather than dropping it on save", () => {
+    // Opening the editor on such a pest and pressing the tick used to delete
+    // stages the grower had never touched.
+    assert.match(editor(), /const kept = \(draft\.stages \?\? \[\]\)\.find/);
+  });
+});

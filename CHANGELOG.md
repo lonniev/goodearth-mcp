@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- The Wildlife year reads like the other two tables: one heading carrying its
+  own reading time, a filter beside the search — **due within** so many days,
+  **already happened**, **on the roster with no date** — and the summary
+  sentence gone. All three pages now share one filter control.
+
 - The pests page reads like the Plant ledger: one heading carrying its own
   reading time, a filter beside the search — **due within** so many days,
   **crossed this season**, **watched with no model** — and the "Nothing
@@ -101,6 +106,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fact, kept apart from the heat the chart counts.
 - A packet may name the planting it was sown from, or not: cloves, crowns and
   nursery starts have a day they went in and no packet at all.
+
+### Fixed
+- The pest editor no longer prints "adult undefined" into a box a grower can
+  save, and no longer deletes a stage it could not parse. Opening the editor
+  on such a pest and pressing the tick used to remove stages nobody had
+  touched.
 
 ## [0.3.0] - 2026-09-18
 

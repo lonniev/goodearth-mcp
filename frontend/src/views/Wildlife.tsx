@@ -13,6 +13,9 @@ import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
 import { Pager, SortHeaders, type Column } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
+import TableFilter from "../components/TableFilter";
+import { isOn as wildFilterOn, matches as wildMatches, NO_WILDLIFE_FILTER,
+  summarise as wildFilterWords, type WildlifeFilter } from "../lib/wildlifeFilter";
 import { remembered } from "../lib/undoEvents";
 import { wildlifeCalendar, type WildlifeResult, type WildlifeRow } from "../lib/mcp";
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
@@ -72,6 +75,10 @@ export default function Wildlife({
   const [dir, setDir] = useState<"asc" | "desc">("asc");
   const [pageNo, setPageNo] = useState(0);
   const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<WildlifeFilter>(NO_WILDLIFE_FILTER);
+  /// A filter has to see the whole block, not a page of it — the same reason
+  /// the Plant ledger and the watch list widen while one is on.
+  const narrowed = wildFilterOn(filter);
   const [editing, setEditing] = useState("");
   const [draft, setDraft] = useState<SavedWildlife | null>(null);
   const [savingRow, setSavingRow] = useState(false);
@@ -81,7 +88,8 @@ export default function Wildlife({
           loading: modelsLoading, error: modelsError,
           unknownBlock: modelsUnknown, total, page, pages } =
     useBlockItems<SavedWildlife>(region.id, "wildlife", wildlifeCodec, undefined, {
-      sortCol: sort, sortDir: dir, page: pageNo, search, pageSize: 20,
+      sortCol: sort, sortDir: dir, page: narrowed ? 0 : pageNo, search,
+      pageSize: narrowed ? 200 : 20,
     });
   /// What the grower has actually seen. A projection nobody has answered and
   /// one they answered on the 24th are different states, and only the record
@@ -236,6 +244,11 @@ export default function Wildlife({
     ),
   }));
 
+  /// The rows the question is about.
+  const shown = narrowed
+    ? watched.filter(({ model, seen }) => wildMatches(model, seen, filter))
+    : watched;
+
   async function commitRow() {
     if (!draft) return;
     setSavingRow(true); setError("");
@@ -271,14 +284,30 @@ export default function Wildlife({
         onRepeat={startAnother}
         onObserved={markSeen} />
 
-      <Section emoji="📅" title="The year" first>
-        {models.length > 0 && <Provenance tool="goodearth_wildlife_calendar" at={ranAt} onCost={onCost} />}
-      </Section>
-      {data?.summary && <p className="mb-2.5 text-[13px] text-ink-soft">{data.summary}</p>}
-
-      <div className="mb-2.5 flex flex-wrap items-center gap-1.5">
-        <SearchBox value={search} placeholder="regex ok, e.g. robin|migration"
-          onSearch={(t) => { setSearch(t); setPageNo(0); }} />
+      {/* One row where there were three, the same row the Plant ledger and
+          the watch list have: the heading carries its own reading time, the
+          filter and the search sit together on the right, and the summary
+          sentence is gone — it was a fact about a list the list shows. */}
+      <div className="mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <Section emoji="📅" first
+          title={`The year${ranAt
+            ? ` (at ${ranAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })})`
+            : ""}`}>
+          {models.length > 0 && (
+            <Provenance tool="goodearth_wildlife_calendar" at={ranAt} onCost={onCost} hideTime />
+          )}
+        </Section>
+        <div className="ml-auto flex items-center gap-2">
+          <TableFilter value={filter} empty={NO_WILDLIFE_FILTER} summary={wildFilterWords(filter)}
+            onChange={(f) => { setFilter(f); setPageNo(0); }}
+            questions={[
+              { kind: "number", key: "dueDays", label: "Due within", unit: "days" },
+              { kind: "toggle", key: "happened", label: "Already happened" },
+              { kind: "toggle", key: "rosterOnly", label: "On the roster, no date" },
+            ]} />
+          <SearchBox value={search} placeholder="regex ok, e.g. robin|migration"
+            onSearch={(t) => { setSearch(t); setPageNo(0); }} />
+        </div>
       </div>
 
       {busy && !data ? (
@@ -291,7 +320,7 @@ export default function Wildlife({
                 <SortHeaders cols={COLS} sort={sort} dir={dir} onSort={sortBy} />
               </thead>
               <tbody>
-                {watched.map(({ model: m, seen: e }) => {
+                {shown.map(({ model: m, seen: e }) => {
                   const clock = clockOf(m.driver);
                   const when = e?.reached_on ?? e?.projected_date;
                   const past = !!e?.reached_on;
@@ -365,7 +394,16 @@ export default function Wildlife({
               </tbody>
             </table>
           </div>
-          <Pager page={page} pages={pages} total={total} noun="watch" onPage={setPageNo} />
+          {/* While a filter is on the block is already all here, so the
+              pager stands down rather than counting past the list it shows. */}
+          {narrowed ? (
+            <p className="data mt-1 text-[11px] text-ink-soft">
+              {shown.length} of {models.length}
+              {total > models.length ? ` · filtering the first ${models.length} of ${total}` : ""}
+            </p>
+          ) : (
+            <Pager page={page} pages={pages} total={total} noun="watch" onPage={setPageNo} />
+          )}
         </>
       ) : modelsLoading ? (
         <Empty>Reading what you have on {region.name}…</Empty>
