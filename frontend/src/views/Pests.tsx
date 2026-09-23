@@ -13,7 +13,11 @@ import Provenance from "../components/Provenance";
 import QuoteScroller from "../components/QuoteScroller";
 import { Pager, SortHeaders, type Column } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
+import TableFilter from "../components/TableFilter";
+import { isOn as pestFilterOn, matches as pestMatches, NO_PEST_FILTER,
+  summarise as pestFilterWords, type PestFilter } from "../lib/pestFilter";
 import SpeciesPicker from "../components/SpeciesPicker";
+import SpeciesCard from "../components/SpeciesCard";
 import type { SpeciesHit } from "../lib/species";
 import { remembered } from "../lib/undoEvents";
 import Term from "../components/Term";
@@ -81,6 +85,10 @@ export default function Pests({
   const [dir, setDir] = useState<"asc" | "desc">("asc");
   const [pageNo, setPageNo] = useState(0);
   const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<PestFilter>(NO_PEST_FILTER);
+  /// A filter has to see the whole block, not a page of it — the same reason
+  /// the Plant ledger widens while one is on.
+  const narrowed = pestFilterOn(filter);
   const [editing, setEditing] = useState("");
   const [draft, setDraft] = useState<SavedPest | null>(null);
   const [savingRow, setSavingRow] = useState(false);
@@ -91,7 +99,8 @@ export default function Pests({
           loading: modelsLoading, error: modelsError,
           unknownBlock: modelsUnknown, total, page, pages } =
     useBlockItems<SavedPest>(region.id, "pest", pestCodec, undefined, {
-      sortCol: sort, sortDir: dir, page: pageNo, search, pageSize: 20,
+      sortCol: sort, sortDir: dir, page: narrowed ? 0 : pageNo, search,
+      pageSize: narrowed ? 200 : 20,
     });
   const [data, setData] = useState<PestWindowResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -113,6 +122,8 @@ export default function Pests({
   /// string into the record.
   const [seedName, setSeedName] = useState("");
   const [pickKey, setPickKey] = useState(0);
+  /// The taxon whose card is open under the picker, if any.
+  const [reading, setReading] = useState<number | null>(null);
 
   /// Naming a pest from the catalogue below fills the form, which now lives at
   /// the TOP of the page — so the page goes there too. Without this the tap
@@ -162,6 +173,11 @@ export default function Pests({
       (a) => (a.ref && a.ref === m.id) || (!a.ref && a.pest === m.pest),
     ),
   }));
+
+  /// The rows the question is about.
+  const shown = narrowed
+    ? watched.filter(({ model, assessed }) => pestMatches(model, assessed, filter))
+    : watched;
 
   /// Rows the server could not evaluate, by name. A pest saved with no
   /// stages, no published model and no watch flag is one of these — it is not
@@ -217,7 +233,7 @@ export default function Pests({
     const form = e.currentTarget;
     submit.run(async (key) => {
       await storePest(withId(made, key));
-      setPestName(""); setPicked(null); setSeedName("");
+      setPestName(""); setPicked(null); setSeedName(""); setReading(null);
       form.reset();
     });
   }
@@ -269,9 +285,19 @@ export default function Pests({
                 thumb: picked.thumb,
               }}
               placeholder="aster leafhopper, vole, slug…"
-              onPick={(hit) => { setPicked(hit); setPestName(hit.commonName || hit.scientificName); }}
+              onPick={(hit) => { setPicked(hit); setReading(null); setPestName(hit.commonName || hit.scientificName); }}
               onClear={() => { setPicked(null); setPestName(""); }}
-              onText={setPestName} />
+              onText={setPestName}
+              onRead={() => setReading((r) => (r ? null : picked?.id ?? null))} />
+            {/* The same card the nearby list opens. A chosen creature should
+                be as readable here as it is there — this is the one place a
+                grower is deciding whether it is the right one. */}
+            {reading != null && picked && (
+              <div className="mt-2">
+                <SpeciesCard taxonId={reading} fallbackName={pestName}
+                  onClose={() => setReading(null)} />
+              </div>
+            )}
           </Field>
 
           {/* The block's own base is the placeholder rather than a hardcoded
@@ -320,15 +346,31 @@ export default function Pests({
         {formErr && <p className="mt-2 text-[12px] text-clay">{formErr}</p>}
       </form>
 
-      <Section emoji="👀" title="What you're watching" first>
-        {models.length > 0 && <Provenance tool="goodearth_pest_threshold" at={ranAt} onCost={onCost} />}
-      </Section>
-
-      {data?.summary && <p className="mb-2.5 text-[13px] text-ink-soft">{data.summary}</p>}
-
-      <div className="mb-2.5 flex flex-wrap items-center gap-1.5">
-        <SearchBox value={search} placeholder="regex ok, e.g. moth|borer"
-          onSearch={(t) => { setSearch(t); setPageNo(0); }} />
+      {/* One row where there were three, and the same row the Plant ledger
+          has: the heading carries its own reading time, the filter and the
+          search sit together on the right, and the summary sentence is gone.
+          "Nothing crossed or due in the next 10 days" is a fact about the
+          list the list already shows. */}
+      <div className="mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <Section emoji="👀" first
+          title={`What you're watching${ranAt
+            ? ` (at ${ranAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })})`
+            : ""}`}>
+          {models.length > 0 && (
+            <Provenance tool="goodearth_pest_threshold" at={ranAt} onCost={onCost} hideTime />
+          )}
+        </Section>
+        <div className="ml-auto flex items-center gap-2">
+          <TableFilter value={filter} empty={NO_PEST_FILTER} summary={pestFilterWords(filter)}
+            onChange={(f) => { setFilter(f); setPageNo(0); }}
+            questions={[
+              { kind: "number", key: "dueDays", label: "Due within", unit: "days" },
+              { kind: "toggle", key: "crossed", label: "Crossed this season" },
+              { kind: "toggle", key: "watchedOnly", label: "Watched, no model" },
+            ]} />
+          <SearchBox value={search} placeholder="regex ok, e.g. moth|borer"
+            onSearch={(t) => { setSearch(t); setPageNo(0); }} />
+        </div>
       </div>
 
       {/* Rows shaped like the wildlife calendar's: an icon, the name and its
@@ -348,7 +390,7 @@ export default function Pests({
                   sort={sort} dir={dir} onSort={sortBy} />
               </thead>
               <tbody>
-                {watched.map(({ model: m, assessed: a }) => (
+                {shown.map(({ model: m, assessed: a }) => (
                   editing === m.id && draft ? (
                     <Editor key={m.id} draft={draft} onChange={setDraft}
                       onCommit={commitRow} saving={savingRow}
@@ -433,7 +475,17 @@ export default function Pests({
               </tbody>
             </table>
           </div>
-          <Pager page={page} pages={pages} total={total} noun="pest" onPage={setPageNo} />
+          {/* While a filter is on the block is already all here and the count
+              that matters is what answered, so the pager stands down rather
+              than counting past a list it is not describing. */}
+          {narrowed ? (
+            <p className="data mt-1 text-[11px] text-ink-soft">
+              {shown.length} of {models.length}
+              {total > models.length ? ` · filtering the first ${models.length} of ${total}` : ""}
+            </p>
+          ) : (
+            <Pager page={page} pages={pages} total={total} noun="pest" onPage={setPageNo} />
+          )}
         </>
       ) : modelsLoading ? (
         <Empty>Reading what you have on {region.name}…</Empty>
@@ -449,7 +501,7 @@ export default function Pests({
         </Empty>
       )}
 
-      <Section emoji="🐛" title="Due on this ground">
+      <Section emoji="🐛" title="When they appear here">
         {!cat && (
           <Pill onClick={loadCatalog} disabled={catBusy} active>
             {catBusy ? "🧠 Reading…" : "🧠 What's here?"}

@@ -32,7 +32,7 @@ const shown = (h: SpeciesHit) =>
   `${h.commonName ?? ""} ${h.scientificName}`.toLowerCase();
 
 export default function SpeciesPicker({
-  kingdom, value, onPick, onClear, onText, placeholder, autoFocus, seed,
+  kingdom, value, onPick, onClear, onText, onRead, placeholder, autoFocus, seed,
 }: {
   kingdom: Kingdom;
   /// A query to start from, so another part of the page can hand the picker a
@@ -51,6 +51,9 @@ export default function SpeciesPicker({
   /// refusing a name because iNaturalist has not heard it would be capping
   /// what they may record.
   onText?: (text: string) => void;
+  /// Tap what was chosen to read about it. Given, the chip becomes a button;
+  /// omitted it stays the plain summary it has always been.
+  onRead?: () => void;
   placeholder?: string;
   autoFocus?: boolean;
 }) {
@@ -118,12 +121,26 @@ export default function SpeciesPicker({
           ? <img src={value.thumb} alt="" width={28} height={28}
               className="size-7 shrink-0 rounded object-cover" />
           : <span className="size-7 shrink-0 rounded bg-band" aria-hidden="true" />}
-        <span className="min-w-0 flex-1 leading-tight">
-          <b className="block truncate text-[13px]">{value.commonName ?? value.scientificName}</b>
-          {value.scientificName && value.commonName && (
-            <i className="block truncate text-[11px] text-ink-soft">{value.scientificName}</i>
-          )}
-        </span>
+        {/* The name is the way in to what the catalogue knows about it —
+            the same card the nearby list opens, rather than a dead label. */}
+        {onRead ? (
+          <button type="button" onClick={onRead}
+            title={`About ${value.commonName ?? value.scientificName}`}
+            className="min-w-0 flex-1 rounded text-left leading-tight active:bg-band">
+            <b className="block truncate text-[13px] underline decoration-dotted underline-offset-2">
+              {value.commonName ?? value.scientificName}</b>
+            {value.scientificName && value.commonName && (
+              <i className="block truncate text-[11px] text-ink-soft">{value.scientificName}</i>
+            )}
+          </button>
+        ) : (
+          <span className="min-w-0 flex-1 leading-tight">
+            <b className="block truncate text-[13px]">{value.commonName ?? value.scientificName}</b>
+            {value.scientificName && value.commonName && (
+              <i className="block truncate text-[11px] text-ink-soft">{value.scientificName}</i>
+            )}
+          </span>
+        )}
         {onClear && (
           <button type="button" onClick={onClear}
             className="min-h-9 shrink-0 rounded-full px-2.5 text-[12px] text-ink-soft active:bg-band">

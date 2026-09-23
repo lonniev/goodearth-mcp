@@ -26,8 +26,11 @@ export default function SpeciesCard({
   nearby?: number;
   /// Shown while the detail is loading, so the card is never nameless.
   fallbackName: string;
-  chosen: boolean;
-  onToggle: () => void;
+  /// Whether this one is already taken. Omitted with `onToggle`, the card is
+  /// read-only — what a caller wants when the species is already chosen and
+  /// the tap was "tell me about it", not "pick it".
+  chosen?: boolean;
+  onToggle?: () => void;
   onClose: () => void;
   hasYear?: boolean;
 }) {
@@ -105,11 +108,11 @@ export default function SpeciesCard({
           )}
 
           <div className="mt-2.5 flex flex-wrap items-center gap-2">
-            <button onClick={onToggle}
+            {onToggle && <button onClick={onToggle}
               className={`min-h-11 rounded-full border px-4 text-[12.5px] font-semibold ${
                 chosen ? "border-ink bg-ink text-paper" : "border-ink"}`}>
               {chosen ? "Chosen — tap to drop" : "Choose this one"}
-            </button>
+            </button>}
             <a href={info.inatUrl} target="_blank" rel="noreferrer"
               className="text-[12px] underline decoration-dotted underline-offset-2 text-ink-soft">
               iNaturalist
