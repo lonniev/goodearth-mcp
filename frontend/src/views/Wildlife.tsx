@@ -216,6 +216,10 @@ export default function Wildlife({
     if (typeof draft === "string") { setError(draft); return; }
     setError("");
     setSeed({ ...draft, supersedes: rows.map((r) => r.id) });
+    // The form is ABOVE the table now, so a grower tapping this on a row far
+    // down the page would be handed a filled-in form they cannot see. Plants
+    // scrolls to its own form for the same reason.
+    document.getElementById("track-something")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   /// Save the composed cycle, then retire what it replaced.
@@ -274,6 +278,18 @@ export default function Wildlife({
 
       {error && <ErrorBox>{error}</ErrorBox>}
 
+      {/* ── Track something ────────────────────────────────────────────
+          Above the table, where Plants and Pests keep theirs. It sat below
+          the year — past the table, past its pager, past the empty state
+          telling a grower to go and find a creature — so the page asked them
+          to scroll away from the answer to act on it. */}
+      <EventComposer
+        region={region}
+        recorded={models}
+        onSave={saveComposed}
+        onCost={onCost}
+        seed={seed}
+        onSeedTaken={() => setSeed(null)} />
 
       <DueSoon
         due={due}
@@ -421,14 +437,6 @@ export default function Wildlife({
               + "on this ground."}
         </Empty>
       )}
-
-      <EventComposer
-        region={region}
-        recorded={models}
-        onSave={saveComposed}
-        onCost={onCost}
-        seed={seed}
-        onSeedTaken={() => setSeed(null)} />
 
       {/* ── Sightings ───────────────────────────────────────────────────
           Four labelled rows of chiclets, each capped at 24, of 377 creatures
