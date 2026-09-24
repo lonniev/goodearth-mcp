@@ -27,7 +27,7 @@ import {
   bundleFileName, countLine, LARGE_BUNDLE_BYTES, readBundle, type FarmBundle,
 } from "../lib/farmBundle";
 import { exportPlot, importBundle } from "../lib/farmBundleIO";
-import { shareOrDownload } from "../lib/shareFile";
+import { shareOrDownload } from "@tollbooth-dpyc/web";
 
 const EMPTY: MapValue = { mode: "polygon", ring: [], centre: null, radiusM: 400 };
 

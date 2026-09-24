@@ -12,8 +12,7 @@ import { isPublic } from "./lib/views";
 import Hive, { hiveMood } from "./components/Hive";
 import Bees from "./components/Bees";
 import NpubGate from "./components/NpubGate";
-import NostrProfilePanel from "./components/NostrProfilePanel";
-import SessionKeyClaim from "./components/SessionKeyClaim";
+import { NostrProfilePanel, SessionKeyClaim } from "@tollbooth-dpyc/web/react";
 import Preferences from "./components/Preferences";
 import AccountSummary from "./components/AccountSummary";
 import CalendarFeed from "./components/CalendarFeed";
@@ -40,8 +39,7 @@ import References from "./views/References";
 import About from "./views/About";
 import TodoView from "./views/Todo";
 import Plots from "./views/Plots";
-import { AVATAR_EVENT, avatarFor, hydrateAvatarFromNostr } from "./lib/avatar";
-import { fetchProfile } from "./lib/nostrProfile";
+import { AVATAR_EVENT, avatarFor, fetchProfile, hydrateAvatarFromNostr } from "@tollbooth-dpyc/web";
 import {
   blockList, checkBalance, getStoredNpub, isLoggedIn, logOut, onProofExpired,
   type BlockRow, type FrostWindowResult,
@@ -363,11 +361,10 @@ export default function App() {
               <div className="grid gap-3">
                 <AccountSummary balanceSats={balance} spentToday={spent}
                   onSignOut={() => { logOut(); setSignedIn(false); }} />
-                {/* Keyed by npub so a new patron never inherits the last
-                    one's fields. */}
-                <NostrProfilePanel key={getStoredNpub()} npub={getStoredNpub()} />
-                {/* Browser-held session nsec only — silent when NIP-07 / courier. */}
-                <SessionKeyClaim key={`k-${getStoredNpub()}`} npub={getStoredNpub()} />
+                <NostrProfilePanel npub={getStoredNpub()} />
+                {/* Browser-held session nsec only — silent when NIP-07 / courier.
+                    Keyed by npub so a revealed key never carries across a sign-in. */}
+                <SessionKeyClaim key={getStoredNpub()} npub={getStoredNpub()} />
               </div>
               <div className="grid gap-3">
                 <Preferences prefs={prefs} onChange={(p) => setPrefs(writePrefs(p))} />

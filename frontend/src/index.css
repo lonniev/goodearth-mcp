@@ -1,6 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 @import "leaflet/dist/leaflet.css";
 @import "tailwindcss";
+@import "@tollbooth-dpyc/web/theme.css";
+@source "../node_modules/@tollbooth-dpyc/web/dist";
 
 /* Design tokens from frontend/design/heat-ledger-mock.html — the almanac
    palette, and the SUMMER default of four seasons.
@@ -149,4 +151,27 @@
   --color-clay:     #A8462F;
   --color-band:     #E1E7ED;
   --color-rail-ink: #DCE4EC;
+}
+
+/* The shared account pieces from @tollbooth-dpyc/web, in the almanac's own
+   colours — which follow the season because these point at the season's
+   tokens. Written twice over so the package's dark-mode block, which keys on
+   `:root:not([data-theme="light"])`, never wins: Good Earth changes its light
+   with the season, not with the device's dark mode. */
+:root,
+:root:not([data-theme="light"]) {
+  --tb-accent: var(--color-ink);
+  --tb-on-accent: var(--color-paper);
+  --tb-surface: var(--color-panel);
+  --tb-surface-2: var(--color-band);
+  --tb-ink: var(--color-ink);
+  --tb-muted: var(--color-ink-soft);
+  --tb-line: var(--color-rule);
+  --tb-ok: var(--color-growth);
+  --tb-warn-bg: var(--color-panel);
+  --tb-warn-line: var(--color-honey);
+  --tb-warn-ink: var(--color-ink);
+  --tb-err-bg: var(--color-panel);
+  --tb-err-line: var(--color-clay);
+  --tb-err-ink: var(--color-clay);
 }
