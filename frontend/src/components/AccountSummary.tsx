@@ -13,7 +13,7 @@ export default function AccountSummary({
   onSignOut: () => void;
 }) {
   return (
-    <section className="mb-4 rounded-md border border-rule bg-panel px-4 py-3.5">
+    <section className="rounded-xl border border-rule bg-panel px-4 py-3">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <span className="text-[19px] leading-none text-honey">⚡</span>
         <b className="figure text-[22px] leading-none">
@@ -25,16 +25,16 @@ export default function AccountSummary({
             {spentToday.toLocaleString()} drawn today
           </span>
         )}
+        <p className="min-w-[12rem] flex-1 text-[11.5px] leading-snug text-ink-soft">
+          Pre-funded, so nothing interrupts you mid-season. Every answer shows what it drew.
+        </p>
         <button
           onClick={onSignOut}
-          className="ml-auto min-h-11 rounded-full border border-rule px-3.5 text-[12px] text-ink-soft active:bg-band"
+          className="min-h-11 rounded-full border border-rule px-3.5 text-[12px] text-ink-soft active:bg-band"
         >
           Sign out
         </button>
       </div>
-      <p className="mt-2 text-[11.5px] leading-relaxed text-ink-soft">
-        Pre-funded, so nothing interrupts you mid-season. Every answer shows what it drew.
-      </p>
     </section>
   );
 }

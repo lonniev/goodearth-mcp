@@ -45,9 +45,10 @@ export default function ForgetMe({ onForgotten }: { onForgotten: () => void }) {
   }
 
   return (
-    <div className="mb-6 rounded-xl border border-clay/40 bg-panel p-5">
+    <div className="rounded-xl border border-clay/40 bg-panel px-4 py-3">
       <div className="eyebrow mb-1 text-clay">Forget me</div>
-      <p className="mb-3 text-[12.5px] leading-relaxed text-ink-soft">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      <p className="min-w-[14rem] flex-1 text-[12.5px] leading-snug text-ink-soft">
         Deletes every block and everything recorded on it — crops, pests,
         watches, reports, tasks — and stops any calendar feed you published.
         It cannot be undone.{" "}
@@ -57,23 +58,24 @@ export default function ForgetMe({ onForgotten }: { onForgotten: () => void }) {
         </b>
       </p>
 
-      {!open ? (
+      {!open && (
         <button onClick={() => { setOpen(true); setErr(""); }}
-          className="min-h-11 rounded-full border border-clay px-4 text-[13px] font-semibold text-clay">
+          className="min-h-11 shrink-0 rounded-full border border-clay px-4 text-[13px] font-semibold text-clay">
           Forget my ground
         </button>
-      ) : (
+      )}
+      </div>
+      {open && (
         <>
-          <label className="block text-[12px] text-ink-soft">
+          <div className="mt-2 flex flex-wrap items-end gap-2">
+          <label className="block min-w-[12rem] flex-1 text-[12px] text-ink-soft">
             Type <b className="data text-ink">{FORGET_PHRASE}</b> to confirm
             <input
               autoFocus value={typed} onChange={(e) => setTyped(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Escape") { setOpen(false); setTyped(""); } }}
-              className="data mt-1 h-11 w-full max-w-xs rounded border border-rule bg-white px-2.5 text-[15px] focus:border-clay focus:outline-none"
+              className="data mt-1 h-11 w-full rounded border border-rule bg-white px-2.5 text-[15px] focus:border-clay focus:outline-none"
             />
           </label>
-          {err && <p className="mt-2 text-[12.5px] text-clay">{err}</p>}
-          <div className="mt-3 flex gap-2">
             <button onClick={() => { setOpen(false); setTyped(""); setErr(""); }}
               disabled={busy}
               className="min-h-11 rounded-full border border-rule px-4 text-[13px] font-medium text-ink-soft disabled:opacity-40">
@@ -84,6 +86,7 @@ export default function ForgetMe({ onForgotten }: { onForgotten: () => void }) {
               {busy ? "Forgetting…" : "Forget it all"}
             </button>
           </div>
+          {err && <p className="mt-2 text-[12.5px] text-clay">{err}</p>}
         </>
       )}
     </div>
