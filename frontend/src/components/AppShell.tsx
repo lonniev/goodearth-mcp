@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { centreOn, scrolls } from "../lib/railScroll";
-import Avatar from "./Avatar";
+import { Avatar } from "@tollbooth-dpyc/web/react";
 import Boundary from "./Boundary";
 import FullscreenButton from "./FullscreenButton";
 import OutboxChip from "./OutboxChip";
