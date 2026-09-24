@@ -176,26 +176,28 @@ function SessionKeyClaimInner() {
 
   if (!revealed) {
     return (
-      <div className="mb-6 rounded-xl border border-rule bg-panel p-5">
+      <div className="rounded-xl border border-rule bg-panel px-4 py-3">
         <div className="eyebrow mb-1">Session key</div>
-        <p className="mb-3 text-[12.5px] leading-relaxed text-ink-soft">
-          This browser is holding the secret key that signs you in. Take a copy
-          before you clear site data or switch devices — without it, this identity
-          is gone.
-        </p>
-        <button
-          type="button"
-          onClick={() => setRevealed(true)}
-          className="min-h-11 rounded-full border border-ink bg-ink px-4 text-[13px] font-semibold text-paper"
-        >
-          Claim your session key
-        </button>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <p className="min-w-[14rem] flex-1 text-[12.5px] leading-snug text-ink-soft">
+            This browser is holding the secret key that signs you in. Take a copy
+            before you clear site data or switch devices — without it, this identity
+            is gone.
+          </p>
+          <button
+            type="button"
+            onClick={() => setRevealed(true)}
+            className="min-h-11 shrink-0 rounded-full border border-ink bg-ink px-4 text-[13px] font-semibold text-paper"
+          >
+            Claim your session key
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="relative mb-6 rounded-xl border border-rule bg-panel p-5">
+    <div className="relative rounded-xl border border-rule bg-panel px-4 py-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div className="eyebrow mb-1">Session key</div>
         <button
@@ -260,7 +262,8 @@ function SessionKeyClaimInner() {
             Encrypts the key to an npub you own and publishes the sealed message
             to public relays. Only that npub can open it.
           </p>
-          <label className="block text-[12px] text-ink-soft">
+          <div className="flex flex-wrap items-end gap-2">
+          <label className="block min-w-[16rem] flex-1 text-[12px] text-ink-soft">
             Recipient npub
             <input
               value={recipient}
@@ -276,10 +279,11 @@ function SessionKeyClaimInner() {
             type="button"
             onClick={() => void sendDm()}
             disabled={busy || recipient.trim().length < 60}
-            className="min-h-11 rounded-full border border-ink bg-ink px-4 text-[13px] font-semibold text-paper disabled:opacity-40"
+            className="min-h-11 shrink-0 rounded-full border border-ink bg-ink px-4 text-[13px] font-semibold text-paper disabled:opacity-40"
           >
             {busy ? "Sending…" : "Send encrypted DM"}
           </button>
+          </div>
         </div>
       )}
 

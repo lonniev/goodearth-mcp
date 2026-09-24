@@ -11,14 +11,15 @@ export default function Preferences({
   onChange: (p: Prefs) => void;
 }) {
   return (
-    <div className="mb-6 rounded-xl border border-rule bg-panel p-5">
-      <div className="eyebrow mb-3">Viewing</div>
+    <div className="rounded-xl border border-rule bg-panel px-4 py-3">
+      <div className="eyebrow mb-2">Viewing</div>
+      <div className="mb-2 flex flex-wrap gap-x-6 gap-y-2">
 
       {/* The seasons shift hue and never polarity — this is a change of light,
           not a dark mode. "Follow the season" is the default because a farm
           calendar that did not would be a strange thing. */}
-      <div className="mb-4">
-        <div className="mb-1.5 text-[13.5px]">🍂 Season</div>
+      <div>
+        <div className="mb-1 text-[13.5px]">🍂 Season</div>
         <div className="flex flex-wrap gap-1.5">
           {(["follow", ...SEASONS] as ThemeChoice[]).map((s) => (
             <button
@@ -39,8 +40,8 @@ export default function Preferences({
       {/* Fahrenheit is what the record is kept in, and switching this does
           not rewrite it — a threshold entered as 50 °F is still 50 °F, shown
           as 10 °C. */}
-      <div className="mb-4">
-        <div className="mb-1.5 text-[13.5px]">🌡️ Degrees</div>
+      <div>
+        <div className="mb-1 text-[13.5px]">🌡️ Degrees</div>
         <div className="flex gap-1.5">
           {(["F", "C"] as Unit[]).map((u) => (
             <button
@@ -56,6 +57,7 @@ export default function Preferences({
             </button>
           ))}
         </div>
+      </div>
       </div>
 
       <label className="flex min-h-11 items-center gap-3">

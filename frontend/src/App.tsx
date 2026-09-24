@@ -155,17 +155,25 @@ export default function App() {
   // re-arms rather than stranding the grower on a page that will not load.
   useEffect(() => onProofExpired((m) => { setSignedIn(false); setNotice(m); }), []);
 
+  // Who is signed in belongs to that npub alone. Signing out drops the last
+  // patron's name, balance and spend here rather than leaving them for the
+  // next npub to wear — and a profile read still in flight for the old npub
+  // is ignored when it lands.
   useEffect(() => {
+    setDisplayName("");
+    setBalance(null);
+    setSpent(0);
     if (!signedIn) return;
+    let live = true;
     const npub = getStoredNpub();
     void hydrateAvatarFromNostr(npub);
     const sync = () => setAvatar(avatarFor(npub));
     sync();
     window.addEventListener(AVATAR_EVENT, sync);
     void fetchProfile(npub).then((p) => {
-      if (p) setDisplayName(p.display_name || p.name || "");
+      if (live && p) setDisplayName(p.display_name || p.name || "");
     });
-    return () => window.removeEventListener(AVATAR_EVENT, sync);
+    return () => { live = false; window.removeEventListener(AVATAR_EVENT, sync); };
   }, [signedIn]);
 
   const refreshBalance = useCallback(async () => {
@@ -347,24 +355,35 @@ export default function App() {
         {view === "glossary" && <Glossary />}
         {view === "account" && (
           <>
-            <h1 className="figure mb-4 text-[26px] font-bold">Account</h1>
-            <AccountSummary balanceSats={balance} spentToday={spent}
-              onSignOut={() => { logOut(); setSignedIn(false); }} />
-            <NostrProfilePanel npub={getStoredNpub()} />
-            {/* Browser-held session nsec only — silent when NIP-07 / courier. */}
-            <SessionKeyClaim npub={getStoredNpub()} />
-            {/* Publishing is a once-per-region setup step, so it sits with the
-                other settings rather than at the top of the working page. */}
-            <CalendarFeed region={region} />
-            <Preferences prefs={prefs} onChange={(p) => setPrefs(writePrefs(p))} />
-            {/* Last on the page, because it is the one control here that
-                cannot be taken back. */}
-            <ForgetMe onForgotten={() => {
-              setSignedIn(false);
-              setRegion(listRegions()[0]);
-              setView(GUEST_VIEW);
-              setNotice("Your ground is forgotten. You are still a patron here.");
-            }} />
+            <h1 className="figure mb-3 text-[26px] font-bold">Account</h1>
+            {/* Two columns on a landscape screen: who you are on the left,
+                how the app behaves for you on the right. One column on a
+                phone, in the same order. */}
+            <div className="grid items-start gap-3 lg:grid-cols-2">
+              <div className="grid gap-3">
+                <AccountSummary balanceSats={balance} spentToday={spent}
+                  onSignOut={() => { logOut(); setSignedIn(false); }} />
+                {/* Keyed by npub so a new patron never inherits the last
+                    one's fields. */}
+                <NostrProfilePanel key={getStoredNpub()} npub={getStoredNpub()} />
+                {/* Browser-held session nsec only — silent when NIP-07 / courier. */}
+                <SessionKeyClaim key={`k-${getStoredNpub()}`} npub={getStoredNpub()} />
+              </div>
+              <div className="grid gap-3">
+                <Preferences prefs={prefs} onChange={(p) => setPrefs(writePrefs(p))} />
+                {/* Publishing is a once-per-region setup step, so it sits with
+                    the other settings rather than at the top of the working page. */}
+                <CalendarFeed region={region} />
+                {/* Last, because it is the one control here that cannot be
+                    taken back. */}
+                <ForgetMe onForgotten={() => {
+                  setSignedIn(false);
+                  setRegion(listRegions()[0]);
+                  setView(GUEST_VIEW);
+                  setNotice("Your ground is forgotten. You are still a patron here.");
+                }} />
+              </div>
+            </div>
           </>
         )}
       </AppShell>

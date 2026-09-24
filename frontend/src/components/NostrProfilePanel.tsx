@@ -11,7 +11,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Camera, ChevronDown, Loader2, X } from "lucide-react";
 import Avatar, { isAvatarUrl } from "./Avatar";
 import AvatarPicker from "./AvatarPicker";
-import { setStoredAvatar } from "../lib/avatar";
+import { avatarFor, setStoredAvatar } from "../lib/avatar";
 import {
   canSignProfile,
   fetchProfile,
@@ -27,12 +27,14 @@ import {
   publishControlMode,
 } from "../lib/nostrProfilePresentation";
 
-const card = "rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900";
+const card = "rounded-xl border border-rule bg-panel";
 const field =
-  "w-full rounded-lg px-3 py-2 text-sm bg-white dark:bg-zinc-950 border border-stone-300 dark:border-zinc-700 focus:outline-hidden focus:border-amber-400";
+  "w-full rounded-lg px-3 py-2 text-sm bg-white border border-rule focus:outline-hidden focus:border-honey";
 
 export default function NostrProfilePanel({ npub }: { npub: string }) {
-  const [picture, setPicture] = useState("");
+  // The same glyph the header shows, until kind-0 says otherwise — one
+  // person, one face, on both ends of the page.
+  const [picture, setPicture] = useState(() => avatarFor(npub));
   const [displayName, setDisplayName] = useState("");
   const [about, setAbout] = useState("");
   const [nip05, setNip05] = useState("");
@@ -60,7 +62,7 @@ export default function NostrProfilePanel({ npub }: { npub: string }) {
     fetchProfile(npub)
       .then((p: Kind0 | null) => {
         if (!live || !p) return;
-        setPicture(p.picture ?? "");
+        setPicture(p.picture || avatarFor(npub));
         setDisplayName(p.display_name || p.name || "");
         setAbout(p.about ?? "");
         setNip05(p.nip05 ?? "");
@@ -147,7 +149,7 @@ export default function NostrProfilePanel({ npub }: { npub: string }) {
   const npubLine = collapsedNpubLabel(npub);
 
   return (
-    <div className={`${card} p-5`}>
+    <div className={`${card} px-4 py-3`}>
       {/* Collapsed header: one avatar + badge, display name, truncated npub, read-only cue */}
       <div className="flex items-start gap-3">
         <div className="relative flex-none">
@@ -161,7 +163,7 @@ export default function NostrProfilePanel({ npub }: { npub: string }) {
             aria-label={showPicker ? "Done changing avatar" : "Change avatar"}
             aria-expanded={showPicker}
             title="Change avatar"
-            className="absolute -bottom-0.5 -right-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full border border-stone-300 bg-white text-stone-600 shadow-sm transition-colors hover:border-amber-400 hover:text-amber-600 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-400 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:border-amber-500 dark:hover:text-amber-400"
+            className="absolute -bottom-0.5 -right-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full border border-rule bg-white text-ink-soft shadow-sm transition-colors hover:border-amber-400 hover:text-amber-600 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-400"
           >
             <Camera className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
@@ -177,7 +179,7 @@ export default function NostrProfilePanel({ npub }: { npub: string }) {
             </div>
             {!signer && (
               <span
-                className="text-[11px] px-1.5 py-0.5 rounded-md bg-stone-100 text-stone-500 dark:bg-zinc-800 dark:text-zinc-400"
+                className="text-[11px] px-1.5 py-0.5 rounded-md bg-band text-ink-soft"
                 title="Sign in with a session key or a NIP-07 extension to publish. Avatar picks still apply locally."
               >
                 Read-only
@@ -188,7 +190,7 @@ export default function NostrProfilePanel({ npub }: { npub: string }) {
             type="button"
             onClick={copyNpub}
             title="Copy full npub"
-            className="mt-0.5 font-mono text-xs text-stone-500 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
+            className="mt-0.5 font-mono text-xs text-ink-soft hover:text-amber-600 transition-colors"
           >
             {npubCopied ? "Copied" : npubLine}
           </button>
@@ -199,7 +201,7 @@ export default function NostrProfilePanel({ npub }: { npub: string }) {
           onClick={() => setExpanded((v) => !v)}
           aria-expanded={expanded}
           aria-controls={fieldsId}
-          className="flex-none inline-flex items-center gap-1 rounded-lg border border-stone-300 px-2.5 py-1.5 text-xs text-stone-600 transition-colors hover:bg-stone-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          className="flex-none inline-flex items-center gap-1 rounded-lg border border-rule px-2.5 py-1.5 text-xs text-ink-soft transition-colors hover:bg-band"
         >
           {expanded ? "Hide" : "Edit"}
           <ChevronDown
@@ -216,16 +218,16 @@ export default function NostrProfilePanel({ npub }: { npub: string }) {
       )}
 
       {loading ? (
-        <div className="flex items-center gap-1.5 text-xs text-stone-400 dark:text-zinc-500 py-2 mt-3">
+        <div className="flex items-center gap-1.5 text-xs text-ink-soft py-2 mt-3">
           <Loader2 className="h-3.5 w-3.5 animate-spin" /> Reading from relays…
         </div>
       ) : (
         <div
           id={fieldsId}
           hidden={!expanded}
-          className={expanded ? "mt-4 space-y-3" : undefined}
+          className={expanded ? "mt-3 grid gap-x-3 gap-y-2 sm:grid-cols-2" : undefined}
         >
-          <label className="block text-xs text-stone-500 dark:text-zinc-400">
+          <label className="block text-xs text-ink-soft">
             Display name
             <input
               value={displayName}
@@ -235,7 +237,7 @@ export default function NostrProfilePanel({ npub }: { npub: string }) {
               readOnly={!signer}
             />
           </label>
-          <label className="block text-xs text-stone-500 dark:text-zinc-400">
+          <label className="block text-xs text-ink-soft">
             Lightning address (lud16)
             <input
               value={lud16}
@@ -245,7 +247,7 @@ export default function NostrProfilePanel({ npub }: { npub: string }) {
               readOnly={!signer}
             />
           </label>
-          <label className="block text-xs text-stone-500 dark:text-zinc-400">
+          <label className="block text-xs text-ink-soft">
             NIP-05
             <input
               value={nip05}
@@ -255,7 +257,7 @@ export default function NostrProfilePanel({ npub }: { npub: string }) {
               readOnly={!signer}
             />
           </label>
-          <label className="block text-xs text-stone-500 dark:text-zinc-400">
+          <label className="block text-xs text-ink-soft">
             Website
             <input
               value={website}
@@ -265,7 +267,7 @@ export default function NostrProfilePanel({ npub }: { npub: string }) {
               readOnly={!signer}
             />
           </label>
-          <label className="block text-xs text-stone-500 dark:text-zinc-400">
+          <label className="block text-xs text-ink-soft sm:col-span-2">
             About
             <textarea
               value={about}
@@ -278,16 +280,16 @@ export default function NostrProfilePanel({ npub }: { npub: string }) {
           </label>
 
           {msg && (
-            <div className={`rounded-lg p-2.5 text-xs ${
+            <div className={`rounded-lg p-2.5 text-xs sm:col-span-2 ${
               msg.tone === "ok"
-                ? "bg-green-50 border border-green-200 text-green-700 dark:bg-green-500/10 dark:border-green-500/30 dark:text-green-400"
-                : "bg-red-50 border border-red-200 text-red-700 dark:bg-red-500/10 dark:border-red-500/30 dark:text-red-400"
+                ? "bg-green-50 border border-green-200 text-green-700"
+                : "bg-red-50 border border-red-200 text-red-700"
             }`}>
               {msg.text}
             </div>
           )}
 
-          <div className="relative flex items-center gap-3" ref={howToWrapRef}>
+          <div className="relative flex items-center gap-3 sm:col-span-2" ref={howToWrapRef}>
             <button
               type="button"
               onClick={() => {
@@ -308,7 +310,7 @@ export default function NostrProfilePanel({ npub }: { npub: string }) {
               className={
                 pubMode === "publish"
                   ? "bg-amber-600 hover:bg-amber-500 text-white text-sm px-4 py-2 rounded-lg disabled:opacity-40 transition-colors"
-                  : "rounded-lg border border-stone-300 px-4 py-2 text-sm text-stone-700 transition-colors hover:bg-stone-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  : "rounded-lg border border-rule px-4 py-2 text-sm text-ink-soft transition-colors hover:bg-band"
               }
             >
               {publishControlLabel(pubMode, publishing)}
@@ -319,12 +321,12 @@ export default function NostrProfilePanel({ npub }: { npub: string }) {
                 role="dialog"
                 aria-modal="false"
                 aria-labelledby={explainerTitleId}
-                className="absolute left-0 bottom-full z-20 mb-2 w-[min(100%,22rem)] rounded-xl border border-stone-200 bg-white p-3 shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
+                className="absolute left-0 bottom-full z-20 mb-2 w-[min(100%,22rem)] rounded-xl border border-rule bg-white p-3 shadow-lg"
               >
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div
                     id={explainerTitleId}
-                    className="text-sm font-medium text-stone-800 dark:text-zinc-100"
+                    className="text-sm font-medium text-ink"
                   >
                     {HOW_TO_SET_EXPLAINER.title}
                   </div>
@@ -332,12 +334,12 @@ export default function NostrProfilePanel({ npub }: { npub: string }) {
                     type="button"
                     onClick={() => setShowHowTo(false)}
                     aria-label="Close explainer"
-                    className="flex-none rounded-md p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                    className="flex-none rounded-md p-1 text-ink-soft hover:bg-band hover:text-ink-soft"
                   >
                     <X className="h-3.5 w-3.5" aria-hidden="true" />
                   </button>
                 </div>
-                <div className="space-y-2 text-xs leading-relaxed text-stone-600 dark:text-zinc-300">
+                <div className="space-y-2 text-xs leading-relaxed text-ink-soft">
                   {HOW_TO_SET_EXPLAINER.paragraphs.map((p) => (
                     <p key={p.slice(0, 24)}>{p}</p>
                   ))}

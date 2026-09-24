@@ -13,7 +13,7 @@ import { useCallback, useEffect, useState } from "react";
 import { calendarList, calendarRevoke, type CalendarFeedResult, type FeedRow } from "../lib/mcp";
 import { publishRegion } from "../lib/publishFeed";
 import type { SavedRegion } from "../lib/regions";
-import { ErrorBox, Section } from "./ui";
+import { ErrorBox } from "./ui";
 
 export default function CalendarFeed({ region }: { region: SavedRegion }) {
   const [feeds, setFeeds] = useState<FeedRow[]>([]);
@@ -48,11 +48,9 @@ export default function CalendarFeed({ region }: { region: SavedRegion }) {
   const webcal = fresh?.webcal_url ?? (mine ? mine.url.replace(/^https:/, "webcal:") : undefined);
 
   return (
-    <>
-      <Section emoji="🗓️" title="Calendar feed" />
+    <div className="rounded-xl border border-rule border-l-4 border-l-growth bg-panel px-4 py-3">
+      <div className="eyebrow mb-1">🗓️ Calendar feed</div>
       {err && <ErrorBox>{err}</ErrorBox>}
-
-      <div className="rounded-md border border-rule border-l-4 border-l-growth bg-panel px-4 py-3.5">
         {url ? (
           <>
             <p className="text-[13px]">
@@ -87,16 +85,16 @@ export default function CalendarFeed({ region }: { region: SavedRegion }) {
             </p>
           </>
         ) : (
-          <>
-            <p className="text-[13px]">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <p className="min-w-[14rem] flex-1 text-[13px] leading-snug">
               Publish <b>{region.name}</b> once and its season events and reminders arrive
               in whatever calendar you already read.
             </p>
             <button onClick={() => void publish()} disabled={busy}
-              className="mt-2.5 min-h-11 rounded-full border-[1.5px] border-ink bg-ink px-4 text-[12.5px] font-semibold text-paper disabled:opacity-40">
+              className="min-h-11 shrink-0 rounded-full border-[1.5px] border-ink bg-ink px-4 text-[12.5px] font-semibold text-paper disabled:opacity-40">
               {busy ? "Publishing…" : "Publish this region"}
             </button>
-          </>
+          </div>
         )}
         {msg && <p className="mt-2 text-[12px] text-growth">{msg}</p>}
 
@@ -123,7 +121,6 @@ export default function CalendarFeed({ region }: { region: SavedRegion }) {
             </p>
           </div>
         )}
-      </div>
-    </>
+    </div>
   );
 }
