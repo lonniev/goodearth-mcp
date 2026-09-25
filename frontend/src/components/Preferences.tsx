@@ -1,5 +1,6 @@
 // Viewing preferences, on the Account page beside the Nostr profile.
 
+import { TimezonePicker } from "@tollbooth-dpyc/web/react";
 import type { Prefs, ThemeChoice } from "../lib/prefs";
 import { SEASONS, seasonOf } from "../lib/season";
 import { showTemp, type Unit } from "../lib/units";
@@ -58,6 +59,17 @@ export default function Preferences({
           ))}
         </div>
       </div>
+
+      {/* The viewer's clock: when an answer was read, a change queued, a radar
+          frame taken. A frost night or a planting date is the farm's calendar
+          and stays where the farm is. */}
+      <TimezonePicker
+        label="🕐 Time zone"
+        classNames={{
+          label: "mb-1 block text-[13.5px]",
+          select: "min-h-11 max-w-full rounded-full border border-rule bg-panel px-4 text-[12.5px] font-medium text-ink",
+        }}
+      />
       </div>
 
       <label className="flex min-h-11 items-center gap-3">

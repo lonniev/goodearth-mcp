@@ -10,7 +10,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Provenance from "../components/Provenance";
-import { QuoteScroller, TableFilter } from "@tollbooth-dpyc/web/react";
+import { QuoteScroller, TableFilter, useTimezone } from "@tollbooth-dpyc/web/react";
+import { clockTime } from "../lib/clock";
 import { AGRARIAN_QUOTES, AGRARIAN_SOURCE, quoteStyles } from "../lib/quotes";
 import { Pager, SortHeaders, type Column } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
@@ -106,6 +107,7 @@ export default function Pests({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [ranAt, setRanAt] = useState<Date | null>(null);
+  const [, zone] = useTimezone();
   const [formErr, setFormErr] = useState("");
   const submit = useSubmit("pe", setFormErr);
   const [cat, setCat] = useState<PestCatalogResult | null>(null);
@@ -354,7 +356,7 @@ export default function Pests({
       <div className="mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <Section emoji="👀" first
           title={`What you're watching${ranAt
-            ? ` (at ${ranAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })})`
+            ? ` (at ${clockTime(ranAt, zone)})`
             : ""}`}>
           {models.length > 0 && (
             <Provenance tool="goodearth_pest_threshold" at={ranAt} onCost={onCost} hideTime />

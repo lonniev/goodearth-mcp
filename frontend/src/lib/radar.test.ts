@@ -33,8 +33,8 @@ describe("radar", () => {
   });
 
   it("marks a nowcast frame as a forecast and a past frame as a time", () => {
-    assert.ok(frameLabel(IDX.frames[1]).endsWith("forecast"));
-    assert.ok(!frameLabel(IDX.frames[0]).includes("forecast"));
+    assert.ok(frameLabel(IDX.frames[1], "UTC").endsWith("forecast"));
+    assert.ok(!frameLabel(IDX.frames[0], "UTC").includes("forecast"));
   });
 
   it("reports the coverage it actually has", () => {

@@ -16,7 +16,8 @@ import SearchBox from "../components/SearchBox";
 import { apply as applyFilter, isOn as filterOn, NO_FILTER, summarise as filterWords,
   type LedgerFilter as Filter } from "../lib/ledgerFilter";
 import { baseBounds, parseBase } from "../lib/baseTemp";
-import { QuoteScroller, TableFilter } from "@tollbooth-dpyc/web/react";
+import { QuoteScroller, TableFilter, useTimezone } from "@tollbooth-dpyc/web/react";
+import { clockTime } from "../lib/clock";
 import { AGRARIAN_QUOTES, AGRARIAN_SOURCE, quoteStyles } from "../lib/quotes";
 import { blockItemList, cropGddStatus, cropSuitability, diseaseRisk, plantingWindow,
   treeSuitability, treeYear,
@@ -212,6 +213,7 @@ export default function Crops({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [ranAt, setRanAt] = useState<Date | null>(null);
+  const [, zone] = useTimezone();
   const [formErr, setFormErr] = useState("");
   const submit = useSubmit("pl", setFormErr);
   /// What the last row-click put on the ledger, so a tap is not silent.
@@ -738,7 +740,7 @@ export default function Crops({
       <div className="mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <Section emoji="📒" first
           title={`Plant ledger${ranAt
-            ? ` (at ${ranAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })})`
+            ? ` (at ${clockTime(ranAt, zone)})`
             : ""}`}>
           {plantings.length > 0 && (
             <Provenance tool="goodearth_crop_gdd_status" at={ranAt} onCost={onCost} hideTime />
