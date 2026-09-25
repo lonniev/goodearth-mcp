@@ -38,6 +38,8 @@
 
 @layer base {
   html, body, #root { height: 100%; }
+  /* A column, so the app shell fills what the debug log's spacer leaves. */
+  #root { display: flex; flex-direction: column; }
 
   /* Touch first — this runs on a tablet in a packing shed, not a desk.
      Tapping must not fire the 300 ms double-tap-zoom delay, a bounce at the
@@ -174,4 +176,9 @@
   --tb-err-bg: var(--color-panel);
   --tb-err-line: var(--color-clay);
   --tb-err-ink: var(--color-clay);
+  /* A patron's next step (sign in, top up) in the debug log — not a fault, so
+     not clay. Frost: the season's cool colour, and never the warn honey. */
+  --tb-notice-bg: var(--color-panel);
+  --tb-notice-line: var(--color-frost);
+  --tb-notice-ink: var(--color-frost);
 }

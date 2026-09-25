@@ -11,7 +11,7 @@ import { DEFAULT_VIEW, GUEST_VIEW, onRouteChange, viewFromHash, writeView } from
 import { isPublic } from "./lib/views";
 import Hive, { hiveMood } from "./components/Hive";
 import Bees from "./components/Bees";
-import { NostrProfilePanel, NpubGate, SessionKeyClaim } from "@tollbooth-dpyc/web/react";
+import { DebugPanel, NostrProfilePanel, NpubGate, SessionKeyClaim } from "@tollbooth-dpyc/web/react";
 import Preferences from "./components/Preferences";
 import AccountSummary from "./components/AccountSummary";
 import CalendarFeed from "./components/CalendarFeed";
@@ -271,7 +271,15 @@ export default function App() {
   if (!signedIn) {
     const login = () => { setSignedIn(true); setNotice(undefined); };
     if (asking || !isPublic(view)) {
-      return <NpubGate onLogin={login} notice={notice} />;
+      // The sign-in page gets the log too: the proof request and receive are
+      // the calls a patron who cannot get in needs to see. The reading pages
+      // below call nothing that logs, so they go without.
+      return (
+        <>
+          <NpubGate onLogin={login} notice={notice} />
+          <DebugPanel />
+        </>
+      );
     }
     return (
       <GuestShell view={view} onView={setView} onSignIn={() => setAsking(true)}>
@@ -389,6 +397,9 @@ export default function App() {
           a bee can never swallow a tap on a frost warning. */}
       <Bees mood={hiveMood(todayHigh(frost), frostWatchLive(frost))}
         tempF={todayHigh(frost)} enabled={prefs.bees} />
+
+      {/* Last, so the room it keeps for itself is the page's last thing. */}
+      <DebugPanel />
     </>
   );
 }

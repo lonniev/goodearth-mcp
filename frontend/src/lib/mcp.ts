@@ -14,6 +14,7 @@
  */
 
 import { nearbyArgs } from "./wire";
+import { callLine, resultLine } from "./debugSummary";
 import {
   callTool as callOperator,
   checkPrice,
@@ -46,9 +47,19 @@ async function callTool<T = unknown>(
     return q as T;
   }
 
+  // The package is quiet for these tools (see debugSummary.ts): the log gets
+  // the call and its outcome from here, never the farm's location.
+  const name = toolName(tool);
+  debugPush("call", callLine(name, args));
   try {
-    return await callOperator<T>(tool, args);
+    const answer = await callOperator<T>(tool, args);
+    const { failed, message } = resultLine(name, answer);
+    debugPush(failed ? "error" : "result", message);
+    return answer;
   } catch (e) {
+    // The package's own errors already open with the tool's name.
+    const why = String(e instanceof Error ? e.message : e);
+    debugPush("error", (why.startsWith(`${name}:`) ? why : `${name}: ${why}`).slice(0, 220));
     if (!opts.replay && npub && waitsForSignal(tool, e)) return queue(tool, args, npub) as T;
     throw e;
   }
