@@ -13,11 +13,10 @@ import { useUnits } from "../components/Units";
 import Provenance from "../components/Provenance";
 import { Pager } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
-import TableFilter from "../components/TableFilter";
 import { apply as applyFilter, isOn as filterOn, NO_FILTER, summarise as filterWords,
   type LedgerFilter as Filter } from "../lib/ledgerFilter";
 import { baseBounds, parseBase } from "../lib/baseTemp";
-import { QuoteScroller } from "@tollbooth-dpyc/web/react";
+import { QuoteScroller, TableFilter } from "@tollbooth-dpyc/web/react";
 import { AGRARIAN_QUOTES, AGRARIAN_SOURCE, quoteStyles } from "../lib/quotes";
 import { blockItemList, cropGddStatus, cropSuitability, diseaseRisk, plantingWindow,
   treeSuitability, treeYear,
@@ -45,8 +44,8 @@ import { draftFromLot, lotLine, lotsFor, seedCodec, type SeedLot } from "../lib/
 import { useSubmit } from "../lib/useSubmit";
 import { withId } from "../lib/submit";
 import type { SavedRegion } from "../lib/regions";
-import { Empty, ErrorBox, FIELD, ICON, IconButton, Pill,
-  Section } from "../components/ui";
+import { Empty, ErrorBox, FIELD, Glyph, ICON, IconButton, Pill,
+  Section, TABLE_FILTER } from "../components/ui";
 
 const short = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -746,14 +745,19 @@ export default function Crops({
           )}
         </Section>
         <div className="ml-auto flex items-center gap-2">
-          <TableFilter value={filter} empty={NO_FILTER} summary={filterWords(filter)}
-            onChange={(f) => { setFilter(f); setPageNo(0); }}
-            questions={[
-              { kind: "toggle", key: "readyBeforeFrost", label: "Ready before frost" },
-              { kind: "toggle", key: "hasSeed", label: "Has seed" },
-              { kind: "number", key: "withinDays", label: "Projected within", unit: "days" },
-              { kind: "number", key: "gddUnder", label: "Heat left under", unit: "GDD" },
-            ]} />
+          <TableFilter classNames={TABLE_FILTER} clearLabel="Clear"
+            onClear={() => { setFilter(NO_FILTER); setPageNo(0); }}
+            questions={{
+              value: filter, summary: filterWords(filter),
+              onChange: (f) => { setFilter(f); setPageNo(0); },
+              icon: <Glyph path={ICON.filter} size={16} />,
+              questions: [
+                { kind: "toggle", key: "readyBeforeFrost", label: "Ready before frost" },
+                { kind: "toggle", key: "hasSeed", label: "Has seed" },
+                { kind: "number", key: "withinDays", label: "Projected within", unit: "days" },
+                { kind: "number", key: "gddUnder", label: "Heat left under", unit: "GDD" },
+              ],
+            }} />
           <SearchBox value={search} placeholder="regex ok, e.g. zinnia|dahlia"
             onSearch={(t) => { setSearch(t); setPageNo(0); }} />
         </div>

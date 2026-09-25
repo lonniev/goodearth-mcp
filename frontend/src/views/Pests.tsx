@@ -10,11 +10,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Provenance from "../components/Provenance";
-import { QuoteScroller } from "@tollbooth-dpyc/web/react";
+import { QuoteScroller, TableFilter } from "@tollbooth-dpyc/web/react";
 import { AGRARIAN_QUOTES, AGRARIAN_SOURCE, quoteStyles } from "../lib/quotes";
 import { Pager, SortHeaders, type Column } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
-import TableFilter from "../components/TableFilter";
 import { isOn as pestFilterOn, matches as pestMatches, NO_PEST_FILTER,
   summarise as pestFilterWords, type PestFilter } from "../lib/pestFilter";
 import SpeciesPicker from "../components/SpeciesPicker";
@@ -24,8 +23,8 @@ import { remembered } from "../lib/undoEvents";
 import Term from "../components/Term";
 import { useUnits } from "../components/Units";
 import {
-  CELL, Chiclet, Empty, ErrorBox, Field, FIELD, ICON, IconButton, Note, PageTitle, Pill,
-  RowActions, Section, StatusChip, TrashGlyph,
+  CELL, Chiclet, Empty, ErrorBox, Field, FIELD, Glyph, ICON, IconButton, Note, PageTitle, Pill,
+  RowActions, Section, StatusChip, TABLE_FILTER, TrashGlyph,
 } from "../components/ui";
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
 import { useSubmit } from "../lib/useSubmit";
@@ -362,13 +361,18 @@ export default function Pests({
           )}
         </Section>
         <div className="ml-auto flex items-center gap-2">
-          <TableFilter value={filter} empty={NO_PEST_FILTER} summary={pestFilterWords(filter)}
-            onChange={(f) => { setFilter(f); setPageNo(0); }}
-            questions={[
-              { kind: "number", key: "dueDays", label: "Due within", unit: "days" },
-              { kind: "toggle", key: "crossed", label: "Crossed this season" },
-              { kind: "toggle", key: "watchedOnly", label: "Watched, no model" },
-            ]} />
+          <TableFilter classNames={TABLE_FILTER} clearLabel="Clear"
+            onClear={() => { setFilter(NO_PEST_FILTER); setPageNo(0); }}
+            questions={{
+              value: filter, summary: pestFilterWords(filter),
+              onChange: (f) => { setFilter(f); setPageNo(0); },
+              icon: <Glyph path={ICON.filter} size={16} />,
+              questions: [
+                { kind: "number", key: "dueDays", label: "Due within", unit: "days" },
+                { kind: "toggle", key: "crossed", label: "Crossed this season" },
+                { kind: "toggle", key: "watchedOnly", label: "Watched, no model" },
+              ],
+            }} />
           <SearchBox value={search} placeholder="regex ok, e.g. moth|borer"
             onSearch={(t) => { setSearch(t); setPageNo(0); }} />
         </div>

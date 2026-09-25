@@ -22,7 +22,7 @@ import {
   toolName,
 } from "@tollbooth-dpyc/web";
 import {
-  QUEUEABLE, enqueue, flush, isTransportFailure, waiting, type FlushResult,
+  QUEUEABLE, enqueue, flush, waiting, waitsForSignal, type FlushResult,
 } from "./outbox";
 
 // ─── callTool, with the field outbox in front of it ──────────────────────
@@ -49,7 +49,7 @@ async function callTool<T = unknown>(
   try {
     return await callOperator<T>(tool, args);
   } catch (e) {
-    if (queueable && npub && isTransportFailure(toolName(tool), e, browserOnline())) return queue(tool, args, npub) as T;
+    if (!opts.replay && npub && waitsForSignal(tool, e)) return queue(tool, args, npub) as T;
     throw e;
   }
 }
