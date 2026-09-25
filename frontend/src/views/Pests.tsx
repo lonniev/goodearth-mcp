@@ -361,7 +361,7 @@ export default function Pests({
           )}
         </Section>
         <div className="ml-auto flex items-center gap-2">
-          <TableFilter classNames={TABLE_FILTER} clearLabel="Clear"
+          <TableFilter classNames={TABLE_FILTER} clearLabel="Clear" clearPlacement="panel"
             onClear={() => { setFilter(NO_PEST_FILTER); setPageNo(0); }}
             questions={{
               value: filter, summary: pestFilterWords(filter),
