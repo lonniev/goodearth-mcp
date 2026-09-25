@@ -18,8 +18,7 @@ import { nearbyArgs } from "./wire";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
-import { clearSessionNsec, hasSessionNsec, sessionNsecNpub, signInlineProof } from "@tollbooth-dpyc/web";
-import { debugPush } from "./debugLog";
+import { clearSessionNsec, debugPush, hasSessionNsec, sessionNsecNpub, signInlineProof } from "@tollbooth-dpyc/web";
 import {
   QUEUEABLE, enqueue, flush, isNetworkFailure, waiting, type FlushResult,
 } from "./outbox";
@@ -259,21 +258,11 @@ const BOOTSTRAP_TOOLS = new Set([
   "check_proof_status",
 ]);
 
-/// Tools too noisy/background to clutter the debug log (polled liveness +
-/// profile hydration). Everything else — posting, OAuth, posts, snippets,
-/// credits — is logged so the panel shows what the FE is actually doing.
+/// Tools too noisy to clutter the debug log: the polled liveness check and
+/// profile hydration. Every other call is logged.
 const QUIET_TOOLS = new Set([
   "service_status",
   "get_nostr_profile",
-  // The scheduler-log poll feeds the debug panel its own synthesized entries;
-  // logging the poll call itself would just be noise.
-  "get_scheduler_log",
-  // Background personalization hydration (the editor's @handle) — not noteworthy.
-  "get_x_profile",
-  // NOTE: `fetch_dynamic_block` (the claim-check poll for a resolving dynamic
-  // block) is intentionally NOT quiet. Each poll's status (pending → done/error)
-  // must be visible in the debug panel — otherwise a resolve looks like it never
-  // calls back, and a silent poll failure (e.g. a proof bounce) is undiagnosable.
 ]);
 
 async function callTool<T = unknown>(
@@ -524,107 +513,6 @@ export interface CheckBalanceResult {
 
 export async function checkBalance(): Promise<CheckBalanceResult> {
   return callTool<CheckBalanceResult>("check_balance", {});
-}
-
-// ─── Funding / credential status probes (compose into StatusSurface) ─────────
-// All free. Patron rows use check_balance + session_status + check_proof_status.
-// Operator rows use service_status + get_operator_onboarding_status +
-// check_authority_balance, gated client-side to the operator npub the same way
-// scheduler_pending is (getSchedulerStatus().operator_npub === stored npub).
-
-export interface ProofStatusResult {
-  success?: boolean;
-  status?: "valid" | "expired" | "unknown" | string;
-  expires_in_seconds?: number | null;
-  message?: string;
-  error?: string;
-  error_code?: string;
-}
-
-/// Whether the cached DM proof_token is still accepted. For session-nsec logins
-/// there is nothing to check (fresh inline proof each call) — callers should
-/// skip this and treat the proof row as ok. Free; takes explicit args so the
-/// envelope is not double-injected.
-export async function checkProofStatus(
-  patronNpub: string,
-  dpopToken: string,
-): Promise<ProofStatusResult> {
-  return callTool<ProofStatusResult>(
-    "check_proof_status",
-    { patron_npub: patronNpub, dpop_token: dpopToken },
-    { bestEffort: true },
-  );
-}
-
-export interface OnboardingField {
-  field: string;
-  category?: string;
-  status?: string;
-  lifecycle?: string;
-  how?: string;
-}
-
-export interface OperatorOnboardingResult {
-  ready?: boolean;
-  configured?: OnboardingField[];
-  missing?: OnboardingField[];
-  optional_missing?: OnboardingField[];
-  summary?: string;
-  bootstrap_error?: string;
-  vault_ok?: boolean;
-  credential_service?: string;
-  operator_name?: string;
-  error?: string;
-}
-
-/// Operator credential readiness (BTCPay / X app / llm_api_key present-or-not).
-/// Free, no proof. A non-operator still gets the structural answer; the FE hides
-/// the panel unless the viewer is the operator npub.
-export async function getOperatorOnboardingStatus(): Promise<OperatorOnboardingResult> {
-  return callTool<OperatorOnboardingResult>(
-    "get_operator_onboarding_status",
-    {},
-    { bestEffort: true },
-  );
-}
-
-export interface AuthorityBalanceResult {
-  success?: boolean;
-  balance_api_sats?: number;
-  balance_sats?: number;
-  error?: string;
-  message?: string;
-}
-
-/// This operator's tax balance at the Authority (sats available to certify
-/// patron purchases). Free. Best-effort — a failure is itself a status signal.
-export async function checkAuthorityBalance(): Promise<AuthorityBalanceResult> {
-  return callTool<AuthorityBalanceResult>(
-    "check_authority_balance",
-    {},
-    { bestEffort: true },
-  );
-}
-
-export interface SessionLifecycleResult {
-  success?: boolean;
-  lifecycle?: string;
-  message?: string;
-  detail?: string;
-  operator_npub?: string;
-  // (no upstream OAuth — Good Earth reads only public climate feeds)
-}
-
-/// Operator lifecycle (ready / warming_up / misconfigured / quota_exceeded / …).
-/// Free. Optional patron_npub also yields upstream_oauth (used by getXConnection).
-export async function getSessionLifecycle(
-  patronNpub?: string,
-): Promise<SessionLifecycleResult> {
-  return callTool<SessionLifecycleResult>(
-    "session_status",
-    patronNpub ? { patron_npub: patronNpub } : {},
-    { bestEffort: true },
-  );
 }
 
 export interface CheckPriceResult {
