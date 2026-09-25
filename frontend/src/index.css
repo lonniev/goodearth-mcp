@@ -13,23 +13,28 @@
    inverted would turn the rail into a white slab. This is a change of light,
    not a dark mode.
    
-   Field paper is green-tinted, never warm cream: this is a tool for people who
-   work outside, and warm cream reads as a receipt. Autumn is the one season
-   allowed to break that, because by then the field IS the colour of a
-   receipt. */
+   Each season should be told at a glance, from the paper and the rail alone:
+   Spring is new-leaf green, Summer a petal blush with a plum rail, Autumn
+   harvest amber with a brown rail, Winter cold blue-grey with a blue-black
+   rail. Never warm cream — that reads as a receipt; Autumn is amber, not
+   cream. The semantic tokens keep their meaning in every season (growth a
+   green, honey an amber-gold, frost a blue, clay a red-clay) and only shift
+   tone. Contrast floors, checked for every season: ink on paper and panel
+   >= 7:1, ink-soft >= 4.5:1, rail-ink on ink >= 4.5:1, growth/frost/clay as
+   text on panel >= 3:1. */
 @theme {
-  --color-paper:    #F1F2E8;
-  --color-panel:    #FAFAF3;
-  --color-ink:      #20301B;
-  --color-ink-soft: #5A6650;
-  --color-rule:     #C9CDB6;
+  --color-paper:    #F8EDF1;  /* petal blush — a field in bloom */
+  --color-panel:    #FFF8FA;
+  --color-ink:      #2C2034;  /* deep plum, the dark eye of a flower */
+  --color-ink-soft: #6A566F;
+  --color-rule:     #E3C3D3;  /* rose */
 
-  --color-growth:   #4C7A3D;  /* accrual green — actuals, progress */
-  --color-honey:    #D99A06;  /* sats accumulate, honey accumulates */
-  --color-frost:    #4A7BA6;  /* frost line, cold alerts */
-  --color-clay:     #A8442A;  /* won't finish, threshold breached */
-  --color-band:     #DDE2C8;  /* normals band fill */
-  --color-rail-ink: #DCE2CC;
+  --color-growth:   #387F33;  /* accrual green — actuals, progress; lush */
+  --color-honey:    #D99A00;  /* sunflower gold: sats accumulate, honey accumulates */
+  --color-frost:    #4672B3;  /* frost line, cold alerts */
+  --color-clay:     #BC3F2C;  /* poppy clay: won't finish, threshold breached */
+  --color-band:     #F1D5E3;  /* normals band fill — petal */
+  --color-rail-ink: #F4DCE8;
 
   --font-display: 'Fraunces', ui-serif, Georgia, serif;
   --font-body:    'Instrument Sans', system-ui, sans-serif;
@@ -112,45 +117,45 @@
    reads the same custom properties the buttons do. */
 
 :root[data-theme="spring"] {
-  --color-paper:    #EEF3E9;  /* washed new green */
-  --color-panel:    #F8FBF4;
-  --color-ink:      #1E3320;
-  --color-ink-soft: #55694F;
-  --color-rule:     #C3D3BC;
-  --color-growth:   #4E8C3F;  /* the loudest green of the four — it is spring */
-  --color-honey:    #D9A21A;
-  --color-frost:    #5B93C4;  /* still earning its keep: a late frost is spring's */
-  --color-clay:     #B0533A;
-  --color-band:     #D8E7D0;
-  --color-rail-ink: #DBEBD3;
+  --color-paper:    #E8F4DC;  /* new leaf: the whole page is young green */
+  --color-panel:    #F5FBEE;
+  --color-ink:      #133418;
+  --color-ink-soft: #4A6A42;
+  --color-rule:     #A9D38F;  /* fresh leaf */
+  --color-growth:   #2F8F24;  /* the brightest green of the four — it is spring */
+  --color-honey:    #C99A12;
+  --color-frost:    #3A80BF;  /* still earning its keep: a late frost is spring's */
+  --color-clay:     #B24E33;
+  --color-band:     #C9EAB0;  /* leaf-green normals band */
+  --color-rail-ink: #D4F2BE;
 }
 
 :root[data-theme="autumn"] {
-  --color-paper:    #F4EFE4;  /* the field gone to stubble */
-  --color-panel:    #FBF7EF;
-  --color-ink:      #33261A;
-  --color-ink-soft: #6B5842;
-  --color-rule:     #D6C6AC;
-  --color-growth:   #7A7A33;  /* olive: growth is winding down, not gone */
-  --color-honey:    #C67B14;  /* deeper — the honey is in the jar by now */
-  --color-frost:    #5C7E9B;
-  --color-clay:     #A8442A;
-  --color-band:     #E7DAC4;
-  --color-rail-ink: #EFE3CE;
+  --color-paper:    #F7E8CE;  /* harvest amber: the field gone to stubble */
+  --color-panel:    #FDF5E6;
+  --color-ink:      #3A2210;  /* warm dark brown */
+  --color-ink-soft: #745130;
+  --color-rule:     #D8B26E;  /* ochre */
+  --color-growth:   #66731F;  /* olive: growth is winding down, not gone */
+  --color-honey:    #BF6408;  /* deep amber — the honey is in the jar by now */
+  --color-frost:    #4A7394;
+  --color-clay:     #A3361C;
+  --color-band:     #F0CF94;  /* ochre normals band */
+  --color-rail-ink: #F7DCAA;
 }
 
 :root[data-theme="winter"] {
-  --color-paper:    #F2F4F6;  /* snow light, which is blue and not warm */
-  --color-panel:    #FCFDFE;
-  --color-ink:      #1B2530;
-  --color-ink-soft: #5A6874;
-  --color-rule:     #C6CFD8;
-  --color-growth:   #3E7A5E;  /* what stays green in January is a conifer */
-  --color-honey:    #C79017;
-  --color-frost:    #3F7EB5;  /* the one season where this is the loud colour */
-  --color-clay:     #A8462F;
-  --color-band:     #E1E7ED;
-  --color-rail-ink: #DCE4EC;
+  --color-paper:    #EBF1F7;  /* snow light, which is blue and not warm */
+  --color-panel:    #F9FBFE;
+  --color-ink:      #121E2C;  /* cool blue-black */
+  --color-ink-soft: #4F5E6E;
+  --color-rule:     #A3B2C2;  /* slate */
+  --color-growth:   #2C725C;  /* what stays green in January is a conifer */
+  --color-honey:    #B08318;
+  --color-frost:    #1C6CC2;  /* the one season where this is the loud colour */
+  --color-clay:     #A6432C;
+  --color-band:     #CFE0F1;  /* icy blue normals band */
+  --color-rail-ink: #D3E3F4;
 }
 
 /* The shared account pieces from @tollbooth-dpyc/web, in the almanac's own
