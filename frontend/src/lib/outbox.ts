@@ -136,6 +136,17 @@ export function isNetworkFailure(e: unknown, online?: boolean): boolean {
     .test(msg);
 }
 
+/// Whether a call through @tollbooth-dpyc/web never got an answer, and so may
+/// wait. The package throws a transport failure as "<runtime tool name>:
+/// <reason>"; a tool that answered with an error throws the server's own text,
+/// which is refused, not delayed, even when that text says "timed out". A proof
+/// bounce never waits: the grower has to sign in again first.
+export function isTransportFailure(runtimeName: string, e: unknown, online?: boolean): boolean {
+  if ((e as Error)?.name === "ProofRequiredError") return false;
+  const msg = e instanceof Error ? e.message : "";
+  return msg.startsWith(`${runtimeName}: `) && isNetworkFailure(e, online);
+}
+
 export interface FlushResult {
   sent: number;
   left: number;

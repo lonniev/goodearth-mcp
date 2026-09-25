@@ -13,7 +13,7 @@ const store = new Map<string, string>();
 };
 
 const {
-  enqueue, entries, waiting, refused, flush, discard, isNetworkFailure,
+  enqueue, entries, waiting, refused, flush, discard, isNetworkFailure, isTransportFailure,
   pendingItems, overlay, overlayTasks, QUEUEABLE, OUTBOX_KEY,
 } = await import("./outbox.ts");
 
@@ -162,5 +162,21 @@ describe("what a view shows while it waits", () => {
     );
     assert.deepEqual(rows, [{ id: "n", title: "New", done: false }, { id: "a", title: "A", done: true }]);
     assert.deepEqual([...pending].sort(), ["a", "n"]);
+  });
+});
+
+describe("isTransportFailure", () => {
+  it("lets a call that never reached the server wait", () => {
+    assert.equal(isTransportFailure("goodearth_task_save", new Error("goodearth_task_save: Load failed")), true);
+  });
+  it("refuses a tool's own error, even one that says timed out", () => {
+    assert.equal(isTransportFailure("goodearth_task_save", new Error("upstream timed out")), false);
+  });
+  it("never queues a proof bounce", () => {
+    const bounce = Object.assign(new Error("goodearth_task_save: timed out"), { name: "ProofRequiredError" });
+    assert.equal(isTransportFailure("goodearth_task_save", bounce), false);
+  });
+  it("wants this tool's own runtime name as the prefix", () => {
+    assert.equal(isTransportFailure("goodearth_task_save", new Error("goodearth_task_delete: Failed to fetch")), false);
   });
 });

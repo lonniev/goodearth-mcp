@@ -26,8 +26,9 @@ import { remembered, RESTORED_EVENT } from "../lib/undoEvents";
 import {
   CELL, Empty, ErrorBox, FIELD, ICON, IconButton, Pill, RowActions, Section, TrashGlyph,
 } from "../components/ui";
+import { getStoredNpub } from "@tollbooth-dpyc/web";
 import {
-  getStoredNpub, taskDelete, taskList, taskSave, taskSetDone,
+  taskDelete, taskList, taskSave, taskSetDone,
   type TaskInput, type TaskRow, type TaskSort, type Timeframe,
 } from "../lib/mcp";
 import { entries, isNetworkFailure, overlayTasks, subscribe } from "../lib/outbox";

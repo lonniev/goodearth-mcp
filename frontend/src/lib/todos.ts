@@ -11,7 +11,8 @@
 // been acknowledged by the server.
 
 import { claimLegacy } from "./legacyOwner";
-import { getStoredNpub, taskSave } from "./mcp";
+import { getStoredNpub } from "@tollbooth-dpyc/web";
+import { taskSave } from "./mcp";
 
 const KEY = "goodearth:todos:v1";
 const DONE_KEY = "goodearth:todos:migrated:v1";

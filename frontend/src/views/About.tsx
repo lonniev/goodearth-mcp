@@ -6,7 +6,7 @@
 // kind of small lie that makes people distrust the rest of a status page.
 
 import { useEffect, useState } from "react";
-import { serviceStatus, type ServiceStatus } from "../lib/mcp";
+import { serviceStatus, type ServiceStatus } from "@tollbooth-dpyc/web";
 
 export default function About() {
   const [status, setStatus] = useState<ServiceStatus | null>(null);
