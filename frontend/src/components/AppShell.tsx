@@ -120,8 +120,11 @@ export default function AppShell({
     });
   }, [view, items]);
 
+  // `flex-1 min-h-0`, not `h-full`: #root is a column, and the debug log's
+  // spacer below this takes its height out of the viewport rather than
+  // pushing the rail off the bottom of it.
   return (
-    <div className={`grid h-full grid-cols-1 grid-rows-[56px_1fr_56px] md:grid-rows-[56px_1fr] ${
+    <div className={`grid min-h-0 flex-1 grid-cols-1 grid-rows-[56px_1fr_56px] md:grid-rows-[56px_1fr] ${
       collapsed ? "md:grid-cols-[64px_1fr]" : "md:grid-cols-[200px_1fr]"
     }`}>
       <nav ref={rail} aria-label="Views"
