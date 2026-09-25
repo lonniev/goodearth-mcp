@@ -10,11 +10,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Provenance from "../components/Provenance";
-import { QuoteScroller } from "@tollbooth-dpyc/web/react";
+import { QuoteScroller, TableFilter } from "@tollbooth-dpyc/web/react";
 import { AGRARIAN_QUOTES, AGRARIAN_SOURCE, quoteStyles } from "../lib/quotes";
 import { Pager, SortHeaders, type Column } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
-import TableFilter from "../components/TableFilter";
 import { isOn as wildFilterOn, matches as wildMatches, NO_WILDLIFE_FILTER,
   summarise as wildFilterWords, type WildlifeFilter } from "../lib/wildlifeFilter";
 import { remembered } from "../lib/undoEvents";
@@ -31,7 +30,8 @@ import SpeciesFinder from "../components/SpeciesFinder";
 import type { Chosen } from "../lib/basket";
 import type { SavedRegion } from "../lib/regions";
 import {
-  CELL, Empty, ErrorBox, PageTitle, RowActions, Section, SpeciesMark, TrashGlyph,
+  CELL, Empty, ErrorBox, Glyph, ICON, PageTitle, RowActions, Section, SpeciesMark, TABLE_FILTER,
+  TrashGlyph,
 } from "../components/ui";
 import { speciesHabits, type SpeciesHabitsResult } from "../lib/mcp";
 
@@ -315,13 +315,18 @@ export default function Wildlife({
           )}
         </Section>
         <div className="ml-auto flex items-center gap-2">
-          <TableFilter value={filter} empty={NO_WILDLIFE_FILTER} summary={wildFilterWords(filter)}
-            onChange={(f) => { setFilter(f); setPageNo(0); }}
-            questions={[
-              { kind: "number", key: "dueDays", label: "Due within", unit: "days" },
-              { kind: "toggle", key: "happened", label: "Already happened" },
-              { kind: "toggle", key: "rosterOnly", label: "On the roster, no date" },
-            ]} />
+          <TableFilter classNames={TABLE_FILTER} clearLabel="Clear"
+            onClear={() => { setFilter(NO_WILDLIFE_FILTER); setPageNo(0); }}
+            questions={{
+              value: filter, summary: wildFilterWords(filter),
+              onChange: (f) => { setFilter(f); setPageNo(0); },
+              icon: <Glyph path={ICON.filter} size={16} />,
+              questions: [
+                { kind: "number", key: "dueDays", label: "Due within", unit: "days" },
+                { kind: "toggle", key: "happened", label: "Already happened" },
+                { kind: "toggle", key: "rosterOnly", label: "On the roster, no date" },
+              ],
+            }} />
           <SearchBox value={search} placeholder="regex ok, e.g. robin|migration"
             onSearch={(t) => { setSearch(t); setPageNo(0); }} />
         </div>

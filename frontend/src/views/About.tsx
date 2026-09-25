@@ -18,7 +18,7 @@ export default function About() {
       .catch((e) => setErr((e as Error).message));
   }, []);
 
-  const build = (status as unknown as { build_info?: Record<string, string> } | null)?.build_info;
+  const build = status?.build_info;
 
   return (
     <>
@@ -134,10 +134,10 @@ export default function About() {
                 <Row k="Deployed commit" v={build.fastmcp_cloud_git_commit_sha.slice(0, 12)} />
               )}
               <Row k="Operator fingerprint"
-                v={(status as unknown as { operator_npub_hash?: string }).operator_npub_hash ?? "—"}
+                v={status.operator_npub_hash ?? "—"}
                 note="Verify this matches the fingerprint on any direct message claiming to be Good Earth." />
               <Row k="Persistence"
-                v={(status as unknown as { vault_configured?: boolean }).vault_configured ? "configured" : "not configured"} />
+                v={status.vault_configured ? "configured" : "not configured"} />
             </tbody>
           </table>
         </div>

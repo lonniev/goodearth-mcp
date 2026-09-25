@@ -13,16 +13,19 @@ const store = new Map<string, string>();
 };
 
 const {
-  enqueue, entries, waiting, refused, flush, discard, isNetworkFailure, isTransportFailure,
+  enqueue, entries, waiting, refused, flush, discard, waitsForSignal,
   pendingItems, overlay, overlayTasks, QUEUEABLE, OUTBOX_KEY,
 } = await import("./outbox.ts");
+const { NetworkError, ProofRequiredError } = await import("@tollbooth-dpyc/web");
 
 const ME = "npub1me";
 const THEM = "npub1them";
 
 beforeEach(() => store.clear());
 
-const offline = () => Promise.reject(new TypeError("Failed to fetch"));
+/// What @tollbooth-dpyc/web throws when a call never reached the service.
+const lost = (tool = "task_save") => new NetworkError(`goodearth_${tool}`, new TypeError("Failed to fetch"));
+const offline = () => Promise.reject(lost());
 
 describe("what waits", () => {
   it("queues only the writes a grower makes in the field", () => {
@@ -66,6 +69,13 @@ describe("sending what waited", () => {
     assert.equal(calls, 1, "a second try on no signal only burns battery");
     assert.equal(r.stoppedBy, "signal");
     assert.equal(waiting(ME).length, 2);
+  });
+
+  it("refuses an answer that only reads like lost signal", async () => {
+    enqueue(ME, "task_save", { task_id: "t1", title: "a" });
+    const r = await flush(ME, () => Promise.reject(new Error("goodearth_task_save: Load failed")));
+    assert.equal(r.stoppedBy, undefined);
+    assert.equal(refused(ME).length, 1);
   });
 
   it("waits for a fresh sign-in rather than refusing the entry", async () => {
@@ -113,21 +123,24 @@ describe("sending what waited", () => {
 });
 
 describe("telling no signal from a refusal", () => {
-  it("reads each browser's wording for a lost connection", () => {
-    for (const m of [
-      "Failed to fetch", "NetworkError when attempting to fetch resource.", "Load failed",
-      "The Internet connection appears to be offline.", "Request timed out",
-      "Error POSTing to endpoint (HTTP 503): Service Unavailable",
-    ]) assert.ok(isNetworkFailure(new Error(`goodearth_task_save: ${m}`)), m);
+  it("lets a field write wait when the package says the call never arrived", () => {
+    for (const t of QUEUEABLE) assert.equal(waitsForSignal(t, lost(t)), true, t);
   });
 
-  it("does not mistake the server saying no for no signal", () => {
-    assert.ok(!isNetworkFailure(new Error("a task needs a title")));
-    assert.ok(!isNetworkFailure(new Error("Input validation error: 'items' is a required property")));
+  it("classifies by the error's kind, never by its wording", () => {
+    // The old test matched "<runtime name>: " plus a browser's words. A tool
+    // that answered in those words was refused, not delayed.
+    assert.equal(waitsForSignal("task_save", new Error("goodearth_task_save: Failed to fetch")), false);
+    assert.equal(waitsForSignal("task_save", new Error("upstream timed out")), false);
+    assert.equal(waitsForSignal("task_save", new Error("a task needs a title")), false);
   });
 
-  it("believes the browser when it says it is offline", () => {
-    assert.ok(isNetworkFailure(new Error("anything"), false));
+  it("never queues a read, even one that lost the signal", () => {
+    for (const t of ["crop_gdd_status", "block_item_list", "task_list"]) assert.equal(waitsForSignal(t, lost(t)), false, t);
+  });
+
+  it("never queues a proof bounce", () => {
+    assert.equal(waitsForSignal("task_save", new ProofRequiredError("Sign-in required.")), false);
   });
 });
 
@@ -162,21 +175,5 @@ describe("what a view shows while it waits", () => {
     );
     assert.deepEqual(rows, [{ id: "n", title: "New", done: false }, { id: "a", title: "A", done: true }]);
     assert.deepEqual([...pending].sort(), ["a", "n"]);
-  });
-});
-
-describe("isTransportFailure", () => {
-  it("lets a call that never reached the server wait", () => {
-    assert.equal(isTransportFailure("goodearth_task_save", new Error("goodearth_task_save: Load failed")), true);
-  });
-  it("refuses a tool's own error, even one that says timed out", () => {
-    assert.equal(isTransportFailure("goodearth_task_save", new Error("upstream timed out")), false);
-  });
-  it("never queues a proof bounce", () => {
-    const bounce = Object.assign(new Error("goodearth_task_save: timed out"), { name: "ProofRequiredError" });
-    assert.equal(isTransportFailure("goodearth_task_save", bounce), false);
-  });
-  it("wants this tool's own runtime name as the prefix", () => {
-    assert.equal(isTransportFailure("goodearth_task_save", new Error("goodearth_task_delete: Failed to fetch")), false);
   });
 });

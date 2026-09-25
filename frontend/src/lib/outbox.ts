@@ -15,6 +15,8 @@
 // just before the signal dropped its reply is replayed as an update of the
 // same row, never a copy.
 
+import { isNetworkError } from "@tollbooth-dpyc/web";
+
 export const OUTBOX_KEY = "goodearth.outbox.v1";
 
 /// The writes a grower makes in the field. Every other call is an answer, and
@@ -124,27 +126,13 @@ export function refused(npub: string): Pending[] {
   return entries().filter((p) => p.npub === npub && p.refused);
 }
 
-/// Whether a failed call failed for want of signal, as opposed to the server
-/// saying no. Browsers word it differently: Chrome "Failed to fetch", Firefox
-/// "NetworkError…", Safari "Load failed" or "The Internet connection appears
-/// to be offline". A timeout and a gateway error count too — the write did
-/// not land, and replaying it is safe.
-export function isNetworkFailure(e: unknown, online?: boolean): boolean {
-  if (online === false) return true;
-  const msg = e instanceof Error ? e.message : String(e ?? "");
-  return /failed to fetch|networkerror|load failed|network connection was lost|appears to be offline|err_internet_disconnected|err_network|fetch failed|timed? ?out|HTTP 50[234]/i
-    .test(msg);
-}
-
-/// Whether a call through @tollbooth-dpyc/web never got an answer, and so may
-/// wait. The package throws a transport failure as "<runtime tool name>:
-/// <reason>"; a tool that answered with an error throws the server's own text,
-/// which is refused, not delayed, even when that text says "timed out". A proof
-/// bounce never waits: the grower has to sign in again first.
-export function isTransportFailure(runtimeName: string, e: unknown, online?: boolean): boolean {
-  if ((e as Error)?.name === "ProofRequiredError") return false;
-  const msg = e instanceof Error ? e.message : "";
-  return msg.startsWith(`${runtimeName}: `) && isNetworkFailure(e, online);
+/// Whether a failed write waits for signal rather than being refused. Only a
+/// field write waits, and only when @tollbooth-dpyc/web says the call never
+/// reached the service (`NetworkError`: offline, fetch failed, no answer). A
+/// tool that answered with an error was refused, not delayed, whatever its
+/// text says; a proof bounce never waits — the grower signs in again first.
+export function waitsForSignal(tool: string, e: unknown): boolean {
+  return QUEUEABLE.has(tool) && isNetworkError(e);
 }
 
 export interface FlushResult {
@@ -176,7 +164,7 @@ async function drain(npub: string, send: Sender): Promise<FlushResult> {
     try {
       r = await send(p.tool, p.args);
     } catch (e) {
-      if (isNetworkFailure(e)) return { sent, left: left(), stoppedBy: "signal" };
+      if (isNetworkError(e)) return { sent, left: left(), stoppedBy: "signal" };
       // An expired sign-in is not the entry's fault. It waits for the grower
       // to sign in again rather than being refused.
       if ((e as Error)?.name === "ProofRequiredError") return { sent, left: left(), stoppedBy: "sign-in" };

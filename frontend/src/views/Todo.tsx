@@ -26,12 +26,12 @@ import { remembered, RESTORED_EVENT } from "../lib/undoEvents";
 import {
   CELL, Empty, ErrorBox, FIELD, ICON, IconButton, Pill, RowActions, Section, TrashGlyph,
 } from "../components/ui";
-import { getStoredNpub } from "@tollbooth-dpyc/web";
+import { getStoredNpub, isNetworkError } from "@tollbooth-dpyc/web";
 import {
   taskDelete, taskList, taskSave, taskSetDone,
   type TaskInput, type TaskRow, type TaskSort, type Timeframe,
 } from "../lib/mcp";
-import { entries, isNetworkFailure, overlayTasks, subscribe } from "../lib/outbox";
+import { entries, overlayTasks, subscribe } from "../lib/outbox";
 import { migrateLocalTodos } from "../lib/todos";
 import { makeFeedRefresher, publishedToken } from "../lib/publishFeed";
 import type { SavedRegion } from "../lib/regions";
@@ -91,7 +91,7 @@ export default function TodoView({
       setPage({ rows: r.rows ?? [], total: r.total ?? 0, page: r.page ?? 0, pages: r.pages ?? 1 });
       setRanAt(new Date());
     } catch (e) {
-      if (isNetworkFailure(e, navigator.onLine)) {
+      if (isNetworkError(e)) {
         setErr("No signal. The list loads when the signal is back — tasks you add now wait and are sent then.");
         setPage((p) => p ?? { rows: [], total: 0, page: 0, pages: 1 });
       } else setErr((e as Error).message);

@@ -12,11 +12,11 @@
 // would have been four chances to drift.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getStoredNpub } from "@tollbooth-dpyc/web";
+import { getStoredNpub, isNetworkError } from "@tollbooth-dpyc/web";
 import {
   blockItemList, blockItemSave, type ItemKind, type ItemRow, type ItemSort,
 } from "./mcp";
-import { entries, isNetworkFailure, overlay, pendingItems, subscribe } from "./outbox";
+import { entries, overlay, pendingItems, subscribe } from "./outbox";
 import { RESTORED_EVENT } from "./undoEvents";
 
 export type { ItemKind, ItemSort };
@@ -136,7 +136,7 @@ export function useBlockItems<T>(
     } catch (e) {
       // No signal is not a fault to report in a transport's words. What was
       // on screen stays; anything recorded now waits and is sent later.
-      setError(isNetworkFailure(e, typeof navigator === "undefined" ? undefined : navigator.onLine)
+      setError(isNetworkError(e)
         ? "No signal. This list loads when the signal is back — anything you record now waits and is sent then."
         : String(e instanceof Error ? e.message : e));
     } finally {

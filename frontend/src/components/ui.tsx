@@ -11,6 +11,7 @@
 // differs, not because someone typed the class list again.
 
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import type { TableFilterClassNames } from "@tollbooth-dpyc/web/react";
 import Term from "./Term";
 
 /// One field style, for every text and date input on every page.
@@ -373,6 +374,22 @@ export function IconButton({
 
 /// The 24×24 paths this app uses, named for what they mean rather than what
 /// they look like — so "one concept, one icon" is checkable by reading.
+/// Good Earth's look for the package's `TableFilter` (Plants, Pests,
+/// Wildlife): the mark is a pill that goes dark while a question is answered,
+/// and its panel hangs below it. The package draws nothing of its own.
+export const TABLE_FILTER: TableFilterClassNames = {
+  root: "flex items-center gap-2",
+  chip: "flex min-h-11 items-center gap-1.5 rounded-full border-[1.5px] border-rule px-3 text-[12px] text-ink-soft active:bg-band",
+  chipActive: "border-ink! bg-ink! text-paper!",
+  questions: "relative",
+  summary: "data max-w-[12rem] truncate",
+  panel: "absolute right-0 top-full z-20 mt-1.5 w-[min(20rem,calc(100vw-2rem))] rounded-md border border-rule bg-panel p-2 shadow-lg",
+  question: "flex min-h-11 items-center gap-2 px-2 text-[13px] [&>label]:flex-1",
+  checkbox: "h-4 w-4 accent-growth",
+  number: `${FIELD} w-20`,
+  unit: "data w-12 text-[11px] text-ink-soft",
+};
+
 export const ICON = {
   add: "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z",
   // Material Design "delete" — the bin. Recognised without a word beside
