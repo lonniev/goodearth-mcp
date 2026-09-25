@@ -27,6 +27,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import L from "leaflet";
+import { useTimezone } from "@tollbooth-dpyc/web/react";
 import { coverageLabel, fetchRadarIndex, frameLabel, RADAR_MAX_NATIVE_ZOOM, tileUrl, type RadarIndex } from "../lib/radar";
 import {
   areaM2, distanceM, formatArea, isDrawable, type LatLng,
@@ -109,6 +110,7 @@ export default function FieldMap({ value, onChange, others = [], centreOn }: Pro
   const [radar, setRadar] = useState<RadarIndex | null>(null);
   const [radarOn, setRadarOn] = useState(false);
   const [frame, setFrame] = useState(0);
+  const [, zone] = useTimezone();
   const [playing, setPlaying] = useState(false);
   const [radarErr, setRadarErr] = useState("");
 
@@ -328,7 +330,7 @@ export default function FieldMap({ value, onChange, others = [], centreOn }: Pro
                   className="h-11 flex-1 accent-[color:var(--color-frost)]"
                 />
                 <span className="data w-[68px] shrink-0 text-right text-[11px]">
-                  {frameLabel(radar.frames[frame])}
+                  {frameLabel(radar.frames[frame], zone)}
                 </span>
               </div>
               <p className="data mt-1 text-[10px] leading-snug text-ink-soft">

@@ -11,6 +11,8 @@
 // this file would be a lie the first time the model changed.
 
 import { useEffect } from "react";
+import { useTimezone } from "@tollbooth-dpyc/web/react";
+import { clockDay, clockTime } from "../lib/clock";
 import { priceOf } from "../lib/mcp";
 
 export default function Provenance({
@@ -29,6 +31,7 @@ export default function Provenance({
   /// Two copies of "read 8:28 PM" on one row is one copy too many.
   hideTime?: boolean;
 }) {
+  const [, zone] = useTimezone();
   useEffect(() => {
     if (!at || !onCost) return;
     let live = true;
@@ -42,20 +45,20 @@ export default function Provenance({
 
   if (!at || hideTime) return null;
 
-  const clock = (d: Date) => d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   // A reading from an earlier day needs its day named. Within today the time
-  // alone is the whole story, and the date would only be noise.
+  // alone is the whole story, and the date would only be noise. "Today" is
+  // the viewer's day, in the zone they chose.
   const when = (d: Date) =>
-    d.toDateString() === at.toDateString()
-      ? clock(d)
-      : `${d.toLocaleDateString([], { month: "short", day: "numeric" })} ${clock(d)}`;
+    clockDay(d, zone) === clockDay(at, zone)
+      ? clockTime(d, zone)
+      : `${clockDay(d, zone)} ${clockTime(d, zone)}`;
 
   return (
     <span className="data ml-auto text-right text-[10.5px] font-normal text-ink-soft"
       title={from
         ? "The weather service was busy, so this is the last reading taken of this ground"
         : "When this answer was read"}>
-      read {clock(at)}
+      read {clockTime(at, zone)}
       {from && ` · weather from ${when(from)}`}
     </span>
   );

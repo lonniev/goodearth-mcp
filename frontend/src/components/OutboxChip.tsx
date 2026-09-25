@@ -8,6 +8,8 @@
 import { useEffect, useState } from "react";
 import { discard, entries, subscribe, type Pending } from "../lib/outbox";
 import { getStoredNpub } from "@tollbooth-dpyc/web";
+import { useTimezone } from "@tollbooth-dpyc/web/react";
+import { clockTime } from "../lib/clock";
 import { flushOutbox } from "../lib/mcp";
 
 const KIND: Record<string, [string, string]> = {
@@ -29,12 +31,10 @@ function describe(p: Pending): string {
   return `${saved} ${saved === 1 ? one : many}`;
 }
 
-const at = (iso: string) =>
-  new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-
 export default function OutboxChip() {
   const [list, setList] = useState<Pending[]>(() => entries());
   const [open, setOpen] = useState(false);
+  const [, zone] = useTimezone();
   useEffect(() => subscribe(setList), []);
 
   const npub = getStoredNpub();
@@ -83,7 +83,7 @@ export default function OutboxChip() {
               <li key={p.id} className="flex items-start justify-between gap-2">
                 <span>
                   {describe(p)}
-                  <span className="text-ink-soft"> · {at(p.queuedAt)}</span>
+                  <span className="text-ink-soft"> · {clockTime(p.queuedAt, zone)}</span>
                   {p.refused && <span className="block text-clay">Not saved: {p.refused}</span>}
                 </span>
                 {p.refused && (

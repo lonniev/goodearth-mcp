@@ -6,19 +6,30 @@
 // kind of small lie that makes people distrust the rest of a status page.
 
 import { useEffect, useState } from "react";
-import { serviceStatus, type ServiceStatus } from "@tollbooth-dpyc/web";
+import { formatDateTime, serviceStatus, type ServiceStatus } from "@tollbooth-dpyc/web";
+import { BuildInfoPanel, useTimezone, type BuildInfoPanelClassNames } from "@tollbooth-dpyc/web/react";
+
+// The build panel in the page's own dress: a ruled card, soft labels, the
+// values in the data face. The package draws the rows; the look is ours.
+const BUILD: BuildInfoPanelClassNames = {
+  root: "rounded-md border border-rule bg-panel px-4 py-2 text-[13px]",
+  section: "eyebrow mt-3 mb-0.5 first:mt-1",
+  row: "grid grid-cols-[7rem_1fr] gap-x-3 border-b border-rule py-2 last:border-b-0 sm:grid-cols-[11rem_1fr]",
+  label: "text-ink-soft",
+  value: "data min-w-0 [overflow-wrap:anywhere]",
+  link: "underline decoration-rule underline-offset-2",
+};
 
 export default function About() {
   const [status, setStatus] = useState<ServiceStatus | null>(null);
   const [err, setErr] = useState("");
+  const [, zone] = useTimezone();
 
   useEffect(() => {
     serviceStatus()
       .then(setStatus)
       .catch((e) => setErr((e as Error).message));
   }, []);
-
-  const build = status?.build_info;
 
   return (
     <>
@@ -117,30 +128,34 @@ export default function About() {
         <div className="rounded-md border border-clay/30 bg-clay/10 p-3 text-[13px] text-clay">
           Could not reach the service: {err}
         </div>
-      ) : !status ? (
-        <div className="rounded-md border border-rule bg-panel p-4 text-[13px] text-ink-soft">
-          Asking the service…
-        </div>
       ) : (
-        <div className="overflow-x-auto rounded-md border border-rule bg-panel">
-          <table className="w-full text-[13px]">
-            <tbody>
-              <Row k="Service" v={status.service ?? "goodearth-mcp"} />
-              <Row k="Version" v={status.version ?? "—"} />
-              <Row k="Tollbooth DPYC SDK" v={status.tollbooth_dpyc_version ?? "—"} />
-              <Row k="Frontend" v={`${__APP_VERSION__} · ${__BUILD_COMMIT__}`} />
-              <Row k="Built" v={new Date(__BUILD_TIME__).toLocaleString()} />
-              {build?.fastmcp_cloud_git_commit_sha && (
-                <Row k="Deployed commit" v={build.fastmcp_cloud_git_commit_sha.slice(0, 12)} />
-              )}
-              <Row k="Operator fingerprint"
-                v={status.operator_npub_hash ?? "—"}
-                note="Verify this matches the fingerprint on any direct message claiming to be Good Earth." />
-              <Row k="Persistence"
-                v={status.vault_configured ? "configured" : "not configured"} />
-            </tbody>
-          </table>
-        </div>
+        <BuildInfoPanel
+          status={status}
+          heading={null}
+          frontend={{
+            version: __APP_VERSION__,
+            commit: __BUILD_COMMIT__,
+            builtAt: formatDateTime(__BUILD_TIME__, zone),
+            source: "https://github.com/lonniev/goodearth-mcp",
+          }}
+          classNames={BUILD}
+        >
+          <div className={BUILD.row}>
+            <span className={BUILD.label}>Operator fingerprint</span>{" "}
+            <span className={BUILD.value}>
+              {status?.operator_npub_hash ?? "—"}
+              <span className="mt-0.5 block text-[11.5px] text-ink-soft">
+                Verify this matches the fingerprint on any direct message claiming to be Good Earth.
+              </span>
+            </span>
+          </div>
+          <div className={BUILD.row}>
+            <span className={BUILD.label}>Persistence</span>{" "}
+            <span className={BUILD.value}>
+              {status ? (status.vault_configured ? "configured" : "not configured") : "—"}
+            </span>
+          </div>
+        </BuildInfoPanel>
       )}
 
       {/* ── The network ────────────────────────────────────────────────── */}
@@ -171,17 +186,5 @@ export default function About() {
         disagreement into a correction for your block.
       </p>
     </>
-  );
-}
-
-function Row({ k, v, note }: { k: string; v: string; note?: string }) {
-  return (
-    <tr className="border-b border-rule last:border-b-0">
-      <td className="px-4 py-2.5 align-top text-ink-soft">{k}</td>
-      <td className="px-4 py-2.5">
-        <span className="data">{v}</span>
-        {note && <p className="mt-0.5 text-[11.5px] text-ink-soft">{note}</p>}
-      </td>
-    </tr>
   );
 }

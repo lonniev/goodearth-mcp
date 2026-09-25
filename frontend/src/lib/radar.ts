@@ -15,6 +15,8 @@
 
 const INDEX = "https://api.rainviewer.com/public/weather-maps.json";
 
+import { clockTime } from "./clock.ts";
+
 export interface RadarFrame {
   time: number;      // unix seconds
   path: string;
@@ -65,9 +67,10 @@ export function tileUrl(idx: RadarIndex, frame: RadarFrame): string {
   return `${idx.host}${frame.path}/256/{z}/{x}/{y}/2/1_1.png`;
 }
 
-export function frameLabel(f: RadarFrame): string {
-  const d = new Date(f.time * 1000);
-  const t = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+/// The frame's clock time in the viewer's chosen zone — when the echo was
+/// read, not a date on the farm's calendar.
+export function frameLabel(f: RadarFrame, timeZone: string): string {
+  const t = clockTime(new Date(f.time * 1000), timeZone);
   return f.kind === "nowcast" ? `${t} forecast` : t;
 }
 

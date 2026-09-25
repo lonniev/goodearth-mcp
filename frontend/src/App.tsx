@@ -11,7 +11,8 @@ import { DEFAULT_VIEW, GUEST_VIEW, onRouteChange, viewFromHash, writeView } from
 import { isPublic } from "./lib/views";
 import Hive, { hiveMood } from "./components/Hive";
 import Bees from "./components/Bees";
-import { DebugPanel, NostrProfilePanel, NpubGate, SessionKeyClaim } from "@tollbooth-dpyc/web/react";
+import { DebugPanel, NostrProfilePanel, NpubGate, SessionKeyClaim, UsageSummary } from "@tollbooth-dpyc/web/react";
+import { USAGE, USAGE_FIGURES, UsageRow } from "./components/usageDress";
 import Preferences from "./components/Preferences";
 import AccountSummary from "./components/AccountSummary";
 import CalendarFeed from "./components/CalendarFeed";
@@ -373,6 +374,7 @@ export default function App() {
               <div className="grid gap-3">
                 <AccountSummary balanceSats={balance} spentToday={spent}
                   onSignOut={() => { logOut(); setSignedIn(false); }} />
+                <UsageSummary figures={USAGE_FIGURES} classNames={USAGE} renderRow={(t) => <UsageRow tool={t} />} />
                 <NostrProfilePanel npub={getStoredNpub()} />
                 {/* Browser-held session nsec only — silent when NIP-07 / courier.
                     Keyed by npub so a revealed key never carries across a sign-in. */}
