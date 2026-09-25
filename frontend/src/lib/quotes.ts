@@ -1,11 +1,13 @@
 // Good Earth's own quotes for a wait: the agrarian tradition, because the
-// app is about land. The scroller that shows them is @tollbooth-dpyc/web's.
+// app is about land. The scroller that shows them is @tollbooth-dpyc/web's;
+// how they look is ours — quoteStyles, passed at every call site.
 //
 // AGRARIAN_SOURCE is the corpus in the dpyc-community registry, so the set can
 // be edited without a redeploy; AGRARIAN_QUOTES shows at once and stays when
 // the registry cannot be reached.
 
 import type { Quote } from "@tollbooth-dpyc/web";
+import type { QuoteScrollerClassNames } from "@tollbooth-dpyc/web/react";
 
 export const AGRARIAN_SOURCE =
   "https://raw.githubusercontent.com/lonniev/dpyc-community/main/quotes-agrarian.json";
@@ -26,3 +28,14 @@ export const AGRARIAN_QUOTES: ReadonlyArray<Quote> = [
   { text: "Observe the seasons, and do each thing in its own time.",
     author: "Hesiod, Works and Days" },
 ];
+
+/** The almanac's look: a soft-ink eyebrow, a display-face italic quote between
+ *  honey marks, the author in the data face. */
+export const quoteStyles: QuoteScrollerClassNames = {
+  root: "px-4 py-6 text-center",
+  heading: "eyebrow mb-5",
+  figure: "m-0 mx-auto flex min-h-[124px] max-w-[520px] flex-col justify-center gap-3",
+  text: "m-0 figure text-[17px] font-normal italic leading-relaxed text-ink",
+  mark: "mx-0.5 not-italic text-honey",
+  author: "data text-[10.5px] uppercase tracking-[0.22em] text-ink-soft",
+};

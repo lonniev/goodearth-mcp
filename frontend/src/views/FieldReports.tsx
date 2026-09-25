@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Provenance from "../components/Provenance";
 import { QuoteScroller } from "@tollbooth-dpyc/web/react";
-import { AGRARIAN_QUOTES, AGRARIAN_SOURCE } from "../lib/quotes";
+import { AGRARIAN_QUOTES, AGRARIAN_SOURCE, quoteStyles } from "../lib/quotes";
 import { calibration, type CalibrationResult } from "../lib/mcp";
 import { boundsFrom, fetchObservations, searchUsers,
   type INatObservation } from "../lib/inaturalist";
@@ -248,7 +248,7 @@ export default function FieldReports({
       </h2>
 
       {busy && !cal ? (
-        <div className="rounded-md border border-rule bg-panel"><QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Reading your reports" intervalMs={6500} /></div>
+        <div className="rounded-md border border-rule bg-panel"><QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Reading your reports" intervalMs={6500} classNames={quoteStyles} /></div>
       ) : cal ? (
         <div className="grid gap-3 sm:grid-cols-2">
           <Bias title="Heat" s={cal.heat} unit="%" />
