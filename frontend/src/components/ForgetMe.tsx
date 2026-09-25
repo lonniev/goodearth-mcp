@@ -10,9 +10,8 @@
 // people can use and one they avoid.
 
 import { useState } from "react";
-import {
-  FORGET_PHRASE, forgetMyGround, getStoredNpub, logOut,
-} from "../lib/mcp";
+import { getStoredNpub, logOut } from "@tollbooth-dpyc/web";
+import { FORGET_PHRASE, forgetMyGround } from "../lib/mcp";
 import { clear as clearUndo } from "../lib/undo";
 
 export default function ForgetMe({ onForgotten }: { onForgotten: () => void }) {

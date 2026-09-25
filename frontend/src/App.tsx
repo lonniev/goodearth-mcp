@@ -1,6 +1,6 @@
 // Good Earth — app root.
 //
-// Identity is the fleet's, not ours: NpubGate, the proof envelope in lib/mcp,
+// Identity is the fleet's, not ours: NpubGate, the proof envelope,
 // the session nsec, and the Nostr profile panel are shared modules. What is
 // specific to Good Earth is everything below the gate — the region scoping and
 // the views that read from it.
@@ -11,8 +11,7 @@ import { DEFAULT_VIEW, GUEST_VIEW, onRouteChange, viewFromHash, writeView } from
 import { isPublic } from "./lib/views";
 import Hive, { hiveMood } from "./components/Hive";
 import Bees from "./components/Bees";
-import NpubGate from "./components/NpubGate";
-import { NostrProfilePanel, SessionKeyClaim } from "@tollbooth-dpyc/web/react";
+import { NostrProfilePanel, NpubGate, SessionKeyClaim } from "@tollbooth-dpyc/web/react";
 import Preferences from "./components/Preferences";
 import AccountSummary from "./components/AccountSummary";
 import CalendarFeed from "./components/CalendarFeed";
@@ -39,11 +38,11 @@ import References from "./views/References";
 import About from "./views/About";
 import TodoView from "./views/Todo";
 import Plots from "./views/Plots";
-import { AVATAR_EVENT, avatarFor, fetchProfile, hydrateAvatarFromNostr } from "@tollbooth-dpyc/web";
 import {
-  blockList, checkBalance, getStoredNpub, isLoggedIn, logOut, onProofExpired,
-  type BlockRow, type FrostWindowResult,
-} from "./lib/mcp";
+  AVATAR_EVENT, avatarFor, checkBalance, fetchProfile, getStoredNpub, hydrateAvatarFromNostr,
+  isLoggedIn, logOut, onProofExpired,
+} from "@tollbooth-dpyc/web";
+import { blockList, type BlockRow, type FrostWindowResult } from "./lib/mcp";
 import {
   EXAMPLE_REGION, getActiveRegionId, hydrate, listRegions, setActiveRegionId,
   type SavedRegion,

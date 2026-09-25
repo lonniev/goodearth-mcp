@@ -7,7 +7,8 @@
 
 import { useEffect, useState } from "react";
 import { discard, entries, subscribe, type Pending } from "../lib/outbox";
-import { flushOutbox, getStoredNpub } from "../lib/mcp";
+import { getStoredNpub } from "@tollbooth-dpyc/web";
+import { flushOutbox } from "../lib/mcp";
 
 const KIND: Record<string, [string, string]> = {
   planting: ["planting", "plantings"],

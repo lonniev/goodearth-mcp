@@ -22,9 +22,8 @@
 import { claimLegacy } from "./legacyOwner";
 import { EXAMPLE_ID } from "./regions";
 import { liftVerdict } from "./liftVerdict";
-import {
-  blockItemSave, blockSave, getStoredNpub, type ItemKind, type Region,
-} from "./mcp";
+import { getStoredNpub } from "@tollbooth-dpyc/web";
+import { blockItemSave, blockSave, type ItemKind, type Region } from "./mcp";
 
 const LEGACY = {
   regions: "goodearth:regions:v1",

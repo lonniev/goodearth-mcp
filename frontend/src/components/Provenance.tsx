@@ -11,7 +11,7 @@
 // this file would be a lie the first time the model changed.
 
 import { useEffect } from "react";
-import { checkPrice } from "../lib/mcp";
+import { priceOf } from "../lib/mcp";
 
 export default function Provenance({
   tool, at, onCost, from, hideTime,
@@ -32,7 +32,7 @@ export default function Provenance({
   useEffect(() => {
     if (!at || !onCost) return;
     let live = true;
-    checkPrice(tool)
+    priceOf(tool)
       .then((p) => { if (live && p != null) onCost(p); })
       .catch(() => { /* the answer stands even if its price is unreadable */ });
     return () => { live = false; };

@@ -12,8 +12,9 @@
 // would have been four chances to drift.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getStoredNpub } from "@tollbooth-dpyc/web";
 import {
-  blockItemList, blockItemSave, getStoredNpub, type ItemKind, type ItemRow, type ItemSort,
+  blockItemList, blockItemSave, type ItemKind, type ItemRow, type ItemSort,
 } from "./mcp";
 import { entries, isNetworkFailure, overlay, pendingItems, subscribe } from "./outbox";
 import { RESTORED_EVENT } from "./undoEvents";
