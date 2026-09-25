@@ -315,7 +315,7 @@ export default function Wildlife({
           )}
         </Section>
         <div className="ml-auto flex items-center gap-2">
-          <TableFilter classNames={TABLE_FILTER} clearLabel="Clear"
+          <TableFilter classNames={TABLE_FILTER} clearLabel="Clear" clearPlacement="panel"
             onClear={() => { setFilter(NO_WILDLIFE_FILTER); setPageNo(0); }}
             questions={{
               value: filter, summary: wildFilterWords(filter),
