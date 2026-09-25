@@ -761,7 +761,7 @@ export default function Crops({
 
       {busy && !ledger ? (
         <div className="rounded-md border border-rule bg-panel">
-          <QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Reading the ledger" intervalMs={6500} />
+          <QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Reading the ledger" intervalMs={6500} className="quote-scroller" />
         </div>
       ) : ledger ? (
         <>

@@ -262,7 +262,7 @@ export default function Almanac({
 
       {busy && !data ? (
         <div className="rounded-md border border-rule bg-panel">
-          <QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Reading the season" intervalMs={6500} />
+          <QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Reading the season" intervalMs={6500} className="quote-scroller" />
         </div>
       ) : data ? (
         <div className="space-y-3">

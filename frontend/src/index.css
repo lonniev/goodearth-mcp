@@ -175,3 +175,9 @@
   --tb-err-line: var(--color-clay);
   --tb-err-ink: var(--color-clay);
 }
+
+/* The quote scroller's marks stay honey, as they were before the package
+   drew them; the rest of the package keeps ink as its accent. */
+.quote-scroller {
+  --tb-accent: var(--color-honey);
+}

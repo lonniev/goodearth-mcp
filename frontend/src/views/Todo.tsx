@@ -300,7 +300,7 @@ export default function TodoView({
       </div>
 
       {busy && !page ? (
-        <div className="rounded-md border border-rule bg-panel"><QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Reading your list" intervalMs={6500} /></div>
+        <div className="rounded-md border border-rule bg-panel"><QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Reading your list" intervalMs={6500} className="quote-scroller" /></div>
       ) : shown && shown.rows.length ? (
         <>
           <div className="overflow-x-auto rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">

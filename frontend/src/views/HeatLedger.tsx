@@ -343,7 +343,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
 
       {busy && !data ? (
         <div className="rounded-md border border-rule bg-panel">
-          <QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading={`Reading the season for ${region.name}`} intervalMs={6500} />
+          <QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading={`Reading the season for ${region.name}`} intervalMs={6500} className="quote-scroller" />
         </div>
       ) : data ? (
         <ChartFrame label="The season's heat">

@@ -328,7 +328,7 @@ export default function Wildlife({
       </div>
 
       {busy && !data ? (
-        <div className="rounded-md border border-rule bg-panel"><QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Reading the year" intervalMs={6500} /></div>
+        <div className="rounded-md border border-rule bg-panel"><QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Reading the year" intervalMs={6500} className="quote-scroller" /></div>
       ) : models.length ? (
         <>
           <div className="overflow-x-auto overscroll-x-contain rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">

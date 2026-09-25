@@ -380,7 +380,7 @@ export default function Pests({
           from its neighbours. */}
       {busy && !data ? (
         <div className="rounded-md border border-rule bg-panel">
-          <QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Checking what you're watching" intervalMs={6500} />
+          <QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Checking what you're watching" intervalMs={6500} className="quote-scroller" />
         </div>
       ) : models.length ? (
         <>

@@ -248,7 +248,7 @@ export default function FieldReports({
       </h2>
 
       {busy && !cal ? (
-        <div className="rounded-md border border-rule bg-panel"><QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Reading your reports" intervalMs={6500} /></div>
+        <div className="rounded-md border border-rule bg-panel"><QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Reading your reports" intervalMs={6500} className="quote-scroller" /></div>
       ) : cal ? (
         <div className="grid gap-3 sm:grid-cols-2">
           <Bias title="Heat" s={cal.heat} unit="%" />
