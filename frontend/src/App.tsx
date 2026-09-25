@@ -143,8 +143,13 @@ export default function App() {
   // SVG charts, which read the same custom properties the buttons do. Set here
   // rather than in a provider because the guest shell and the app shell both
   // need it and neither is the other's parent.
+  // The browser chrome follows too: a static theme-color would paint Summer's
+  // blush above an Autumn page.
   useEffect(() => {
-    document.documentElement.dataset.theme = themeOf(prefs);
+    const root = document.documentElement;
+    root.dataset.theme = themeOf(prefs);
+    const paper = getComputedStyle(root).getPropertyValue("--color-paper").trim();
+    if (paper) document.querySelector('meta[name="theme-color"]')?.setAttribute("content", paper);
   }, [prefs]);
   useEffect(() => onRouteChange(setView, signedIn ? DEFAULT_VIEW : GUEST_VIEW), [signedIn]);
 
