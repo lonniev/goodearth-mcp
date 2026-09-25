@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Provenance from "../components/Provenance";
 import { QuoteScroller } from "@tollbooth-dpyc/web/react";
-import { AGRARIAN_QUOTES, AGRARIAN_SOURCE } from "../lib/quotes";
+import { AGRARIAN_QUOTES, AGRARIAN_SOURCE, quoteStyles } from "../lib/quotes";
 import { Pager, SortHeaders, type Column } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
 import TableFilter from "../components/TableFilter";
@@ -328,7 +328,7 @@ export default function Wildlife({
       </div>
 
       {busy && !data ? (
-        <div className="rounded-md border border-rule bg-panel"><QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Reading the year" intervalMs={6500} /></div>
+        <div className="rounded-md border border-rule bg-panel"><QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Reading the year" intervalMs={6500} classNames={quoteStyles} /></div>
       ) : models.length ? (
         <>
           <div className="overflow-x-auto overscroll-x-contain rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">
