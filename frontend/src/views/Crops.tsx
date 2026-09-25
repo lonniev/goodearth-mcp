@@ -17,7 +17,8 @@ import TableFilter from "../components/TableFilter";
 import { apply as applyFilter, isOn as filterOn, NO_FILTER, summarise as filterWords,
   type LedgerFilter as Filter } from "../lib/ledgerFilter";
 import { baseBounds, parseBase } from "../lib/baseTemp";
-import QuoteScroller from "../components/QuoteScroller";
+import { QuoteScroller } from "@tollbooth-dpyc/web/react";
+import { AGRARIAN_QUOTES, AGRARIAN_SOURCE } from "../lib/quotes";
 import { blockItemList, cropGddStatus, cropSuitability, diseaseRisk, plantingWindow,
   treeSuitability, treeYear,
   type CropLedgerResult, type DiseaseRiskResult, type PlantingWindowResult, type SuitabilityResult,
@@ -760,7 +761,7 @@ export default function Crops({
 
       {busy && !ledger ? (
         <div className="rounded-md border border-rule bg-panel">
-          <QuoteScroller heading="Reading the ledger" />
+          <QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Reading the ledger" intervalMs={6500} />
         </div>
       ) : ledger ? (
         <>

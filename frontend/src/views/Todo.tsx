@@ -18,7 +18,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { once } from "../lib/once";
 import Provenance from "../components/Provenance";
-import QuoteScroller from "../components/QuoteScroller";
+import { QuoteScroller } from "@tollbooth-dpyc/web/react";
+import { AGRARIAN_QUOTES, AGRARIAN_SOURCE } from "../lib/quotes";
 import { Pager, SortHeaders, type Column } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
 import { remembered, RESTORED_EVENT } from "../lib/undoEvents";
@@ -299,7 +300,7 @@ export default function TodoView({
       </div>
 
       {busy && !page ? (
-        <div className="rounded-md border border-rule bg-panel"><QuoteScroller heading="Reading your list" /></div>
+        <div className="rounded-md border border-rule bg-panel"><QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Reading your list" intervalMs={6500} /></div>
       ) : shown && shown.rows.length ? (
         <>
           <div className="overflow-x-auto rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">

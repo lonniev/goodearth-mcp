@@ -17,7 +17,8 @@ import { bands } from "../lib/diseaseBands";
 import { dryingLine } from "../lib/dryingLine";
 import Term from "../components/Term";
 import Provenance from "../components/Provenance";
-import QuoteScroller from "../components/QuoteScroller";
+import { QuoteScroller } from "@tollbooth-dpyc/web/react";
+import { AGRARIAN_QUOTES, AGRARIAN_SOURCE } from "../lib/quotes";
 import { buildFlags, taskFlags, type LedgerFlag } from "../lib/ledgerFlags";
 import { readingTime } from "../lib/readingTime";
 import { findEvent, MIN_QUERY } from "../lib/findEvent";
@@ -342,7 +343,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
 
       {busy && !data ? (
         <div className="rounded-md border border-rule bg-panel">
-          <QuoteScroller heading={`Reading the season for ${region.name}`} />
+          <QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading={`Reading the season for ${region.name}`} intervalMs={6500} />
         </div>
       ) : data ? (
         <ChartFrame label="The season's heat">
