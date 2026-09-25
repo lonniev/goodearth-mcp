@@ -14,7 +14,8 @@ import MeasureChart from "../components/MeasureChart";
 import OutlookSummary from "../components/OutlookSummary";
 import Provenance from "../components/Provenance";
 import { readingTime } from "../lib/readingTime";
-import QuoteScroller from "../components/QuoteScroller";
+import { QuoteScroller } from "@tollbooth-dpyc/web/react";
+import { AGRARIAN_QUOTES, AGRARIAN_SOURCE } from "../lib/quotes";
 import { type AlmanacResult, type MeasureKey } from "../lib/mcp";
 import { loadAlmanac } from "../lib/pageLoads";
 import type { SavedRegion } from "../lib/regions";
@@ -261,7 +262,7 @@ export default function Almanac({
 
       {busy && !data ? (
         <div className="rounded-md border border-rule bg-panel">
-          <QuoteScroller heading="Reading the season" />
+          <QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Reading the season" intervalMs={6500} />
         </div>
       ) : data ? (
         <div className="space-y-3">
