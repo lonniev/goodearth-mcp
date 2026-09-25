@@ -258,21 +258,11 @@ const BOOTSTRAP_TOOLS = new Set([
   "check_proof_status",
 ]);
 
-/// Tools too noisy/background to clutter the debug log (polled liveness +
-/// profile hydration). Everything else — posting, OAuth, posts, snippets,
-/// credits — is logged so the panel shows what the FE is actually doing.
+/// Tools too noisy to clutter the debug log: the polled liveness check and
+/// profile hydration. Every other call is logged.
 const QUIET_TOOLS = new Set([
   "service_status",
   "get_nostr_profile",
-  // The scheduler-log poll feeds the debug panel its own synthesized entries;
-  // logging the poll call itself would just be noise.
-  "get_scheduler_log",
-  // Background personalization hydration (the editor's @handle) — not noteworthy.
-  "get_x_profile",
-  // NOTE: `fetch_dynamic_block` (the claim-check poll for a resolving dynamic
-  // block) is intentionally NOT quiet. Each poll's status (pending → done/error)
-  // must be visible in the debug panel — otherwise a resolve looks like it never
-  // calls back, and a silent poll failure (e.g. a proof bounce) is undiagnosable.
 ]);
 
 async function callTool<T = unknown>(
