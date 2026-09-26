@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- The Account page is the shared `AccountPage` from @tollbooth-dpyc/web 1.5.0.
+  The balance card leads, then the Nostr profile, session key and usage on the
+  left; Viewing, the calendar feed and Forget me stay on the right, Forget me
+  last. Usage now sits below the profile, the package's one order.
 - The form for tracking a creature sits above the Wildlife table, where Plants
   and Pests keep theirs, instead of below it — past the table, its pager, and
   the empty state telling a grower to go and find a creature. It has lost its

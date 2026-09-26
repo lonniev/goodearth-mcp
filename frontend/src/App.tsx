@@ -11,7 +11,7 @@ import { DEFAULT_VIEW, GUEST_VIEW, onRouteChange, viewFromHash, writeView } from
 import { isPublic } from "./lib/views";
 import Hive, { hiveMood } from "./components/Hive";
 import Bees from "./components/Bees";
-import { DebugPanel, NostrProfilePanel, NpubGate, SessionKeyClaim, UsageSummary } from "@tollbooth-dpyc/web/react";
+import { AccountPage, DebugPanel, NpubGate } from "@tollbooth-dpyc/web/react";
 import { USAGE, USAGE_FIGURES, UsageRow } from "./components/usageDress";
 import Preferences from "./components/Preferences";
 import AccountSummary from "./components/AccountSummary";
@@ -365,22 +365,26 @@ export default function App() {
         {view === "disease" && <LifeOfADisease />}
         {view === "glossary" && <Glossary />}
         {view === "account" && (
-          <>
-            <h1 className="figure mb-3 text-[26px] font-bold">Account</h1>
-            {/* Two columns on a landscape screen: who you are on the left,
-                how the app behaves for you on the right. One column on a
-                phone, in the same order. */}
-            <div className="grid items-start gap-3 lg:grid-cols-2">
-              <div className="grid gap-3">
-                <AccountSummary balanceSats={balance} spentToday={spent}
-                  onSignOut={() => { logOut(); setSignedIn(false); }} />
-                <UsageSummary figures={USAGE_FIGURES} classNames={USAGE} renderRow={(t) => <UsageRow tool={t} />} />
-                <NostrProfilePanel npub={getStoredNpub()} />
-                {/* Browser-held session nsec only — silent when NIP-07 / courier.
-                    Keyed by npub so a revealed key never carries across a sign-in. */}
-                <SessionKeyClaim key={getStoredNpub()} npub={getStoredNpub()} />
-              </div>
-              <div className="grid gap-3">
+          // Two columns on a landscape screen: who you are on the left, how
+          // the app behaves for you on the right. The page is one flat list,
+          // so the columns are CSS columns with the settings forced to the
+          // second; one column on a phone, in the same order.
+          <AccountPage
+            npub={getStoredNpub()}
+            heading="Account"
+            before={
+              <AccountSummary balanceSats={balance} spentToday={spent}
+                onSignOut={() => { logOut(); setSignedIn(false); }} />
+            }
+            usage={{ figures: USAGE_FIGURES, classNames: USAGE, renderRow: (t) => <UsageRow tool={t} /> }}
+            // The time zone sits in Viewing with the season and degrees; the
+            // season is Good Earth's theme; the build panel is on About.
+            timezone={false}
+            theme={false}
+            coupons={false}
+            build={false}
+            after={
+              <div className="grid gap-3 lg:break-before-column">
                 <Preferences prefs={prefs} onChange={(p) => setPrefs(writePrefs(p))} />
                 {/* Publishing is a once-per-region setup step, so it sits with
                     the other settings rather than at the top of the working page. */}
@@ -394,8 +398,12 @@ export default function App() {
                   setNotice("Your ground is forgotten. You are still a patron here.");
                 }} />
               </div>
-            </div>
-          </>
+            }
+            classNames={{
+              root: "gap-3 lg:columns-2 [&>*]:mb-3 [&>*]:break-inside-avoid",
+              heading: "figure mb-3 text-[26px] font-bold [column-span:all]",
+            }}
+          />
         )}
       </AppShell>
       </UnitProvider>
