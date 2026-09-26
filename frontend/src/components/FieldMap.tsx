@@ -50,7 +50,7 @@ interface Props {
   centreOn?: LatLng | null;
 }
 
-const BASEMAPS = {
+export const BASEMAPS = {
   satellite: {
     label: "Satellite",
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",

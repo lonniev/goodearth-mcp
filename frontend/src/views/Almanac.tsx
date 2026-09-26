@@ -14,6 +14,7 @@ import MeasureChart from "../components/MeasureChart";
 import OutlookSummary from "../components/OutlookSummary";
 import Provenance from "../components/Provenance";
 import { readingTime } from "../lib/readingTime";
+import { trendLift } from "../lib/trend";
 import { QuoteScroller } from "@tollbooth-dpyc/web/react";
 import { AGRARIAN_QUOTES, AGRARIAN_SOURCE, quoteStyles } from "../lib/quotes";
 import { type AlmanacResult, type MeasureKey } from "../lib/mcp";
@@ -201,8 +202,14 @@ export default function Almanac({
            while hiding days off the edge. A grid spends the whole width and
            wraps instead of scrolling, so the fortnight is all on screen. */
         <div className="mb-5 grid grid-cols-4 gap-1.5 sm:grid-cols-7 lg:grid-cols-[repeat(14,minmax(0,1fr))]">
-          {data.upcoming.map((u) => (
-            <div key={u.date}
+          {/* Each card rides a few pixels higher on a warmer day, so the
+              fortnight's warming or cooling shows before a number is read.
+              A transform, not a margin: the grid rows keep their height. */}
+          {(() => {
+            const lift = trendLift(data.upcoming.map((d) =>
+              d.high_f != null && d.low_f != null ? (d.high_f + d.low_f) / 2 : null), TREND_PX);
+            return data.upcoming.map((u, i) => (
+            <div key={u.date} style={{ transform: `translateY(${-lift[i]}px)` }}
               className="flex flex-col items-center gap-0.5 rounded-md border border-rule bg-panel px-1 py-2.5">
               <span className="data text-[10.5px] text-ink-soft">
                 {new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" })}
@@ -227,7 +234,8 @@ export default function Almanac({
               </span>
               <span className="data text-[10.5px] text-ink-soft">{u.wind.emoji}{u.wind.from ?? ""}</span>
             </div>
-          ))}
+            ));
+          })()}
         </div>
       )}
 
@@ -282,6 +290,10 @@ export default function Almanac({
     </>
   );
 }
+
+/// How far the warmest day in the fortnight rides above the coolest. Enough to
+/// see a trend across fourteen cards, little enough to keep the strip compact.
+const TREND_PX = 4;
 
 function Stat({ emoji, label, value, sub }: {
   emoji: string; label: string; value: string; sub?: string;
