@@ -293,7 +293,7 @@ export default function Almanac({
 
 /// How far the warmest day in the fortnight rides above the coolest. Enough to
 /// see a trend across fourteen cards, little enough to keep the strip compact.
-const TREND_PX = 4;
+const TREND_PX = 10;
 
 function Stat({ emoji, label, value, sub }: {
   emoji: string; label: string; value: string; sub?: string;
