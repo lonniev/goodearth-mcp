@@ -23,6 +23,7 @@ import { deleteRegion, EXAMPLE_ID, listRegions, type SavedRegion } from "../lib/
 import { saveBlock } from "../lib/saveBlock";
 import { baseBounds } from "../lib/baseTemp";
 import PlotEditor from "../components/PlotEditor";
+import PlotsMap from "../components/PlotsMap";
 import {
   bundleFileName, countLine, LARGE_BUNDLE_BYTES, readBundle, type FarmBundle,
 } from "../lib/farmBundle";
@@ -429,6 +430,16 @@ export default function Plots({
           );
         })}
       </div>
+
+      {/* ── All of it, on one map ──────────────────────────────────────── */}
+      {/* Finding ground, not drawing it: tap a plot to work it. The drawing
+          map stays its own, further down, so a tap here never adds a corner. */}
+      <div className="mt-4">
+        <PlotsMap plots={regions} activeId={active.id} onPick={onPick} />
+        <p className="data mt-1 text-[10.5px] text-ink-soft">Tap a plot to work it</p>
+      </div>
+
+      <h2 className="figure mt-6 text-[18px] font-semibold">Add a plot</h2>
 
       {/* ── Name the new block, and save it ────────────────────────────── */}
       <div className="mt-4 rounded-md border border-rule bg-panel p-4">
