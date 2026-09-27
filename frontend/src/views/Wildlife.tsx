@@ -1,4 +1,4 @@
-// Wildlife — the other creatures working the same season.
+// Fauna — the other creatures working the same season, wild and kept alike.
 //
 // A farm is not only its crops. Growers have always read the year by the
 // robins and the squirrels, and those are not folklore: the same drivers that
@@ -277,7 +277,7 @@ export default function Wildlife({
 
   return (
     <>
-      <PageTitle>Wildlife</PageTitle>
+      <PageTitle>Fauna</PageTitle>
 
       {error && <ErrorBox>{error}</ErrorBox>}
 
@@ -459,7 +459,7 @@ export default function Wildlife({
         blockName={region.name}
         kingdom={kingdom}
         kingdoms={[
-          { key: "wildlife", label: "🦌 Wildlife" },
+          { key: "wildlife", label: "🦌 Fauna" },
           { key: "fungi", label: "🍄 Fungi" },
         ]}
         onKingdom={(k) => setKingdom(k as "wildlife" | "fungi")}

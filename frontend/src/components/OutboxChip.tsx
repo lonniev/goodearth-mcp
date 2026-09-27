@@ -15,7 +15,7 @@ import { flushOutbox } from "../lib/mcp";
 const KIND: Record<string, [string, string]> = {
   planting: ["planting", "plantings"],
   pest: ["pest", "pests"],
-  wildlife: ["wildlife entry", "wildlife entries"],
+  wildlife: ["fauna entry", "fauna entries"],
   observation: ["field note", "field notes"],
 };
 

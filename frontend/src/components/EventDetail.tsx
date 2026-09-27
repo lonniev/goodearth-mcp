@@ -37,8 +37,8 @@ const KIND: Record<LedgerFlag["kind"], { label: string; tone: string; source: st
     source: "Your own pest model. Confirm the figure against a local extension bulletin.",
   },
   wildlife: {
-    label: "Wildlife event", tone: "text-frost",
-    source: "Your own wildlife threshold — Good Earth times it, it does not publish natural history.",
+    label: "Fauna event", tone: "text-frost",
+    source: "Your own fauna threshold — Good Earth times it, it does not publish natural history.",
   },
   task: {
     label: "Your task", tone: "text-ink-soft",
