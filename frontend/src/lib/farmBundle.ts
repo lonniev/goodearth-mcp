@@ -225,7 +225,7 @@ export function countLine(b: FarmBundle): string {
   const parts = [
     n("planting") && `${n("planting")} planting${n("planting") === 1 ? "" : "s"}`,
     n("pest") && `${n("pest")} pest${n("pest") === 1 ? "" : "s"}`,
-    n("wildlife") && `${n("wildlife")} wildlife`,
+    n("wildlife") && `${n("wildlife")} fauna`,
     n("seed") && `${n("seed")} seed lot${n("seed") === 1 ? "" : "s"}`,
     b.tasks.length && `${b.tasks.length} task${b.tasks.length === 1 ? "" : "s"}`,
   ].filter(Boolean);
