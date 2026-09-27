@@ -421,7 +421,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
             line: "Where each planting stands, and whether it finishes before frost." },
           { to: "pests" as const, emoji: "🐛", title: "Pests",
             line: "What to watch for on your ground, and when it arrives." },
-          { to: "wildlife" as const, emoji: "🦋", title: "Wildlife",
+          { to: "wildlife" as const, emoji: "🦋", title: "Fauna",
             line: "Owls, coyotes, bats — what is recorded around you, on the same clocks." },
           { to: "reports" as const, emoji: "📓", title: "Field Reports",
             line: "What you saw. Enough of them and your ground gets its own calendar." },
