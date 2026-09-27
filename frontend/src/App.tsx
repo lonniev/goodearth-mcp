@@ -53,6 +53,9 @@ import { peerOf, WARM_AFTER_MS } from "./lib/peerPage";
 import { warmPage } from "./lib/pageLoads";
 import { forgetAll } from "./lib/pageCache";
 
+/** The site's own words above the sign-in card. */
+const WELCOME = "Natural phenomena for your acreage. Frost, heat, rain and daylight, read for the ground you actually farm, season by season.";
+
 /// The day's high — the temperature that decides whether bees are working.
 ///
 /// This used to read tonight's low on the coldest ground, which is a FROST
@@ -282,7 +285,7 @@ export default function App() {
       // below call nothing that logs, so they go without.
       return (
         <>
-          <NpubGate onLogin={login} notice={notice} />
+          <NpubGate onLogin={login} notice={notice} welcome={WELCOME} />
           <DebugPanel />
         </>
       );
