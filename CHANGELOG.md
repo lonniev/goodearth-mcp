@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Crops is Flora on the rail, on the Dashboard's tile and in the harvest hint.
+  The page holds more than commercial crops. Item kinds, tool names and URLs
+  keep their identifiers.
 - The Account page is the shared `AccountPage` from @tollbooth-dpyc/web 1.5.0.
   The balance card leads, then the Nostr profile, session key and usage on the
   left; Viewing, the calendar feed and Forget me stay on the right, Forget me

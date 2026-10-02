@@ -417,7 +417,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
         {[
           { to: "almanac" as const, emoji: "🌤️", title: "Almanac",
             line: "Rain, dew point, sun and moon — the rest of what the season is doing." },
-          { to: "crops" as const, emoji: "🌱", title: "Crops",
+          { to: "crops" as const, emoji: "🌱", title: "Flora",
             line: "Where each planting stands, and whether it finishes before frost." },
           { to: "pests" as const, emoji: "🐛", title: "Pests",
             line: "What to watch for on your ground, and when it arrives." },

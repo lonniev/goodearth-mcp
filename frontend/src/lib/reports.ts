@@ -52,7 +52,7 @@ export const TAGS: { key: string; label: string; hint: string; calibrates: boole
   { key: "emergence", label: "Emergence", hint: "A sowing came up", calibrates: true },
   { key: "pest", label: "Pest seen", hint: "Sighting or trap catch", calibrates: false },
   { key: "note", label: "Note", hint: "Anything worth remembering", calibrates: false },
-  { key: "harvest", label: "Harvest", hint: "A cut or a pick, recorded on Crops", calibrates: true, pick: false },
+  { key: "harvest", label: "Harvest", hint: "A cut or a pick, recorded on Flora", calibrates: true, pick: false },
 ];
 
 /// Whether a kind carries the extra fields the calibration model needs.

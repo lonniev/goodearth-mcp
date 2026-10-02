@@ -1,4 +1,5 @@
-// Crops — the block's plantings and where each one stands.
+// Flora — the block's plantings and where each one stands. More than the
+// commercial crops: the orchard, the hedgerow and the cutting bed are here too.
 //
 // The ledger is one priced call for the whole block, so adding a ninth
 // planting costs arithmetic rather than another round trip. The form validates
