@@ -57,10 +57,10 @@ const key = (name: string) =>
 
 /// Catalogue groups that are not animals.
 ///
-/// `wildlife_catalog` carries fungi because growers watch mushrooms, and the
-/// finder under Community Observations is where they are looked for. This list
-/// is where an ANIMAL is named: a grower who typed "chicken" was offered
-/// chicken of the woods and chicken fat mushroom, and no chicken.
+/// `wildlife_catalog` carries fungi because growers watch mushrooms, and Flora
+/// is where they are named and looked for. This list is where an ANIMAL is
+/// named: a grower who typed "chicken" was offered chicken of the woods and
+/// chicken fat mushroom, and no chicken.
 const NOT_ANIMALS = new Set(["Fungi"]);
 
 /// What is already to hand when the animal is chosen.
@@ -70,8 +70,8 @@ const NOT_ANIMALS = new Set(["Fungi"]);
 /// knows about the flock in the barn, which no naturalist submits sightings
 /// of. A name in both is one animal, and it keeps the catalogue's figures.
 ///
-/// Anything on the record stays, whatever kingdom it is — a chanterelle added
-/// from the finder is theirs, and a list that hid it would be saying it is not.
+/// Anything on the record stays, whatever kingdom it is — it is theirs, and a
+/// list that hid it would be saying it is not.
 export function mergeSpecies(
   catalog: WildlifeCatalogResult | null,
   recorded: readonly SavedWildlife[],

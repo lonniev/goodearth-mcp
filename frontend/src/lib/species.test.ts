@@ -6,7 +6,10 @@
 
 import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { guidanceLinks, lookupSpecies, photosByName } from "./species.ts";
+import { readFileSync } from "node:fs";
+import {
+  FLORA, guidanceLinks, lookupSpecies, photosByName, searchSpecies, taxonScope,
+} from "./species.ts";
 
 const realFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = realFetch; });
@@ -205,5 +208,31 @@ describeWire("an optional argument at its default", () => {
     const sent = nearbyArgs("b1", "insects", "bee", 2, true);
     assertWire.equal(sent.with_lifecycle, true);
     assertWire.equal(sent.page, 2);
+  });
+});
+
+describe("where a fungus is named", () => {
+  const view = (n: string) =>
+    readFileSync(new URL(`../views/${n}.tsx`, import.meta.url), "utf8");
+
+  it("searches plants and fungi together on Flora", async () => {
+    // A shiitake log is inoculated, fruits and is picked. A box that searched
+    // only Plantae could not find it, and nowhere else would take it.
+    assert.equal(taxonScope(FLORA), "47126,47170");
+    assert.equal(taxonScope("animals"), "1");
+    let asked = "";
+    globalThis.fetch = (async (url: string | URL) => {
+      asked = String(url);
+      return { ok: true, status: 200, json: async () => ({ results: [] }) } as Response;
+    }) as typeof fetch;
+    await searchSpecies("shiitake", FLORA);
+    assert.equal(new URL(asked).searchParams.get("taxon_id"), "47126,47170");
+    assert.match(view("Crops"), /<SpeciesPicker[\s\S]{0,40}kingdom=\{FLORA\}/);
+  });
+
+  it("offers the neighbourhood's fungi on Flora, and not on Fauna", () => {
+    // One home. Two pages each offering mushrooms is two records for one log.
+    assert.match(view("Crops"), /key: "fungi"/);
+    assert.doesNotMatch(view("Wildlife"), /fungi/i);
   });
 });

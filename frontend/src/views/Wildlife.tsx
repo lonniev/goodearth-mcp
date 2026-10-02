@@ -128,11 +128,6 @@ export default function Wildlife({
     return () => ac.abort();
   }, [speciesKey]);
 
-/// Which kingdom the finder is looking through. Fungi are creatures a
-  /// grower watches too — 940 of them are recorded around one block — and
-  /// they have no other home in the app.
-  const [kingdom, setKingdom] = useState<"wildlife" | "fungi">("wildlife");
-
   /// Put a basket of chosen creatures on the roster in ONE write.
   ///
   /// Named and undated. `makeWildlife` demands an event and a driver's figure,
@@ -458,12 +453,7 @@ export default function Wildlife({
       <SpeciesFinder
         block={region.id}
         blockName={region.name}
-        kingdom={kingdom}
-        kingdoms={[
-          { key: "wildlife", label: "🦌 Fauna" },
-          { key: "fungi", label: "🍄 Fungi" },
-        ]}
-        onKingdom={(k) => setKingdom(k as "wildlife" | "fungi")}
+        kingdom="wildlife"
         adding={addingMany}
         hint="What people have actually seen near here. Choose any number, keep searching, then add them all. They go on the roster named and undated — the clock and its figure are yours to set."
         onAdd={addChosen}

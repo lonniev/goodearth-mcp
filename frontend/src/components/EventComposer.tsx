@@ -329,12 +329,8 @@ export default function EventComposer({
           itself aloud. */}
       <div id="track-something" className="mb-4 rounded-md border border-rule bg-panel p-4">
         {/* ── What is being tracked ──────────────────────────────────── */}
-        {/* "Animal" was wrong as soon as the finder learned about fungi: a
-            chanterelle added from Community Observations lands on this same
-            record and then appears in this same list. A morel is not an
-            animal, and the label was quietly telling the grower they had put
-            it in the wrong place. What is SEARCHED for here is animals; what
-            is already on the record shows whatever it is. */}
+        {/* What is SEARCHED for here is animals. Fungi are named on Flora;
+            a row already on this record shows whatever it is. */}
         <label className="block text-[11px] text-ink-soft">
           Species
           <input
