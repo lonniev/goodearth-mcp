@@ -4,8 +4,9 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   cycleOf, cycleRows, dueList, filterSpecies, labelsUsed, lastInterval,
-  mergeSpecies, monthDay, nextCycle, repeatable,
+  listed, mergeSpecies, monthDay, nextCycle, repeatable, withFound,
 } from "./husbandry.ts";
+import type { SpeciesHit } from "./species.ts";
 import type { SavedWildlife } from "./wildlifeModels.ts";
 import type { WildlifeCatalogResult, WildlifeRow } from "./mcp.ts";
 
@@ -71,6 +72,71 @@ describe("the one list the animal is chosen from", () => {
     assert.equal(filterSpecies(list, "Turdus").length, 1, "the binomial is searchable");
     assert.equal(filterSpecies(list, "(").length, 0, "a regex character threw");
     assert.equal(filterSpecies(list, "  ").length, 2);
+  });
+});
+
+const FUNGI = {
+  success: true,
+  groups: [
+    ...CATALOG.groups!,
+    { group: "Fungi", taxon: "Fungi", emoji: "🍄",
+      species: [
+        { name: "chicken of the woods", scientific_name: "Laetiporus sulphureus", observations: 10, emoji: "🍄" },
+      ] },
+  ],
+} as WildlifeCatalogResult;
+
+const hit = (o: Partial<SpeciesHit>): SpeciesHit => ({
+  id: 505478, scientificName: "Gallus gallus domesticus",
+  commonName: "Domestic Chicken", rank: "variety", matched: "Chicken",
+  thumb: "https://example.test/hen.jpg", observations: 9000, ...o,
+});
+
+describe("naming an animal, not a mushroom", () => {
+  it("does not offer the neighbourhood's fungi", () => {
+    // What the grower saw: "chicken" answered with two mushrooms and no bird.
+    const list = filterSpecies(mergeSpecies(FUNGI, []), "chicken");
+    assert.deepEqual(list.map((p) => p.name), ["Domestic chicken"]);
+  });
+
+  it("still shows a fungus the grower put on the record themselves", () => {
+    const list = mergeSpecies(FUNGI, [saved({ species: "Chanterelle" })]);
+    assert.ok(list.find((p) => p.name === "Chanterelle"));
+  });
+
+  it("finds an animal no neighbour has reported", () => {
+    const list = withFound([], [hit({})]);
+    assert.equal(list[0].name, "Domestic Chicken");
+    assert.equal(list[0].scientificName, "Gallus gallus domesticus");
+    assert.equal(list[0].photo, "https://example.test/hen.jpg");
+  });
+
+  it("gives an old hand-typed row its photograph, and lists it once", () => {
+    // "Domestic chicken", saved before there was a search: no binomial, no
+    // picture. The search knows both, and it is the same hen.
+    const local = mergeSpecies(null, [saved({ species: "Domestic chicken" })]);
+    const list = withFound(local, [hit({}), hit({ id: 5212, commonName: "Red-tailed Hawk",
+      scientificName: "Buteo jamaicensis", matched: "Chicken Hawk" })]);
+    assert.equal(list.length, 2);
+    assert.equal(list[0].name, "Domestic chicken", "the grower's spelling was replaced");
+    assert.equal(list[0].yours, true);
+    assert.equal(list[0].photo, "https://example.test/hen.jpg");
+    assert.equal(list[0].scientificName, "Gallus gallus domesticus");
+    assert.equal(list[1].matched, "Chicken Hawk");
+  });
+
+  it("keeps the catalogue's own photograph and count over the search's", () => {
+    const local = [{ name: "Domestic chicken", photo: "near.jpg", observations: 7 }];
+    const list = withFound(local, [hit({})]);
+    assert.equal(list[0].photo, "near.jpg");
+    assert.equal(list[0].observations, 7);
+  });
+
+  it("offers the grower's own word unless a row already says it", () => {
+    const rows = withFound([], [hit({})]);
+    assert.equal(listed(rows, "Layers"), false, "a flock called Layers could not be added");
+    assert.equal(listed(rows, " domestic  chicken "), true);
+    assert.equal(listed(rows, "  "), true, "offered to add nothing");
   });
 });
 
