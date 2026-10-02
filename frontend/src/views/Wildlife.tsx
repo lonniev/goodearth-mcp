@@ -289,6 +289,7 @@ export default function Wildlife({
       <EventComposer
         region={region}
         recorded={models}
+        photos={photos}
         onSave={saveComposed}
         onCost={onCost}
         seed={seed}

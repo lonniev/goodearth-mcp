@@ -2,9 +2,9 @@
 //
 // The form this replaces asked a grower to type the creature's name, and to
 // type `typical_on` as "MM-DD". Both are things the service already knows or
-// can offer: iNaturalist has the animals recorded around this ground, the
-// grower's own record has the flock in the barn, and a month and a day are two
-// short lists. A typed date invites "Sept 5", "9/5" and "05-09", and only one
+// can offer: iNaturalist has the animals recorded around this ground and a
+// search for every animal that is not, the grower's own record has the flock
+// in the barn, and a month and a day are two short lists. A typed date invites "Sept 5", "9/5" and "05-09", and only one
 // of those is what the record wanted.
 //
 // Two places still take free text and they are the two the brief allows: an
@@ -21,9 +21,10 @@ import {
   type WildlifeEventInput, type WildlifeResult,
 } from "../lib/mcp";
 import {
-  cycleRows, filterSpecies, labelsUsed, lastInterval, mergeSpecies,
-  type CycleDraft, type Milestone, type Pick,
+  cycleRows, filterSpecies, labelsUsed, lastInterval, listed, mergeSpecies,
+  withFound, type CycleDraft, type Milestone, type Pick,
 } from "../lib/husbandry";
+import { searchSpecies, type SpeciesHit } from "../lib/species";
 import { makeWildlife, DRIVER_HELP, type SavedWildlife } from "../lib/wildlifeModels";
 import type { SavedRegion } from "../lib/regions";
 import Provenance from "./Provenance";
@@ -52,15 +53,22 @@ const HELP: Record<Driver, string> = {
     + "this ground's own record.",
 };
 
+/// The same pause `SpeciesPicker` takes before it searches.
+const SEARCH_DEBOUNCE_MS = 250;
+
 const today = () => new Date().toISOString().slice(0, 10);
 const day = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
 export default function EventComposer({
-  region, recorded, onSave, onCost, seed, onSeedTaken,
+  region, recorded, photos, onSave, onCost, seed, onSeedTaken,
 }: {
   region: SavedRegion;
   recorded: SavedWildlife[];
+  /// The page's photograph for each creature on the record, by saved name. The
+  /// table above this form already shows them; a hen that is a picture there
+  /// should not be a placeholder here.
+  photos?: Map<string, string>;
   /// `supersedes` names the rows this cycle replaces — the previous brood,
   /// when the grower started another. Empty for anything entered from scratch.
   onSave: (rows: SavedWildlife[], supersedes: string[]) => Promise<void>;
@@ -100,8 +108,39 @@ export default function EventComposer({
     finally { setCatBusy(false); }
   }, [catAsked, region.id]);
 
+  /// What iNaturalist's whole catalogue of animals has for the words typed.
+  ///
+  /// The list used to be only the neighbourhood's sightings, narrowed. Nobody
+  /// reports a laying flock, so "chicken" narrowed 377 creatures down to two
+  /// mushrooms. The search costs no fare: it is iNaturalist's public API,
+  /// asked from the browser, the way the plant and pest pickers ask it.
+  const [found, setFound] = useState<SpeciesHit[]>([]);
+  const [finding, setFinding] = useState(false);
+  const [findError, setFindError] = useState("");
+  useEffect(() => {
+    const text = q.trim();
+    if (text.length < 2) { setFound([]); setFinding(false); setFindError(""); return; }
+    const ac = new AbortController();
+    setFinding(true);
+    const t = setTimeout(() => {
+      searchSpecies(text, "animals", ac.signal)
+        .then((r) => { if (!ac.signal.aborted) { setFound(r); setFindError(""); } })
+        .catch((e) => {
+          if (ac.signal.aborted) return;
+          // Said, not swallowed: an empty answer would read as "no such
+          // animal", which is a different claim from "could not ask".
+          setFound([]);
+          setFindError(String((e as Error).message ?? e));
+        })
+        .finally(() => { if (!ac.signal.aborted) setFinding(false); });
+    }, SEARCH_DEBOUNCE_MS);
+    return () => { ac.abort(); clearTimeout(t); };
+  }, [q]);
+
   const all = useMemo(() => mergeSpecies(catalog, recorded), [catalog, recorded]);
-  const shown = useMemo(() => filterSpecies(all, q).slice(0, 40), [all, q]);
+  const shown = useMemo(
+    () => withFound(filterSpecies(all, q).slice(0, 40), found),
+    [all, q, found]);
 
   // ── What it does ───────────────────────────────────────────────────────
   const [driver, setDriver] = useState<Driver>("interval");
@@ -294,14 +333,15 @@ export default function EventComposer({
             chanterelle added from Community Observations lands on this same
             record and then appears in this same list. A morel is not an
             animal, and the label was quietly telling the grower they had put
-            it in the wrong place. */}
+            it in the wrong place. What is SEARCHED for here is animals; what
+            is already on the record shows whatever it is. */}
         <label className="block text-[11px] text-ink-soft">
           Species
           <input
             value={animal ? animal.name : q}
             onFocus={() => { setOpen(true); void askCatalog(); }}
             onChange={(e) => { setAnimal(null); setQ(e.target.value); setOpen(true); }}
-            placeholder="hen, ewe, robin, chanterelle…"
+            placeholder="hen, ewe, robin…"
             className={FIELD} />
         </label>
 
@@ -312,11 +352,20 @@ export default function EventComposer({
               <button key={p.name} type="button"
                 onClick={() => { setAnimal(p); setSupersedes([]); setOpen(false); setQ(""); }}
                 className="flex w-full items-center gap-2.5 border-b border-rule px-2.5 py-2 text-left last:border-b-0 active:bg-band">
-                <SpeciesMark emoji={p.emoji} photo={p.photo ?? undefined} />
+                <SpeciesMark emoji={p.emoji} photo={p.photo ?? photos?.get(p.name)} />
                 <span className="min-w-0 flex-1 leading-tight">
                   <b className="block truncate text-[13px]">{p.name}</b>
                   {p.scientificName && (
                     <i className="block truncate text-[11px] text-ink-soft">{p.scientificName}</i>
+                  )}
+                  {/* Why a red-tailed hawk answers "chicken": the name that
+                      matched, when it is not one already on the row. */}
+                  {p.matched
+                    && !`${p.name} ${p.scientificName ?? ""}`.toLowerCase()
+                      .includes(p.matched.toLowerCase()) && (
+                    <span className="data block truncate text-[10.5px] text-ink-soft">
+                      matched “{p.matched}”
+                    </span>
                   )}
                 </span>
                 <span className="data shrink-0 text-right text-[10.5px] text-ink-soft">
@@ -325,23 +374,39 @@ export default function EventComposer({
                       laying flock — and "0 nearby" about it would be
                       arithmetic dressed up as a fact. It used to read "yours",
                       which named the owner and not the reason. */}
+                  {/* An animal the search found has no count either: how many
+                      the world has recorded is not how many are near here. */}
                   {p.yours
                     ? <span className="text-growth">on your record</span>
-                    : (p.observations ?? 0).toLocaleString()}
+                    : p.observations != null && p.observations.toLocaleString()}
                   {p.hasHabits && <span className="block"><LifecycleMark /></span>}
                 </span>
               </button>
             ))}
-            {!catBusy && !shown.length && (
+            {finding && !shown.length && (
+              <p className="px-3 py-2 text-[12px] text-ink-soft">Looking…</p>
+            )}
+            {findError && (
+              <p className="px-3 py-2 text-[12px] text-clay">
+                iNaturalist could not be searched just now ({findError}) — these
+                are only the animals recorded near here.
+              </p>
+            )}
+            {!catBusy && !finding && !listed(shown, q) && (
               <button type="button"
                 onClick={() => { setAnimal({ name: q.trim() }); setOpen(false); }}
-                disabled={!q.trim()}
-                className="w-full px-3 py-2.5 text-left text-[13px] disabled:opacity-40">
-                {/* The escape hatch. Nothing recorded around a block covers
-                    every animal on it, and a grower must not be stopped by a
-                    catalogue that has not heard of their goat. */}
-                Nothing listed. Add <b>{q.trim() || "…"}</b> as your own.
+                className="w-full px-3 py-2.5 text-left text-[13px]">
+                {/* The escape hatch, and it stays open under a full list. A
+                    search of everything finds something for nearly any word,
+                    and a grower whose flock is "Layers" must not have to pick
+                    somebody else's bird to get past it. */}
+                {!shown.length && "Nothing listed. "}Add <b>{q.trim()}</b> as your own.
               </button>
+            )}
+            {!catBusy && !finding && !shown.length && !q.trim() && (
+              <p className="px-3 py-2 text-[12px] text-ink-soft">
+                Type a name to search for an animal.
+              </p>
             )}
           </div>
         )}

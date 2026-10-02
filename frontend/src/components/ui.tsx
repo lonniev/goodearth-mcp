@@ -267,12 +267,15 @@ export function ChartFrame({ label, children }: {
   );
 }
 
-/// The small mark that stands for one creature or plant, in a list.
+/// The small mark that stands for one creature, in a list.
 ///
 /// Three sources, in the order they deserve. The grower's own emoji, where
 /// they typed one for that row — they chose it and it is theirs. Then
 /// iNaturalist's photograph of the taxon, which is why a barred owl and a
-/// chickadee are no longer the same bird. Then a seedling.
+/// chickadee are no longer the same bird. Then a paw print.
+///
+/// It was a seedling. Every list this draws in is a list of fauna, and a
+/// domestic chicken with no photograph to hand was shown as a sprout.
 ///
 /// Never a bullet. A row that carried no emoji used to draw "•", which says
 /// nothing about the animal it stands for and reads as an outline marker
@@ -290,7 +293,7 @@ export function SpeciesMark({ emoji, photo }: {
         onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
     );
   }
-  return <span className="mr-1.5 text-[15px]" aria-hidden="true">{"\u{1F331}"}</span>;
+  return <span className="mr-1.5 text-[15px]" aria-hidden="true">{"\u{1F43E}"}</span>;
 }
 
 /// A standalone chip that reports a state rather than inviting a tap.

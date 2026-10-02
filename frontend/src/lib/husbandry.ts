@@ -21,6 +21,7 @@ import type {
   WildlifeCatalogResult, WildlifeEventInput, WildlifeRow,
 } from "./mcp";
 import { makeWildlife, type SavedWildlife } from "./wildlifeModels.ts";
+import type { SpeciesHit } from "./species.ts";
 
 /// One animal the composer can offer, from wherever it was learned.
 export interface Pick {
@@ -37,6 +38,9 @@ export interface Pick {
   /// Already on this block's record. These lead the list: the animal a grower
   /// is recording a second brood for is one they have named before.
   yours?: boolean;
+  /// The name iNaturalist matched on, when a search found this animal under
+  /// one other than the name shown — "chicken hawk" finds a red-tailed hawk.
+  matched?: string;
 }
 
 /// Two spellings of one animal.
@@ -51,12 +55,23 @@ const key = (name: string) =>
     .normalize("NFD").replace(/\p{Diacritic}/gu, "")
     .trim().toLowerCase().replace(/\s+/g, " ");
 
-/// The one list the animal is chosen from.
+/// Catalogue groups that are not animals.
+///
+/// `wildlife_catalog` carries fungi because growers watch mushrooms, and the
+/// finder under Community Observations is where they are looked for. This list
+/// is where an ANIMAL is named: a grower who typed "chicken" was offered
+/// chicken of the woods and chicken fat mushroom, and no chicken.
+const NOT_ANIMALS = new Set(["Fungi"]);
+
+/// What is already to hand when the animal is chosen.
 ///
 /// Two sources, because neither is enough alone. `wildlife_catalog` knows what
 /// is recorded around this ground and how much of it; the grower's own record
 /// knows about the flock in the barn, which no naturalist submits sightings
 /// of. A name in both is one animal, and it keeps the catalogue's figures.
+///
+/// Anything on the record stays, whatever kingdom it is — a chanterelle added
+/// from the finder is theirs, and a list that hid it would be saying it is not.
 export function mergeSpecies(
   catalog: WildlifeCatalogResult | null,
   recorded: readonly SavedWildlife[],
@@ -64,6 +79,7 @@ export function mergeSpecies(
   const by = new Map<string, Pick>();
 
   for (const g of catalog?.groups ?? []) {
+    if (NOT_ANIMALS.has(g.taxon)) continue;
     for (const s of g.species ?? []) {
       const k = key(s.name);
       if (!k || by.has(k)) continue;
@@ -107,6 +123,57 @@ export function filterSpecies(all: readonly Pick[], q: string): Pick[] {
   return all.filter((p) =>
     p.name.toLowerCase().includes(needle)
     || (p.scientificName ?? "").toLowerCase().includes(needle));
+}
+
+/// The narrowed list, with what an iNaturalist search for the same words found.
+///
+/// The catalogue is the neighbourhood's sightings, and nobody submits a
+/// sighting of a laying flock, a ewe or a goat — so the animals husbandry is
+/// about are the ones a nearby feed is least likely to hold. A search of the
+/// whole catalogue has all of them.
+///
+/// An animal already listed is one animal: it keeps its place, its count and
+/// its "on your record", and takes from the search only what it lacked — the
+/// photograph and the binomial an old hand-typed row never had. The rest
+/// follow in iNaturalist's own order, which is the order a person searching
+/// there would see.
+export function withFound(
+  local: readonly Pick[], found: readonly SpeciesHit[],
+): Pick[] {
+  const out = local.map((p) => ({ ...p }));
+  const at = new Map(out.map((p, i) => [key(p.name), i]));
+
+  for (const h of found) {
+    const name = h.commonName ?? h.scientificName;
+    const k = key(name);
+    if (!k) continue;
+    const i = at.get(k);
+    if (i !== undefined) {
+      const had = out[i];
+      out[i] = {
+        ...had,
+        scientificName: had.scientificName ?? h.scientificName,
+        photo: had.photo ?? h.thumb,
+      };
+      continue;
+    }
+    at.set(k, out.length);
+    out.push({
+      name, scientificName: h.scientificName, photo: h.thumb,
+      ...(h.matched ? { matched: h.matched } : {}),
+    });
+  }
+  return out;
+}
+
+/// Is what was typed already one of the rows, word for word?
+///
+/// Decides whether "add it as your own" is offered. A search of everything
+/// nearly always finds SOMETHING for a word, and a grower whose flock is
+/// called "Layers" must not have to pick a stranger's bird to get past it.
+export function listed(shown: readonly Pick[], q: string): boolean {
+  const k = key(q);
+  return !k || shown.some((p) => key(p.name) === k);
 }
 
 // ── What the grower has called things before ─────────────────────────────
