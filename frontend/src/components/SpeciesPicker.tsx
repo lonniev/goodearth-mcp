@@ -19,7 +19,7 @@
 // before they know it by binomial.
 
 import { useEffect, useRef, useState } from "react";
-import { searchSpecies, type Kingdom, type SpeciesHit } from "../lib/species";
+import { searchSpecies, taxonScope, type Kingdom, type SpeciesHit } from "../lib/species";
 import { isTap, type PointerMark } from "../lib/tapIntent";
 import { FIELD } from "./ui";
 
@@ -34,7 +34,8 @@ const shown = (h: SpeciesHit) =>
 export default function SpeciesPicker({
   kingdom, value, onPick, onClear, onText, onRead, placeholder, autoFocus, seed,
 }: {
-  kingdom: Kingdom;
+  /// One kingdom, or the several a page names together.
+  kingdom: Kingdom | readonly Kingdom[];
   /// A query to start from, so another part of the page can hand the picker a
   /// name — tapping a plant recorded nearby searches for it here rather than
   /// dropping a bare string into the record.
@@ -88,7 +89,10 @@ export default function SpeciesPicker({
     }, DEBOUNCE_MS);
 
     return () => { ac.abort(); clearTimeout(t); };
-  }, [text, kingdom]);
+    // By what is searched, not by the prop's identity: a list of kingdoms
+    // written inline is a new array every render and must not search again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text, taxonScope(kingdom)]);
 
   // A tap outside puts the list away without choosing anything.
   useEffect(() => {

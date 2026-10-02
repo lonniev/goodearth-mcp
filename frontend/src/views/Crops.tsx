@@ -30,7 +30,7 @@ import { makePlanting, plantingCodec, SEEDLING,
 import SpeciesPicker from "../components/SpeciesPicker";
 import SpeciesFinder from "../components/SpeciesFinder";
 import type { Chosen } from "../lib/basket";
-import { speciesByIds, type SpeciesHit } from "../lib/species";
+import { FLORA, speciesByIds, type SpeciesHit } from "../lib/species";
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
 import { reportCodec, type FieldReport } from "../lib/reports";
 import { lastUnit, makeHarvest, summarize, type HarvestInput } from "../lib/harvests";
@@ -588,6 +588,10 @@ export default function Crops({
   /// planted in 2019 has neither, and inventing them would put fabricated
   /// dates into every answer that follows.
   const [addingMany, setAddingMany] = useState(false);
+  /// Which kingdom the finder is looking through. Fungi are here and not on
+  /// Fauna: a mushroom is raised, fruits and is picked, which is a planting's
+  /// record and not an animal's.
+  const [near, setNear] = useState<"plants" | "fungi">("plants");
   async function addChosen(chosen: Chosen[]) {
     if (!chosen.length) return;
     setAddingMany(true);
@@ -658,10 +662,12 @@ export default function Crops({
               and a tap inside a label can be handed to the label's input
               instead — on the iPad the grower tapped "sugar maple", the
               caret went back into the box, and nothing was chosen. */}
+          {/* "Species", as on Fauna. It said "Plant" until the box learned to
+              find fungi, and a shiitake under that word reads as a mistake. */}
           <div className="block text-[11px] text-ink-soft sm:col-span-2">
-            Plant
+            Species
             <SpeciesPicker
-              kingdom="plants"
+              kingdom={FLORA}
               value={picked && {
                 commonName: picked.commonName ?? undefined,
                 scientificName: picked.scientificName,
@@ -670,7 +676,7 @@ export default function Crops({
               seed={seed}
               onPick={(h) => { setPicked(h); setSeed(""); }}
               onClear={() => setPicked(null)}
-              placeholder="sugar maple, zinnia, haskap…" />
+              placeholder="sugar maple, zinnia, shiitake…" />
           </div>
           <label className="block text-[11px] text-ink-soft">
             Your name for it <span className="opacity-60">(optional)</span>
@@ -1165,9 +1171,14 @@ export default function Crops({
       <SpeciesFinder
         block={region.id}
         blockName={region.name}
-        kingdom="plants"
+        kingdom={near}
+        kingdoms={[
+          { key: "plants", label: "🌿 Plants" },
+          { key: "fungi", label: "🍄 Fungi" },
+        ]}
+        onKingdom={(k) => setNear(k as "plants" | "fungi")}
         adding={addingMany}
-        hint="What people have actually seen near here, most-seen first. Choose any number, keep searching, then add them all. They land as plantings with no dates and no figures — those are yours to fill in."
+        hint="What people have actually seen near here, most-seen first. Choose any number, keep searching, then add them all. They land on the ledger with no dates and no figures — those are yours to fill in."
         onAdd={addChosen}
       />
     </>

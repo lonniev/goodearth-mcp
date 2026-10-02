@@ -112,6 +112,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   changes: same ten seasons, same min/mean/max, same fill.
 
 ### Added
+- Fungi are named on the plant page. Its species box searches plants and
+  fungi together, so a shiitake log goes on the ledger like any planting, and
+  Community Observations there offers the neighbourhood's fungi beside its
+  plants. The Fungi chip has left Fauna: one home, not two.
 - A planting records **the day its seed went in**, beside the day it was set
   out. "When to sow" already predicted that pair; now the grower can record
   against it. The sowing shows on the heat chart as a dated mark — a calendar

@@ -35,6 +35,18 @@ const TAXA = "https://api.inaturalist.org/v1/taxa";
 export const KINGDOM = { plants: 47126, animals: 1, fungi: 47170 } as const;
 export type Kingdom = keyof typeof KINGDOM;
 
+/// What the Flora page names: plants, and the fungi a grower raises or
+/// forages. A shiitake log is inoculated, fruits and is harvested — it keeps
+/// a planting's record, and a search that could not find it would be telling
+/// the grower it does not belong on their ledger.
+export const FLORA: readonly Kingdom[] = ["plants", "fungi"];
+
+/// One kingdom or several, as the `taxon_id` iNaturalist filters on. It takes
+/// a comma-separated list and answers with descendants of any of them.
+export function taxonScope(kingdom: Kingdom | readonly Kingdom[]): string {
+  return [kingdom].flat().map((k) => KINGDOM[k as Kingdom]).join(",");
+}
+
 export interface SpeciesInfo {
   id: number;
   scientificName: string;
@@ -201,13 +213,13 @@ function toHit(t: Record<string, unknown>): SpeciesHit {
 /// Asiatic lily has planted a Lilium and nothing narrower, and forcing a
 /// species on them would be inventing precision.
 export async function searchSpecies(
-  q: string, kingdom: Kingdom, signal?: AbortSignal,
+  q: string, kingdom: Kingdom | readonly Kingdom[], signal?: AbortSignal,
 ): Promise<SpeciesHit[]> {
   const text = q.trim();
   if (text.length < 2) return [];
   const p = new URLSearchParams({
     q: text,
-    taxon_id: String(KINGDOM[kingdom]),
+    taxon_id: taxonScope(kingdom),
     rank: "species,subspecies,variety,genus",
     per_page: "8",
   });
