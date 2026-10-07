@@ -351,7 +351,7 @@ export default function App() {
         {view === "pests" && <Pests region={region} onCost={onCost} />}
         {view === "reports" && <FieldReports region={region} onCost={onCost} />}
         {view === "plots" && (
-          <Plots active={region} onPick={pickRegion} synced={blocksSynced}
+          <Plots active={region} onPick={pickRegion} synced={blocksSynced} onCost={onCost}
             onSaved={(r) => { pickRegion(r); setView("ledger"); }} />
         )}
         {view === "todo" && <TodoView region={region} onCost={onCost} onView={setView} />}

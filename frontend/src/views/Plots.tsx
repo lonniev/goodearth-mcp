@@ -23,7 +23,10 @@ import { deleteRegion, EXAMPLE_ID, listRegions, type SavedRegion } from "../lib/
 import { saveBlock } from "../lib/saveBlock";
 import { baseBounds } from "../lib/baseTemp";
 import PlotEditor from "../components/PlotEditor";
-import PlotsMap from "../components/PlotsMap";
+import PlotsMap, { type SunControl } from "../components/PlotsMap";
+import SunSpotCard from "../components/SunSpotCard";
+import SunSummary from "../components/SunSummary";
+import { useSunLayer } from "../lib/useSunLayer";
 import {
   bundleFileName, countLine, LARGE_BUNDLE_BYTES, readBundle, type FarmBundle,
 } from "../lib/farmBundle";
@@ -35,11 +38,12 @@ const EMPTY: MapValue = { mode: "polygon", ring: [], centre: null, radiusM: 400 
 const RADII = [200, 400, 800, 1600, 3200];
 
 export default function Plots({
-  active, onPick, onSaved, synced = true,
+  active, onPick, onSaved, onCost, synced = true,
 }: {
   active: SavedRegion;
   onPick: (r: SavedRegion) => void;
   onSaved: (r: SavedRegion) => void;
+  onCost?: (sats: number) => void;
   /// False until the server's blocks have arrived. The list shown before then
   /// is this device's cache, which is right often enough to show immediately
   /// and honest enough to caption.
@@ -47,6 +51,15 @@ export default function Plots({
 }) {
   const u = useUnits();
   const [regions, setRegions] = useState<SavedRegion[]>(() => listRegions());
+  const sun = useSunLayer(active);
+  const sunControl: SunControl = {
+    on: sun.on, onToggle: sun.toggle, grid: sun.grid, loading: sun.loading, error: sun.error,
+    state: sun.state,
+    leafOff: sun.result?.light.leaf_off_months ?? [],
+    tilt: sun.result?.solar?.panel.tilt_deg ?? null,
+    azimuth: sun.result?.solar?.panel.azimuth_deg ?? null,
+    onView: sun.setView, onMonth: sun.setMonth, onLeaf: sun.setLeaf, onSelect: sun.select,
+  };
 
   /// Re-read the saved ground whenever something could have written it.
   ///
@@ -434,10 +447,24 @@ export default function Plots({
       {/* ── All of it, on one map ──────────────────────────────────────── */}
       {/* Finding ground, not drawing it: tap a plot to work it. The drawing
           map stays its own, further down, so a tap here never adds a corner. */}
-      <div className="mt-4">
-        <PlotsMap plots={regions} activeId={active.id} onPick={onPick} />
-        <p className="data mt-1 text-[10.5px] text-ink-soft">Tap a plot to work it</p>
+      <div className={`mt-4 ${sun.on ? "grid gap-3 lg:grid-cols-[1fr_21rem]" : ""}`}>
+        <div>
+          <PlotsMap plots={regions} activeId={active.id} onPick={onPick} sun={sunControl} />
+          <p className="data mt-1 text-[10.5px] text-ink-soft">
+            {sun.on && sun.grid ? "Tap inside the plot for that spot's light" : "Tap a plot to work it"}
+          </p>
+        </div>
+        {sun.on && sun.grid && (
+          <div className="self-start">
+            <SunSpotCard grid={sun.grid} result={sun.result} cell={sun.state.selected}
+              month={sun.state.month} fullLeaf={sun.state.fullLeaf} onCost={onCost} />
+          </div>
+        )}
       </div>
+      {sun.on && sun.grid && sun.result && sun.summary && (
+        <SunSummary name={active.name} summary={sun.summary} result={sun.result}
+          month={sun.state.month} onMonth={sun.setMonth} onShowBest={sun.showBest} />
+      )}
 
       <h2 className="figure mt-6 text-[18px] font-semibold">Add a plot</h2>
 
