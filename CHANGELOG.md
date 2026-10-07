@@ -53,6 +53,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   block in one reading: its shares in sun and shade this month, the share in
   full sun by month, and the best place for panels with a **Show it** that
   goes there. The grid is held in the page cache like every other answer.
+- Sunlight, fourth cut: field reports correct it. An observation of kind
+  `sunlight` — *this spot was in sun (or shade) from 09:00 to 14:00 on the
+  14th of June* — is a measurement of the sky line: between those clock
+  times the sun crossed known azimuths at known heights, so the horizon
+  there is below them (sun) or above them (shade). `goodearth_sunlight`
+  reads the block's reports on every call and, where three agree on a spot,
+  its hours and its light, moves that spot's horizon: a sun report lowers
+  the ground and tree lines to just under the sun, a shade report raises the
+  tree line to just over it — the tree cut or planted since the canopy
+  imagery, which is itself never changed. The median report sets the bound,
+  the reports apply to the cells within a phone's fix of the spot, and the
+  answer's `calibration` accounts for every report and what it moved. Clock
+  times are read in the block's own zone (fetched once from the forecast
+  feed and remembered; Daymet names none). A malformed report is refused at
+  the write with its shape named; `goodearth_calibration` counts sunlight
+  reports and points at the tool that reads them.
 - A GeoTIFF range reader (`rasters.py`) with no GDAL: the canopy tiles are
   not cloud-optimised (one row per strip), but adjacent strips merge into a
   single range request, so a 500 m window is one 7.6 MB read. Adds `numpy`,
