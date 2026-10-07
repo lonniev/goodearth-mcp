@@ -162,7 +162,7 @@ async def test_point_card_is_the_nearest_cell_and_refuses_the_outside(stubbed):
     assert 0 < card["sky_view_factor"] <= 1
     assert card["solar"]["least_light_month"] in range(1, 13)
     assert set(r["sun_paths"]) == {"june", "equinox", "december"}
-    assert all(e > -1 for _, e in r["sun_paths"]["december"])
+    assert all(e > -1 for _, e, _m in r["sun_paths"]["december"])
     with pytest.raises(sunlight_window.SunlightError):
         await _call(point="45,-72")
     for bad in ("x", "1,2,3", "nan,1", "44.0002"):

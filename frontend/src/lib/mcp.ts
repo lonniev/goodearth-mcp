@@ -13,6 +13,7 @@
  *   - the domain tools and their result types.
  */
 
+import type { SunPath, WireGrid } from "./sunGrid.ts";
 import type { CompanionsResult, Kind } from "./companions.ts";
 import { nearbyArgs } from "./wire";
 import { callLine, resultLine } from "./debugSummary";
@@ -116,6 +117,7 @@ export const TOOL_ID: Record<string, string> = {
   goodearth_pest_threshold: "79463a63-2076-5376-a357-673c4adb33f0",
   goodearth_calibration: "2e7c72db-e886-53be-b948-bcc97a57986d",
   goodearth_companions: "0bfd5920-12fa-5cff-aefb-466d9c0e2fd0",
+  goodearth_sunlight: "64b04d3a-134c-5c42-85f6-e5a97eb3322d",
 };
 
 /// The fare for one of this operator's tools, by its runtime name. Null when
@@ -239,6 +241,64 @@ export interface FrostWindowResult {
 /// week — assessed for the region's COLDEST ground, not its average.
 export async function frostWindow(block: string): Promise<FrostWindowResult> {
   return callTool<FrostWindowResult>("frost_window", { block });
+}
+
+
+export interface SunlightMonth {
+  month: number;
+  leaf_on: boolean;
+  share: { full_sun: number; part_shade: number; full_shade: number };
+  median_hours: number;
+  p10_hours: number;
+  p90_hours: number;
+  sunniest: { lat: number; lon: number; hours: number };
+  shadiest: { lat: number; lon: number; hours: number };
+}
+
+export interface SunlightSolar {
+  panel: { tilt_deg: number; azimuth_deg: number; fixed: boolean };
+  open_sky_kwh_per_kwp_year: number;
+  kwh_per_kwp_year: { median: number; p10: number; p90: number };
+  solar_access_pct: { median: number; p10: number; p90: number };
+  monthly_open_sky_kwh_per_kwp: number[];
+  best_point: { lat: number; lon: number; kwh_per_kwp_year: number; solar_access_pct: number; monthly_kwh_per_kwp: number[] };
+  performance_ratio: number;
+  radiation_years: number;
+  estimate: string;
+}
+
+export interface SunlightResult {
+  success: boolean;
+  error?: string;
+  error_code?: string;
+  as_of: string;
+  light: {
+    months: SunlightMonth[];
+    open_sky_hours: Record<string, number>;
+    leaf_on_months: number[];
+    leaf_off_months: number[];
+  };
+  solar: SunlightSolar | null;
+  grid?: WireGrid;
+  sun_paths?: SunPath;
+  horizon: "computed" | "cached";
+  note: string;
+  sources: { name: string; role: string; resolution_m: number; observed?: string | null; as_of?: string }[];
+}
+
+/// Hours of direct sun each part of a block gets, month by month, and what a
+/// fixed panel would make there. `grid` asks for every cell, packed for the
+/// map; the first call on a block casts its horizon and takes some seconds.
+export async function sunlight(
+  block: string,
+  opts: { detail?: "summary" | "grid"; tilt?: number; azimuth?: number } = {},
+): Promise<SunlightResult> {
+  return callTool<SunlightResult>("sunlight", {
+    block,
+    ...(opts.detail ? { detail: opts.detail } : {}),
+    ...(opts.tilt !== undefined ? { panel_tilt_deg: opts.tilt } : {}),
+    ...(opts.azimuth !== undefined ? { panel_azimuth_deg: opts.azimuth } : {}),
+  });
 }
 
 

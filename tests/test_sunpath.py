@@ -60,4 +60,5 @@ def test_shapes_and_dtypes():
 def test_sun_path_is_daylight_only():
     path = sunpath.sun_path(44.5, -72.0, date(2024, 12, 21))
     assert 8 <= len(path) <= 10
-    assert all(e > sunpath.SUNRISE_ELEVATION_DEG for _, e in path)
+    assert all(e > sunpath.SUNRISE_ELEVATION_DEG for _, e, _m in path)
+    assert all(0 <= m < 1440 for _, _, m in path)
