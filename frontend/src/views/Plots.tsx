@@ -447,7 +447,10 @@ export default function Plots({
       {/* ── All of it, on one map ──────────────────────────────────────── */}
       {/* Finding ground, not drawing it: tap a plot to work it. The drawing
           map stays its own, further down, so a tap here never adds a corner. */}
-      <div className={`mt-4 ${sun.on ? "grid gap-3 lg:grid-cols-[1fr_21rem]" : ""}`}>
+      {/* The spot card's column exists only once there is a grid to read: a
+          map that shrinks while the sky is still being cast — or after the
+          read failed — gives up a quarter of its width to nothing. */}
+      <div className={`mt-4 ${sun.on && sun.grid ? "grid gap-3 lg:grid-cols-[1fr_21rem]" : ""}`}>
         <div>
           <PlotsMap plots={regions} activeId={active.id} onPick={onPick} sun={sunControl} />
           <p className="data mt-1 text-[10.5px] text-ink-soft">
