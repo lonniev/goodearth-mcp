@@ -15,6 +15,7 @@ import { AccountPage, DebugPanel, NpubGate } from "@tollbooth-dpyc/web/react";
 import { USAGE, USAGE_FIGURES, UsageRow } from "./components/usageDress";
 import Preferences from "./components/Preferences";
 import AccountSummary from "./components/AccountSummary";
+import { COUPONS } from "./components/couponDress";
 import CalendarFeed from "./components/CalendarFeed";
 import { readPrefs, themeOf, writePrefs, type Prefs } from "./lib/prefs";
 import FirstRun from "./components/FirstRun";
@@ -384,7 +385,17 @@ export default function App() {
             // season is Good Earth's theme; the build panel is on About.
             timezone={false}
             theme={false}
-            coupons={false}
+            // A code an operator hands out; redeemed once here, it discounts
+            // the paid calls on its own after that.
+            coupons={{
+              heading: "Coupons",
+              intro: "Redeem a code once. It applies on its own after that.",
+              placeholder: "Code",
+              redeemLabel: "Redeem",
+              forgetLabel: "Remove",
+              empty: "No coupons yet.",
+              classNames: COUPONS,
+            }}
             build={false}
             after={
               <div className="grid gap-3 lg:break-before-column">
