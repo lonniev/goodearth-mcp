@@ -21,7 +21,7 @@
 // rather than the ones on this page, which is the difference between "your
 // earliest set-out" and "the earliest set-out among these twenty".
 
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useUnits } from "./Units";
 import type { CropWatch } from "../lib/diseaseRows";
 import { describeHarvest, UNITS, type HarvestInput, type HarvestSummary } from "../lib/harvests";
@@ -31,7 +31,12 @@ import { SEEDLING, type Planting } from "../lib/plantings";
 import { lotLine, onHand, type SeedLot } from "../lib/seeds";
 import SeedForm from "./SeedForm";
 import { SortHeaders, type Column } from "./RecordTable";
-import { CELL, Field, FIELD, Glyph, ICON, RowActions, TrashGlyph } from "./ui";
+import { CELL, Chiclet, Field, FIELD, Glyph, ICON, Pill, RowActions, TrashGlyph } from "./ui";
+import Provenance from "./Provenance";
+import {
+  groupByWhere, HUE_GLYPH, monthSpan, RELATION, WHERE_LABEL,
+  type CompanionRow, type CompanionsResult, type Kind,
+} from "../lib/companions";
 import QuantityField from "./QuantityField";
 import type { ItemSort } from "../lib/blockItems";
 import { baseBounds } from "../lib/baseTemp";
@@ -101,6 +106,17 @@ export interface Seeding {
   saving?: boolean;
 }
 
+export interface Companioning {
+  open: string;
+  onOpen: (p: Planting) => void;
+  onClose: () => void;
+  /// Asks the service; the row shows what comes back.
+  ask: (p: Planting, kind: Kind) => Promise<CompanionsResult>;
+  /// A tapped companion goes to the planting form for the grower to confirm.
+  onPick: (row: CompanionRow) => void;
+  onCost: (sats: number) => void;
+}
+
 const COLS: Column<ItemSort>[] = [
   { key: "name", label: "Plant" },
   { key: "starts_on", label: "Set out" },
@@ -125,7 +141,7 @@ const COLS: Column<ItemSort>[] = [
 
 export default function CropLedger({
   rows, sort, dir, onSort, editing, onEdit, onCancel, onCommit, draft, onDraft,
-  saving, onDelete, harvesting, seeding,
+  saving, onDelete, harvesting, seeding, companioning,
 }: {
   rows: LedgerRow[];
   sort?: ItemSort;
@@ -142,6 +158,7 @@ export default function CropLedger({
   onDelete: (id: string) => void;
   harvesting?: Harvesting;
   seeding?: Seeding;
+  companioning?: Companioning;
 }) {
   const u = useUnits();
   return (
@@ -254,6 +271,13 @@ export default function CropLedger({
                       className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-growth">
                       <Glyph path={ICON.shears} size={24} grid={512} /></button>
                   )}
+                  {companioning && (
+                    <button onClick={() => companioning.onOpen(p)}
+                      aria-label={`Companions for ${p.crop}`} title="Companions"
+                      className={`inline-flex h-11 w-11 items-center justify-center ${
+                        companioning.open === p.id ? "text-growth" : "text-ink-soft active:text-growth"}`}>
+                      <Glyph path={ICON.companions} /></button>
+                  )}
                   <button onClick={() => onDelete(p.id)} aria-label={`Remove ${p.crop}`} title="Remove"
                     className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-clay"><TrashGlyph /></button>
                 </td>
@@ -267,6 +291,10 @@ export default function CropLedger({
               {harvesting?.open === p.id && (
                 <HarvestRow planting={p} unit={harvesting.unitFor(p.crop)}
                   onSave={(h, id) => harvesting.onSave(p, h, id)} onCancel={harvesting.onClose} />
+              )}
+              {companioning?.open === p.id && (
+                <CompanionsRow planting={p} ask={(k) => companioning.ask(p, k)}
+                  onPick={companioning.onPick} onCost={companioning.onCost} onCancel={companioning.onClose} />
               )}
               </Fragment>
             ),
@@ -340,6 +368,109 @@ function Verdict({ r }: { r: PlantingStatus }) {
 /// The packet is optional after the date, and deliberately so: garlic cloves,
 /// asparagus crowns, a nursery start and a grafted tree all have a day they
 /// went in and no packet at all.
+/// What grows well beside this planting — by cited family rules, or by the
+/// colour, height and bloom the grower wrote in. Two pills choose the kind;
+/// the rows come back ranked and grouped by where they came from, each with
+/// its reason, and a tap sends one to the planting form to be confirmed.
+function CompanionsRow({ planting, ask, onPick, onCost, onCancel }: {
+  planting: Planting;
+  ask: (kind: Kind) => Promise<CompanionsResult>;
+  onPick: (row: CompanionRow) => void;
+  onCost: (sats: number) => void;
+  onCancel: () => void;
+}) {
+  const [kind, setKind] = useState<Kind>("synergy");
+  const [result, setResult] = useState<CompanionsResult | null>(null);
+  const [at, setAt] = useState<Date | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    let live = true;
+    setBusy(true); setErr(""); setResult(null);
+    ask(kind)
+      .then((r) => { if (!live) return; setResult(r); setAt(new Date()); })
+      .catch((e: Error) => { if (live) setErr(e.message); })
+      .finally(() => { if (live) setBusy(false); });
+    return () => { live = false; };
+  }, [kind, ask]);
+
+  const groups = result?.success && result.companions ? groupByWhere(result.companions) : [];
+
+  return (
+    <tr className="border-b border-rule bg-growth/5 last:border-b-0">
+      <td colSpan={6} className="px-3 py-2.5">
+        <div className="sticky left-3 max-w-[calc(100vw-3.5rem)]">
+          <div className="flex flex-wrap items-center gap-2">
+            <Pill active={kind === "synergy"} onClick={() => setKind("synergy")} title="Biological companions, by cited family rules">🤝 Synergy</Pill>
+            <Pill active={kind === "design"} onClick={() => setKind("design")} title="Visual companions, from the colour, height and bloom you recorded">🎨 Design</Pill>
+            <span className="ml-auto flex items-center gap-2">
+              {at && <Provenance tool="goodearth_companions" at={at} onCost={onCost} />}
+              <button onClick={onCancel} aria-label="Close companions"
+                className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft">×</button>
+            </span>
+          </div>
+
+          {busy && <p className="data mt-2 text-[11px] text-ink-soft">Reading…</p>}
+          {err && <p className="mt-1.5 text-[12px] text-clay">{err}</p>}
+          {result && !result.success && (
+            <p className="mt-1.5 text-[12px] text-clay">{result.error}</p>
+          )}
+
+          {result?.success && (
+            <>
+              {kind === "design" && result.subject && (
+                <p className="data mt-2 text-[11px] text-ink-soft">
+                  {result.subject.color && <>{HUE_GLYPH[result.subject.color]} {result.subject.color}</>}
+                  {result.subject.band && <> · {result.subject.band}</>}
+                  {planting.bloomMonths?.length ? <> · {monthSpan(planting.bloomMonths)}</> : null}
+                </p>
+              )}
+              {kind === "synergy" && result.subject?.family && (
+                <p className="data mt-2 text-[11px] text-ink-soft">
+                  {result.subject.family}{result.subject.genus && <> · <i>{result.subject.genus}</i></>}
+                </p>
+              )}
+              {groups.length === 0 && (
+                <p className="mt-2 text-[12.5px] text-ink-soft">Nothing on the record pairs with this yet.</p>
+              )}
+              {groups.map((g) => (
+                <div key={g.where} className="mt-2.5">
+                  <div className="eyebrow mb-1">{WHERE_LABEL[g.where]}</div>
+                  <ul className="grid gap-1.5">
+                    {g.rows.map((row, i) => {
+                      const rel = RELATION[row.relation] ?? RELATION.other;
+                      const glyph = kind === "design" && row.color ? HUE_GLYPH[row.color] : rel.glyph;
+                      return (
+                        <li key={`${row.ref ?? row.name}-${i}`} className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                          <Chiclet emoji={glyph} name={row.name} tone={rel.tone} title={rel.label}
+                            figure={row.block ?? (row.scientific_name && row.where === "example" ? <i>{row.scientific_name}</i> : undefined)}
+                            onClick={row.where === "this_plot" ? undefined : () => onPick(row)} />
+                          <span className="min-w-[12rem] flex-1 text-[12px] leading-snug text-ink-soft">
+                            {row.why}
+                            {row.basis !== "grower" && (
+                              <span className="data ml-1.5 rounded-full border border-rule px-1.5 py-px text-[10px]" title={row.cite}>{row.basis}</span>
+                            )}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
+              {!!result.unplaced?.length && (
+                <p className="mt-2 text-[11.5px] text-ink-soft">
+                  Not placed: {result.unplaced.map((u) => u.name).join(", ")} — {result.unplaced[0].reason}.
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 function SeedRow({ planting, lots, saving, onBind, onSaveLot, onRetireLot, onCancel }: {
   planting: Planting;
   lots: SeedLot[];
