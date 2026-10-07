@@ -42,6 +42,9 @@ from goodearth_mcp.calendar_feed import CalendarError
 from goodearth_mcp.calibrate import CalibrateError
 from goodearth_mcp.calibrate import region_calibration as calibration_impl
 from goodearth_mcp.calibration import CalibrationError
+from goodearth_mcp.companions import KINDS as COMPANION_KINDS
+from goodearth_mcp.companions_window import CompanionsError
+from goodearth_mcp.companions_window import block_companions as companions_impl
 from goodearth_mcp.crop_status import LedgerError
 from goodearth_mcp.crop_status import region_crop_ledger as crop_ledger_impl
 from goodearth_mcp.crops import CropError
@@ -191,6 +194,7 @@ BLOCK_ITEM_SAVE_UUID       = "af45380a-1bcb-54a8-9b81-3569f785c33f"
 BLOCK_ITEM_LIST_UUID       = "587e418b-59f5-5400-bc9b-98db6929fec1"
 TREE_SUITABILITY_UUID      = "9f065c39-548a-5675-a562-cbf2bb720dd9"
 TREE_YEAR_UUID             = "993d83ad-9edd-5690-88fd-298f2137dc24"
+COMPANIONS_UUID            = "0bfd5920-12fa-5cff-aefb-466d9c0e2fd0"
 DISEASE_RISK_UUID          = "b12c4ed8-c3cd-5a14-8e4b-a9fa344b7096"
 DRYING_WINDOW_UUID         = "9e07633f-a43a-5298-9691-7678a59cfb32"
 
@@ -326,6 +330,12 @@ _DOMAIN_TOOLS = [
         capability="tree_year",
         category="read",
         intent="When spring reached this block — first leaf and first bloom against their normals — and what the sap did",
+    ),
+    ToolIdentity(
+        tool_id=COMPANIONS_UUID,
+        capability="companions",
+        category="read",
+        intent="Companions for one planting on a block — synergy by cited family rules, or design from the grower's own colour, height and bloom",
     ),
     ToolIdentity(
         tool_id=PLANTING_WINDOW_UUID,
@@ -1644,6 +1654,92 @@ async def tree_year(
         logger.warning("tree_year failed: %s", exc)
         return {"success": False, "error": f"A feed did not answer: {exc}",
                 "error_code": "upstream_unavailable"}
+
+
+@tool
+@runtime.paid_tool(COMPANIONS_UUID)
+async def companions(
+    block: Annotated[str, BLOCK_FIELD],
+    plant: Annotated[
+        str,
+        Field(description="Which planting on the block: its ref (item id) or its name. A name several plantings share lists them so you can pass a ref."),
+    ],
+    kind: Annotated[
+        str,
+        Field(description="'synergy' — biological companions by cited family rules; 'design' — visually complementary plants from the flower colour, height and bloom months you recorded."),
+    ] = "synergy",
+    npub: Annotated[
+        str,
+        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
+    ] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """Companions for one planting on this block, of one of two kinds.
+
+    **Synergy** reads the planting's family and genus from iNaturalist and
+    applies published companion-planting rules — nitrogen fixers beside heavy
+    feeders, open flowers that feed the wasps that take aphids, alliums that
+    mask a carrot from its fly, walnut and fennel that poison the ground
+    beside them, the same family sharing its pests. Every row names its
+    mechanism or its tradition and a citation. These rules Good Earth
+    publishes rather than computes; it says so in the note.
+
+    **Design** is arithmetic over what you wrote down: a colour opposite on
+    the wheel is complementary, beside it analogous, white a foil; a plant in
+    a different height band layers; two that bloom in the same months are
+    seen together. A planting with no `flower_color` gets the field named
+    rather than a guess.
+
+    Candidates are the plantings on this plot, then everything you have grown
+    on your other blocks or retired, then a few classic garden examples —
+    each row says which. Plantings with no species chosen are listed as
+    `unplaced`; a typed name is never guessed into a family.
+
+    Args:
+        block: The ground to answer for — its id, its name, or an alias.
+        plant: The planting's ref or name.
+        kind: 'synergy' or 'design'.
+    """
+    _parsed, found = await _block_region(npub, block)
+    if kind not in COMPANION_KINDS:
+        return {"success": False, "error": f"kind must be one of {', '.join(COMPANION_KINDS)}",
+                "error_code": "invalid_request"}
+    here = await _stored_items(npub, found["block_id"], "planting") if found else []
+    elsewhere = await _grown_elsewhere(npub, found.get("block_id", "")) if found else []
+    try:
+        return await companions_impl(plant, kind, here, elsewhere)
+    except CompanionsError as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_request"}
+    except (biota.BiotaError, sources.UpstreamError, OSError) as exc:
+        logger.warning("companions failed: %s", exc)
+        return {"success": False, "error": f"A feed did not answer: {exc}",
+                "error_code": "upstream_unavailable"}
+
+
+async def _grown_elsewhere(npub: str, block_id: str) -> list[dict[str, Any]]:
+    """Every planting the grower has on other blocks or has retired, each
+    carrying the block it grew on. What she has grown before is the richest
+    companion vocabulary she has, and it is hers."""
+    rows: list[dict[str, Any]] = []
+    for blk in await block_store.list_blocks(npub, include_retired=True):
+        bid = blk.get("block_id") or blk.get("id")
+        if not bid:
+            continue
+        page_no = 0
+        while True:
+            page = await block_store.list_items(
+                npub, bid, "planting", include_retired=True,
+                page=page_no, page_size=block_store.MAX_PAGE_SIZE,
+            )
+            for row in page["items"]:
+                if bid == block_id and not row.get("retired"):
+                    continue  # the live plot is `here`
+                rows.append({**{k: v for k, v in row.items() if k not in ("item_id", "kind", "retired", "source")},
+                             "ref": row.get("item_id"), "block_name": blk.get("name")})
+            page_no += 1
+            if page_no >= int(page.get("pages") or 1):
+                break
+    return rows
 
 
 @tool

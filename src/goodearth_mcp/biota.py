@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import time
 from datetime import date, timedelta
 from typing import Any
 
@@ -56,6 +57,80 @@ async def _json(client: httpx.AsyncClient, url: str, params: dict[str, Any]) -> 
         raise BiotaError(f"{url} unreachable: {exc}") from exc
     except ValueError as exc:
         raise BiotaError(f"{url} returned malformed JSON") from exc
+
+
+# ── Taxonomy ─────────────────────────────────────────────────────────────
+
+_INAT_TAXA = "https://api.inaturalist.org/v1/taxa"
+
+#: iNaturalist's ceiling on ids in one ``/taxa/{ids}`` call.
+_TAXA_BATCH = 30
+
+#: How long a taxon's lineage is kept. A family does not change by the hour;
+#: the same six hours the regional rosters use.
+_TAXA_TTL_S = 6 * 60 * 60
+
+#: ``taxon_id -> (monotonic time, record)``. Process-wide, which is the point:
+#: the second grower whose block carries a tomato does not pay the round trip.
+_taxa: dict[int, tuple[float, dict[str, Any]]] = {}
+
+
+def _lineage(taxon: dict[str, Any]) -> dict[str, Any]:
+    """What the companion rules need of a taxon: its name, its family, its
+    genus. The ancestor ranked ``family`` (or the taxon itself at that rank),
+    and the same for ``genus``. Nothing is guessed for a taxon above family.
+    """
+    ranked: dict[str, str] = {}
+    for anc in taxon.get("ancestors") or []:
+        if isinstance(anc, dict) and isinstance(anc.get("rank"), str) and isinstance(anc.get("name"), str):
+            ranked.setdefault(anc["rank"], anc["name"])
+    rank = taxon.get("rank")
+    if isinstance(rank, str) and isinstance(taxon.get("name"), str):
+        ranked.setdefault(rank, taxon["name"])
+    return {
+        "taxon_id": taxon.get("id"),
+        "name": taxon.get("name"),
+        "common_name": taxon.get("preferred_common_name"),
+        "rank": rank,
+        "family": ranked.get("family"),
+        "genus": ranked.get("genus"),
+    }
+
+
+async def fetch_taxa(ids: list[int] | set[int]) -> dict[int, dict[str, Any]]:
+    """Family and genus for each taxon id, from iNaturalist's own lineage.
+
+    Returns only the ids it could place; a missing key means iNaturalist did
+    not know the id, and the caller says so rather than guessing a family
+    from a typed name. Served from the process cache when it can be.
+    """
+    wanted = sorted({int(i) for i in ids if i is not None})
+    now = time.monotonic()
+    out: dict[int, dict[str, Any]] = {}
+    missing: list[int] = []
+    for tid in wanted:
+        hit = _taxa.get(tid)
+        if hit and now - hit[0] < _TAXA_TTL_S:
+            out[tid] = hit[1]
+        else:
+            missing.append(tid)
+    if not missing:
+        return out
+
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        for start in range(0, len(missing), _TAXA_BATCH):
+            batch = missing[start:start + _TAXA_BATCH]
+            data = await _json(client, f"{_INAT_TAXA}/{','.join(map(str, batch))}", {})
+            rows = data.get("results") if isinstance(data, dict) else None
+            if not isinstance(rows, list):
+                raise BiotaError("iNaturalist returned an unexpected shape")
+            for row in rows:
+                if not isinstance(row, dict) or not isinstance(row.get("id"), int):
+                    continue
+                record = _lineage(row)
+                _taxa[row["id"]] = (now, record)
+                out[row["id"]] = record
+    return out
 
 
 # ── Observed species ─────────────────────────────────────────────────────
