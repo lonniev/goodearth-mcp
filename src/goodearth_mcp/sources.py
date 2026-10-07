@@ -895,6 +895,31 @@ async def fetch_almanac_history(lat: float, lon: float, start: str, end: str) ->
     return _stamp(results[0], name, res)
 
 
+#: The hourly radiation terms the solar estimate integrates: beam normal to
+#: the sun, diffuse from the sky, and global on the flat.
+_HOURLY_RADIATION = "direct_normal_irradiance,diffuse_radiation,shortwave_radiation"
+RADIATION_RESOLUTION_M = ERA5_RESOLUTION_M
+
+
+async def fetch_radiation_year(lat: float, lon: float, year: int) -> dict[str, Any]:
+    """One calendar year of hourly radiation from the ERA5 archive, in W/m², UTC.
+
+    Ten of these make a typical year for a solar estimate. Each is asked for
+    separately because one ten-year hourly request is a 90 MB answer that
+    would not fit the timeout; a caller reduces each year as it lands.
+    """
+    payload = await _get(_ARCHIVE_ERA5, {
+        "latitude": lat, "longitude": lon,
+        "start_date": f"{year}-01-01", "end_date": f"{year}-12-31",
+        "hourly": _HOURLY_RADIATION,
+        "timezone": "UTC",
+    })
+    results = _as_list(payload)
+    if not results or not isinstance(results[0].get("hourly"), dict):
+        raise UpstreamError(f"the radiation archive returned nothing for {year}")
+    return _stamp(results[0], "Open-Meteo archive (ERA5)", ERA5_RESOLUTION_M)
+
+
 def daily_block(record: dict[str, Any]) -> dict[str, list[Any]]:
     """The whole daily block as-is, for callers reading many fields at once."""
     daily = record.get("daily")

@@ -66,6 +66,18 @@ def stubbed(monkeypatch):
     async def normals(*_a, **_k):
         return _normals([18, 22, 32, 44, 56, 65, 70, 68, 60, 48, 37, 25])
 
+    async def radiation(lat, lon, year):
+        calls["radiation"] = calls.get("radiation", 0) + 1
+        times, dni, dhi, ghi = [], [], [], []
+        for m in range(1, 13):
+            for h in range(24):
+                times.append(f"{year}-{m:02d}-15T{h:02d}:00")
+                day = 7 <= h <= 17
+                dni.append(600.0 if day else 0.0)
+                dhi.append(100.0 if day else 0.0)
+                ghi.append(500.0 if day else 0.0)
+        return {"hourly": {"time": times, "direct_normal_irradiance": dni, "diffuse_radiation": dhi, "shortwave_radiation": ghi}}
+
     monkeypatch.setattr(rasters, "canopy_height", canopy)
     monkeypatch.setattr(rasters, "canopy_observed", lambda *_a: "2019-06")
     monkeypatch.setattr(rasters, "terrain", terrain)
@@ -73,6 +85,7 @@ def stubbed(monkeypatch):
     monkeypatch.setattr(record_cache, "remembered", remembered)
     monkeypatch.setattr(record_cache, "remember", remember)
     monkeypatch.setattr(record_cache, "normals_history", normals)
+    monkeypatch.setattr(sources, "fetch_radiation_year", radiation)
     sunlight_window._memo.clear()
     yield calls, store
     sunlight_window._memo.clear()
@@ -104,7 +117,40 @@ async def test_answer_shape_sources_and_note(stubbed):
     assert r["sources"][0]["observed"] == "2019-06"
     assert "every tree is taken as evergreen" in r["note"]
     assert "taken 2019-06" in r["note"]
+    s = r["solar"]
+    assert s["panel"] == {"tilt_deg": 40.0, "azimuth_deg": 180.0, "fixed": True}
+    assert s["radiation_years"] == 10 and s["open_sky_kwh_per_kwp_year"] > 0
+    assert s["kwh_per_kwp_year"]["p10"] <= s["kwh_per_kwp_year"]["median"] <= s["kwh_per_kwp_year"]["p90"]
+    assert 0 < s["best_point"]["solar_access_pct"] <= 100
+    assert len(s["best_point"]["monthly_kwh_per_kwp"]) == 12
+    assert "Open-Meteo archive (ERA5)" in names
     assert r["grid"]["cells"] == r["grid"]["rows"] * r["grid"]["cols"] or r["grid"]["cells"] > 0
+
+
+async def test_climatology_is_remembered_per_cell_and_panel_args_are_checked(stubbed):
+    calls, _store = stubbed
+    await _call(month=6)
+    assert calls["radiation"] == 10
+    sunlight_window._memo.clear()
+    r = await _call(month=6, panel_tilt_deg=10, panel_azimuth_deg=90)
+    assert calls["radiation"] == 10  # the typical year came from the cache
+    assert r["solar"]["panel"]["tilt_deg"] == 10.0 and r["solar"]["panel"]["azimuth_deg"] == 90.0
+    with pytest.raises(sunlight_window.SunlightError):
+        await _call(panel_tilt_deg=91)
+    with pytest.raises(sunlight_window.SunlightError):
+        await _call(panel_azimuth_deg=float("nan"))
+
+
+async def test_too_few_radiation_years_means_no_solar_figure(stubbed, monkeypatch):
+    async def flaky(lat, lon, year):
+        if year % 3:
+            raise sources.UpstreamError("archive busy")
+        return {"hourly": {"time": [], "direct_normal_irradiance": [], "diffuse_radiation": [], "shortwave_radiation": []}}
+
+    monkeypatch.setattr(sources, "fetch_radiation_year", flaky)
+    r = await _call(month=6)
+    assert r["solar"] is None
+    assert "no solar figure" in r["note"]
 
 
 async def test_one_month_only(stubbed):
@@ -123,7 +169,8 @@ async def test_bad_month_is_the_callers_error(stubbed):
 async def test_second_call_reads_the_remembered_horizon_and_touches_no_raster(stubbed):
     calls, store = stubbed
     first = await _call(month=6)
-    assert calls["canopy"] == 1 and calls["terrain"] == 2 and len(store) == 1  # near field + far overview
+    assert calls["canopy"] == 1 and calls["terrain"] == 2  # near field + far overview
+    assert len(store) == 2  # the horizon and the typical year
     sunlight_window._memo.clear()  # force the Neon row, not the in-process memo
     second = await _call(month=6)
     assert calls["canopy"] == 1 and calls["terrain"] == 2
