@@ -46,6 +46,10 @@ class TestFindingTheSubject:
         assert cw.find_subject("tomato", HERE)["ref"] == "t1"
         assert cw.find_subject("Brandy", HERE)["ref"] == "t1"
 
+    def test_the_growers_label_leads_the_row(self):
+        r = run("b1", "synergy")
+        assert "Tomato · Brandywine" in {row["name"] for row in r["companions"]}
+
     def test_a_shared_name_lists_the_refs(self):
         two = [{"ref": "a", "crop": "Kale"}, {"ref": "b", "crop": "Kale"}]
         with pytest.raises(cw.CompanionsError, match="a, b"):
@@ -61,7 +65,7 @@ class TestSynergy:
         r = run("b1", "synergy")
         assert r["success"] and r["subject"]["family"] == "Fabaceae"
         rows = {row["name"]: row for row in r["companions"]}
-        assert rows["tomato"]["where"] == "this_plot" and rows["tomato"]["relation"] == "helps"
+        assert rows["Tomato · Brandywine"]["where"] == "this_plot" and rows["Tomato · Brandywine"]["relation"] == "helps"
         assert rows["Kale"]["where"] == "grown_before" and rows["Kale"]["block"] == "Upper"
         assert rows["Garlic"]["where"] == "grown_before" and rows["Garlic"]["relation"] == "avoid"
         assert rows["pea"]["where"] == "example" and rows["pea"]["relation"] == "watch"
@@ -82,10 +86,10 @@ class TestSynergy:
         assert [u["ref"] for u in r["unplaced"]] == ["m1"]
         assert "not placed" in r["summary"]
 
-    def test_an_unplaced_subject_is_refused_with_the_fix(self):
-        r = run("m1", "synergy")
-        assert r["success"] is False and r["error_code"] == "invalid_request"
-        assert "species" in r["error"]
+    def test_an_unplaced_subject_is_refused_free_with_the_fix(self):
+        # Raised, not returned: paid_tool rolls back the fare on an exception.
+        with pytest.raises(cw.CompanionsError, match="species"):
+            run("m1", "synergy")
 
     def test_bad_kind_is_an_error(self):
         with pytest.raises(cw.CompanionsError, match="kind"):
@@ -103,9 +107,9 @@ class TestSynergy:
 
 
 class TestDesign:
-    def test_needs_a_colour_on_the_subject(self):
-        r = run("m1", "design")
-        assert r["success"] is False and r["missing"] == ["flower_color"]
+    def test_needs_a_colour_on_the_subject_and_the_refusal_is_free(self):
+        with pytest.raises(cw.CompanionsError, match="flower_color"):
+            run("m1", "design")
 
     def test_ranks_by_wheel_then_layers_then_bloom(self):
         r = run("t1", "design")

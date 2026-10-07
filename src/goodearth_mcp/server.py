@@ -43,7 +43,6 @@ from goodearth_mcp.calibrate import CalibrateError
 from goodearth_mcp.calibrate import region_calibration as calibration_impl
 from goodearth_mcp.calibration import CalibrationError
 from goodearth_mcp.companions import KINDS as COMPANION_KINDS
-from goodearth_mcp.companions_window import CompanionsError
 from goodearth_mcp.companions_window import block_companions as companions_impl
 from goodearth_mcp.crop_status import LedgerError
 from goodearth_mcp.crop_status import region_crop_ledger as crop_ledger_impl
@@ -1706,10 +1705,11 @@ async def companions(
                 "error_code": "invalid_request"}
     here = await _stored_items(npub, found["block_id"], "planting") if found else []
     elsewhere = await _grown_elsewhere(npub, found.get("block_id", "")) if found else []
+    # A CompanionsError — a plant not on the block, a planting with no species
+    # or no colour — propagates: it is a ValueError the runtime surfaces with
+    # its message intact, and raising is what keeps the refusal free.
     try:
         return await companions_impl(plant, kind, here, elsewhere)
-    except CompanionsError as exc:
-        return {"success": False, "error": str(exc), "error_code": "invalid_request"}
     except (biota.BiotaError, sources.UpstreamError, OSError) as exc:
         logger.warning("companions failed: %s", exc)
         return {"success": False, "error": f"A feed did not answer: {exc}",

@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   labelled examples; a planting with no species chosen is reported unplaced,
   never guessed into a family. A tap sends a companion to the planting form to
   be confirmed. New tool `goodearth_companions(block, plant, kind)`.
+  A refusal — no species chosen, no colour recorded — costs nothing.
 - Coupons on the Account page: the shared `CouponsPanel` from @tollbooth-dpyc/web,
   in Good Earth's dress. A grower redeems an operator's code once and the
   discount applies on its own to later paid calls. The page had opted out.
