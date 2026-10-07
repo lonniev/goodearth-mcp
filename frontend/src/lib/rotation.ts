@@ -1,9 +1,9 @@
 // Rotation — what grew on this ground, season by season, by plant family.
 //
 // Stated as fact, never as advice. "Brassicaceae here in 2025 and 2026" is what
-// the record says; what goes there next is the grower's to decide, and
-// rotation and companion rules are published agronomy this service does not
-// publish.
+// the record says; what goes there next is the grower's to decide. The one
+// place the service does publish agronomy is Companions, on the ledger — and
+// there every rule carries its basis and a citation, so it can be audited.
 //
 // Read from every planting on the plot, the ones since removed from the
 // ledger included — a bed cleared in October is exactly the history rotation

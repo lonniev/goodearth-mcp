@@ -46,6 +46,19 @@ export interface Planting {
   /// the earliest out-date; a seed-packet fact, and therefore the grower's.
   frostHardy?: boolean;
 
+  // ── How it looks ───────────────────────────────────────────────────────
+  //
+  // Three facts for the Design half of Companions, all the grower's own: a
+  // zinnia has no colour, THIS zinnia has the one she wrote in. Optional, and
+  // nothing is computed about a planting that lacks them.
+
+  /// One of the eight hues the wheel knows (lib/companions HUES).
+  flowerColor?: Hue;
+  /// Mature height in inches — the record's unit, shown in the reader's.
+  heightIn?: number;
+  /// Month numbers 1–12 it is in bloom.
+  bloomMonths?: number[];
+
   // ── The seed half of its life ──────────────────────────────────────────
   //
   // `setOut` is the day the plant went in the ground. A seed-started planting
@@ -95,7 +108,7 @@ export function makePlanting(
   baseTempF?: number,
   extra?: Pick<Planting,
     "perennial" | "chillHours" | "hardyToF" | "taxonId" | "scientificName"
-    | "commonName" | "taps" | "frostHardy">,
+    | "commonName" | "taps" | "frostHardy" | "flowerColor" | "heightIn" | "bloomMonths">,
 ): Planting | string {
   if (!crop.trim()) return "Give the planting a crop name.";
   const perennial = !!extra?.perennial;
@@ -115,6 +128,10 @@ export function makePlanting(
     return "Chill hours should be between 0 and 2,000.";
   if (extra?.hardyToF != null && (extra.hardyToF < -60 || extra.hardyToF > 40))
     return "Hardiness should be between -60 and 40 °F.";
+  if (extra?.heightIn != null && (!Number.isFinite(extra.heightIn) || extra.heightIn <= 0 || extra.heightIn > 600))
+    return "Height should be between 1 and 600 inches.";
+  if (extra?.bloomMonths?.some((m) => !Number.isInteger(m) || m < 1 || m > 12))
+    return "Bloom months should be 1 to 12.";
 
   return {
     id: newItemId("pl"),
@@ -129,6 +146,9 @@ export function makePlanting(
     ...(extra?.commonName ? { commonName: extra.commonName } : {}),
     ...(extra?.taps ? { taps: true } : {}),
     ...(extra?.frostHardy ? { frostHardy: true } : {}),
+    ...(extra?.flowerColor ? { flowerColor: extra.flowerColor } : {}),
+    ...(extra?.heightIn != null ? { heightIn: extra.heightIn } : {}),
+    ...(extra?.bloomMonths?.length ? { bloomMonths: extra.bloomMonths } : {}),
   };
 }
 
@@ -159,6 +179,7 @@ export function plantingDateFor(earliestOut: string | null | undefined, today: s
 // working in their own shape.
 
 import { newItemId } from "./submit.ts";
+import { HUES, type Hue } from "./companions.ts";
 import type { ItemCodec } from "./blockItems";
 import type { ItemRow } from "./mcp";
 
@@ -189,6 +210,10 @@ export const plantingCodec: ItemCodec<Planting> = {
     frostHardy: r.frost_hardy === true ? true : undefined,
     sownOn: r.sown_on ? String(r.sown_on) : undefined,
     seedLotId: r.seed_lot ? String(r.seed_lot) : undefined,
+    flowerColor: (HUES as readonly string[]).includes(String(r.flower_color)) ? r.flower_color as Hue : undefined,
+    heightIn: r.height_in == null ? undefined : Number(r.height_in),
+    bloomMonths: Array.isArray(r.bloom_months)
+      ? (r.bloom_months as unknown[]).filter((m): m is number => typeof m === "number") : undefined,
   }),
   to: (p: Planting) => ({
     ...(p.id ? { item_id: p.id } : {}),
@@ -206,5 +231,8 @@ export const plantingCodec: ItemCodec<Planting> = {
     ...(p.frostHardy ? { frost_hardy: true } : {}),
     ...(p.sownOn ? { sown_on: p.sownOn } : {}),
     ...(p.seedLotId ? { seed_lot: p.seedLotId } : {}),
+    ...(p.flowerColor ? { flower_color: p.flowerColor } : {}),
+    ...(p.heightIn != null ? { height_in: p.heightIn } : {}),
+    ...(p.bloomMonths?.length ? { bloom_months: p.bloomMonths } : {}),
   }),
 };

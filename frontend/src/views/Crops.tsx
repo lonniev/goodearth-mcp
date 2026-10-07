@@ -30,7 +30,9 @@ import { makePlanting, plantingCodec, SEEDLING,
 import SpeciesPicker from "../components/SpeciesPicker";
 import SpeciesFinder from "../components/SpeciesFinder";
 import type { Chosen } from "../lib/basket";
-import { FLORA, speciesByIds, type SpeciesHit } from "../lib/species";
+import { FLORA, searchSpecies, speciesByIds, type SpeciesHit } from "../lib/species";
+import { companions as askCompanions } from "../lib/mcp";
+import { HUES, HUE_GLYPH, MONTHS, monthsBetween, searchFor, toChosen, type CompanionRow, type Hue } from "../lib/companions";
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
 import { reportCodec, type FieldReport } from "../lib/reports";
 import { lastUnit, makeHarvest, summarize, type HarvestInput } from "../lib/harvests";
@@ -74,6 +76,21 @@ const MARK_TREE = {
   unrated:  null,
   unknown:  null,
 } as const;
+
+/// The three design fields off the form, present only when given. Height is
+/// kept in inches, the record's unit; a bloom span needs both ends.
+function look(f: FormData): { flowerColor?: Hue; heightIn?: number; bloomMonths?: number[] } {
+  const color = String(f.get("color") ?? "");
+  const height = String(f.get("height") ?? "").trim();
+  const from = Number(f.get("bloom_from") ?? 0);
+  const to = Number(f.get("bloom_to") ?? 0);
+  const months = from && to ? monthsBetween(from, to) : [];
+  return {
+    ...((HUES as readonly string[]).includes(color) ? { flowerColor: color as Hue } : {}),
+    ...(height ? { heightIn: Number(height) } : {}),
+    ...(months.length ? { bloomMonths: months } : {}),
+  };
+}
 
 export default function Crops({
   region, onCost,
@@ -154,6 +171,9 @@ export default function Crops({
   }
 
   const [seeding, setSeeding] = useState("");
+  /// Which planting's companions are open — the third expansion, and like
+  /// the other two the only one open on the page.
+  const [companioning, setCompanioning] = useState("");
 
   /// The sowing date and the packet, written onto the PLANTING.
   ///
@@ -277,6 +297,11 @@ export default function Crops({
   /// Its own call because it reads hours where the ledger reads the heat
   /// curve, and a quiet failure here must cost the crop rows nothing — a
   /// grower opening this page came for their plantings.
+  const askForCompanions = useCallback(
+    (pl: Planting, kind: "synergy" | "design") => askCompanions(region.id, pl.id, kind),
+    [region.id],
+  );
+
   const runDisease = useCallback(async () => {
     try {
       const r = await diseaseRisk(region.id);
@@ -441,6 +466,31 @@ export default function Crops({
     document.getElementById("new-planting")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  /// A companion the grower tapped goes to the planting form to be confirmed
+  /// — the day it goes in is hers to choose, and so is whether it goes in at
+  /// all. A row with a taxon is picked outright; one without is searched by
+  /// its binomial and the first hit offered, which the picker shows for what
+  /// it is.
+  async function pickCompanion(row: CompanionRow) {
+    setFormErr("");
+    const chosen = toChosen(row);
+    let hit: SpeciesHit | undefined;
+    if (chosen) {
+      hit = (await speciesByIds([chosen.taxonId])).get(chosen.taxonId) ?? {
+        id: chosen.taxonId, scientificName: chosen.scientificName ?? chosen.name,
+        commonName: chosen.name, rank: null, matched: null, thumb: null, observations: 0,
+      };
+    } else {
+      hit = (await searchSpecies(searchFor(row), FLORA))[0];
+    }
+    setSeed(hit ? "" : searchFor(row));
+    setPicked(hit ?? null);
+    setRepeating(null);
+    setFormKey((k) => k + 1);
+    setAdded(`${row.name} — choose the day it goes in, then add it.`);
+    document.getElementById("new-planting")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   /// Seed of a plant this plot's ledger does not hold.
   ///
   /// It has nowhere to live now that a lot sits in its plant's own row, and
@@ -555,6 +605,7 @@ export default function Crops({
         ...(target ? {} : { perennial: true }),
         ...(f.get("hardy") ? { frostHardy: true } : {}),
         ...(f.get("taps") ? { taps: true } : {}),
+        ...(look(f)),
         taxonId: picked.id,
         scientificName: picked.scientificName,
         commonName: picked.commonName ?? undefined,
@@ -715,6 +766,31 @@ export default function Crops({
               placeholder={String(Math.round(u.temp(region.baseTempF)))}
               className={FIELD} />
           </label>
+          {/* How it looks — for Design companions. All three are the grower's
+              own facts and all three are optional; a planting without them is
+              simply not paired by colour. A native select, so a phone shows its
+              own picker; the caption is a label FOR it, never around it. */}
+          <div className="grid grid-cols-[auto_1fr_auto] items-end gap-x-3 gap-y-1 text-[11px] text-ink-soft sm:col-span-2">
+            <label htmlFor="pl-color" className="col-start-1">Flower <span className="opacity-60">(optional)</span></label>
+            <label htmlFor="pl-height" className="col-start-2">Height, in</label>
+            <label htmlFor="pl-bloom-from" className="col-start-3">Blooms</label>
+            <select id="pl-color" name="color" defaultValue="" className={`${FIELD} col-start-1 w-auto pr-8`}>
+              <option value="">—</option>
+              {HUES.map((h) => <option key={h} value={h}>{HUE_GLYPH[h]} {h}</option>)}
+            </select>
+            <input id="pl-height" name="height" type="number" inputMode="decimal" step="1" min={1} max={600}
+              placeholder="30" className={`${FIELD} col-start-2`} />
+            <span className="col-start-3 flex items-center gap-1">
+              <select id="pl-bloom-from" name="bloom_from" defaultValue="" aria-label="Blooms from" className={`${FIELD} w-auto pr-7`}>
+                <option value="">—</option>
+                {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+              </select>
+              <select name="bloom_to" defaultValue="" aria-label="Blooms to" className={`${FIELD} w-auto pr-7`}>
+                <option value="">—</option>
+                {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+              </select>
+            </span>
+          </div>
           <div className="flex flex-wrap items-end gap-4 text-[12px] sm:col-span-2">
             <label className="flex min-h-11 items-center gap-2">
               <input type="checkbox" name="hardy" className="size-4"
@@ -788,7 +864,7 @@ export default function Crops({
             onDelete={remove}
             seeding={{
               open: seeding,
-              onOpen: (pl) => { setSeeding(pl.id); setCutting(""); },
+              onOpen: (pl) => { setSeeding(pl.id); setCutting(""); setCompanioning(""); },
               onClose: () => setSeeding(""),
               lotsFor: (pl) => lotsFor(pl.crop, pl.taxonId, lots),
               onBind: bindSeed,
@@ -798,10 +874,18 @@ export default function Crops({
             }}
             harvesting={{
               open: cutting,
-              onOpen: (pl) => { setCutting(pl.id); setSeeding(""); },
+              onOpen: (pl) => { setCutting(pl.id); setSeeding(""); setCompanioning(""); },
               onClose: () => setCutting(""),
               unitFor: (crop) => lastUnit(seen, crop),
               onSave: saveHarvest,
+            }}
+            companioning={{
+              open: companioning,
+              onOpen: (pl) => { setCompanioning(pl.id); setSeeding(""); setCutting(""); },
+              onClose: () => setCompanioning(""),
+              ask: askForCompanions,
+              onPick: pickCompanion,
+              onCost,
             }}
           />
           {/* The pager counts the block. While a filter is on the block is

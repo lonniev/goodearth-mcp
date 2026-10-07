@@ -13,6 +13,7 @@
  *   - the domain tools and their result types.
  */
 
+import type { CompanionsResult, Kind } from "./companions.ts";
 import { nearbyArgs } from "./wire";
 import { callLine, resultLine } from "./debugSummary";
 import {
@@ -114,6 +115,7 @@ export const TOOL_ID: Record<string, string> = {
   goodearth_finish_before_frost: "b5f11328-8d8f-58db-ba89-11f8cbcc3314",
   goodearth_pest_threshold: "79463a63-2076-5376-a357-673c4adb33f0",
   goodearth_calibration: "2e7c72db-e886-53be-b948-bcc97a57986d",
+  goodearth_companions: "0bfd5920-12fa-5cff-aefb-466d9c0e2fd0",
 };
 
 /// The fare for one of this operator's tools, by its runtime name. Null when
@@ -896,6 +898,12 @@ export interface SuitabilityResult {
   counts: Partial<Record<Verdict, number>>;
   summary: string;
   note: string;
+}
+
+/// Companions for one planting: by cited family rules, or by the colour,
+/// height and bloom the grower wrote in. The service ranks; the ledger shows.
+export async function companions(block: string, plant: string, kind: Kind): Promise<CompanionsResult> {
+  return callTool<CompanionsResult>("companions", { block, plant, kind });
 }
 
 /// Which crops finish on this ground, measured against its own frost-free heat

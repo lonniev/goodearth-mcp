@@ -113,6 +113,7 @@ grower is never sold precision the data does not contain.
 | `goodearth_soil_temp_projection`, `goodearth_crop_gdd_status`, `goodearth_finish_before_frost` | T4 | Per-planting timing |
 | `goodearth_pest_threshold` | T5 | Model GDD vs accumulated; crossing dates |
 | `goodearth_calibration` | T6 | Per-region bias correction from patron field reports |
+| `goodearth_companions` | shipped | Companions for one planting — synergy by cited family rules (iNaturalist taxonomy), or design from the grower's own flower colour, height and bloom |
 
 Standard DPYC tools (`check_balance`, `purchase_credits`, Secure Courier,
 Oracle, pricing, constraints) come from the wheel via
@@ -127,6 +128,7 @@ All free, all public, no API key.
 | Open-Meteo archive (ERA5) | Observed daily max/min | ~9 km |
 | Open-Meteo forecast | 7-day extension | ~11 km |
 | Open-Meteo elevation (SRTM) | Terrain downscaling | ~90 m |
+| iNaturalist taxa | Family and genus of a planting, for Companions | — |
 
 A whole-region season read costs **three** upstream requests regardless of
 sample count: sample points are folded onto the archive's own grid so a
