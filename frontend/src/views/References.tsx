@@ -102,6 +102,27 @@ const SOURCES: {
     resolution: "observations, not a grid",
     note: "Read-only. Species photographs are contributors' work under Creative Commons, credited on each image. The names were resolved once and read by a person before they shipped — the search ranks by how often a thing is observed, so a common wildflower sharing a folk name will outrank the crop, and no answer was taken on trust.",
   },
+  {
+    name: "Meta/WRI canopy height map",
+    url: "https://sustainability.atmeta.com/?p=5573",
+    role: "The height of every tree within 250 m of a block, for the Sunlight horizon: what shades a bed in the afternoon is a crown the terrain model cannot see.",
+    resolution: "1 m",
+    note: "CC BY 4.0. Imagery from 2009–2020 — the card gives the month under your block — so a tree cut or planted since is not in it, and the published height error is 2.8 m, which can miss a small ornamental. Buildings are not in it either.",
+  },
+  {
+    name: "Copernicus GLO-30 terrain",
+    url: "https://registry.opendata.aws/copernicus-dem/",
+    role: "The ground to 20 km from a block, for the hill line behind the trees: the ridge that takes the December sun at three.",
+    resolution: "30 m",
+    note: "A surface model — radar partly sees the forest top — so near the block it is smoothed over 90 m and the trees are taken from the canopy map instead.",
+  },
+  {
+    name: "Copernicus Global Land Cover",
+    url: "https://land.copernicus.eu/en/products/global-dynamic-land-cover",
+    role: "Whether a stand is evergreen, deciduous or mixed, which decides how much winter sun a bare crown passes.",
+    resolution: "100 m",
+    note: "CC BY 4.0, 2019. When it cannot be read every tree is taken as evergreen and the answer says so; bare-season light is then understated, never overstated.",
+  },
 ];
 
 const MODELS: { title: string; body: string; assumption: string }[] = [
@@ -194,6 +215,11 @@ const MODELS: { title: string; body: string; assumption: string }[] = [
     title: "Sun and moon",
     body: "Day length from solar declination and the hour angle, including the standard −0.833° correction for refraction and the sun's disc. Moon phase from the synodic month against a known new moon.",
     assumption: "None. This is astronomy — computed exactly, never fetched, and as knowable next March as it is today.",
+  },
+  {
+    title: "Sunlight",
+    body: "Hours of direct sun per day, cell by cell at 2–20 m: from every cell, 72 rays at 5° find the highest ground and the highest tree in each direction; then the sun's path on the 15th of each month (NOAA's solar position) is counted in ten-minute steps wherever it clears that line. Full sun is 6 hours or more, part shade 3 to 6, full shade under 3 — the nursery-label definitions.",
+    assumption: "A bare deciduous crown passes half the beam and an evergreen none; a month is in leaf when its mean temperature reaches 50 °F in the block's own ten-year normals. The horizon is cast once per outline and kept — it changes when a tree is cut or the block redrawn, never with the weather.",
   },
 ];
 

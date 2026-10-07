@@ -577,6 +577,22 @@ async def elevations(lats: list[float], lons: list[float]) -> list[float]:
     return fresh
 
 
+async def remembered(kind: str, subject: str) -> Any:
+    """A computed answer with no span — a block's horizon — or None.
+
+    The read-through wrappers above take a feed and a span. This pair is for
+    products the service computes rather than fetches: they have no upstream
+    to fall back on and no date to expire, only a subject that names exactly
+    what was computed (the geometry and every source version that went in).
+    """
+    return await _read(kind, subject, "", "")
+
+
+async def remember(kind: str, subject: str, value: Any) -> None:
+    """Keep a computed answer for good. See ``remembered``."""
+    await _write(kind, subject, "", "", value, immutable=True)
+
+
 #: A fingerprint of the fields the almanac asks for.
 #:
 #: It is part of the cache key because the answer is only reusable while the

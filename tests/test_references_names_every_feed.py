@@ -91,3 +91,11 @@ def test_newa_is_named_as_the_reference_rather_than_as_a_feed() -> None:
     text = page()
     assert "NEWA" in text
     assert "newa.cornell.edu" in text
+
+
+def test_sunlight_feeds_are_named() -> None:
+    """Three rasters feed the horizon; a page that named only the weather would hide the trees."""
+    text = page()
+    for name in ("Meta/WRI canopy height map", "Copernicus GLO-30 terrain", "Copernicus Global Land Cover"):
+        assert name in text, f"References names no entry for {name}"
+    assert 'title: "Sunlight"' in text

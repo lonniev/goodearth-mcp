@@ -44,7 +44,7 @@ DEFAULT_RADIUS_M = 800.0
 MAX_SAMPLES = 64
 
 # Latitude is ~111.32 km per degree everywhere; longitude shrinks by cos(lat).
-_M_PER_DEG_LAT = 111_320.0
+M_PER_DEG_LAT = 111_320.0
 
 MAX_RADIUS_M = 50_000.0
 
@@ -111,9 +111,9 @@ def _check_lon(lon: float) -> None:
         raise RegionError(f"longitude must be between -180 and 180, got {lon}")
 
 
-def _m_per_deg_lon(lat: float) -> float:
+def m_per_deg_lon(lat: float) -> float:
     """Metres per degree of longitude at ``lat``. Floors near the poles."""
-    return max(_M_PER_DEG_LAT * math.cos(math.radians(lat)), 1.0)
+    return max(M_PER_DEG_LAT * math.cos(math.radians(lat)), 1.0)
 
 
 # ── Polygon geometry ─────────────────────────────────────────────────────
@@ -175,12 +175,12 @@ def _ring_area_km2(ring: list[tuple[float, float]]) -> float:
     if len(ring) < 3:
         return 0.0
     mean_lat = sum(p[0] for p in ring) / len(ring)
-    mx = _m_per_deg_lon(mean_lat)
+    mx = m_per_deg_lon(mean_lat)
     acc = 0.0
     for i in range(len(ring)):
         lat_i, lon_i = ring[i]
         lat_j, lon_j = ring[(i + 1) % len(ring)]
-        acc += (lon_i * mx) * (lat_j * _M_PER_DEG_LAT) - (lon_j * mx) * (lat_i * _M_PER_DEG_LAT)
+        acc += (lon_i * mx) * (lat_j * M_PER_DEG_LAT) - (lon_j * mx) * (lat_i * M_PER_DEG_LAT)
     return abs(acc) / 2.0 / 1_000_000.0
 
 
@@ -212,8 +212,8 @@ def _grid(
 ) -> list[SamplePoint]:
     """Lay a lat/lon grid over the bbox, keeping points ``keep`` accepts."""
     mid_lat = (min_lat + max_lat) / 2.0
-    d_lat = spacing_m / _M_PER_DEG_LAT
-    d_lon = spacing_m / _m_per_deg_lon(mid_lat)
+    d_lat = spacing_m / M_PER_DEG_LAT
+    d_lon = spacing_m / m_per_deg_lon(mid_lat)
 
     pts: list[SamplePoint] = []
     steps_lat = max(int((max_lat - min_lat) / d_lat), 0)
@@ -266,6 +266,32 @@ def parse_region(region: Any) -> Region:
     return _polygon_region(region)
 
 
+#: Sides of the polygon a pin-and-radius block is traced as.
+CIRCLE_SIDES = 36
+
+
+def ring_of(region: Any) -> list[tuple[float, float]]:
+    """The block's outline as (lat, lon) pairs, whichever way it was saved.
+
+    A polygon gives its outer ring; a pin gives a 36-gon of its radius. For
+    the tools that rasterise a block rather than sample it, the two are the
+    same question.
+    """
+    parsed = parse_region(region)  # validates both shapes the same way
+    if parsed.kind == "polygon":
+        return _ring_from_geojson(region)
+    lat, lon = parsed.centroid.lat, parsed.centroid.lon
+    radius_m = float(region.get("radius_m", DEFAULT_RADIUS_M))
+    mx = m_per_deg_lon(lat)
+    return [
+        (
+            lat + radius_m * math.cos(2 * math.pi * i / CIRCLE_SIDES) / M_PER_DEG_LAT,
+            lon + radius_m * math.sin(2 * math.pi * i / CIRCLE_SIDES) / mx,
+        )
+        for i in range(CIRCLE_SIDES)
+    ]
+
+
 def _circle_region(region: dict[str, Any]) -> Region:
     try:
         lat = float(region["lat"])
@@ -284,15 +310,15 @@ def _circle_region(region: dict[str, Any]) -> Region:
             "draw a polygon for anything larger than a single farm"
         )
 
-    d_lat = radius_m / _M_PER_DEG_LAT
-    d_lon = radius_m / _m_per_deg_lon(lat)
+    d_lat = radius_m / M_PER_DEG_LAT
+    d_lon = radius_m / m_per_deg_lon(lat)
     bbox = (lat - d_lat, lon - d_lon, lat + d_lat, lon + d_lon)
     area_km2 = math.pi * (radius_m / 1000.0) ** 2
 
-    mx = _m_per_deg_lon(lat)
+    mx = m_per_deg_lon(lat)
 
     def inside(plat: float, plon: float) -> bool:
-        dy = (plat - lat) * _M_PER_DEG_LAT
+        dy = (plat - lat) * M_PER_DEG_LAT
         dx = (plon - lon) * mx
         return math.hypot(dx, dy) <= radius_m
 
@@ -364,8 +390,8 @@ def cluster_to_grid(points: tuple[SamplePoint, ...], cell_m: float) -> tuple[lis
         return [], []
 
     mid_lat = sum(p.lat for p in points) / len(points)
-    d_lat = cell_m / _M_PER_DEG_LAT
-    d_lon = cell_m / _m_per_deg_lon(mid_lat)
+    d_lat = cell_m / M_PER_DEG_LAT
+    d_lon = cell_m / m_per_deg_lon(mid_lat)
 
     centres: list[SamplePoint] = []
     index: dict[tuple[int, int], int] = {}
