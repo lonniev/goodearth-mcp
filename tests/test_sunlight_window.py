@@ -85,7 +85,12 @@ def stubbed(monkeypatch):
     monkeypatch.setattr(record_cache, "remembered", remembered)
     monkeypatch.setattr(record_cache, "remember", remember)
     monkeypatch.setattr(record_cache, "normals_history", normals)
+    async def zone(lat, lon):
+        calls["zone"] = calls.get("zone", 0) + 1
+        return "America/New_York"
+
     monkeypatch.setattr(sources, "fetch_radiation_year", radiation)
+    monkeypatch.setattr(sources, "fetch_time_zone", zone)
     sunlight_window._memo.clear()
     yield calls, store
     sunlight_window._memo.clear()
@@ -269,3 +274,55 @@ def test_horizon_subject_names_the_outline_and_the_sources():
     moved = [(lat + 1e-4, lon) for lat, lon in ring]
     assert sunlight_window.horizon_subject(ring) == sunlight_window.horizon_subject(same)
     assert sunlight_window.horizon_subject(ring) != sunlight_window.horizon_subject(moved)
+
+
+# ── field reports ────────────────────────────────────────────────────────────
+
+NORTH_SPOT = "44.00038,-71.99975"  # the block's north edge: 60 m from the tree line, in full sun
+
+
+def _sun_report(light, **over):
+    return {"kind": "sunlight", "observed_on": "2026-06-14", "from": "10:00", "to": "14:00",
+            "light": light, "lat": 44.00038, "lon": -71.99975, "ref": "r1", **over}
+
+
+async def test_three_agreeing_shade_reports_change_a_spots_hours(stubbed):
+    clean = await _call(point=NORTH_SPOT)
+    june_before = clean["point"]["hours_by_month"][5]
+    assert clean["calibration"] is None and june_before > 10.0
+
+    r = await _call(point=NORTH_SPOT, reports=[_sun_report("shade") for _ in range(3)])
+    acct = r["calibration"]
+    assert acct["reports"] == 3 and acct["used"] == 3 and acct["cells_corrected"] >= 1
+    assert r["point"]["hours_by_month"][5] <= june_before - 3.0
+    assert "cells corrected" in r["note"]
+    assert acct["clock"] == "America/New_York" and "whole-hour zone" not in r["note"]
+    # The remembered horizon is the imagery's, not the reports': a retracted report retracts.
+    again = await _call(point=NORTH_SPOT)
+    assert again["point"]["hours_by_month"][5] == june_before
+    # The zone is a fact about the place: fetched once, remembered, never asked without reports.
+    calls, store = stubbed
+    assert calls["zone"] == 1 and any(k.startswith("sun_zone|") for k in store)
+
+
+async def test_without_a_zone_the_clock_is_assumed_from_longitude_and_said(stubbed, monkeypatch):
+    async def down(lat, lon):
+        raise sources.UpstreamError("forecast feed down")
+
+    monkeypatch.setattr(sources, "fetch_time_zone", down)
+    r = await _call(point=NORTH_SPOT, reports=[_sun_report("shade") for _ in range(3)])
+    assert r["calibration"]["clock"] == "assumed from longitude"
+    assert r["calibration"]["cells_corrected"] >= 1 and "whole-hour zone" in r["note"]
+
+
+async def test_frost_reports_are_passed_over_and_a_bad_sunlight_report_is_named(stubbed):
+    reports = [
+        {"kind": "frost", "observed_on": "2025-10-02", "ref": "f1"},
+        _sun_report("sun", ref="ok"),
+        _sun_report("sun", ref="bad", to="08:00"),
+    ]
+    r = await _call(reports=reports)
+    acct = r["calibration"]
+    assert acct["reports"] == 1 and acct["cells_corrected"] == 0
+    assert acct["skipped"] == [{"ref": "bad", "reason": '"to" must come after "from" on the same day'}]
+    assert "none moves the horizon yet" in r["note"]

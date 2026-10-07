@@ -127,3 +127,24 @@ async def test_a_january_cut_is_measured_from_its_october_set_out(monkeypatch):
     )
     measured = _find(out, "observed_gdd")
     assert measured and measured[0] >= 990, f"measured {measured} — counted from Jan 1?"
+
+
+async def test_sunlight_reports_are_counted_here_and_judged_by_the_sunlight_tool(monkeypatch):
+    """A block whose only reports are about light still answers, with a pointer."""
+    async def fake(lats, lons, start, end):
+        s, e = date.fromisoformat(start), date.fromisoformat(end)
+        days = [s + timedelta(days=i) for i in range((e - s).days + 1)]
+        return [{"elevation": 100.0, "daily": {
+            "time": [d.isoformat() for d in days],
+            "temperature_2m_max": [70.0] * len(days), "temperature_2m_min": [50.0] * len(days),
+        }}]
+
+    monkeypatch.setattr(record_cache, "daily_history", fake)
+    out = await calibrate.region_calibration(
+        parse_region({"lat": 44.48, "lon": -73.21, "radius_m": 500}),
+        [{"kind": "sunlight", "observed_on": "2026-06-14", "from": "09:00", "to": "14:00",
+          "light": "sun", "lat": 44.48, "lon": -73.21}],
+        50.0, today=date(2026, 7, 1),
+    )
+    assert out["success"] and out["observations_used"] == 0 and out["skipped"] == []
+    assert out["sunlight_reports"]["count"] == 1 and "goodearth_sunlight" in out["sunlight_reports"]["read_by"]

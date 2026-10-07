@@ -879,6 +879,24 @@ async def fetch_almanac_forecast(lat: float, lon: float, days: int = 14) -> dict
     return results[0]
 
 
+async def fetch_time_zone(lat: float, lon: float) -> str:
+    """The IANA zone a place keeps its clock in, e.g. ``America/New_York``.
+
+    The smallest forecast request there is, asked only for the zone the feed
+    resolves with ``timezone=auto``; Daymet, which serves North American
+    normals, names none. A zone is a fact about a place, so callers remember it.
+    """
+    payload = await _get(
+        _FORECAST,
+        {"latitude": lat, "longitude": lon, "daily": "sunrise", "forecast_days": 1, "timezone": "auto"},
+    )
+    results = _as_list(payload)
+    zone = str((results[0] if results else {}).get("timezone") or "").strip()
+    if not zone or zone.upper() == "GMT" and abs(lon) > 7.5:
+        raise UpstreamError("the forecast feed named no time zone")
+    return zone
+
+
 async def fetch_almanac_history(lat: float, lon: float, start: str, end: str) -> dict[str, Any]:
     """The same measures from the record, for actuals and for normals."""
     payload, name, res = await _history_any_feed({

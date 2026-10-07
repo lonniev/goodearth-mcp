@@ -26,11 +26,19 @@ Two kinds of observation, two kinds of bias:
 Both are reported separately and never merged, because they correct different
 things and a grower is entitled to see which one their ground is doing.
 
+A third kind corrects a different model: **a spot seen in sun, or in shade,
+between two clock times on a day** yields a bound on that spot's horizon in
+the azimuths the sun crossed — the tree cut or planted since the canopy
+imagery was taken. ``sunlight_reports`` turns those into the correction;
+this module only checks that a report is one.
+
 Pure domain logic. No billing, no npubs, no MCP.
 """
 
 from __future__ import annotations
 
+import math
+import re
 import statistics
 from datetime import date
 from typing import Any
@@ -46,11 +54,26 @@ MIN_FOR_CORRECTION = 3
 MAX_HEAT_BIAS = 0.35     # ±35% on accumulated GDD
 MAX_DAY_BIAS = 30        # ±30 days on a frost date
 
-OBSERVATION_KINDS = {"frost", "stage"}
+OBSERVATION_KINDS = {"frost", "stage", "sunlight"}
+
+#: What a sunlight report says the spot was in.
+SUN_REPORT_LIGHTS = ("sun", "shade")
+_CLOCK = re.compile(r"^\s*(\d{1,2})(?::(\d{2}))?\s*$")
 
 
 class CalibrationError(ValueError):
     """An observation cannot be used as described."""
+
+
+def clock_minutes(raw: Any, field: str) -> int:
+    """``"HH:MM"`` on a 24-hour clock → minutes after local midnight."""
+    m = _CLOCK.match(str(raw or ""))
+    if not m:
+        raise CalibrationError(f'{field} must be a 24-hour clock time like "09:00" or "14:30", got {raw!r}')
+    hour, minute = int(m.group(1)), int(m.group(2) or 0)
+    if hour > 23 or minute > 59:
+        raise CalibrationError(f"{field}: {raw!r} is not a time of day")
+    return hour * 60 + minute
 
 
 def validate_observation(obs: Any) -> dict[str, Any]:
@@ -96,6 +119,26 @@ def validate_observation(obs: Any) -> dict[str, Any]:
             raise CalibrationError(f"{crop}: it cannot have been observed before it was set out")
         out.update({"crop": crop, "gdd_target": target, "set_out": set_out,
                     "stage": str(obs.get("stage") or "stage").strip()[:80]})
+
+    if kind == "sunlight":
+        # "This bed was in direct sun from 9 to 2 on the 14th of June" — the
+        # spot, the day, the clock hours, and which of sun or shade it was in.
+        light = str(obs.get("light") or "").strip().lower()
+        if light not in SUN_REPORT_LIGHTS:
+            raise CalibrationError(
+                f'a sunlight report says what the spot was in: "light" is one of {", ".join(SUN_REPORT_LIGHTS)}'
+            )
+        try:
+            lat, lon = float(obs["lat"]), float(obs["lon"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise CalibrationError("a sunlight report needs the spot it is about, as lat and lon") from exc
+        if math.isnan(lat) or math.isnan(lon) or not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
+            raise CalibrationError(f"lat {lat!r}, lon {lon!r} is not a place on earth")
+        start = clock_minutes(obs.get("from"), "from")
+        end = clock_minutes(obs.get("to"), "to")
+        if end <= start:
+            raise CalibrationError('"to" must come after "from" on the same day')
+        out.update({"light": light, "lat": lat, "lon": lon, "from": start, "to": end})
 
     return out
 

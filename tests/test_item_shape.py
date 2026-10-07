@@ -64,3 +64,22 @@ def test_other_kinds_are_left_alone(kind):
     """Narrow on purpose. `events` means something specific to wildlife, and a
     blanket refusal would reject a field another kind may legitimately grow."""
     bs.check_item_shape(kind, {"crop": "Winter wheat", "events": ["anything"]})
+
+
+SUN_REPORT = {
+    "kind": "sunlight", "observed_on": "2026-06-14", "from": "09:00", "to": "14:00",
+    "light": "sun", "lat": 44.26, "lon": -72.58,
+}
+
+
+def test_a_sunlight_report_is_checked_at_the_write():
+    bs.check_item_shape("observation", SUN_REPORT)
+    with pytest.raises(bs.BlockError, match='sunlight report: "to" must come after "from"'):
+        bs.check_item_shape("observation", {**SUN_REPORT, "to": "08:00"})
+    with pytest.raises(bs.BlockError, match="light"):
+        bs.check_item_shape("observation", {**SUN_REPORT, "light": "dappled"})
+
+
+def test_other_observation_kinds_are_not_shape_checked_here():
+    bs.check_item_shape("observation", {"kind": "frost", "observed_on": "2025-10-02"})
+    bs.check_item_shape("observation", {"kind": "bloom", "note": "a free note"})

@@ -26,8 +26,8 @@ from typing import Any
 
 import numpy as np
 
+from goodearth_mcp import calibration, rasters, record_cache, solar, sources, sunlight, sunlight_reports, sunpath
 from goodearth_mcp import horizon as hz
-from goodearth_mcp import rasters, record_cache, solar, sources, sunlight, sunpath
 from goodearth_mcp.region import M_PER_DEG_LAT, Region, m_per_deg_lon
 
 logger = logging.getLogger(__name__)
@@ -241,9 +241,14 @@ async def region_sunlight(
     panel_azimuth_deg: float | None = None,
     point: str | None = None,
     detail: str = "summary",
+    reports: list[dict[str, Any]] | None = None,
     today: date | None = None,
 ) -> dict[str, Any]:
     """Hours of direct sun per day across a block, and what a fixed panel would yield there.
+
+    ``reports`` are the block's stored observations; the sunlight ones
+    correct the horizon where enough of them agree (``sunlight_reports``),
+    the rest belong to ``calibration`` and are passed over here.
 
     ``point`` ("lat,lon" inside the block) adds that spot's card: its horizon,
     sun paths, monthly hours and solar figures. ``detail="grid"`` adds every
@@ -267,8 +272,10 @@ async def region_sunlight(
         date(today.year - NORMALS_SPAN_YEARS, 1, 1).isoformat(),
         date(today.year - 1, 12, 31).isoformat(),
     )
-    rec, normals, clim = await asyncio.gather(
+    sun_reports, skipped_reports = _sun_reports(reports)
+    rec, normals, clim, zone = await asyncio.gather(
         _horizon_for(grid, subject), normals_task, _climatology_for(grid.lat0, grid.lon0, today),
+        _zone_for(grid.lat0, grid.lon0) if sun_reports else asyncio.sleep(0),
         return_exceptions=True,
     )
     if isinstance(clim, BaseException):
@@ -287,6 +294,9 @@ async def region_sunlight(
             leaf_on = None
     leaf_months = leaf_on if leaf_on is not None else list(range(1, 13))
 
+    tz_name = zone if isinstance(zone, str) else None
+    tz, tz_known = sunlight_reports.local_tz(tz_name, grid.lon0)
+
     tilt = solar.default_tilt(grid.lat0) if tilt is None else tilt
     azimuth = solar.default_azimuth(grid.lat0) if azimuth is None else azimuth
     cell = None
@@ -298,30 +308,35 @@ async def region_sunlight(
     all_year = list(range(1, 13))
     want_in_leaf = detail == "grid" and leaf_months != all_year
 
-    def compute() -> tuple[np.ndarray, np.ndarray, dict[str, Any] | None, dict[str, np.ndarray]]:
+    def compute() -> tuple[np.ndarray, np.ndarray, dict[str, Any] | None, dict[str, np.ndarray], hz.Horizon, dict[str, Any] | None]:
+        horizon, account = rec.horizon, None
+        if sun_reports or skipped_reports:
+            horizon, account = sunlight_reports.apply(rec.horizon, grid, sun_reports, tz)
+            account["skipped"] = skipped_reports
+            account["clock"] = tz_name if tz_known else "assumed from longitude"
         days = sunpath.representative_days(today.year)
         elev, az = sunpath.sun_position(grid.lat0, grid.lon0, days)
-        hours = sunlight.direct_hours(rec.horizon, elev, az, leaf_months)
+        hours = sunlight.direct_hours(horizon, elev, az, leaf_months)
         panel = None
         # The map's leaf chip shows the same month as if every tree were in
         # leaf — the grid carries that second reading so a tap needs no call.
         in_leaf: dict[str, np.ndarray] = {}
         if want_in_leaf:
-            in_leaf["hours"] = sunlight.direct_hours(rec.horizon, elev, az, all_year)
+            in_leaf["hours"] = sunlight.direct_hours(horizon, elev, az, all_year)
         if clim is not None:
             mean, years = clim
             e_h, a_h = sunpath.sun_position(grid.lat0, grid.lon0, days, sunpath.HOURS_MID)
             open_sky = solar.poa_monthly(None, mean, e_h, a_h, tilt, azimuth, leaf_months, today.year)
-            shaded = solar.poa_monthly(rec.horizon, mean, e_h, a_h, tilt, azimuth, leaf_months, today.year)
+            shaded = solar.poa_monthly(horizon, mean, e_h, a_h, tilt, azimuth, leaf_months, today.year)
             panel = {**solar.yields(open_sky, shaded), "years": years, "shaded_monthly": shaded}
             if want_in_leaf:
                 open_full = solar.poa_monthly(None, mean, e_h, a_h, tilt, azimuth, all_year, today.year)
-                shaded_full = solar.poa_monthly(rec.horizon, mean, e_h, a_h, tilt, azimuth, all_year, today.year)
+                shaded_full = solar.poa_monthly(horizon, mean, e_h, a_h, tilt, azimuth, all_year, today.year)
                 full = solar.yields(open_full, shaded_full)
                 in_leaf["kwh"], in_leaf["access"] = full["kwh_per_kwp"], full["solar_access"]
-        return hours, sunlight.open_sky_hours(elev), panel, in_leaf
+        return hours, sunlight.open_sky_hours(elev), panel, in_leaf, horizon, account
 
-    hours, open_sky, panel, in_leaf = await asyncio.to_thread(compute)
+    hours, open_sky, panel, in_leaf, horizon, account = await asyncio.to_thread(compute)
     months = [month] if month else list(range(1, 13))
     readings = [sunlight.month_summary(hours[:, m - 1], grid, m, m in leaf_months) for m in months]
 
@@ -342,12 +357,13 @@ async def region_sunlight(
             },
         },
         "solar": _solar_block(panel, grid, tilt, azimuth),
-        **({"point": _point_card(cell, spot, grid, rec.horizon, hours, panel, leaf_months, today)} if cell is not None else {}),
-        **({"grid": _grid_block(grid, rec.horizon, hours, panel, in_leaf)} if detail == "grid" else {}),
+        **({"point": _point_card(cell, spot, grid, horizon, hours, panel, leaf_months, today)} if cell is not None else {}),
+        **({"grid": _grid_block(grid, horizon, hours, panel, in_leaf)} if detail == "grid" else {}),
+        "calibration": account,
         **({"sun_paths": _sun_paths(grid, today)} if detail == "grid" or cell is not None else {}),
         "horizon": "computed" if rec.computed_now else "cached",
         "azimuth_convention": "degrees clockwise from north; 90 is east, 180 is south",
-        "note": _note(rec, leaf_on, panel is not None),
+        "note": _note(rec, leaf_on, panel is not None, account),
         "sources": _sources(rec, normals, panel),
     }
 
@@ -385,7 +401,32 @@ def _solar_block(panel: dict[str, Any] | None, grid: hz.Grid, tilt: float, azimu
     }
 
 
-def _note(rec: HorizonRecord, leaf_on: list[int] | None, solar_given: bool) -> str:
+async def _zone_for(lat: float, lon: float) -> str:
+    """The block's clock zone, remembered per 0.01° — a place does not move zones."""
+    subject = f"{lat:.2f},{lon:.2f}"
+    row = await record_cache.remembered("sun_zone", subject)
+    if isinstance(row, dict) and isinstance(row.get("zone"), str):
+        return row["zone"]
+    zone = await sources.fetch_time_zone(lat, lon)
+    await record_cache.remember("sun_zone", subject, {"zone": zone})
+    return zone
+
+
+def _sun_reports(reports: list[dict[str, Any]] | None) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """The block's sunlight reports, checked; frost and stage reports are calibration's, not ours."""
+    kept: list[dict[str, Any]] = []
+    skipped: list[dict[str, Any]] = []
+    for row in reports or ():
+        if not isinstance(row, dict) or str(row.get("kind") or "").strip().lower() != "sunlight":
+            continue
+        try:
+            kept.append(calibration.validate_observation(row))
+        except calibration.CalibrationError as exc:
+            skipped.append({"ref": row.get("ref"), "reason": str(exc)})
+    return kept, skipped
+
+
+def _note(rec: HorizonRecord, leaf_on: list[int] | None, solar_given: bool, account: dict[str, Any] | None) -> str:
     parts = [
         ("Direct sun is counted in ten-minute steps on the 15th of each month, wherever the sun stands "
         "above this cell's horizon of ground and trees. The classes are the nursery-label definitions: "
@@ -414,6 +455,23 @@ def _note(rec: HorizonRecord, leaf_on: list[int] | None, solar_given: bool) -> s
         parts.append("The terrain model could not be read, so the ground is taken as level and no hill shades this block.")
     if not rec.land_cover_read:
         parts.append("The land cover map could not be read, so every tree is taken as evergreen — bare-season light is understated.")
+    if account:
+        if account["cells_corrected"]:
+            parts.append(
+                f"This block's own sunlight reports move its horizon: {account['cells_corrected']} cells corrected "
+                f"from {account['used']} reports. A sun report lowers the sky line where the sun was seen, a shade "
+                "report raises the tree line; each only where "
+                f"{calibration.MIN_FOR_CORRECTION} reports agree. The canopy imagery itself is unchanged."
+            )
+        elif account["reports"]:
+            parts.append(
+                f"This block has {account['reports']} sunlight report{'s' if account['reports'] != 1 else ''}; "
+                f"none moves the horizon yet — {calibration.MIN_FOR_CORRECTION} must agree on a spot, its hours and its light."
+            )
+        else:
+            parts.append("This block's sunlight reports could not be read as reports; `calibration.skipped` says why.")
+        if account.get("clock") == "assumed from longitude":
+            parts.append("The block's time zone could not be read, so report clock times are taken on a whole-hour zone from its longitude.")
     return " ".join(parts)
 
 
