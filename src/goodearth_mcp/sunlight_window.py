@@ -25,7 +25,7 @@ from typing import Any
 import numpy as np
 
 from goodearth_mcp import horizon as hz
-from goodearth_mcp import rasters, record_cache, sources, sunlight, sunpath
+from goodearth_mcp import rasters, record_cache, solar, sources, sunlight, sunpath
 from goodearth_mcp.region import M_PER_DEG_LAT, Region, m_per_deg_lon
 
 logger = logging.getLogger(__name__)
@@ -38,6 +38,9 @@ _MEMO_SIZE = 16
 _memo: dict[str, HorizonRecord] = {}
 
 CACHE_KIND = "sun_horizon"
+CLIMATOLOGY_KIND = "sun_climatology"
+#: Yearly radiation requests in flight at once for one block.
+_RADIATION_FANOUT = asyncio.Semaphore(5)
 
 
 class SunlightError(ValueError):
@@ -147,6 +150,45 @@ def _hold(subject: str, rec: HorizonRecord) -> None:
     _memo[subject] = rec
 
 
+# ── Radiation climatology ────────────────────────────────────────────────
+
+
+def climatology_subject(lat: float, lon: float, first_year: int, last_year: int) -> str:
+    """One typical year per 0.1° cell — the archive's own resolution is 9 km."""
+    return f"{round(lat, 1):.1f}/{round(lon, 1):.1f}/{first_year}-{last_year}"
+
+
+async def _climatology_for(lat: float, lon: float, today: date) -> tuple[np.ndarray, int] | None:
+    """Mean W/m² by month and hour, and the years behind it — None when too few answered."""
+    last, first = today.year - 1, today.year - solar.CLIMATOLOGY_YEARS
+    subject = climatology_subject(lat, lon, first, last)
+    row = await record_cache.remembered(CLIMATOLOGY_KIND, subject)
+    if isinstance(row, dict) and "mean" in row:
+        try:
+            return np.asarray(row["mean"], dtype=np.float32).reshape(12, 24, 3), int(row.get("years") or 0)
+        except (ValueError, TypeError):
+            pass
+
+    async def one(year: int) -> tuple[np.ndarray, np.ndarray] | None:
+        async with _RADIATION_FANOUT:
+            try:
+                record = await sources.fetch_radiation_year(lat, lon, year)
+            except sources.UpstreamError as exc:
+                logger.info("sunlight: radiation for %d unavailable (%s)", year, exc)
+                return None
+        return solar.reduce_year(record["hourly"])
+
+    parts = [p for p in await asyncio.gather(*(one(y) for y in range(first, last + 1))) if p is not None]
+    years = sum(1 for p in parts if p[1].sum() > 0)
+    if years < solar.MIN_CLIMATOLOGY_YEARS:
+        return None
+    mean = solar.climatology(parts)
+    await record_cache.remember(CLIMATOLOGY_KIND, subject, {
+        "mean": np.round(mean, 1).tolist(), "years": years,
+    })
+    return mean, years
+
+
 # ── The answer ───────────────────────────────────────────────────────────
 
 
@@ -158,16 +200,30 @@ def _check_month(month: int | None) -> int | None:
     return month
 
 
+def _check_angle(value: float | None, name: str, low: float, high: float) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not np.isfinite(value):
+        raise SunlightError(f"{name} must be a number of degrees")
+    if not low <= value <= high:
+        raise SunlightError(f"{name} must be between {low:g} and {high:g} degrees")
+    return float(value)
+
+
 async def region_sunlight(
     region: Region,
     ring: list[tuple[float, float]],
     *,
     month: int | None = None,
+    panel_tilt_deg: float | None = None,
+    panel_azimuth_deg: float | None = None,
     today: date | None = None,
 ) -> dict[str, Any]:
-    """Hours of direct sun per day across a block, for one month or all twelve."""
+    """Hours of direct sun per day across a block, and what a fixed panel would yield there."""
     today = today or datetime.now(UTC).date()
     month = _check_month(month)
+    tilt = _check_angle(panel_tilt_deg, "panel_tilt_deg", 0.0, 90.0)
+    azimuth = _check_angle(panel_azimuth_deg, "panel_azimuth_deg", 0.0, 360.0)
     try:
         grid = hz.build_grid(ring)
     except hz.HorizonError as exc:
@@ -179,7 +235,13 @@ async def region_sunlight(
         date(today.year - NORMALS_SPAN_YEARS, 1, 1).isoformat(),
         date(today.year - 1, 12, 31).isoformat(),
     )
-    rec, normals = await asyncio.gather(_horizon_for(grid, subject), normals_task, return_exceptions=True)
+    rec, normals, clim = await asyncio.gather(
+        _horizon_for(grid, subject), normals_task, _climatology_for(grid.lat0, grid.lon0, today),
+        return_exceptions=True,
+    )
+    if isinstance(clim, BaseException):
+        logger.warning("sunlight: climatology failed (%s) — no solar figure", clim)
+        clim = None
     if isinstance(rec, rasters.RasterError):
         raise sources.UpstreamError(f"the canopy map did not answer: {rec}") from rec
     if isinstance(rec, BaseException):
@@ -193,11 +255,23 @@ async def region_sunlight(
             leaf_on = None
     leaf_months = leaf_on if leaf_on is not None else list(range(1, 13))
 
-    def compute() -> tuple[np.ndarray, np.ndarray]:
-        elev, az = sunpath.sun_position(grid.lat0, grid.lon0, sunpath.representative_days(today.year))
-        return sunlight.direct_hours(rec.horizon, elev, az, leaf_months), sunlight.open_sky_hours(elev)
+    tilt = solar.default_tilt(grid.lat0) if tilt is None else tilt
+    azimuth = solar.default_azimuth(grid.lat0) if azimuth is None else azimuth
 
-    hours, open_sky = await asyncio.to_thread(compute)
+    def compute() -> tuple[np.ndarray, np.ndarray, dict[str, Any] | None]:
+        days = sunpath.representative_days(today.year)
+        elev, az = sunpath.sun_position(grid.lat0, grid.lon0, days)
+        hours = sunlight.direct_hours(rec.horizon, elev, az, leaf_months)
+        panel = None
+        if clim is not None:
+            mean, years = clim
+            e_h, a_h = sunpath.sun_position(grid.lat0, grid.lon0, days, sunpath.HOURS_MID)
+            open_sky = solar.poa_monthly(None, mean, e_h, a_h, tilt, azimuth, leaf_months, today.year)
+            shaded = solar.poa_monthly(rec.horizon, mean, e_h, a_h, tilt, azimuth, leaf_months, today.year)
+            panel = {**solar.yields(open_sky, shaded), "years": years, "shaded_monthly": shaded}
+        return hours, sunlight.open_sky_hours(elev), panel
+
+    hours, open_sky, panel = await asyncio.to_thread(compute)
     months = [month] if month else list(range(1, 13))
     readings = [sunlight.month_summary(hours[:, m - 1], grid, m, m in leaf_months) for m in months]
 
@@ -217,14 +291,48 @@ async def region_sunlight(
                 "full_shade": f"under {sunlight.PART_SHADE_H:g} hours",
             },
         },
+        "solar": _solar_block(panel, grid, tilt, azimuth),
         "horizon": "computed" if rec.computed_now else "cached",
         "azimuth_convention": "degrees clockwise from north; 90 is east, 180 is south",
-        "note": _note(rec, leaf_on),
-        "sources": _sources(rec, normals),
+        "note": _note(rec, leaf_on, panel is not None),
+        "sources": _sources(rec, normals, panel),
     }
 
 
-def _note(rec: HorizonRecord, leaf_on: list[int] | None) -> str:
+def _solar_block(panel: dict[str, Any] | None, grid: hz.Grid, tilt: float, azimuth: float) -> dict[str, Any] | None:
+    if panel is None:
+        return None
+    kwh = panel["kwh_per_kwp"]
+    access = panel["solar_access"]
+    best = int(kwh.argmax())
+    lat, lon = grid.latlon()
+    return {
+        "panel": {"tilt_deg": tilt, "azimuth_deg": azimuth, "fixed": True},
+        "open_sky_kwh_per_kwp_year": panel["open_sky_kwh_per_kwp"],
+        "kwh_per_kwp_year": {
+            "median": round(float(np.median(kwh)), 0),
+            "p10": round(float(np.percentile(kwh, 10)), 0),
+            "p90": round(float(np.percentile(kwh, 90)), 0),
+        },
+        "solar_access_pct": {
+            "median": round(float(np.median(access)) * 100, 1),
+            "p10": round(float(np.percentile(access, 10)) * 100, 1),
+            "p90": round(float(np.percentile(access, 90)) * 100, 1),
+        },
+        "monthly_open_sky_kwh_per_kwp": panel["monthly_open_kwh_per_kwp"],
+        "best_point": {
+            "lat": round(float(lat[best]), 6), "lon": round(float(lon[best]), 6),
+            "kwh_per_kwp_year": round(float(kwh[best]), 0),
+            "solar_access_pct": round(float(access[best]) * 100, 1),
+            "monthly_kwh_per_kwp": [round(float(v) * solar.PERFORMANCE_RATIO, 1) for v in panel["shaded_monthly"][best]],
+        },
+        "performance_ratio": solar.PERFORMANCE_RATIO,
+        "radiation_years": panel["years"],
+        "estimate": "screening estimate, not a site survey",
+    }
+
+
+def _note(rec: HorizonRecord, leaf_on: list[int] | None, solar_given: bool) -> str:
     parts = [
         ("Direct sun is counted in ten-minute steps on the 15th of each month, wherever the sun stands "
         "above this cell's horizon of ground and trees. The classes are the nursery-label definitions: "
@@ -238,6 +346,15 @@ def _note(rec: HorizonRecord, leaf_on: list[int] | None) -> str:
         f"evergreens none; a month is in leaf when its mean temperature reaches {sunlight.LEAF_ON_MEAN_F:g} °F "
         f"in the {NORMALS_SPAN_YEARS}-year normals."),
     ]
+    if solar_given:
+        parts.append(
+            f"Solar figures are a screening estimate, not a site survey: a typical year averaged from "
+            f"{solar.CLIMATOLOGY_YEARS} years of the ERA5 archive, put on the panel with the isotropic sky "
+            f"model, and a performance ratio of {solar.PERFORMANCE_RATIO:.2f} from plane of array to AC. "
+            "Solar access is the shaded yield as a share of the open-sky yield."
+        )
+    else:
+        parts.append("The radiation archive could not be read, so there is no solar figure this time.")
     if leaf_on is None:
         parts.append("The normals could not be read, so every month is taken as in leaf.")
     if not rec.terrain_read:
@@ -247,7 +364,7 @@ def _note(rec: HorizonRecord, leaf_on: list[int] | None) -> str:
     return " ".join(parts)
 
 
-def _sources(rec: HorizonRecord, normals: Any) -> list[dict[str, Any]]:
+def _sources(rec: HorizonRecord, normals: Any, panel: dict[str, Any] | None) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = [
         {
             "name": "Meta/WRI canopy height map",
@@ -276,7 +393,13 @@ def _sources(rec: HorizonRecord, normals: Any) -> list[dict[str, Any]]:
             "role": f"leaf-on months, {NORMALS_SPAN_YEARS}-year normals",
             **({"as_of": sources.feed_of(records)["as_of"]} if "as_of" in sources.feed_of(records) else {}),
         })
-    out.append({"name": "computed", "role": "sun position (NOAA) and horizon cast", "resolution_m": 0})
+    if panel is not None:
+        out.append({
+            "name": "Open-Meteo archive (ERA5)",
+            "role": f"hourly radiation, {panel['years']} years averaged",
+            "resolution_m": sources.RADIATION_RESOLUTION_M,
+        })
+    out.append({"name": "computed", "role": "sun position (NOAA), horizon cast, plane-of-array model", "resolution_m": 0})
     return out
 
 

@@ -2554,13 +2554,21 @@ async def sunlight(
         int | None,
         Field(description="A month, 1–12, or leave it out for all twelve.", ge=1, le=12),
     ] = None,
+    panel_tilt_deg: Annotated[
+        float | None,
+        Field(description="Panel tilt from flat, 0–90. Default: the latitude, no steeper than 40.", ge=0, le=90),
+    ] = None,
+    panel_azimuth_deg: Annotated[
+        float | None,
+        Field(description="Panel facing, degrees clockwise from north (180 = south). Default: toward the equator.", ge=0, le=360),
+    ] = None,
     npub: Annotated[
         str,
         Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
     ] = "",
     dpop_token: str = "",
 ) -> dict[str, Any]:
-    """How many hours of direct sun each part of this ground gets, month by month.
+    """How many hours of direct sun each part of this ground gets, month by month — and what a panel would make.
 
     Rasterises the block at 2–20 m and, from every cell, casts the sky line
     of the ground to 20 km and the trees within 250 m — from the Copernicus
@@ -2575,6 +2583,14 @@ async def sunlight(
     The first call on a block casts its horizon, which takes some seconds;
     later calls read it. The horizon is recast when the block is redrawn.
 
+    `solar` is a screening estimate for a fixed panel array at the given
+    tilt and facing: open-sky and shaded kWh per kW installed per year
+    (median, p10, p90 across the block), solar access (shaded ÷ open-sky,
+    the shade-report figure), the monthly open-sky yield, and the best
+    place for panels with its coordinates. A typical year averaged from ten
+    years of the ERA5 archive, the isotropic sky model, a performance ratio
+    of 0.80. Not a site survey.
+
     Measurements and classes only — the nursery-label definitions — never
     what to plant. Trees cut or grown since the canopy imagery are not seen;
     `sources` gives its date. Buildings are not modelled.
@@ -2582,11 +2598,16 @@ async def sunlight(
     Args:
         block: The ground to answer for — its id, its name, or an alias.
         month: One month (1–12), or all twelve when left out.
+        panel_tilt_deg: Panel tilt from flat; default min(|latitude|, 40).
+        panel_azimuth_deg: Panel facing, clockwise from north; default 180 north of the equator, 0 south of it.
     """
     parsed, found = await _block_region(npub, block)
 
     try:
-        return await sunlight_impl(parsed, ring_of(found.get("geometry") or {}), month=month)
+        return await sunlight_impl(
+            parsed, ring_of(found.get("geometry") or {}),
+            month=month, panel_tilt_deg=panel_tilt_deg, panel_azimuth_deg=panel_azimuth_deg,
+        )
     except (SunlightError, RegionError) as exc:
         return {"success": False, "error": str(exc), "error_code": "invalid_request"}
     except (sources.UpstreamError, OSError) as exc:
