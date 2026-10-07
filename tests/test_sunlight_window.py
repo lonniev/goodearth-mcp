@@ -190,6 +190,13 @@ async def test_grid_fields_decode_to_the_raster_with_nodata_outside(stubbed):
     t = np.frombuffer(zlib.decompress(base64.b64decode(terrain["b64"])), dtype=terrain["dtype"]).reshape(terrain["shape"])
     assert t.shape == (n, 72) and t.max() <= 90
     assert "sun_paths" in r and "bounds" in g
+    # The leaf chip's other reading: identical in leaf-on months, never lower in leaf-off ones.
+    full = g["fields"]["hours_by_month_in_leaf"]
+    for m in range(12):
+        a = np.frombuffer(base64.b64decode(g["fields"]["hours_by_month"][m]["b64"]), dtype=np.uint8)
+        b = np.frombuffer(base64.b64decode(full[m]["b64"]), dtype=np.uint8)
+        assert (a == b).all() if (m + 1) in r["light"]["leaf_on_months"] else (b[kept.ravel()] <= a[kept.ravel()]).all()
+    assert "kwh_per_kwp_year_in_leaf" in g["fields"]
     with pytest.raises(sunlight_window.SunlightError):
         await _call(detail="everything")
 

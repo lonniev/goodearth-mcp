@@ -295,20 +295,33 @@ async def region_sunlight(
         if cell is None:
             raise SunlightError("point is outside this block")
 
-    def compute() -> tuple[np.ndarray, np.ndarray, dict[str, Any] | None]:
+    all_year = list(range(1, 13))
+    want_in_leaf = detail == "grid" and leaf_months != all_year
+
+    def compute() -> tuple[np.ndarray, np.ndarray, dict[str, Any] | None, dict[str, np.ndarray]]:
         days = sunpath.representative_days(today.year)
         elev, az = sunpath.sun_position(grid.lat0, grid.lon0, days)
         hours = sunlight.direct_hours(rec.horizon, elev, az, leaf_months)
         panel = None
+        # The map's leaf chip shows the same month as if every tree were in
+        # leaf — the grid carries that second reading so a tap needs no call.
+        in_leaf: dict[str, np.ndarray] = {}
+        if want_in_leaf:
+            in_leaf["hours"] = sunlight.direct_hours(rec.horizon, elev, az, all_year)
         if clim is not None:
             mean, years = clim
             e_h, a_h = sunpath.sun_position(grid.lat0, grid.lon0, days, sunpath.HOURS_MID)
             open_sky = solar.poa_monthly(None, mean, e_h, a_h, tilt, azimuth, leaf_months, today.year)
             shaded = solar.poa_monthly(rec.horizon, mean, e_h, a_h, tilt, azimuth, leaf_months, today.year)
             panel = {**solar.yields(open_sky, shaded), "years": years, "shaded_monthly": shaded}
-        return hours, sunlight.open_sky_hours(elev), panel
+            if want_in_leaf:
+                open_full = solar.poa_monthly(None, mean, e_h, a_h, tilt, azimuth, all_year, today.year)
+                shaded_full = solar.poa_monthly(rec.horizon, mean, e_h, a_h, tilt, azimuth, all_year, today.year)
+                full = solar.yields(open_full, shaded_full)
+                in_leaf["kwh"], in_leaf["access"] = full["kwh_per_kwp"], full["solar_access"]
+        return hours, sunlight.open_sky_hours(elev), panel, in_leaf
 
-    hours, open_sky, panel = await asyncio.to_thread(compute)
+    hours, open_sky, panel, in_leaf = await asyncio.to_thread(compute)
     months = [month] if month else list(range(1, 13))
     readings = [sunlight.month_summary(hours[:, m - 1], grid, m, m in leaf_months) for m in months]
 
@@ -330,7 +343,7 @@ async def region_sunlight(
         },
         "solar": _solar_block(panel, grid, tilt, azimuth),
         **({"point": _point_card(cell, spot, grid, rec.horizon, hours, panel, leaf_months, today)} if cell is not None else {}),
-        **({"grid": _grid_block(grid, rec.horizon, hours, panel)} if detail == "grid" else {}),
+        **({"grid": _grid_block(grid, rec.horizon, hours, panel, in_leaf)} if detail == "grid" else {}),
         **({"sun_paths": _sun_paths(grid, today)} if detail == "grid" or cell is not None else {}),
         "horizon": "computed" if rec.computed_now else "cached",
         "azimuth_convention": "degrees clockwise from north; 90 is east, 180 is south",
@@ -508,16 +521,23 @@ def _packed(values: np.ndarray, dtype: Any) -> dict[str, Any]:
     }
 
 
-def _grid_block(grid: hz.Grid, horizon: hz.Horizon, hours: np.ndarray, panel: dict[str, Any] | None) -> dict[str, Any]:
+def _grid_block(
+    grid: hz.Grid, horizon: hz.Horizon, hours: np.ndarray, panel: dict[str, Any] | None, in_leaf: dict[str, np.ndarray],
+) -> dict[str, Any]:
     fields: dict[str, Any] = {
         "hours_by_month": [_field(hours[:, m], grid, np.uint8, 0.1, 255) for m in range(12)],
         "horizon_terrain_deg": _packed(np.round(horizon.terrain_deg()), np.uint8),
         "horizon_canopy_deg": _packed(np.round(horizon.canopy_deg()), np.uint8),
         "canopy_kind": _packed(horizon.kind, np.uint8),
     }
+    if "hours" in in_leaf:
+        fields["hours_by_month_in_leaf"] = [_field(in_leaf["hours"][:, m], grid, np.uint8, 0.1, 255) for m in range(12)]
     if panel is not None:
         fields["kwh_per_kwp_year"] = _field(panel["kwh_per_kwp"], grid, np.uint16, 1.0, 65535)
         fields["solar_access_pct"] = _field(panel["solar_access"] * 100.0, grid, np.uint8, 1.0, 255)
+        if "kwh" in in_leaf:
+            fields["kwh_per_kwp_year_in_leaf"] = _field(in_leaf["kwh"], grid, np.uint16, 1.0, 65535)
+            fields["solar_access_pct_in_leaf"] = _field(in_leaf["access"] * 100.0, grid, np.uint8, 1.0, 255)
     return {
         **grid.describe(),
         "crs": "EPSG:4326",
