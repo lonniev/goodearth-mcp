@@ -128,6 +128,7 @@ All free, all public, no API key.
 | Open-Meteo archive (ERA5) | Observed daily max/min | ~9 km |
 | Open-Meteo forecast | 7-day extension | ~11 km |
 | Open-Meteo elevation (SRTM) | Terrain downscaling | ~90 m |
+| iNaturalist taxa | Family and genus of a planting, for Companions | — |
 
 A whole-region season read costs **three** upstream requests regardless of
 sample count: sample points are folded onto the archive's own grid so a
