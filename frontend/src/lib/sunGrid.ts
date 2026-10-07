@@ -7,6 +7,8 @@
 // shares, the best place for panels — is arithmetic over those arrays. Nothing
 // here touches the DOM, so all of it runs under node's test runner.
 
+import { unzlibSync } from "fflate";
+
 export type SunView = "garden" | "solar";
 export type LightClass = "full_sun" | "part_shade" | "full_shade";
 
@@ -85,10 +87,12 @@ function bytes(b64: string): Uint8Array {
   return out;
 }
 
-async function inflate(b64: string): Promise<Uint8Array> {
-  const raw = bytes(b64);
-  const stream = new Blob([raw as BlobPart]).stream().pipeThrough(new DecompressionStream("deflate"));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
+/// zlib → bytes, in plain JS. The browser's DecompressionStream read through
+/// a Response never resolves on iPad Safari (seen live 2026-10-07: the panel
+/// said "Casting the sky…" for minutes after the answer arrived), so the
+/// inflate is fflate's, which owes the browser nothing.
+function inflate(b64: string): Uint8Array {
+  return unzlibSync(bytes(b64));
 }
 
 /// A raster field as float32 over kept cells only, in kept order.
@@ -123,9 +127,9 @@ export async function decodeGrid(wire: WireGrid): Promise<SunGrid> {
   for (let i = 0; i < mask.length; i++) if (mask[i] !== june.nodata) kept[i] = n++;
 
   const hours = months(fields.hours_by_month, kept, n);
-  const [terrain, canopy, kind] = await Promise.all([
-    inflate(fields.horizon_terrain_deg.b64), inflate(fields.horizon_canopy_deg.b64), inflate(fields.canopy_kind.b64),
-  ]);
+  const terrain = inflate(fields.horizon_terrain_deg.b64);
+  const canopy = inflate(fields.horizon_canopy_deg.b64);
+  const kind = inflate(fields.canopy_kind.b64);
   const kwh = fields.kwh_per_kwp_year ? unpack(fields.kwh_per_kwp_year, kept, n) : null;
   const access = fields.solar_access_pct ? unpack(fields.solar_access_pct, kept, n) : null;
   return {
