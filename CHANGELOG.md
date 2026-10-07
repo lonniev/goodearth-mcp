@@ -38,6 +38,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   said so in the answer. Cross-checked by hand against PVGIS 5.2 with the
   same horizon (`scripts/sunlight_pvgis_check.py`): within 1 % in Vermont
   and Germany, 6 % in Canberra, against the brief's 10 %.
+- Sunlight, third cut: the map. `goodearth_sunlight(detail="grid")` packs
+  every cell — hours by month in and out of leaf, kWh/kWp, solar access, and
+  each cell's own horizon — so a map can drape the block and answer a tap
+  without another call; `point="lat,lon"` is one spot's card for an agent.
+  On the Plots page a ☀️ **Sun** pill over the map lays the block's light
+  over it (honey for full sun, indigo for full shade), with a month slider,
+  a leaf chip (🍂 bare trees Nov–Apr / 🌳 full leaf all year) and a switch
+  to the solar view where ◆ marks the best place for panels. A tap inside
+  the block opens that spot's card beside the map: its class, hours today,
+  a sky dome with the ground and tree horizons and the sun's path in June,
+  at the equinox and in December, the twelve months as bars, the panel
+  figure, the month with least light, and the sources. Below the map, the
+  block in one reading: its shares in sun and shade this month, the share in
+  full sun by month, and the best place for panels with a **Show it** that
+  goes there. The grid is held in the page cache like every other answer.
 - A GeoTIFF range reader (`rasters.py`) with no GDAL: the canopy tiles are
   not cloud-optimised (one row per strip), but adjacent strips merge into a
   single range request, so a 500 m window is one 7.6 MB read. Adds `numpy`,
