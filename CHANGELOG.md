@@ -25,6 +25,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   month the canopy imagery was taken. Measurements and classes only, never
   what to plant. Grid, solar yield, the Sun map layer and the spot card
   follow in later cuts.
+- Sunlight, second cut: `solar` in the same answer — what a fixed panel
+  array would make on each part of the block. A typical year is averaged
+  from ten years of the ERA5 archive's hourly radiation (remembered per
+  0.1° cell), put on the panel with the isotropic sky model at the given
+  tilt and facing (defaults: toward the equator, tilted at the latitude up
+  to 40°), with each cell's horizon deciding when the beam arrives and how
+  much sky the diffuse light has; a performance ratio of 0.80 gives AC per
+  kW installed. Reports open-sky and shaded kWh/kWp per year (median, p10,
+  p90), solar access — shaded ÷ open-sky, the shade-report figure — the
+  monthly open-sky yield and the best place for panels. A screening estimate,
+  said so in the answer. Cross-checked by hand against PVGIS 5.2 with the
+  same horizon (`scripts/sunlight_pvgis_check.py`): within 1 % in Vermont
+  and Germany, 6 % in Canberra, against the brief's 10 %.
 - A GeoTIFF range reader (`rasters.py`) with no GDAL: the canopy tiles are
   not cloud-optimised (one row per strip), but adjacent strips merge into a
   single range request, so a 500 m window is one 7.6 MB read. Adds `numpy`,
