@@ -143,14 +143,13 @@ async def _synergy(
     taxa = await fetch_taxa(ids) if ids else {}
     subject = _taxon_for(subject_item, taxa)
     if not subject.placed:
+        # Raised, not returned: a refusal that computed nothing must not cost
+        # a fare, and `paid_tool` rolls back only on an exception.
         reason = "no species chosen for it" if subject.taxon_id is None else "iNaturalist has no family for it"
-        return {
-            "success": False,
-            "error": f"{subject.name or 'This planting'} cannot be placed in a family: {reason}. "
-                     "Pick its species on the ledger and ask again.",
-            "error_code": "invalid_request",
-            "subject": {"ref": subject_item.get("ref"), "name": subject.name},
-        }
+        raise CompanionsError(
+            f"{subject.name or 'This planting'} cannot be placed in a family: {reason}. "
+            "Pick its species on the ledger and ask again."
+        )
 
     candidates: list[tuple[Taxon, dict[str, Any]]] = []
     unplaced: list[dict[str, Any]] = []
@@ -197,14 +196,11 @@ def _design(subject_item: dict[str, Any], ledger: list[tuple[dict[str, Any], str
     subject = companions.look_of(subject_item)
     name = _name(subject_item)
     if subject.color is None:
-        return {
-            "success": False,
-            "error": f"{name or 'This planting'} has no flower colour recorded. Add flower_color "
-                     f"(one of {', '.join(companions.HUES)}) — height_in and bloom_months sharpen the answer.",
-            "error_code": "invalid_request",
-            "missing": ["flower_color"],
-            "subject": {"ref": subject_item.get("ref"), "name": name},
-        }
+        # Raised, so it is free — see the synergy refusal above.
+        raise CompanionsError(
+            f"{name or 'This planting'} has no flower colour recorded. Add flower_color "
+            f"(one of {', '.join(companions.HUES)}) — height_in and bloom_months sharpen the answer."
+        )
     candidates: list[tuple[Look, dict[str, Any]]] = []
     uncoloured: list[dict[str, Any]] = []
     for item, where in ledger:
