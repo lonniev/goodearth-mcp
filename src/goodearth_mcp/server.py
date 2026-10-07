@@ -67,13 +67,15 @@ from goodearth_mcp.pests import PestError
 from goodearth_mcp.planting import PlantingError
 from goodearth_mcp.planting_window import PlantingWindowError
 from goodearth_mcp.planting_window import region_planting_window as planting_impl
-from goodearth_mcp.region import Region, RegionError, parse_region
+from goodearth_mcp.region import Region, RegionError, parse_region, ring_of
 from goodearth_mcp.soil import SoilError
 from goodearth_mcp.soil_window import SoilWindowError
 from goodearth_mcp.soil_window import region_soil_window as soil_window_impl
 from goodearth_mcp.suitability import SuitabilityError
 from goodearth_mcp.suitability_window import SuitabilityWindowError
 from goodearth_mcp.suitability_window import region_suitability as suitability_impl
+from goodearth_mcp.sunlight_window import SunlightError
+from goodearth_mcp.sunlight_window import region_sunlight as sunlight_impl
 from goodearth_mcp.tree_year_window import TreeYearError
 from goodearth_mcp.tree_year_window import region_tree_year as tree_year_impl
 from goodearth_mcp.wildlife import WildlifeError
@@ -196,6 +198,7 @@ TREE_YEAR_UUID             = "993d83ad-9edd-5690-88fd-298f2137dc24"
 COMPANIONS_UUID            = "0bfd5920-12fa-5cff-aefb-466d9c0e2fd0"
 DISEASE_RISK_UUID          = "b12c4ed8-c3cd-5a14-8e4b-a9fa344b7096"
 DRYING_WINDOW_UUID         = "9e07633f-a43a-5298-9691-7678a59cfb32"
+SUNLIGHT_UUID              = "64b04d3a-134c-5c42-85f6-e5a97eb3322d"
 
 _DOMAIN_TOOLS = [
     ToolIdentity(
@@ -400,6 +403,12 @@ _DOMAIN_TOOLS = [
         capability="block_item_list",
         category="read",
         intent="What you grow, watch for, or saw on a plot — including as it stood on a past day",
+    ),
+    ToolIdentity(
+        tool_id=SUNLIGHT_UUID,
+        capability="sunlight",
+        category="heavy",
+        intent="Hours of direct sun each part of a plot gets, month by month, from its trees and hills",
     ),
 ]
 
@@ -2533,6 +2542,58 @@ async def drying_window(
         return {
             "success": False,
             "error": f"The forecast did not answer: {exc}",
+            "error_code": "upstream_unavailable",
+        }
+
+
+@tool
+@runtime.paid_tool(SUNLIGHT_UUID)
+async def sunlight(
+    block: Annotated[str, BLOCK_FIELD],
+    month: Annotated[
+        int | None,
+        Field(description="A month, 1–12, or leave it out for all twelve.", ge=1, le=12),
+    ] = None,
+    npub: Annotated[
+        str,
+        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
+    ] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """How many hours of direct sun each part of this ground gets, month by month.
+
+    Rasterises the block at 2–20 m and, from every cell, casts the sky line
+    of the ground to 20 km and the trees within 250 m — from the Copernicus
+    terrain model and the Meta/WRI 1 m canopy map, both global — then counts
+    the ten-minute steps on the 15th of each month when the sun stands above
+    that line. Reports per month the share of the block in full sun (6 h or
+    more), part shade (3–6 h) and full shade (under 3 h), the median hours
+    and the spread, and the sunniest and shadiest spots with their
+    coordinates. Bare deciduous crowns pass half the beam; a month is in leaf
+    when the block's own normals say so.
+
+    The first call on a block casts its horizon, which takes some seconds;
+    later calls read it. The horizon is recast when the block is redrawn.
+
+    Measurements and classes only — the nursery-label definitions — never
+    what to plant. Trees cut or grown since the canopy imagery are not seen;
+    `sources` gives its date. Buildings are not modelled.
+
+    Args:
+        block: The ground to answer for — its id, its name, or an alias.
+        month: One month (1–12), or all twelve when left out.
+    """
+    parsed, found = await _block_region(npub, block)
+
+    try:
+        return await sunlight_impl(parsed, ring_of(found.get("geometry") or {}), month=month)
+    except (SunlightError, RegionError) as exc:
+        return {"success": False, "error": str(exc), "error_code": "invalid_request"}
+    except (sources.UpstreamError, OSError) as exc:
+        logger.warning("sunlight failed: %s", exc)
+        return {
+            "success": False,
+            "error": f"A map did not answer: {exc}",
             "error_code": "upstream_unavailable",
         }
 

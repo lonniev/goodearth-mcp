@@ -1,0 +1,593 @@
+<title>Good Earth Sunlight Layer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: the Good Earth app shell (rail + top bar) around the Plots map, with the
+   Sun layer's panel on the map and the spot card beside it; block summary below.
+   Tokens: Good Earth's AUTUMN season from frontend/src/index.css, plus a sun ramp.
+   Single-theme by design: the app shifts season, never polarity, so no dark mode. */
+:root {
+  color-scheme: light;
+  --paper: #F7E8CE;
+  --panel: #FDF5E6;
+  --ink: #3A2210;
+  --ink-soft: #745130;
+  --rule: #D8B26E;
+  --growth: #66731F;
+  --honey: #BF6408;
+  --frost: #4A7394;
+  --clay: #A3361C;
+  --band: #F0CF94;
+  --rail-ink: #F7DCAA;
+  --on-dark: #FFF8EC;
+
+  /* Sun ramp: deep shade → part shade → full sun. Class edges at 3 h and 6 h. */
+  --shade-full: #273049;
+  --shade-part: #8E6488;
+  --sun-full: #F2C64F;
+  --sun-0: #273049; --sun-2: #47467A; --sun-4: #8E6488; --sun-6: #E09A3A; --sun-9: #F2C64F; --sun-12: #FFF1B5;
+
+  --font-display: 'Fraunces', ui-serif, Georgia, serif;
+  --font-body: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-data: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.45; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--frost); outline-offset: 2px; }
+.data { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+.figure { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.01em; }
+
+/* ── Shell ───────────────────────────────────── */
+.shell { display: grid; grid-template-columns: 13.5rem minmax(0, 1fr); grid-template-rows: 3.5rem minmax(0, 1fr); min-height: 100%; }
+.rail { grid-row: 1 / span 2; background: var(--ink); color: var(--rail-ink); padding: 1rem .75rem; display: flex; flex-direction: column; gap: 2px; }
+.brand { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; color: var(--on-dark); padding: .25rem .6rem 1rem; letter-spacing: -0.01em; }
+.rail a { display: flex; align-items: center; gap: .6rem; min-height: 2.75rem; padding: 0 .6rem; border-radius: 6px; color: var(--rail-ink); text-decoration: none; font-size: 13px; }
+.rail a[aria-current="page"] { background: rgb(255 255 255 / .13); color: var(--on-dark); font-weight: 600; }
+.rail svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.top { display: flex; align-items: center; gap: .9rem; border-bottom: 1px solid var(--rule); padding: 0 1.25rem; background: var(--paper); }
+.top .plot { font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; }
+.top .plot small { font-family: var(--font-body); font-weight: 500; font-size: 11.5px; color: var(--ink-soft); margin-left: .4rem; }
+.chip-sats { margin-left: auto; display: inline-flex; align-items: center; gap: .35rem; background: var(--honey); color: var(--on-dark); border-radius: 999px; padding: .25rem .7rem; font-size: 12px; font-weight: 600; }
+main { padding: 1.25rem; min-width: 0; display: flex; flex-direction: column; gap: 1rem; }
+.lede { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem 1rem; }
+.lede h1 { font-family: var(--font-display); font-weight: 600; font-size: 1.6rem; margin: 0; text-wrap: balance; letter-spacing: -0.015em; }
+.lede p { margin: 0; color: var(--ink-soft); max-width: 60ch; }
+.example { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--honey); font-weight: 600; }
+
+/* ── Work area ───────────────────────────────── */
+.work { display: grid; grid-template-columns: minmax(0, 1fr) 21rem; gap: 1rem; align-items: start; }
+.mapcard { position: relative; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; background: var(--band); }
+#map { display: block; width: 100%; aspect-ratio: 200 / 140; cursor: crosshair; touch-action: manipulation; }
+.ctl { position: absolute; z-index: 2; }
+.seg { display: flex; overflow: hidden; border: 1px solid rgb(58 34 16 / .3); border-radius: 6px; background: rgb(253 245 230 / .95); box-shadow: 0 1px 3px rgb(0 0 0 / .18); font-size: 11.5px; }
+.seg button { min-height: 2.75rem; padding: 0 .9rem; border: 0; background: transparent; font-weight: 500; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.pill { min-height: 2.75rem; padding: 0 .8rem; border-radius: 6px; border: 1px solid rgb(58 34 16 / .3); background: rgb(253 245 230 / .95); box-shadow: 0 1px 3px rgb(0 0 0 / .18); font-size: 12px; font-weight: 500; cursor: pointer; }
+.pill[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.ctl.base { top: .5rem; right: .5rem; }
+.ctl.layers { top: 3.85rem; right: .5rem; display: flex; gap: .4rem; }
+
+.sunpanel { position: absolute; left: .5rem; bottom: .5rem; z-index: 2; width: 23rem; max-width: calc(100% - 1rem);
+  background: rgb(253 245 230 / .96); border: 1px solid rgb(58 34 16 / .25); border-radius: 6px; padding: .6rem .7rem .55rem; box-shadow: 0 2px 8px rgb(0 0 0 / .2); display: grid; gap: .5rem; }
+.sunpanel .seg { box-shadow: none; }
+.sunpanel .seg button { flex: 1; }
+.row { display: flex; align-items: center; gap: .6rem; }
+.row label { font-size: 12px; color: var(--ink-soft); }
+input[type=range] { flex: 1; min-width: 0; height: 2.75rem; accent-color: var(--honey); }
+.month { width: 4.6rem; text-align: right; font-size: 12px; }
+.leaf { white-space: nowrap; flex: none; min-height: 2.25rem; padding: 0 .7rem; border-radius: 999px; border: 1px solid var(--rule); background: var(--panel); font-size: 12px; cursor: pointer; }
+.leaf[aria-pressed="true"] { border-color: var(--growth); color: var(--growth); font-weight: 600; }
+.fixed { font-size: 12px; color: var(--ink-soft); }
+.legend { display: grid; gap: 3px; }
+.ramp { height: 10px; border-radius: 3px; }
+.ticks { position: relative; height: 14px; font-size: 10px; color: var(--ink-soft); }
+.ticks span { position: absolute; transform: translateX(-50%); }
+.classes { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--ink); }
+.note-map { font-size: 10.5px; color: var(--ink-soft); }
+
+/* ── Spot card ───────────────────────────────── */
+.card { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 1rem; display: grid; gap: .75rem; min-width: 0; }
+.card h2 { font-family: var(--font-display); font-weight: 600; font-size: 1.15rem; margin: 0; }
+.card h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft); margin: 0 0 .25rem; font-weight: 600; }
+.where { font-size: 11px; color: var(--ink-soft); }
+.classline { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.cls { display: inline-block; border-radius: 999px; padding: .2rem .65rem; font-size: 12px; font-weight: 600; }
+.cls.full { background: var(--sun-full); color: var(--ink); }
+.cls.part { background: var(--shade-part); color: var(--on-dark); }
+.cls.shade { background: var(--shade-full); color: var(--on-dark); }
+.big { font-size: 1.6rem; line-height: 1; }
+.sub { font-size: 12px; color: var(--ink-soft); }
+.dome, .bars { width: 100%; height: auto; display: block; }
+.dome text, .bars text { font-family: var(--font-data); font-size: 9px; fill: var(--ink-soft); }
+.key { display: flex; flex-wrap: wrap; gap: .3rem .8rem; font-size: 10.5px; color: var(--ink-soft); }
+.key i { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 4px; border-radius: 2px; }
+.solar { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+.stat { border-top: 1px solid var(--rule); padding-top: .4rem; }
+.stat .figure { font-size: 1.25rem; }
+.prov { font-size: 10.5px; color: var(--ink-soft); border-top: 1px dashed var(--rule); padding-top: .5rem; }
+
+/* ── Block summary ───────────────────────────── */
+.summary { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); gap: 1rem; }
+.stack { display: flex; height: 18px; border-radius: 3px; overflow: hidden; margin: .4rem 0; }
+.stack div { height: 100%; }
+.shares { display: flex; flex-wrap: wrap; gap: .3rem 1rem; font-size: 12px; }
+.shares b { font-family: var(--font-data); font-weight: 500; }
+.months { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; align-items: end; height: 64px; margin-top: .4rem; }
+.months div { background: var(--sun-full); border-radius: 2px 2px 0 0; min-height: 2px; }
+.months div.sel { outline: 1.5px solid var(--ink); outline-offset: 1px; }
+.mlabels { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; font-size: 9.5px; text-align: center; color: var(--ink-soft); }
+.btn { min-height: 2.75rem; padding: 0 1rem; border-radius: 6px; border: 0; background: var(--ink); color: var(--paper); font-weight: 600; cursor: pointer; }
+.method { font-size: 12px; color: var(--ink-soft); max-width: 75ch; margin: 0; }
+
+@media (max-width: 1060px) {
+  .work { grid-template-columns: minmax(0, 1fr); }
+  .summary { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .summary > :first-child { grid-column: 1 / -1; }
+}
+@media (max-width: 760px) {
+  .shell { grid-template-columns: minmax(0, 1fr); grid-template-rows: 3.25rem auto; }
+  .rail { display: none; }
+  main { padding: 1rem; }
+  .top { padding: 0 1rem; }
+  .top .plot small { display: none; }
+  .summary { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+  .sunpanel { position: static; width: auto; max-width: none; margin: 0; border-radius: 0; border-width: 1px 0 0; box-shadow: none; }
+  .ctl.base .seg button { padding: 0 .65rem; }
+}
+</style>
+
+<div class="shell">
+  <nav class="rail" aria-label="Good Earth">
+    <div class="brand">Good Earth</div>
+    <a href="#" aria-current="page"><svg viewBox="0 0 24 24"><path d="M1 6l7-3 8 3 7-3v15l-7 3-8-3-7 3z"/><path d="M8 3v15M16 6v15"/></svg>My Plots</a>
+    <a href="#"><svg viewBox="0 0 24 24"><path d="M3 20h18M4 16c3-7 6-9 8-9s5 2 8 9"/></svg>Dashboard</a>
+    <a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>Almanac</a>
+    <a href="#"><svg viewBox="0 0 24 24"><path d="M12 22V10M12 10c-5 0-8-3-8-8 5 0 8 3 8 8zM12 14c0-4 3-7 8-7 0 5-3 8-8 8"/></svg>Flora</a>
+    <a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="6"/><path d="M12 7V4M8 8L5 5M16 8l3-3M4 13H1M23 13h-3M6 18l-3 3M18 18l3 3"/></svg>Pests</a>
+    <a href="#"><svg viewBox="0 0 24 24"><path d="M4 14c0-4 3-7 8-7s8 3 8 7"/><path d="M8 7L6 3M16 7l2-4"/><circle cx="9" cy="13" r="1"/><circle cx="15" cy="13" r="1"/><path d="M12 16v3"/></svg>Fauna</a>
+    <a href="#"><svg viewBox="0 0 24 24"><path d="M9 11l2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="2"/></svg>Tasks</a>
+    <a href="#"><svg viewBox="0 0 24 24"><path d="M4 4h12l4 4v12H4z"/><path d="M8 12h8M8 16h8"/></svg>Field Reports</a>
+  </nav>
+
+  <header class="top">
+    <span class="plot">Lower Meadow <small>example plot · 1.6 acres</small></span>
+    <span class="chip-sats" title="Your credit balance">⚡ <span class="data">4,120</span> sats</span>
+  </header>
+
+  <main>
+    <div class="lede">
+      <span class="example">Design mock · illustrative scene</span>
+      <h1>How much sun does this ground get?</h1>
+      <p>Turn on <b>☀️ Sun</b>, choose a month, and tap anywhere in the plot. The shadows below are worked out hour by hour from the trees and hills around it.</p>
+    </div>
+
+    <div class="work">
+      <section class="mapcard" aria-label="Plot map with the Sun layer">
+        <canvas id="map" tabindex="0" role="img" aria-label="Satellite view of Lower Meadow with hours of direct sun shaded over it. Use the arrow keys to move the selected spot."></canvas>
+
+        <div class="ctl base">
+          <div class="seg" role="group" aria-label="Basemap">
+            <button id="bm-sat" aria-pressed="true">Satellite</button>
+            <button id="bm-map" aria-pressed="false">Map</button>
+          </div>
+        </div>
+        <div class="ctl layers">
+          <button class="pill" id="radar" aria-pressed="false">🌧️ Radar</button>
+          <button class="pill" id="sun" aria-pressed="true">☀️ Sun</button>
+        </div>
+
+        <div class="sunpanel" id="sunpanel">
+          <div class="seg" role="group" aria-label="What to show">
+            <button id="v-garden" aria-pressed="true">Garden light</button>
+            <button id="v-solar" aria-pressed="false">Solar panels</button>
+          </div>
+          <div class="row" id="monthrow">
+            <label for="month">Month</label>
+            <input type="range" id="month" min="0" max="11" value="5" step="1">
+            <span class="month data" id="monthlabel">June</span>
+          </div>
+          <div class="row" id="solarrow" hidden>
+            <span class="fixed">Fixed panels, tilted <b class="data">35°</b>, facing <b>south</b> · whole year</span>
+          </div>
+          <div class="row">
+            <button class="leaf" id="leaf" aria-pressed="true">🍂 Bare trees Nov–Apr</button>
+            <span class="note-map" id="leafnote">Deciduous trees let about half the light through out of leaf.</span>
+          </div>
+          <div class="legend" id="legend"></div>
+        </div>
+      </section>
+
+      <aside class="card" id="spot" aria-live="polite"></aside>
+    </div>
+
+    <section class="summary">
+      <div class="card">
+        <h3 id="sumhead">Lower Meadow in June</h3>
+        <div class="stack" id="stack" role="img"></div>
+        <div class="shares" id="shares"></div>
+      </div>
+      <div class="card">
+        <h3>Share in full sun, by month</h3>
+        <div class="months" id="months" role="img"></div>
+        <div class="mlabels" id="mlabels"></div>
+      </div>
+      <div class="card">
+        <h3>Best place for panels</h3>
+        <div><span class="figure big" id="bestkwh">–</span> <span class="sub">kWh per kW a year</span></div>
+        <div class="sub" id="bestwhere"></div>
+        <div><button class="btn" id="showbest">Show it</button></div>
+      </div>
+    </section>
+
+    <p class="method">This scene is illustrative: the trees and hills are drawn for the mock, and the shadows are computed from them with real sun positions for latitude 44°N. On a real plot, Good Earth takes tree heights from a 1 m global canopy-height map, terrain from a 30 m elevation model, and sunshine from ten years of hourly records for the plot's own weather cell. Solar figures are a screening estimate, scaled here to 1,240 kWh per kW for open sky.</p>
+  </main>
+</div>
+
+<script>
+(() => {
+  // ── Scene (metres; x east, y north; origin at the plot's south-west) ──────
+  const LAT = 44.2 * Math.PI / 180;
+  const VIEW = { x0: -35, x1: 165, y0: -35, y1: 105 };
+  const POLY = [[4, 6], [104, 2], [110, 64], [8, 70]];
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const MSHORT = ['J','F','M','A','M','J','J','A','S','O','N','D'];
+  const DOY = [15, 46, 74, 105, 135, 166, 196, 227, 258, 288, 319, 349];
+  const DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  const LEAF_ON = [0,0,0,0,1,1,1,1,1,1,0,0];          // May–Oct, from the block's own normals in the real tool
+  const CLEAR = [.42,.48,.50,.50,.52,.56,.58,.57,.55,.47,.36,.36]; // illustrative monthly clearness
+  const LEAF_OFF_T = 0.5, EVERGREEN_T = 0.05;
+  const TILT = 35 * Math.PI / 180;
+  const OPEN_SKY_KWH = 1240;
+
+  let seed = 7;
+  const rnd = () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+
+  const trees = [];
+  for (let x = -22; x <= 52; x += 6.5) trees.push({ x: x + rnd() * 2, y: -7 + rnd() * 3, r: 4 + rnd() * 1.5, h: 13 + rnd() * 5, e: 0 });   // south hedgerow
+  for (let y = -6; y <= 84; y += 7) for (const x of [-15, -8.5]) trees.push({ x: x + rnd() * 2, y: y + rnd() * 3, r: 4.5 + rnd() * 1.5, h: 21 + rnd() * 6, e: rnd() < .2 ? 1 : 0 }); // west treeline
+  for (let x = 117; x <= 160; x += 8.5) for (let y = -4; y <= 76; y += 8.5) trees.push({ x: x + rnd() * 3, y: y + rnd() * 3, r: 5 + rnd() * 1.5, h: 22 + rnd() * 7, e: rnd() < .25 ? 1 : 0 }); // east woodlot
+  for (let x = 6; x <= 104; x += 9.5) for (let y = 84; y <= 104; y += 9.5) trees.push({ x: x + rnd() * 3, y: y + rnd() * 2, r: 5 + rnd(), h: 19 + rnd() * 5, e: rnd() < .7 ? 1 : 0 });   // north pines
+  trees.push({ x: 68, y: 30, r: 9, h: 22, e: 0 });                                                // lone oak
+  for (const [x, y] of [[34, 37], [40, 42], [33, 45]]) trees.push({ x, y, r: 5, h: 16, e: 0 });   // a clump of maples
+  for (let x = 72; x <= 96; x += 5.5) trees.push({ x, y: 56 + rnd(), r: 2.4, h: 4.2, e: 0 });     // a few apple trees
+  const terrain = (az) => 0.8 + 5.5 * Math.exp(-(((az - 262) / 28) ** 2)) + 2.2 * Math.exp(-(((az - 95) / 22) ** 2)); // degrees
+
+  // ── Sun ────────────────────────────────────────────────────────────────
+  function sun(doy, hr) {
+    const d = 23.44 * Math.PI / 180 * Math.sin(2 * Math.PI * (284 + doy) / 365);
+    const H = (hr - 12) * 15 * Math.PI / 180;
+    const el = Math.asin(Math.sin(LAT) * Math.sin(d) + Math.cos(LAT) * Math.cos(d) * Math.cos(H));
+    const azS = Math.atan2(Math.sin(H), Math.cos(H) * Math.sin(LAT) - Math.tan(d) * Math.cos(LAT));
+    return { el, az: azS + Math.PI };      // az clockwise from north
+  }
+  const STEP = 1 / 6;                     // ten minutes
+  const sunPos = DOY.map((doy) => {
+    const out = [];
+    for (let hr = 3; hr <= 21; hr += STEP) {
+      const s = sun(doy, hr);
+      if (s.el <= 0.5 * Math.PI / 180) continue;
+      const sinE = Math.sin(s.el), am = Math.min(1 / sinE, 30);
+      const dni = 1000 * Math.pow(0.7, Math.pow(am, 0.678));
+      const dhi = 110 * Math.pow(sinE, 0.7);
+      const cosT = Math.max(0, sinE * Math.cos(TILT) + Math.cos(s.el) * Math.sin(TILT) * Math.cos(s.az - Math.PI));
+      out.push({ el: s.el, az: s.az, azDeg: s.az * 180 / Math.PI, sx: Math.sin(s.az), sy: Math.cos(s.az), tanE: Math.tan(s.el), dni, dhi, cosT, sinE });
+    }
+    return out;
+  });
+
+  // ── Grid ───────────────────────────────────────────────────────────────
+  const CELL = 2.5, GX0 = 4, GY0 = 2;
+  const COLS = Math.ceil((110 - GX0) / CELL), ROWS = Math.ceil((70 - GY0) / CELL);
+  const N = COLS * ROWS;
+  const inPoly = (x, y) => { let c = false; for (let i = 0, j = POLY.length - 1; i < POLY.length; j = i++) { const [xi, yi] = POLY[i], [xj, yj] = POLY[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; };
+  const inside = new Uint8Array(N);
+  const hrsS = new Float32Array(N * 12), hrsL = new Float32Array(N * 12);
+  const kwhS = new Float32Array(N), kwhL = new Float32Array(N);
+  const canopyBins = new Float32Array(N * 72);
+  const terrBins = new Float32Array(72); for (let b = 0; b < 72; b++) terrBins[b] = terrain(b * 5);
+
+  // Open-sky reference, so yields scale to OPEN_SKY_KWH.
+  let refAnnual = 0;
+  for (let m = 0; m < 12; m++) { let e = 0; for (const p of sunPos[m]) { const B = p.dni * CLEAR[m], D = p.dhi * (2 - CLEAR[m]); e += (B * p.cosT + D * (1 + Math.cos(TILT)) / 2 + (B * p.sinE + D) * 0.2 * (1 - Math.cos(TILT)) / 2) * STEP; } refAnnual += e * DAYS[m]; }
+  const SCALE = OPEN_SKY_KWH / refAnnual;
+
+  const tdx = new Float32Array(trees.length), tdy = new Float32Array(trees.length);
+  for (let j = 0; j < ROWS; j++) for (let i = 0; i < COLS; i++) {
+    const c = j * COLS + i, cx = GX0 + (i + .5) * CELL, cy = GY0 + (j + .5) * CELL;
+    if (!inPoly(cx, cy)) continue;
+    inside[c] = 1;
+    for (let k = 0; k < trees.length; k++) { tdx[k] = trees[k].x - cx; tdy[k] = trees[k].y - cy; }
+    // Horizon from canopy (full leaf) in 5° bins, and the sky-view factor from it.
+    const bins = canopyBins.subarray(c * 72, c * 72 + 72);
+    for (let k = 0; k < trees.length; k++) {
+      const d = Math.hypot(tdx[k], tdy[k]), t = trees[k];
+      if (d < t.r) { for (let b = 0; b < 72; b++) bins[b] = Math.max(bins[b], 65); continue; }
+      const azT = (Math.atan2(tdx[k], tdy[k]) * 180 / Math.PI + 360) % 360;
+      const half = Math.asin(t.r / d) * 180 / Math.PI, elT = Math.atan(t.h / d) * 180 / Math.PI;
+      for (let b = 0; b < 72; b++) { let dd = Math.abs(b * 5 + 2.5 - azT); if (dd > 180) dd = 360 - dd; if (dd <= half) bins[b] = Math.max(bins[b], elT); }
+    }
+    let svf = 0; for (let b = 0; b < 72; b++) { const h = Math.max(bins[b], terrBins[b]) * Math.PI / 180; svf += Math.cos(h) ** 2; } svf /= 72;
+
+    let annS = 0, annL = 0;
+    for (let m = 0; m < 12; m++) {
+      let hS = 0, hL = 0, eS = 0, eL = 0;
+      const leafOn = LEAF_ON[m];
+      for (const p of sunPos[m]) {
+        let tS = 1, tL = 1;
+        if (p.el * 180 / Math.PI < terrain(p.azDeg)) { tS = tL = 0; }
+        else {
+          for (let k = 0; k < trees.length; k++) {
+            const t = trees[k], dx = tdx[k], dy = tdy[k];
+            const along = dx * p.sx + dy * p.sy;
+            let hit = false;
+            if (dx * dx + dy * dy < t.r * t.r) hit = true;
+            else if (along > 0 && Math.abs(dx * p.sy - dy * p.sx) < t.r && along * p.tanE < t.h) hit = true;
+            if (!hit) continue;
+            if (t.e) { tS *= EVERGREEN_T; tL *= EVERGREEN_T; }
+            else { tL = 0; tS *= leafOn ? 0 : LEAF_OFF_T; }
+            if (tS < .01 && tL < .01) break;
+          }
+        }
+        hS += tS * STEP; hL += tL * STEP;
+        const B = p.dni * CLEAR[m], D = p.dhi * (2 - CLEAR[m]);
+        const diffuse = D * svf * (1 + Math.cos(TILT)) / 2 + (B * p.sinE + D) * 0.2 * (1 - Math.cos(TILT)) / 2;
+        eS += (B * p.cosT * tS + diffuse) * STEP; eL += (B * p.cosT * tL + diffuse) * STEP;
+      }
+      hrsS[c * 12 + m] = hS; hrsL[c * 12 + m] = hL;
+      annS += eS * DAYS[m]; annL += eL * DAYS[m];
+    }
+    kwhS[c] = annS * SCALE; kwhL[c] = annL * SCALE;
+  }
+
+  // ── State ─────────────────────────────────────────────────────────────
+  const state = { view: 'garden', month: 5, seasonal: true, basemap: 'sat', sunOn: true, sel: null };
+  const hrs = () => state.seasonal ? hrsS : hrsL;
+  const kwh = () => state.seasonal ? kwhS : kwhL;
+  const cellXY = (c) => [GX0 + (c % COLS + .5) * CELL, GY0 + (Math.floor(c / COLS) + .5) * CELL];
+  const cellAt = (x, y) => { const i = Math.floor((x - GX0) / CELL), j = Math.floor((y - GY0) / CELL); if (i < 0 || j < 0 || i >= COLS || j >= ROWS) return -1; const c = j * COLS + i; return inside[c] ? c : -1; };
+  state.sel = cellAt(58, 44);
+  const bestCell = () => { let b = -1, v = -1; const k = kwh(); for (let c = 0; c < N; c++) if (inside[c] && k[c] > v) { v = k[c]; b = c; } return b; };
+  const klass = (h) => h >= 6 ? ['full', 'Full sun'] : h >= 3 ? ['part', 'Part shade'] : ['shade', 'Full shade'];
+
+  // ── Colour ramp ───────────────────────────────────────────────────────
+  const css = getComputedStyle(document.documentElement);
+  const hex = (n) => { const s = css.getPropertyValue(n).trim(); return [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16)); };
+  const STOPS = [[0, hex('--sun-0')], [2, hex('--sun-2')], [4, hex('--sun-4')], [6, hex('--sun-6')], [9, hex('--sun-9')], [12, hex('--sun-12')]];
+  function ramp(v) { if (v <= STOPS[0][0]) return STOPS[0][1]; for (let i = 1; i < STOPS.length; i++) if (v <= STOPS[i][0]) { const [a, ca] = STOPS[i - 1], [b, cb] = STOPS[i], t = (v - a) / (b - a); return ca.map((x, k) => Math.round(x + (cb[k] - x) * t)); } return STOPS[STOPS.length - 1][1]; }
+  const KWH_LO = 300, KWH_HI = 1300;
+  const kwhToRamp = (k) => Math.max(0, Math.min(12, (k - KWH_LO) / (KWH_HI - KWH_LO) * 12));
+
+  // ── Aerial (drawn once) ───────────────────────────────────────────────
+  const PX = 5, AW = (VIEW.x1 - VIEW.x0) * PX, AH = (VIEW.y1 - VIEW.y0) * PX;
+  const ax = (x) => (x - VIEW.x0) * PX, ay = (y) => (VIEW.y1 - y) * PX;
+  function polyPath(ctx, fx, fy) { ctx.beginPath(); POLY.forEach(([x, y], i) => i ? ctx.lineTo(fx(x), fy(y)) : ctx.moveTo(fx(x), fy(y))); ctx.closePath(); }
+  function drawAerial(sat) {
+    const cv = document.createElement('canvas'); cv.width = AW; cv.height = AH; const g = cv.getContext('2d');
+    if (!sat) {
+      g.fillStyle = '#EFE0C2'; g.fillRect(0, 0, AW, AH);
+      g.strokeStyle = 'rgba(102,115,31,.55)'; g.lineWidth = 1.2;
+      for (const t of trees) { g.beginPath(); g.arc(ax(t.x), ay(t.y), t.r * PX, 0, Math.PI * 2); g.stroke(); }
+      g.strokeStyle = '#C9A774'; g.lineWidth = 3 * PX; g.beginPath(); g.moveTo(ax(-26), ay(-35)); g.bezierCurveTo(ax(-24), ay(20), ax(-30), ay(60), ax(-24), ay(105)); g.stroke();
+      return cv;
+    }
+    let s = 11; const r = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+    g.fillStyle = '#5E6B31'; g.fillRect(0, 0, AW, AH);
+    for (let i = 0; i < 2600; i++) { g.fillStyle = `rgba(${70 + r() * 60 | 0},${85 + r() * 50 | 0},${30 + r() * 25 | 0},${.25 + r() * .3})`; const w = 4 + r() * 22; g.fillRect(r() * AW, r() * AH, w, w * (.4 + r())); }
+    polyPath(g, ax, ay); g.fillStyle = '#9DA45A'; g.fill();
+    g.save(); polyPath(g, ax, ay); g.clip();
+    for (let k = -40; k < 120; k += 3.2) { g.strokeStyle = (Math.round(k / 3.2) % 2) ? 'rgba(255,250,200,.10)' : 'rgba(40,50,10,.08)'; g.lineWidth = 3.2 * PX; g.beginPath(); g.moveTo(ax(-10), ay(k)); g.lineTo(ax(130), ay(k - 4)); g.stroke(); }
+    for (let i = 0; i < 900; i++) { g.fillStyle = `rgba(${150 + r() * 60 | 0},${140 + r() * 40 | 0},${70 + r() * 30 | 0},${.12 + r() * .15})`; g.fillRect(ax(0) + r() * AW * .6, ay(72) + r() * AH * .55, 3 + r() * 8, 2 + r() * 5); }
+    g.restore();
+    g.strokeStyle = '#B79C6C'; g.lineWidth = 3 * PX; g.lineCap = 'round'; g.beginPath(); g.moveTo(ax(-26), ay(-35)); g.bezierCurveTo(ax(-24), ay(20), ax(-30), ay(60), ax(-24), ay(105)); g.stroke();
+    // Shadows as the imagery would carry them (mid-morning, cast north-west).
+    g.fillStyle = 'rgba(18,24,8,.38)';
+    for (const t of trees) { g.beginPath(); g.ellipse(ax(t.x - .32 * t.h), ay(t.y + .3 * t.h), t.r * PX * 1.05, t.r * PX * .9, -0.6, 0, Math.PI * 2); g.fill(); }
+    for (const t of trees) {
+      const cx = ax(t.x), cy = ay(t.y), rr = t.r * PX;
+      const gr = g.createRadialGradient(cx + rr * .3, cy + rr * .3, rr * .1, cx, cy, rr);
+      if (t.e) { gr.addColorStop(0, '#41604A'); gr.addColorStop(1, '#17291B'); }
+      else { gr.addColorStop(0, '#7C9038'); gr.addColorStop(1, '#2E4318'); }
+      g.fillStyle = gr; g.beginPath();
+      for (let a = 0; a <= 16; a++) { const ang = a / 16 * Math.PI * 2, rad = rr * (.88 + r() * .14); a ? g.lineTo(cx + Math.cos(ang) * rad, cy + Math.sin(ang) * rad) : g.moveTo(cx + Math.cos(ang) * rad, cy + Math.sin(ang) * rad); }
+      g.fill();
+    }
+    return cv;
+  }
+  const aerials = { sat: drawAerial(true), map: drawAerial(false) };
+
+  // ── Map render ────────────────────────────────────────────────────────
+  const canvas = document.getElementById('map'), ctx = canvas.getContext('2d');
+  const overlay = document.createElement('canvas'); overlay.width = COLS; overlay.height = ROWS;
+  function paintOverlay() {
+    const o = overlay.getContext('2d'), img = o.createImageData(COLS, ROWS), H = hrs(), K = kwh();
+    for (let j = 0; j < ROWS; j++) for (let i = 0; i < COLS; i++) {
+      const c = j * COLS + i, p = ((ROWS - 1 - j) * COLS + i) * 4;
+      if (!inside[c]) { img.data[p + 3] = 0; continue; }
+      const v = state.view === 'garden' ? H[c * 12 + state.month] : kwhToRamp(K[c]);
+      const [R, G, B] = ramp(v); img.data[p] = R; img.data[p + 1] = G; img.data[p + 2] = B; img.data[p + 3] = 255;
+    }
+    o.putImageData(img, 0, 0);
+  }
+  function render() {
+    const rect = canvas.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    const W = Math.max(1, Math.round(rect.width * dpr)), H = Math.max(1, Math.round(rect.height * dpr));
+    if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
+    const sx = W / (VIEW.x1 - VIEW.x0), sy = H / (VIEW.y1 - VIEW.y0);
+    const fx = (x) => (x - VIEW.x0) * sx, fy = (y) => (VIEW.y1 - y) * sy;
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(aerials[state.basemap], 0, 0, W, H);
+    if (state.sunOn) {
+      ctx.save(); polyPath(ctx, fx, fy); ctx.clip(); ctx.globalAlpha = .74;
+      ctx.drawImage(overlay, fx(GX0), fy(GY0 + ROWS * CELL), COLS * CELL * sx, ROWS * CELL * sy);
+      ctx.restore();
+    }
+    polyPath(ctx, fx, fy); ctx.lineWidth = 2.5 * dpr; ctx.strokeStyle = '#66731F'; ctx.stroke();
+    ctx.setLineDash([]);
+    // Plot label
+    ctx.font = `600 ${11.5 * dpr}px 'Instrument Sans', system-ui, sans-serif`;
+    const lbl = 'Lower Meadow', lw = ctx.measureText(lbl).width + 12 * dpr;
+    ctx.fillStyle = 'rgba(250,250,243,.92)'; ctx.fillRect(fx(9), fy(77) , lw, 18 * dpr);
+    ctx.fillStyle = '#3A2210'; ctx.fillText(lbl, fx(9) + 6 * dpr, fy(77) + 13 * dpr);
+    // Best spot in solar view
+    if (state.sunOn && state.view === 'solar') {
+      const [bx, by] = cellXY(bestCell()), px = fx(bx), py = fy(by), s = 7 * dpr;
+      ctx.beginPath(); ctx.moveTo(px, py - s); ctx.lineTo(px + s, py); ctx.lineTo(px, py + s); ctx.lineTo(px - s, py); ctx.closePath();
+      ctx.fillStyle = '#FFF8EC'; ctx.fill(); ctx.lineWidth = 2 * dpr; ctx.strokeStyle = '#3A2210'; ctx.stroke();
+    }
+    // Selected spot
+    if (state.sel >= 0) {
+      const [x, y] = cellXY(state.sel), px = fx(x), py = fy(y);
+      ctx.beginPath(); ctx.arc(px, py, 9 * dpr, 0, Math.PI * 2); ctx.lineWidth = 3 * dpr; ctx.strokeStyle = '#FFF8EC'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(px, py, 9 * dpr, 0, Math.PI * 2); ctx.lineWidth = 1.2 * dpr; ctx.strokeStyle = '#3A2210'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(px, py, 2.5 * dpr, 0, Math.PI * 2); ctx.fillStyle = '#3A2210'; ctx.fill();
+    }
+    // North arrow and scale bar, top-left
+    const ox = 14 * dpr, oy = 14 * dpr;
+    ctx.fillStyle = 'rgba(253,245,230,.92)'; ctx.fillRect(ox - 6 * dpr, oy - 6 * dpr, 96 * dpr, 34 * dpr);
+    ctx.fillStyle = '#3A2210'; ctx.beginPath(); ctx.moveTo(ox + 8 * dpr, oy); ctx.lineTo(ox + 13 * dpr, oy + 16 * dpr); ctx.lineTo(ox + 8 * dpr, oy + 12 * dpr); ctx.lineTo(ox + 3 * dpr, oy + 16 * dpr); ctx.closePath(); ctx.fill();
+    ctx.font = `500 ${10 * dpr}px 'IBM Plex Mono', monospace`; ctx.fillText('N', ox + 5 * dpr, oy + 26 * dpr);
+    const m20 = 20 * sx; ctx.fillRect(ox + 22 * dpr, oy + 12 * dpr, m20, 2 * dpr); ctx.fillRect(ox + 22 * dpr, oy + 8 * dpr, 1.5 * dpr, 6 * dpr); ctx.fillRect(ox + 22 * dpr + m20 - 1.5 * dpr, oy + 8 * dpr, 1.5 * dpr, 6 * dpr);
+    ctx.fillText('20 m', ox + 22 * dpr, oy + 26 * dpr);
+  }
+
+  // ── Legend ────────────────────────────────────────────────────────────
+  function legend() {
+    const el = document.getElementById('legend');
+    const grad = STOPS.map(([v, c]) => `rgb(${c}) ${v / 12 * 100}%`).join(',');
+    if (state.view === 'garden') {
+      el.innerHTML = `<div class="ramp" style="background:linear-gradient(90deg,${grad})"></div>
+        <div class="ticks data">${[0, 3, 6, 9, 12].map((v) => `<span style="left:${v / 12 * 100}%">${v}</span>`).join('')}</div>
+        <div class="classes"><span>Full shade · under 3 h</span><span>Part shade · 3–6 h</span><span>Full sun · 6 h+</span></div>
+        <div class="note-map">Hours of direct sun a day in ${MONTHS[state.month]}.</div>`;
+    } else {
+      el.innerHTML = `<div class="ramp" style="background:linear-gradient(90deg,${grad})"></div>
+        <div class="ticks data">${[300, 550, 800, 1050, 1300].map((v, i) => `<span style="left:${i * 25}%">${v.toLocaleString()}</span>`).join('')}</div>
+        <div class="note-map">kWh a year for each kW of panels installed here. ◆ marks the best spot.</div>`;
+    }
+  }
+
+  // ── Spot card ─────────────────────────────────────────────────────────
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  function domeSVG(c) {
+    const S = 260, cx = S / 2, cy = S / 2 + 2, R = 108;
+    const pt = (azDeg, el) => { const r = R * (90 - el) / 90, a = azDeg * Math.PI / 180; return [cx + r * Math.sin(a), cy - r * Math.cos(a)]; };
+    const can = canopyBins.subarray(c * 72, c * 72 + 72);
+    const wedge = (vals) => { let d = ''; for (let b = 0; b < 72; b++) { const v = vals(b); if (v <= 0.05) continue; const a0 = b * 5, a1 = a0 + 5; const [x0, y0] = pt(a0, 0), [x1, y1] = pt(a1, 0), [x2, y2] = pt(a1, v), [x3, y3] = pt(a0, v); d += `M${x0.toFixed(1)},${y0.toFixed(1)}L${x1.toFixed(1)},${y1.toFixed(1)}L${x2.toFixed(1)},${y2.toFixed(1)}L${x3.toFixed(1)},${y3.toFixed(1)}Z`; } return d; };
+    const block = (azDeg, el) => { const b = Math.floor(((azDeg % 360) + 360) % 360 / 5); return el < Math.max(terrBins[b], can[b]); };
+    let paths = '';
+    const runs = [[172, '#E09A3A', 'June 21'], [80, '#8E6488', 'Mar & Sep 21'], [355, '#4A7394', 'Dec 21']];
+    for (const [doy, col] of runs) {
+      let seg = [], vis = null;
+      const flush = () => { if (seg.length > 1) paths += `<polyline points="${seg.map((p) => p.join(',')).join(' ')}" fill="none" stroke="${col}" stroke-width="${vis ? 2.4 : 1.6}" ${vis ? '' : 'stroke-dasharray="3 3" opacity=".75"'} stroke-linecap="round"/>`; };
+      for (let hr = 3; hr <= 21; hr += 1 / 12) {
+        const s = sun(doy, hr), el = s.el * 180 / Math.PI, az = s.az * 180 / Math.PI;
+        if (el < 0) { flush(); seg = []; vis = null; continue; }
+        const v = !block(az, el), p = pt(az, el).map((n) => n.toFixed(1));
+        if (vis === null) vis = v;
+        if (v !== vis) { seg.push(p); flush(); seg = [p]; vis = v; } else seg.push(p);
+      }
+      flush();
+      if (doy === 172) for (let hr = 6; hr <= 18; hr += 3) { const s = sun(doy, hr), el = s.el * 180 / Math.PI; if (el <= 0) continue; const [x, y] = pt(s.az * 180 / Math.PI, el); paths += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.6" fill="#E09A3A" stroke="#FDF5E6" stroke-width="1"/><text x="${(x + 5).toFixed(1)}" y="${(y - 4).toFixed(1)}">${hr}h</text>`; }
+    }
+    const rings = [0, 30, 60].map((e) => `<circle cx="${cx}" cy="${cy}" r="${(R * (90 - e) / 90).toFixed(1)}" fill="none" stroke="#D8B26E" stroke-width="${e ? .6 : 1}"/>`).join('');
+    const labels = [['N', 0], ['E', 90], ['S', 180], ['W', 270]].map(([t, a]) => { const [x, y] = pt(a, -9); return `<text x="${x.toFixed(1)}" y="${(y + 3).toFixed(1)}" text-anchor="middle" style="font-weight:500;fill:#3A2210">${t}</text>`; }).join('');
+    const elabels = [30, 60].map((e) => { const [x, y] = pt(322, e); return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}">${e}°</text>`; }).join('');
+    return `<svg class="dome" viewBox="0 0 ${S} ${S + 4}" role="img" aria-label="Sky above this spot: the tree and hill silhouette with the sun's path in June, at the equinoxes and in December">
+      <circle cx="${cx}" cy="${cy}" r="${R}" fill="#FFFBF2"/>
+      <path d="${wedge((b) => Math.max(can[b], terrBins[b]))}" fill="#66731F" opacity=".55"/>
+      <path d="${wedge((b) => terrBins[b])}" fill="#A9773F" opacity=".85"/>
+      ${rings}${labels}${elabels}${paths}</svg>`;
+  }
+  function barsSVG(c) {
+    const W = 280, H = 118, L = 20, B = 16, T = 6, Hmax = 15, H_ = hrs();
+    const y = (h) => T + (H - T - B) * (1 - h / Hmax), bw = (W - L) / 12;
+    let s = `<svg class="bars" viewBox="0 0 ${W} ${H}" role="img" aria-label="Hours of direct sun a day at this spot, month by month">`;
+    for (const t of [0, 3, 6, 9, 12, 15]) s += `<text x="${L - 4}" y="${y(t) + 3}" text-anchor="end">${t}</text>`;
+    s += `<line x1="${L}" x2="${W}" y1="${y(0)}" y2="${y(0)}" stroke="#D8B26E"/>`;
+    for (let m = 0; m < 12; m++) {
+      const h = H_[c * 12 + m], [k] = klass(h), col = k === 'full' ? '#F2C64F' : k === 'part' ? '#8E6488' : '#273049';
+      const x = L + m * bw + 3;
+      s += `<rect x="${x.toFixed(1)}" y="${y(h).toFixed(1)}" width="${(bw - 6).toFixed(1)}" height="${(y(0) - y(h)).toFixed(1)}" fill="${col}" ${m === state.month ? 'stroke="#3A2210" stroke-width="1.5"' : ''}/>`;
+      s += `<text x="${(x + (bw - 6) / 2).toFixed(1)}" y="${H - 4}" text-anchor="middle" ${m === state.month ? 'style="fill:#3A2210;font-weight:500"' : ''}>${MSHORT[m]}</text>`;
+    }
+    for (const t of [3, 6]) s += `<line x1="${L}" x2="${W}" y1="${y(t)}" y2="${y(t)}" stroke="#3A2210" stroke-dasharray="3 3" stroke-width=".8" opacity=".55"/>`;
+    return s + '</svg>';
+  }
+  function spotCard() {
+    const el = document.getElementById('spot'), c = state.sel;
+    if (c < 0) { el.innerHTML = '<h2>Tap the plot</h2><p class="sub">Tap anywhere inside Lower Meadow to see its sky, its sun month by month, and what panels there would make.</p>'; return; }
+    const [x, y] = cellXY(c), H = hrs(), h = H[c * 12 + state.month], [k, name] = klass(h);
+    let low = 0; for (let m = 1; m < 12; m++) if (H[c * 12 + m] < H[c * 12 + low]) low = m;
+    const access = Math.round(kwh()[c] / OPEN_SKY_KWH * 100);
+    el.innerHTML = `
+      <div><h2>This spot</h2><div class="where data">${Math.round(x)} m east · ${Math.round(y)} m north of the south-west corner</div></div>
+      <div class="classline"><span class="cls ${k}">${name}</span><span><span class="figure big">${h.toFixed(1)}</span> <span class="sub">h of direct sun a day in ${MONTHS[state.month]}</span></span></div>
+      <div><h3>The sky from here</h3>${domeSVG(c)}
+        <div class="key"><span><i style="background:#A9773F"></i>Hills</span><span><i style="background:#66731F;opacity:.6"></i>Trees in leaf</span><span><i style="background:#E09A3A"></i>Jun</span><span><i style="background:#8E6488"></i>Mar/Sep</span><span><i style="background:#4A7394"></i>Dec</span><span>dashed = sun hidden</span></div></div>
+      <div><h3>Direct sun, month by month</h3>${barsSVG(c)}</div>
+      <div class="solar">
+        <div class="stat"><div class="figure">${Math.round(kwh()[c]).toLocaleString()}</div><div class="sub">kWh per kW a year</div></div>
+        <div class="stat"><div class="figure">${access}%</div><div class="sub">of open-sky yield</div></div>
+      </div>
+      <div class="sub">Least light in ${MONTHS[low]}: ${H[c * 12 + low].toFixed(1)} h a day. Panel figures are a screening estimate, not a site survey.</div>
+      <div class="prov data">goodearth_sunlight · canopy imagery 2019 · terrain 30 m · 10 years of sunshine</div>`;
+  }
+
+  // ── Block summary ─────────────────────────────────────────────────────
+  function summary() {
+    const H = hrs(); let n = 0, f = 0, p = 0, s = 0;
+    for (let c = 0; c < N; c++) if (inside[c]) { n++; const h = H[c * 12 + state.month]; if (h >= 6) f++; else if (h >= 3) p++; else s++; }
+    const pc = (v) => Math.round(v / n * 100);
+    document.getElementById('sumhead').textContent = `Lower Meadow in ${MONTHS[state.month]}`;
+    const st = document.getElementById('stack');
+    st.innerHTML = `<div style="width:${f / n * 100}%;background:var(--sun-full)"></div><div style="width:${p / n * 100}%;background:var(--shade-part)"></div><div style="width:${s / n * 100}%;background:var(--shade-full)"></div>`;
+    st.setAttribute('aria-label', `${pc(f)}% full sun, ${pc(p)}% part shade, ${pc(s)}% full shade`);
+    document.getElementById('shares').innerHTML = `<span><b>${pc(f)}%</b> full sun</span><span><b>${pc(p)}%</b> part shade</span><span><b>${pc(s)}%</b> full shade</span>`;
+    const ms = document.getElementById('months'); let html = ''; const shares = [];
+    for (let m = 0; m < 12; m++) { let ff = 0; for (let c = 0; c < N; c++) if (inside[c] && H[c * 12 + m] >= 6) ff++; shares.push(ff / n); html += `<div class="${m === state.month ? 'sel' : ''}" style="height:${Math.max(2, ff / n * 100)}%" title="${MONTHS[m]}: ${Math.round(ff / n * 100)}%"></div>`; }
+    ms.innerHTML = html; ms.setAttribute('aria-label', shares.map((v, m) => `${MONTHS[m]} ${Math.round(v * 100)}%`).join(', '));
+    document.getElementById('mlabels').innerHTML = MSHORT.map((t) => `<span>${t}</span>`).join('');
+    const b = bestCell(), [bx, by] = cellXY(b);
+    document.getElementById('bestkwh').textContent = Math.round(kwh()[b]).toLocaleString();
+    document.getElementById('bestwhere').textContent = `${Math.round(bx)} m east, ${Math.round(by)} m north · ${Math.round(kwh()[b] / OPEN_SKY_KWH * 100)}% of open-sky yield · tilted 35° facing south`;
+  }
+
+  // ── Wiring ────────────────────────────────────────────────────────────
+  const $ = (id) => document.getElementById(id);
+  function update() {
+    paintOverlay(); render(); legend(); spotCard(); summary();
+    $('monthlabel').textContent = MONTHS[state.month];
+    $('monthrow').hidden = state.view !== 'garden'; $('solarrow').hidden = state.view !== 'solar';
+    $('sunpanel').hidden = !state.sunOn;
+    $('leaf').textContent = state.seasonal ? '🍂 Bare trees Nov–Apr' : '🌳 Full leaf all year';
+    $('leafnote').textContent = state.seasonal ? 'Deciduous trees let about half the light through out of leaf.' : 'Every tree in leaf: the shadiest case.';
+  }
+  const press = (on, off) => { $(on).setAttribute('aria-pressed', 'true'); $(off).setAttribute('aria-pressed', 'false'); };
+  $('v-garden').onclick = () => { state.view = 'garden'; press('v-garden', 'v-solar'); update(); };
+  $('v-solar').onclick = () => { state.view = 'solar'; press('v-solar', 'v-garden'); update(); };
+  $('bm-sat').onclick = () => { state.basemap = 'sat'; press('bm-sat', 'bm-map'); update(); };
+  $('bm-map').onclick = () => { state.basemap = 'map'; press('bm-map', 'bm-sat'); update(); };
+  $('sun').onclick = () => { state.sunOn = !state.sunOn; $('sun').setAttribute('aria-pressed', String(state.sunOn)); update(); };
+  $('radar').onclick = () => { const on = $('radar').getAttribute('aria-pressed') !== 'true'; $('radar').setAttribute('aria-pressed', String(on)); };
+  $('leaf').onclick = () => { state.seasonal = !state.seasonal; $('leaf').setAttribute('aria-pressed', String(state.seasonal)); update(); };
+  $('month').oninput = (e) => { state.month = Number(e.target.value); update(); };
+  $('showbest').onclick = () => { state.sel = bestCell(); if (state.view !== 'solar') { state.view = 'solar'; press('v-solar', 'v-garden'); } update(); };
+  canvas.addEventListener('click', (e) => {
+    const r = canvas.getBoundingClientRect();
+    const x = VIEW.x0 + (e.clientX - r.left) / r.width * (VIEW.x1 - VIEW.x0), y = VIEW.y1 - (e.clientY - r.top) / r.height * (VIEW.y1 - VIEW.y0);
+    const c = cellAt(x, y); if (c >= 0) { state.sel = c; update(); }
+  });
+  canvas.addEventListener('keydown', (e) => {
+    const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] }[e.key]; if (!d) return;
+    e.preventDefault(); const [x, y] = cellXY(state.sel), c = cellAt(x + d[0] * CELL, y + d[1] * CELL); if (c >= 0) { state.sel = c; update(); }
+  });
+  let raf = 0; new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(render); }).observe(canvas);
+  update();
+  if (document.fonts) document.fonts.ready.then(render);
+})();
+</script>
