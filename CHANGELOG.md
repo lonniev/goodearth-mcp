@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Companions, from the Flora ledger. One more glyph on a planting opens a row
+  with two kinds of answer. **Synergy** reads the planting's family and genus
+  from iNaturalist and applies published companion-planting rules — nitrogen
+  fixers beside heavy feeders, open flowers that feed the wasps that take
+  aphids, alliums that mask a carrot from its fly, walnut and fennel that
+  poison the ground beside them, the same family sharing its pests — and
+  every row names its mechanism or its tradition and a citation. **Design** is
+  arithmetic over three new optional planting fields — flower colour on an
+  eight-hue wheel, height in inches, bloom months — complementary, analogous,
+  foil; layered or side by side; blooming together or not. Candidates are this
+  plot, then what the grower has grown elsewhere or retired, then a few
+  labelled examples; a planting with no species chosen is reported unplaced,
+  never guessed into a family. A tap sends a companion to the planting form to
+  be confirmed. New tool `goodearth_companions(block, plant, kind)`.
 - Coupons on the Account page: the shared `CouponsPanel` from @tollbooth-dpyc/web,
   in Good Earth's dress. A grower redeems an operator's code once and the
   discount applies on its own to later paid calls. The page had opted out.
