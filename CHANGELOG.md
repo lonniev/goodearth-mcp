@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Coupons on the Account page: the shared `CouponsPanel` from @tollbooth-dpyc/web,
+  in Good Earth's dress. A grower redeems an operator's code once and the
+  discount applies on its own to later paid calls. The page had opted out.
+
 ### Changed
 - Crops is Flora on the rail, on the Dashboard's tile and in the harvest hint.
   The page holds more than commercial crops. Item kinds, tool names and URLs
