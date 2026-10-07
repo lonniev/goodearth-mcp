@@ -877,7 +877,8 @@ async def calibration(
                 '{"kind": "frost", "observed_on": "2026-10-02"}; a crop stage is '
                 '{"kind": "stage", "observed_on": "2026-07-31", "crop": "Dahlia", '
                 '"stage": "first bloom", "gdd_target": 1200, "set_out": "2026-05-24"}. '
-                "Both accept an optional note."
+                "Both accept an optional note. A sunlight report "
+                '({"kind": "sunlight", ...}) is goodearth_sunlight\'s and is only counted here.'
             ),
         ),
     ] = None,
@@ -901,7 +902,8 @@ async def calibration(
     Returns two corrections, kept separate because they fix different things:
     a bias in *heat* from crop stages (this ground accumulates more or less
     than the grid credits) and a bias in *days* from observed frost (this
-    ground frosts earlier or later than the region).
+    ground frosts earlier or later than the region). The block's sunlight
+    reports are counted and pointed at goodearth_sunlight, which reads them.
 
     Nothing is applied silently. A correction appears only once several
     observations agree, implausible values are set aside rather than averaged
@@ -2603,6 +2605,14 @@ async def sunlight(
     what to plant. Trees cut or grown since the canopy imagery are not seen;
     `sources` gives its date. Buildings are not modelled.
 
+    The block's own field reports correct that. Save an observation of kind
+    `sunlight` with goodearth_block_item_save — `{"kind": "sunlight",
+    "observed_on": "2026-06-14", "from": "09:00", "to": "14:00", "light":
+    "sun", "lat": 44.26, "lon": -72.58}` — and once three reports agree on a
+    spot, its hours and its light, that spot's horizon moves: a sun report
+    lowers the sky line where the sun was seen, a shade report raises the
+    tree line. `calibration` in the answer accounts for every report.
+
     Args:
         block: The ground to answer for — its id, its name, or an alias.
         month: One month (1–12), or all twelve when left out.
@@ -2612,12 +2622,13 @@ async def sunlight(
         detail: "summary" or "grid" (per-cell rasters, base64-packed, for the map).
     """
     parsed, found = await _block_region(npub, block)
+    reports = await _stored_items(npub, found["block_id"], "observation")
 
     try:
         return await sunlight_impl(
             parsed, ring_of(found.get("geometry") or {}),
             month=month, panel_tilt_deg=panel_tilt_deg, panel_azimuth_deg=panel_azimuth_deg,
-            point=point, detail=detail,
+            point=point, detail=detail, reports=reports,
         )
     except (SunlightError, RegionError) as exc:
         return {"success": False, "error": str(exc), "error_code": "invalid_request"}

@@ -66,6 +66,7 @@ import uuid
 from datetime import UTC, date, datetime
 from typing import Any
 
+from goodearth_mcp import calibration
 from goodearth_mcp.companions import validate_look
 
 logger = logging.getLogger(__name__)
@@ -742,6 +743,14 @@ def check_item_shape(kind: str, item: dict[str, Any]) -> None:
         _check_seed(item)
     if kind == "planting":
         _check_planting(item)
+    if kind == "observation" and str(item.get("kind") or "").strip().lower() == "sunlight":
+        # A sunlight report is read by goodearth_sunlight, which would set a
+        # malformed one aside with a reason the grower never sees. Refuse it
+        # here, where the reason reaches whoever typed it.
+        try:
+            calibration.validate_observation(item)
+        except calibration.CalibrationError as exc:
+            raise BlockError(f"sunlight report: {exc}") from exc
 
 
 #: The range a seed packet's figure could honestly take. A bound on what a

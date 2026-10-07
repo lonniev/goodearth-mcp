@@ -52,8 +52,13 @@ async def region_calibration(
     # the earliest SET-OUT, not the earliest report: greens cut in January
     # from an October sowing were counted from Jan 1, a few degree-days
     # against a target of hundreds, and read as a huge false bias.
+    # Sunlight reports correct a different model — the horizon — and
+    # goodearth_sunlight reads them on every call. Counted here, not judged.
+    sun_reports = sum(1 for o in parsed if o["kind"] == "sunlight")
+    parsed = [o for o in parsed if o["kind"] != "sunlight"]
+
     years = sorted({o["observed_on"].year for o in parsed}
-                   | {o["set_out"].year for o in parsed if o.get("set_out")})
+                   | {o["set_out"].year for o in parsed if o.get("set_out")}) or [today.year]
     span_start = date(min(years), 1, 1)
     span_end = min(date(max(years), 12, 31), today)
 
@@ -152,6 +157,10 @@ async def region_calibration(
         "as_of": today.isoformat(),
         "region": region.describe(),
         "observations_used": len(parsed),
+        "sunlight_reports": {
+            "count": sun_reports,
+            "read_by": "goodearth_sunlight — they move a spot's horizon where three agree",
+        },
         "heat": (
             {
                 **heat,
