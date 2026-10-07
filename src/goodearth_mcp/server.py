@@ -2562,6 +2562,14 @@ async def sunlight(
         float | None,
         Field(description="Panel facing, degrees clockwise from north (180 = south). Default: toward the equator.", ge=0, le=360),
     ] = None,
+    point: Annotated[
+        str | None,
+        Field(description='A spot inside the block as "lat,lon" — adds its card: horizon, sun paths, monthly hours, solar figures.', max_length=64),
+    ] = None,
+    detail: Annotated[
+        str,
+        Field(description='"summary" (default) or "grid": every cell\'s numbers, packed for a map overlay.', pattern="^(summary|grid)$"),
+    ] = "summary",
     npub: Annotated[
         str,
         Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
@@ -2600,6 +2608,8 @@ async def sunlight(
         month: One month (1–12), or all twelve when left out.
         panel_tilt_deg: Panel tilt from flat; default min(|latitude|, 40).
         panel_azimuth_deg: Panel facing, clockwise from north; default 180 north of the equator, 0 south of it.
+        point: "lat,lon" inside the block for one spot's card.
+        detail: "summary" or "grid" (per-cell rasters, base64-packed, for the map).
     """
     parsed, found = await _block_region(npub, block)
 
@@ -2607,6 +2617,7 @@ async def sunlight(
         return await sunlight_impl(
             parsed, ring_of(found.get("geometry") or {}),
             month=month, panel_tilt_deg=panel_tilt_deg, panel_azimuth_deg=panel_azimuth_deg,
+            point=point, detail=detail,
         )
     except (SunlightError, RegionError) as exc:
         return {"success": False, "error": str(exc), "error_code": "invalid_request"}
