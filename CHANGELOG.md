@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Sunlight, first cut: `goodearth_sunlight(block, month)` answers how many
+  hours of direct sun each part of a block gets, month by month. The block is
+  rasterised at 2–20 m (about 2,500 cells) and from every cell 72 rays find
+  the highest ground to 20 km (Copernicus GLO-30, the earth's curve taken off)
+  and the highest tree within 250 m (the Meta/WRI 1 m canopy map, global);
+  the sun's path on the 15th of each month (NOAA's solar position) is then
+  counted in ten-minute steps wherever it clears that line. Per month: the
+  share of the block in full sun (6 h+), part shade (3–6 h) and full shade
+  (under 3 h) — the nursery-label definitions — the median hours with p10 and
+  p90, and the sunniest and shadiest spots. Bare deciduous crowns pass half
+  the beam (evergreens none, from the Copernicus land-cover map); a month is
+  in leaf when the block's own ten-year normals reach 50 °F. The horizon is
+  cast once per outline and remembered in the weather cache; the first call
+  on a block takes some seconds, later ones under one. `sources` carries the
+  month the canopy imagery was taken. Measurements and classes only, never
+  what to plant. Grid, solar yield, the Sun map layer and the spot card
+  follow in later cuts.
+- A GeoTIFF range reader (`rasters.py`) with no GDAL: the canopy tiles are
+  not cloud-optimised (one row per strip), but adjacent strips merge into a
+  single range request, so a 500 m window is one 7.6 MB read. Adds `numpy`,
+  `tifffile` and (below Python 3.14) `zstandard`.
 - Companions, from the Flora ledger. One more glyph on a planting opens a row
   with two kinds of answer. **Synergy** reads the planting's family and genus
   from iNaturalist and applies published companion-planting rules — nitrogen
