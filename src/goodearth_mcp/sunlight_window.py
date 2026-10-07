@@ -15,8 +15,10 @@ work in numpy and runs on every call.
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 import logging
+import zlib
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
@@ -200,6 +202,26 @@ def _check_month(month: int | None) -> int | None:
     return month
 
 
+DETAILS = ("summary", "grid")
+
+
+def _parse_point(point: str | None) -> tuple[float, float] | None:
+    if point is None or point == "":
+        return None
+    if not isinstance(point, str):
+        raise SunlightError('point must be "lat,lon"')
+    parts = point.split(",")
+    if len(parts) != 2:
+        raise SunlightError('point must be "lat,lon"')
+    try:
+        lat, lon = float(parts[0]), float(parts[1])
+    except ValueError as exc:
+        raise SunlightError('point must be "lat,lon" with two numbers') from exc
+    if not (np.isfinite(lat) and np.isfinite(lon) and -90 <= lat <= 90 and -180 <= lon <= 180):
+        raise SunlightError("point must be a latitude and a longitude")
+    return lat, lon
+
+
 def _check_angle(value: float | None, name: str, low: float, high: float) -> float | None:
     if value is None:
         return None
@@ -217,13 +239,23 @@ async def region_sunlight(
     month: int | None = None,
     panel_tilt_deg: float | None = None,
     panel_azimuth_deg: float | None = None,
+    point: str | None = None,
+    detail: str = "summary",
     today: date | None = None,
 ) -> dict[str, Any]:
-    """Hours of direct sun per day across a block, and what a fixed panel would yield there."""
+    """Hours of direct sun per day across a block, and what a fixed panel would yield there.
+
+    ``point`` ("lat,lon" inside the block) adds that spot's card: its horizon,
+    sun paths, monthly hours and solar figures. ``detail="grid"`` adds every
+    cell's numbers, packed for a map overlay.
+    """
     today = today or datetime.now(UTC).date()
     month = _check_month(month)
     tilt = _check_angle(panel_tilt_deg, "panel_tilt_deg", 0.0, 90.0)
     azimuth = _check_angle(panel_azimuth_deg, "panel_azimuth_deg", 0.0, 360.0)
+    if detail not in DETAILS:
+        raise SunlightError(f"detail must be one of {', '.join(DETAILS)}")
+    spot = _parse_point(point)
     try:
         grid = hz.build_grid(ring)
     except hz.HorizonError as exc:
@@ -257,21 +289,39 @@ async def region_sunlight(
 
     tilt = solar.default_tilt(grid.lat0) if tilt is None else tilt
     azimuth = solar.default_azimuth(grid.lat0) if azimuth is None else azimuth
+    cell = None
+    if spot is not None:
+        cell = grid.nearest(*spot)
+        if cell is None:
+            raise SunlightError("point is outside this block")
 
-    def compute() -> tuple[np.ndarray, np.ndarray, dict[str, Any] | None]:
+    all_year = list(range(1, 13))
+    want_in_leaf = detail == "grid" and leaf_months != all_year
+
+    def compute() -> tuple[np.ndarray, np.ndarray, dict[str, Any] | None, dict[str, np.ndarray]]:
         days = sunpath.representative_days(today.year)
         elev, az = sunpath.sun_position(grid.lat0, grid.lon0, days)
         hours = sunlight.direct_hours(rec.horizon, elev, az, leaf_months)
         panel = None
+        # The map's leaf chip shows the same month as if every tree were in
+        # leaf — the grid carries that second reading so a tap needs no call.
+        in_leaf: dict[str, np.ndarray] = {}
+        if want_in_leaf:
+            in_leaf["hours"] = sunlight.direct_hours(rec.horizon, elev, az, all_year)
         if clim is not None:
             mean, years = clim
             e_h, a_h = sunpath.sun_position(grid.lat0, grid.lon0, days, sunpath.HOURS_MID)
             open_sky = solar.poa_monthly(None, mean, e_h, a_h, tilt, azimuth, leaf_months, today.year)
             shaded = solar.poa_monthly(rec.horizon, mean, e_h, a_h, tilt, azimuth, leaf_months, today.year)
             panel = {**solar.yields(open_sky, shaded), "years": years, "shaded_monthly": shaded}
-        return hours, sunlight.open_sky_hours(elev), panel
+            if want_in_leaf:
+                open_full = solar.poa_monthly(None, mean, e_h, a_h, tilt, azimuth, all_year, today.year)
+                shaded_full = solar.poa_monthly(rec.horizon, mean, e_h, a_h, tilt, azimuth, all_year, today.year)
+                full = solar.yields(open_full, shaded_full)
+                in_leaf["kwh"], in_leaf["access"] = full["kwh_per_kwp"], full["solar_access"]
+        return hours, sunlight.open_sky_hours(elev), panel, in_leaf
 
-    hours, open_sky, panel = await asyncio.to_thread(compute)
+    hours, open_sky, panel, in_leaf = await asyncio.to_thread(compute)
     months = [month] if month else list(range(1, 13))
     readings = [sunlight.month_summary(hours[:, m - 1], grid, m, m in leaf_months) for m in months]
 
@@ -279,7 +329,7 @@ async def region_sunlight(
         "success": True,
         "as_of": today.isoformat(),
         "region": region.describe(),
-        "grid": grid.describe(),
+        **({"grid": grid.describe()} if detail != "grid" else {}),
         "light": {
             "months": readings,
             "open_sky_hours": {m: round(float(open_sky[m - 1]), 1) for m in months},
@@ -292,6 +342,9 @@ async def region_sunlight(
             },
         },
         "solar": _solar_block(panel, grid, tilt, azimuth),
+        **({"point": _point_card(cell, spot, grid, rec.horizon, hours, panel, leaf_months, today)} if cell is not None else {}),
+        **({"grid": _grid_block(grid, rec.horizon, hours, panel, in_leaf)} if detail == "grid" else {}),
+        **({"sun_paths": _sun_paths(grid, today)} if detail == "grid" or cell is not None else {}),
         "horizon": "computed" if rec.computed_now else "cached",
         "azimuth_convention": "degrees clockwise from north; 90 is east, 180 is south",
         "note": _note(rec, leaf_on, panel is not None),
@@ -403,4 +456,97 @@ def _sources(rec: HorizonRecord, normals: Any, panel: dict[str, Any] | None) -> 
     return out
 
 
-__all__ = ["SunlightError", "horizon_subject", "region_sunlight"]
+# ── The spot card and the grid ───────────────────────────────────────────
+
+
+def _sun_paths(grid: hz.Grid, today: date) -> dict[str, list[list[float]]]:
+    """Hourly [azimuth, elevation] on the solstices and an equinox, for a sky chart."""
+    return {
+        "june": sunpath.sun_path(grid.lat0, grid.lon0, date(today.year, 6, 21)),
+        "equinox": sunpath.sun_path(grid.lat0, grid.lon0, date(today.year, 3, 20)),
+        "december": sunpath.sun_path(grid.lat0, grid.lon0, date(today.year, 12, 21)),
+    }
+
+
+def _point_card(
+    cell: int, spot: tuple[float, float], grid: hz.Grid, horizon: hz.Horizon,
+    hours: np.ndarray, panel: dict[str, Any] | None, leaf_months: list[int], today: date,
+) -> dict[str, Any]:
+    lat, lon = grid.latlon()
+    row, col = divmod(int(grid.idx[cell]), grid.cols)
+    monthly = [round(float(h), 1) for h in hours[cell]]
+    classes = [sunlight.CLASSES[c] for c in sunlight.classify(hours[cell])]
+    card: dict[str, Any] = {
+        "asked": {"lat": spot[0], "lon": spot[1]},
+        "cell": {"row": row, "col": col, "lat": round(float(lat[cell]), 6), "lon": round(float(lon[cell]), 6)},
+        "horizon": {
+            "azimuth_step_deg": hz.AZ_STEP_DEG,
+            "terrain_deg": [round(float(v), 1) for v in horizon.terrain_deg()[cell]],
+            "canopy_deg": [round(float(v), 1) for v in horizon.canopy_deg()[cell]],
+            "canopy_kind": horizon.kind[cell].tolist(),
+        },
+        "hours_by_month": monthly,
+        "class_by_month": classes,
+        "leaf_on_months": leaf_months,
+        "sky_view_factor": round(float(solar.sky_view_factor(horizon, True)[cell]), 3),
+    }
+    if panel is not None:
+        shaded = panel["shaded_monthly"][cell]
+        card["solar"] = {
+            "kwh_per_kwp_year": round(float(panel["kwh_per_kwp"][cell]), 0),
+            "open_sky_kwh_per_kwp_year": panel["open_sky_kwh_per_kwp"],
+            "solar_access_pct": round(float(panel["solar_access"][cell]) * 100, 1),
+            "monthly_kwh_per_kwp": [round(float(v) * solar.PERFORMANCE_RATIO, 1) for v in shaded],
+            "least_light_month": int(np.argmin(shaded)) + 1,
+        }
+    return card
+
+
+def _field(values: np.ndarray, grid: hz.Grid, dtype: Any, scale: float, nodata: int) -> dict[str, Any]:
+    """One per-cell quantity as a full raster, nodata where the block is not."""
+    full = np.full(grid.rows * grid.cols, nodata, dtype=dtype)
+    full[grid.idx] = np.clip(np.round(values / scale), 0, nodata - 1).astype(dtype)
+    return {
+        "dtype": np.dtype(dtype).name, "scale": scale, "nodata": nodata,
+        "encoding": "base64", "b64": base64.b64encode(full.tobytes()).decode(),
+    }
+
+
+def _packed(values: np.ndarray, dtype: Any) -> dict[str, Any]:
+    """A per-kept-cell array, zlib then base64: the horizons, which are large and smooth."""
+    raw = np.ascontiguousarray(values.astype(dtype)).tobytes()
+    return {
+        "dtype": np.dtype(dtype).name, "shape": list(values.shape),
+        "encoding": "zlib+base64", "b64": base64.b64encode(zlib.compress(raw, 6)).decode(),
+    }
+
+
+def _grid_block(
+    grid: hz.Grid, horizon: hz.Horizon, hours: np.ndarray, panel: dict[str, Any] | None, in_leaf: dict[str, np.ndarray],
+) -> dict[str, Any]:
+    fields: dict[str, Any] = {
+        "hours_by_month": [_field(hours[:, m], grid, np.uint8, 0.1, 255) for m in range(12)],
+        "horizon_terrain_deg": _packed(np.round(horizon.terrain_deg()), np.uint8),
+        "horizon_canopy_deg": _packed(np.round(horizon.canopy_deg()), np.uint8),
+        "canopy_kind": _packed(horizon.kind, np.uint8),
+    }
+    if "hours" in in_leaf:
+        fields["hours_by_month_in_leaf"] = [_field(in_leaf["hours"][:, m], grid, np.uint8, 0.1, 255) for m in range(12)]
+    if panel is not None:
+        fields["kwh_per_kwp_year"] = _field(panel["kwh_per_kwp"], grid, np.uint16, 1.0, 65535)
+        fields["solar_access_pct"] = _field(panel["solar_access"] * 100.0, grid, np.uint8, 1.0, 255)
+        if "kwh" in in_leaf:
+            fields["kwh_per_kwp_year_in_leaf"] = _field(in_leaf["kwh"], grid, np.uint16, 1.0, 65535)
+            fields["solar_access_pct_in_leaf"] = _field(in_leaf["access"] * 100.0, grid, np.uint8, 1.0, 255)
+    return {
+        **grid.describe(),
+        "crs": "EPSG:4326",
+        "order": "row-major, row 0 north, col 0 west; a raster field's nodata marks ground outside the block",
+        "kept_order": "per-cell arrays run over the cells with data, in row-major order",
+        "byte_order": "little",
+        "canopy_kinds": {hz.KIND_NONE: "none", hz.KIND_EVERGREEN: "evergreen", hz.KIND_DECIDUOUS: "deciduous", hz.KIND_MIXED: "mixed"},
+        "fields": fields,
+    }
+
+
+__all__ = ["DETAILS", "SunlightError", "horizon_subject", "region_sunlight"]

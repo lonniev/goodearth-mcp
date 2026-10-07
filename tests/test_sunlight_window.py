@@ -153,6 +153,54 @@ async def test_too_few_radiation_years_means_no_solar_figure(stubbed, monkeypatc
     assert "no solar figure" in r["note"]
 
 
+async def test_point_card_is_the_nearest_cell_and_refuses_the_outside(stubbed):
+    inside = f"{44.0002},{-71.9998}"
+    r = await _call(month=6, point=inside)
+    card = r["point"]
+    assert card["cell"]["row"] >= 0 and len(card["horizon"]["canopy_deg"]) == 72
+    assert len(card["hours_by_month"]) == 12 and card["class_by_month"][5] in ("full_sun", "part_shade", "full_shade")
+    assert 0 < card["sky_view_factor"] <= 1
+    assert card["solar"]["least_light_month"] in range(1, 13)
+    assert set(r["sun_paths"]) == {"june", "equinox", "december"}
+    assert all(e > -1 for _, e, _m in r["sun_paths"]["december"])
+    with pytest.raises(sunlight_window.SunlightError):
+        await _call(point="45,-72")
+    for bad in ("x", "1,2,3", "nan,1", "44.0002"):
+        with pytest.raises(sunlight_window.SunlightError):
+            await _call(point=bad)
+
+
+async def test_grid_fields_decode_to_the_raster_with_nodata_outside(stubbed):
+    import base64
+    import zlib
+
+    r = await _call(detail="grid")
+    g = r["grid"]
+    rows, cols, n = g["rows"], g["cols"], g["cells"]
+    june = g["fields"]["hours_by_month"][5]
+    arr = np.frombuffer(base64.b64decode(june["b64"]), dtype=june["dtype"]).reshape(rows, cols)
+    kept = arr != june["nodata"]
+    assert kept.sum() == n
+    hours = arr[kept] * june["scale"]
+    assert hours.max() <= 24.0
+    kwh = g["fields"]["kwh_per_kwp_year"]
+    k = np.frombuffer(base64.b64decode(kwh["b64"]), dtype=kwh["dtype"]).reshape(rows, cols)
+    assert ((k != kwh["nodata"]) == kept).all()
+    terrain = g["fields"]["horizon_terrain_deg"]
+    t = np.frombuffer(zlib.decompress(base64.b64decode(terrain["b64"])), dtype=terrain["dtype"]).reshape(terrain["shape"])
+    assert t.shape == (n, 72) and t.max() <= 90
+    assert "sun_paths" in r and "bounds" in g
+    # The leaf chip's other reading: identical in leaf-on months, never lower in leaf-off ones.
+    full = g["fields"]["hours_by_month_in_leaf"]
+    for m in range(12):
+        a = np.frombuffer(base64.b64decode(g["fields"]["hours_by_month"][m]["b64"]), dtype=np.uint8)
+        b = np.frombuffer(base64.b64decode(full[m]["b64"]), dtype=np.uint8)
+        assert (a == b).all() if (m + 1) in r["light"]["leaf_on_months"] else (b[kept.ravel()] <= a[kept.ravel()]).all()
+    assert "kwh_per_kwp_year_in_leaf" in g["fields"]
+    with pytest.raises(sunlight_window.SunlightError):
+        await _call(detail="everything")
+
+
 async def test_one_month_only(stubbed):
     r = await _call(month=12)
     assert [m["month"] for m in r["light"]["months"]] == [12]

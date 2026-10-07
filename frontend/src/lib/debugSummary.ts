@@ -19,7 +19,7 @@ export const GOOD_EARTH_TOOLS: readonly string[] = [
   "almanac", "calibration", "companions", "crop_gdd_status", "crop_suitability",
   "disease_risk", "drying_window", "frost_window", "gdd_season_curve",
   "nearby_species", "pest_catalog", "pest_threshold", "planting_window",
-  "soil_temp_projection", "tree_suitability", "tree_year",
+  "soil_temp_projection", "sunlight", "tree_suitability", "tree_year",
   "wildlife_calendar", "wildlife_catalog",
   "block_list", "block_save", "block_item_list", "block_item_save",
   "task_list", "task_save", "task_delete", "task_set_done",

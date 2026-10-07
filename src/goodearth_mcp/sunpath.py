@@ -106,15 +106,16 @@ def _refraction(elev_deg: np.ndarray) -> np.ndarray:
 
 
 def sun_path(lat: float, lon: float, day: date, step_minutes: int = 60) -> list[list[float]]:
-    """``[azimuth, elevation]`` pairs through one day, hourly, for a sky chart.
+    """``[azimuth, elevation, minutes_utc]`` through one day, hourly, for a sky chart.
 
-    Only the daylight part, as plain floats rounded for the wire.
+    Only the daylight part, as plain floats rounded for the wire. The minute
+    lets a chart label the hour in the grower's own clock.
     """
     minutes = np.arange(step_minutes / 2, 1440, step_minutes, dtype=np.float64)
     elev, az = sun_position(lat, lon, np.array([np.datetime64(day)]), minutes)
     return [
-        [round(float(a), 1), round(float(e), 1)]
-        for a, e in zip(az[0], elev[0], strict=True)
+        [round(float(a), 1), round(float(e), 1), float(m)]
+        for a, e, m in zip(az[0], elev[0], minutes, strict=True)
         if e > SUNRISE_ELEVATION_DEG
     ]
 
