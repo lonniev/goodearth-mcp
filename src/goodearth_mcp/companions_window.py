@@ -27,7 +27,9 @@ TaxaFetch = Callable[[set[int]], Awaitable[dict[int, dict[str, Any]]]]
 
 
 def _name(item: dict[str, Any]) -> str:
-    return str(item.get("common_name") or item.get("crop") or item.get("name") or "").strip()
+    """The grower's own label first — "Purple green bean" is how she finds the
+    row, and "Common Bean" is iNaturalist's word for it, not hers."""
+    return str(item.get("crop") or item.get("name") or item.get("common_name") or "").strip()
 
 
 def _taxon_id(item: dict[str, Any]) -> int | None:
