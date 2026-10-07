@@ -19,7 +19,7 @@ dependencies = [
     "pydantic-settings>=2.0.0",
     "python-dotenv>=1.0.0",
     "tifffile>=2024.8.30",
-    "tollbooth-dpyc[nostr]==0.97.0",
+    "tollbooth-dpyc[nostr]==0.98.0",
     "zstandard>=0.22; python_version < '3.14'",
 ]
 
