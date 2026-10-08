@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Maps: enlarging the map left the plots drawn on blank ground. The map's
+  size now lives on the frame round it, never on the element Leaflet owns —
+  React rewrote that element's classes and wiped `leaflet-container`, under
+  which Leaflet's CSS keeps a tile its size; without it every tile shrank
+  to nothing.
+
 - Maps: the button under the zoom control enlarges the map to the whole
   screen and shrinks it back (Escape too) — the frame grows, not the zoom.
   On the Almanac the radar's player rides inside the enlarged frame. The

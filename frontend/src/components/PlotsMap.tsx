@@ -145,7 +145,8 @@ export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0 }: {
 
   return (
     <div className={size.frame}>
-      <div ref={host} className={`${size.box} overflow-hidden bg-band`} />
+      {/* Sized by the frame; its own classes never change (see MapFrame). */}
+      <div ref={host} className="h-full w-full bg-band" />
 
       <EnlargeButton big={size.big} onClick={size.toggle} />
 
