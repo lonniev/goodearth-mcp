@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Sun layer: the spot card is a row of three cards under the map — the sky
+  from here, direct sun month by month, panels here — in the block summary's
+  grid, instead of a side column that made the row as tall as the dome and
+  left the map floating over empty paper. The map keeps its whole width, and
+  nothing shows for the spot until one is tapped.
+
 - My Plots: *Add a plot* is shown on request. The finder, the name form and
   the drawing map took half the page from the plots already saved; they now
   open from **+ Add a plot** beside Import, fold away on Save (the new plot
