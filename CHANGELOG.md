@@ -16,12 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   down the screen; now it begins under the chips. The Sun panel waits with
   the quotes scroller, like every other call in flight.
 
-- Sun layer on iPad: the grid never drew. The browser's `DecompressionStream`
-  read through a `Response` never resolves on WebKit, so the panel said
-  *Casting the sky…* for minutes after the answer arrived; the horizons now
-  inflate with fflate in plain JS. And the spot card's column appears only
-  once there is a grid — tapping Sun no longer shrinks the map to make room
-  for nothing.
+- Sun layer: the grid never drew. The panel said *Casting the sky…* for
+  minutes after the answer arrived because the hook that reads it depended
+  on its own loading flag — setting the flag re-ran the effect, the cleanup
+  marked the read dead, and the answer was thrown away when it came. The
+  read now depends only on the plot and the Sun switch, and the latest read
+  started is the one that counts. The horizons inflate with fflate in plain
+  JS rather than the browser's stream API. And the spot card's column
+  appears only once there is a grid — tapping Sun no longer shrinks the map
+  to make room for nothing.
 ### Added
 - Sunlight, first cut: `goodearth_sunlight(block, month)` answers how many
   hours of direct sun each part of a block gets, month by month. The block is

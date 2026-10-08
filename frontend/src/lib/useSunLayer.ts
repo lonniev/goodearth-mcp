@@ -6,7 +6,7 @@
 // block casts its horizon on the server and takes some seconds; the panel
 // says so while it waits.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { sunlight, type SunlightResult } from "./mcp";
 import { cached } from "./pageCache";
 import type { SavedRegion } from "./regions";
@@ -56,22 +56,28 @@ export function useSunLayer(active: SavedRegion): SunLayerHandle {
     setResult(null); setGrid(null); setSelected(-1); setError("");
   }, [active.id]);
 
+  // One read per (block, Sun on). The effect depends on nothing it sets:
+  // with `loading` in its deps, its own setLoading(true) re-ran it, the
+  // cleanup marked the read dead, and the answer — once it came — was
+  // thrown away with the spinner still up. The read that counts is the
+  // latest one started; an older one that lands later is ignored.
+  const read = useRef(0);
   useEffect(() => {
-    if (!on || result || loading) return;
-    let live = true;
-    setLoading(true);
+    if (!on) return;
+    const mine = ++read.current;
+    setLoading(true); setError("");
     loadSunlight(active.id)
       .then(async (r) => {
-        if (!live) return;
+        if (read.current !== mine) return;
         if (!r.success || !r.grid) { setError(r.error || "Sunlight could not be read for this plot."); return; }
         const g = await decodeGrid(r.grid);
-        if (!live) return;
+        if (read.current !== mine) return;
         setResult(r); setGrid(g);
       })
-      .catch((e: unknown) => { if (live) setError(e instanceof Error ? e.message : String(e)); })
-      .finally(() => { if (live) setLoading(false); });
-    return () => { live = false; };
-  }, [on, result, loading, active.id]);
+      .catch((e: unknown) => { if (read.current === mine) setError(e instanceof Error ? e.message : String(e)); })
+      .finally(() => { if (read.current === mine) setLoading(false); });
+    return () => { read.current++; };
+  }, [on, active.id]);
 
   const sum = useMemo(() => (grid ? summary(grid, month, fullLeaf) : null), [grid, month, fullLeaf]);
   const state = useMemo<SunState>(
