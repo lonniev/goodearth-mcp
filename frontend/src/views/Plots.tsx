@@ -62,6 +62,10 @@ export default function Plots({
 }) {
   const u = useUnits();
   const [regions, setRegions] = useState<SavedRegion[]>(() => listRegions());
+  /// The finder, the form and the drawing map are shown on request: a new
+  /// plot is a once-a-season act, and open all the time they took half the
+  /// page from the plots already saved. Open at once for a grower with none.
+  const [adding, setAdding] = useState(() => listRegions().every((r) => r.id === EXAMPLE_ID));
   const sun = useSunLayer(active);
   const sunControl: SunControl = {
     on: sun.on, onToggle: sun.toggle, grid: sun.grid, loading: sun.loading, error: sun.error,
@@ -300,8 +304,8 @@ export default function Plots({
     void saveBlock(saved)
       .then((measured) => {
         onSaved(measured);   // switching to it re-scopes the whole app
-        setValue(EMPTY); setName("");
-        setMsg(`Saved ${trimmed}. Every view is now scoped to it.`);
+        setValue(EMPTY); setName(""); setMsg("");
+        setAdding(false);    // the new plot is the active chip; the finder folds away
       })
       .catch((e: Error) => setMsg(e.message));
   }
@@ -319,9 +323,15 @@ export default function Plots({
         {/* A plot someone shared, opened as a plot of your own. Waits for the
             record, like rename: the new plot's name is chosen against the
             plots the record says you have. */}
-        <IconButton path={ICON.upload} label="Import" tone="quiet"
-          title="Import a farm bundle" disabled={!synced || importing}
-          onClick={() => fileRef.current?.click()} />
+        <div className="flex gap-1.5">
+          {!adding && (
+            <IconButton path={ICON.add} label="Add a plot" tone="quiet"
+              title="Trace or pin new ground" onClick={() => setAdding(true)} />
+          )}
+          <IconButton path={ICON.upload} label="Import" tone="quiet"
+            title="Import a farm bundle" disabled={!synced || importing}
+            onClick={() => fileRef.current?.click()} />
+        </div>
         <input ref={fileRef} type="file" accept="application/json,.json" hidden
           onChange={(e) => void openFile(e)} />
       </div>
@@ -418,7 +428,12 @@ export default function Plots({
           month={sun.state.month} onMonth={sun.setMonth} onShowBest={sun.showBest} />
       )}
 
-      <h2 className="figure mt-6 text-[18px] font-semibold">Add a plot</h2>
+      {adding && (<>
+      <div className="mt-6 flex items-center justify-between gap-2">
+        <h2 className="figure text-[18px] font-semibold">Add a plot</h2>
+        <IconButton path={ICON.collapse} label="Close" tone="quiet" hideLabel
+          title="Put the finder away" onClick={() => setAdding(false)} />
+      </div>
 
       {/* ── Find the farm ──────────────────────────────────────────────── */}
       {/* Search and the drawing mode centre and shape the drawing map below —
@@ -530,6 +545,7 @@ export default function Plots({
           </>
         )}
       </div>
+      </>)}
 
       {incoming && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink/40 px-5">
