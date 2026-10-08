@@ -1,5 +1,6 @@
 // One spot's light: its class, its sky, its sun month by month, what panels
-// there would make. Opens on a tap inside the plot with the Sun layer on.
+// there would make. Opens on a tap inside the plot with the Sun layer on, as
+// a row of three cards under the map, like the block summary below it.
 //
 // The sky dome is the chart every shade tool draws — zenith at the centre,
 // horizon at the rim, the silhouette of hills and trees, and the sun's path
@@ -34,17 +35,9 @@ export default function SunSpotCard({ grid, result, cell, month, fullLeaf, onCos
   fullLeaf: boolean;
   onCost?: (sats: number) => void;
 }) {
-  if (!grid || !result) return null;
-  if (cell < 0) {
-    return (
-      <div className="rounded-md border border-rule bg-panel px-4 py-3.5">
-        <h3 className="figure text-[15.5px]">Tap the plot</h3>
-        <p className="mt-1 text-[12.5px] text-ink-soft">
-          Tap anywhere inside the plot to see its sky, its sun month by month, and what panels there would make.
-        </p>
-      </div>
-    );
-  }
+  // Nothing until a tap: the line under the map already says to tap, and a
+  // row of cards saying it again would be the space the answer needs.
+  if (!grid || !result || cell < 0) return null;
   const hours = hoursOf(grid, cell, month, fullLeaf);
   const cls = classOf(hours);
   const low = leastLightMonth(grid, cell, fullLeaf);
@@ -58,49 +51,59 @@ export default function SunSpotCard({ grid, result, cell, month, fullLeaf, onCos
     years ? `${years} years of sunshine` : null,
   ].filter(Boolean).join(" · ");
 
+  // One row, three cards — the same grid and chrome as the block summary
+  // under it, so the page is rows of equal height and the map keeps its
+  // whole width. A side column made the row as tall as the dome and left
+  // the map floating over empty paper.
   return (
-    <div className="rounded-md border border-rule bg-panel px-4 py-3.5">
-      <h3 className="figure text-[15.5px]">This spot</h3>
-
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${CLASS_CHIP[cls]}`}>{CLASS_NAME[cls]}</span>
-        <span><span className="figure text-[26px] leading-none">{hours.toFixed(1)}</span>
-          <span className="ml-1 text-[12px] text-ink-soft">h of direct sun a day in {FULL_MONTH[month]}</span></span>
-      </div>
-
-      <p className="eyebrow mt-3">The sky from here</p>
-      <SkyDome grid={grid} cell={cell} paths={result.sun_paths} fullLeaf={fullLeaf} leafOn={result.light.leaf_on_months.includes(month + 1)} />
-      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10.5px] text-ink-soft">
-        <Key colour={HILLS}>Hills</Key>
-        <Key colour={TREES} faint>Trees</Key>
-        {PATHS.map(([, c, label]) => <Key key={label} colour={c}>{label}</Key>)}
-        <span>dashed = sun hidden</span>
-      </div>
-
-      <p className="eyebrow mt-3">Direct sun, month by month</p>
-      <MonthBars grid={grid} cell={cell} month={month} fullLeaf={fullLeaf} />
-
-      {kwh !== null && access !== null && (
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <div className="rounded border border-rule px-3 py-2">
-            <div className="figure text-[20px] leading-tight">{Math.round(kwh).toLocaleString()}</div>
-            <div className="text-[11px] text-ink-soft">kWh per kW a year</div>
-          </div>
-          <div className="rounded border border-rule px-3 py-2">
-            <div className="figure text-[20px] leading-tight">{Math.round(access)}%</div>
-            <div className="text-[11px] text-ink-soft">of open-sky yield</div>
-          </div>
+    <div className="mt-3 grid gap-3 sm:grid-cols-3">
+      <div className="rounded-md border border-rule bg-panel px-4 py-3.5">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <h3 className="figure text-[15.5px]">This spot</h3>
+          <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${CLASS_CHIP[cls]}`}>{CLASS_NAME[cls]}</span>
         </div>
-      )}
+        <p className="mt-1"><span className="figure text-[26px] leading-none">{hours.toFixed(1)}</span>
+          <span className="ml-1 text-[12px] text-ink-soft">h of direct sun a day in {FULL_MONTH[month]}</span></p>
+        <SkyDome grid={grid} cell={cell} paths={result.sun_paths} fullLeaf={fullLeaf} leafOn={result.light.leaf_on_months.includes(month + 1)} />
+        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10.5px] text-ink-soft">
+          <Key colour={HILLS}>Hills</Key>
+          <Key colour={TREES} faint>Trees</Key>
+          {PATHS.map(([, c, label]) => <Key key={label} colour={c}>{label}</Key>)}
+          <span>dashed = sun hidden</span>
+        </div>
+      </div>
 
-      <p className="mt-2 text-[12px] text-ink-soft">
-        Least light in {FULL_MONTH[low]}: {hoursOf(grid, cell, low, fullLeaf).toFixed(1)} h a day.
-        {kwh !== null && " Panel figures are a screening estimate, not a site survey."}
-      </p>
+      <div className="rounded-md border border-rule bg-panel px-4 py-3.5">
+        <h3 className="figure text-[15.5px]">Direct sun, month by month</h3>
+        <MonthBars grid={grid} cell={cell} month={month} fullLeaf={fullLeaf} />
+        <p className="mt-2 text-[12px] text-ink-soft">
+          Least light in {FULL_MONTH[low]}: {hoursOf(grid, cell, low, fullLeaf).toFixed(1)} h a day.
+        </p>
+      </div>
 
-      <div className="mt-2 flex items-baseline gap-2">
-        <span className="data text-[10.5px] text-ink-soft">{sourcesLine}</span>
-        <Provenance tool="goodearth_sunlight" at={new Date()} from={readingTime(result)} onCost={onCost} />
+      <div className="rounded-md border border-rule bg-panel px-4 py-3.5">
+        <h3 className="figure text-[15.5px]">Panels here</h3>
+        {kwh !== null && access !== null ? (
+          <>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <div className="rounded border border-rule px-3 py-2">
+                <div className="figure text-[20px] leading-tight">{Math.round(kwh).toLocaleString()}</div>
+                <div className="text-[11px] text-ink-soft">kWh per kW a year</div>
+              </div>
+              <div className="rounded border border-rule px-3 py-2">
+                <div className="figure text-[20px] leading-tight">{Math.round(access)}%</div>
+                <div className="text-[11px] text-ink-soft">of open-sky yield</div>
+              </div>
+            </div>
+            <p className="mt-2 text-[12px] text-ink-soft">A screening estimate, not a site survey.</p>
+          </>
+        ) : (
+          <p className="mt-1 text-[12px] text-ink-soft">No solar figures for this plot.</p>
+        )}
+        <div className="mt-2 flex items-baseline gap-2">
+          <span className="data text-[10.5px] text-ink-soft">{sourcesLine}</span>
+          <Provenance tool="goodearth_sunlight" at={new Date()} from={readingTime(result)} onCost={onCost} />
+        </div>
       </div>
     </div>
   );
@@ -195,7 +198,7 @@ export function SkyDome({ grid, cell, paths, fullLeaf, leafOn }: {
     flush();
   }
   return (
-    <svg viewBox={`0 0 ${S} ${S + 4}`} className="mx-auto mt-1 block w-full max-w-[280px]" role="img"
+    <svg viewBox={`0 0 ${S} ${S + 4}`} className="mx-auto mt-1 block w-full max-w-[220px]" role="img"
       aria-label="Sky above this spot: the tree and hill silhouette with the sun's path in June, at the equinoxes and in December">
       <circle cx={CX} cy={CY} r={R} fill="#FFFBF2" />
       <path d={wedge((b) => Math.max(canopy[b], terrain[b]))} fill={TREES} opacity={0.55} />

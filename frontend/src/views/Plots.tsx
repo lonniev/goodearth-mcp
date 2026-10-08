@@ -402,27 +402,20 @@ export default function Plots({
       {/* ── All of it, on one map ──────────────────────────────────────── */}
       {/* Finding ground, not drawing it: tap a plot to work it. The drawing
           map stays its own, further down, so a tap here never adds a corner. */}
-      {/* The spot card's column exists only once there is a grid to read: a
-          map that shrinks while the sky is still being cast — or after the
-          read failed — gives up a quarter of its width to nothing. */}
-      <div className={`mt-2.5 ${sun.on && sun.grid ? "grid gap-3 lg:grid-cols-[1fr_21rem]" : ""}`}>
-        <div>
-          <PlotsMap plots={regions} activeId={active.id} onPick={onPick} sun={sunControl} />
-          {/* The plot being worked, in its numbers — what the cards used to
-              say three times over, said once, under the map. */}
-          <p className="data mt-1 text-[10.5px] text-ink-soft">
-            {describe(active, u)}
-            {" — "}
-            {sun.on && sun.grid ? "tap inside the plot for that spot's light" : "tap a plot to work it"}
-          </p>
-        </div>
-        {sun.on && sun.grid && (
-          <div className="self-start">
-            <SunSpotCard grid={sun.grid} result={sun.result} cell={sun.state.selected}
-              month={sun.state.month} fullLeaf={sun.state.fullLeaf} onCost={onCost} />
-          </div>
-        )}
+      <div className="mt-2.5">
+        <PlotsMap plots={regions} activeId={active.id} onPick={onPick} sun={sunControl} />
       </div>
+      {/* The plot being worked, in its numbers — what the cards used to
+          say three times over, said once, under the map. */}
+      <p className="data mt-1 text-[10.5px] text-ink-soft">
+        {describe(active, u)}
+        {" — "}
+        {sun.on && sun.grid ? "tap inside the plot for that spot's light" : "tap a plot to work it"}
+      </p>
+      {sun.on && sun.grid && (
+        <SunSpotCard grid={sun.grid} result={sun.result} cell={sun.state.selected}
+          month={sun.state.month} fullLeaf={sun.state.fullLeaf} onCost={onCost} />
+      )}
       {sun.on && sun.grid && sun.result && sun.summary && (
         <SunSummary name={active.name} summary={sun.summary} result={sun.result}
           month={sun.state.month} onMonth={sun.setMonth} onShowBest={sun.showBest} />
