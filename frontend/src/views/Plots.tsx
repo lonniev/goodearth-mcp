@@ -346,20 +346,21 @@ export default function Plots({
             <button key={r.id} aria-pressed={isActive}
               onClick={() => (isActive ? setFocus((n) => n + 1) : onPick(r))}
               title={isActive ? `Frame ${r.name} on the map` : `Work ${r.name}`}
-              className={`flex min-h-11 items-baseline gap-2 rounded-full border-[1.5px] px-3.5 ${
+              className={`flex min-h-11 flex-col items-start justify-center rounded-full border-[1.5px] px-3.5 leading-none ${
                 isActive ? "border-ink bg-ink text-paper" : "border-rule bg-panel text-ink active:bg-band"
               }`}>
               <span className="figure text-[14px] font-semibold">{r.name}</span>
-              <span className={`data text-[11px] ${isActive ? "text-paper/75" : "text-ink-soft"}`}>
+              {/* The area under the name, not beside it, keeps the chip as
+                  narrow as its name; the active chip adds a small eye, since
+                  its tap frames the plot on the map. */}
+              <span className={`data mt-0.5 flex items-center gap-1 text-[10.5px] ${isActive ? "text-paper/75" : "text-ink-soft"}`}>
                 {r.areaHa != null ? `${r.areaHa.toFixed(1)} ha` : "unmeasured"}
+                {isActive && (
+                  <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor" aria-hidden="true">
+                    <path d={ICON.eye} />
+                  </svg>
+                )}
               </span>
-              {/* The active chip's tap frames the plot on the map; a small
-                  eye says so without making the chip any bigger. */}
-              {isActive && (
-                <svg viewBox="0 0 24 24" className="h-3 w-3 self-center text-paper/75" fill="currentColor" aria-hidden="true">
-                  <path d={ICON.eye} />
-                </svg>
-              )}
             </button>
           );
         })}

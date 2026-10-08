@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- My Plots: a plot's chip stacks its area under its name instead of beside
+  it, so the row of chips is as narrow as the names; the chip's height is
+  unchanged. The Sun strip's Garden light / Solar panels toggle is two
+  glyphs, a sprout and a bolt. The Almanac's rail icon is a cloud raining,
+  since a sun now means the Sun layer and the screen's own brightness.
+
 - Maps: enlarging the map left the plots drawn on blank ground. The map's
   size now lives on the frame round it, never on the element Leaflet owns —
   React rewrote that element's classes and wiped `leaflet-container`, under
