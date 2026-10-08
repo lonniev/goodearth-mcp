@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import L from "leaflet";
 import { BASEMAPS } from "./FieldMap";
-import { FrameButton, useMapFrame } from "./MapFrame";
+import { EnlargeButton, useEnlarged } from "./MapFrame";
 import { ICON } from "./ui";
 import { plotShapes } from "../lib/plotShapes";
 import type { SavedRegion } from "../lib/regions";
@@ -53,15 +53,20 @@ export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0 }: {
   // one does, or every tap would yank the view away from where it was made.
   const ids = shapes.map((s) => s.id).join(",");
   const framed = useRef("");
-  const frame = useMapFrame();
+  const size = useEnlarged(map);
 
-  const frameFarm = useCallback(() => {
-    if (map.current && drawn.current) frame.fit(map.current, drawn.current.getBounds(), false, 17);
-  }, [frame]);
+  // Measure first: the container may not have its size yet, and fitting
+  // a zero-sized map leaves the farm a speck.
+  const fit = useCallback((bounds: L.LatLngBounds, maxZoom: number) => {
+    const m = map.current;
+    if (!m || !bounds.isValid()) return;
+    m.invalidateSize();
+    m.fitBounds(bounds, { padding: [30, 30], maxZoom });
+  }, []);
   const framePlot = useCallback(() => {
     const l = layers.current.get(activeId);
-    if (map.current && l) frame.fit(map.current, l.getBounds(), true, BASEMAPS.satellite.maxZoom);
-  }, [activeId, frame]);
+    if (l) fit(l.getBounds(), BASEMAPS.satellite.maxZoom);
+  }, [activeId, fit]);
 
   useEffect(() => {
     if (!host.current || map.current) return;
@@ -72,13 +77,10 @@ export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0 }: {
       maxZoom: BASEMAPS.satellite.maxZoom,
     }).addTo(m);
     drawn.current = L.featureGroup().addTo(m);
-    frame.watch(m);
     map.current = m;
     setTimeout(() => m.invalidateSize(), 0);
     // A new map has framed nothing yet, whatever the last one had.
     return () => { m.remove(); map.current = null; framed.current = ""; };
-    // The frame's watch is stable; the map is made once.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -115,9 +117,9 @@ export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0 }: {
     }
     if (framed.current !== ids && shapes.length) {
       framed.current = ids;
-      frame.fit(m, g.getBounds(), false, 17);
+      fit(g.getBounds(), 17);
     }
-  }, [shapes, ids, activeId, plots, frame]);
+  }, [shapes, ids, activeId, plots, fit]);
 
   // The page asks for the active plot's frame: the chip tapped again.
   useEffect(() => { if (focus > 0) framePlot(); }, [focus, framePlot]);
@@ -141,17 +143,11 @@ export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0 }: {
     if (sun && grid) sunLayer.current?.update(sun.state);
   }, [sun, grid]);
 
-  const activeName = plots.find((p) => p.id === activeId)?.name ?? "the plot";
-
   return (
-    <div className="relative overflow-hidden rounded-md border border-rule">
-      <div ref={host} className="h-[40vh] min-h-[300px] w-full overflow-hidden rounded-md bg-band" />
+    <div className={size.frame}>
+      <div ref={host} className={`${size.box} overflow-hidden bg-band`} />
 
-      {/* Frame the plot being worked; pressed, the same tap frames the whole
-          farm again. The map opens on the farm, so a plot inside it needs no
-          pinching to be seen. */}
-      <FrameButton pressed={frame.onThing} label={`Frame ${activeName}`} wideLabel="Frame the whole farm"
-        onClick={frame.onThing ? frameFarm : framePlot} />
+      <EnlargeButton big={size.big} onClick={size.toggle} />
 
       {sun && (
         <button
