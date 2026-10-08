@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Sun layer: the controls — garden light or solar panels, the month, the
+  leaf, the key — are a strip under the map across its width, not a panel
+  over it that hid a third of the ground it coloured. The map keeps only the
+  Sun switch and the frame button.
+- My Plots: the map opens on the whole farm, and a plot inside it needed a
+  pinch to be seen. A frame button on the map frames the active plot;
+  pressed again it frames the farm; tapping the active plot's chip frames
+  the plot too.
+
 - Sun layer: the spot card is a row of three cards under the map — the sky
   from here, direct sun month by month, panels here — in the block summary's
   grid, instead of a side column that made the row as tall as the dome and

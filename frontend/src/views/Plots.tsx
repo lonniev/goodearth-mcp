@@ -24,6 +24,7 @@ import { saveBlock } from "../lib/saveBlock";
 import { baseBounds } from "../lib/baseTemp";
 import PlotEditor from "../components/PlotEditor";
 import PlotsMap, { type SunControl } from "../components/PlotsMap";
+import SunPanel from "../components/SunPanel";
 import SunSpotCard from "../components/SunSpotCard";
 import SunSummary from "../components/SunSummary";
 import { useSunLayer } from "../lib/useSunLayer";
@@ -68,13 +69,10 @@ export default function Plots({
   const [adding, setAdding] = useState(() => listRegions().every((r) => r.id === EXAMPLE_ID));
   const sun = useSunLayer(active);
   const sunControl: SunControl = {
-    on: sun.on, onToggle: sun.toggle, grid: sun.grid, loading: sun.loading, error: sun.error,
-    state: sun.state,
-    leafOff: sun.result?.light.leaf_off_months ?? [],
-    tilt: sun.result?.solar?.panel.tilt_deg ?? null,
-    azimuth: sun.result?.solar?.panel.azimuth_deg ?? null,
-    onView: sun.setView, onMonth: sun.setMonth, onLeaf: sun.setLeaf, onSelect: sun.select,
+    on: sun.on, onToggle: sun.toggle, grid: sun.grid, state: sun.state, onSelect: sun.select,
   };
+  /// Each tap on the active chip is one request to frame its plot on the map.
+  const [focus, setFocus] = useState(0);
 
   /// Re-read the saved ground whenever something could have written it.
   ///
@@ -345,8 +343,9 @@ export default function Plots({
         {regions.map((r) => {
           const isActive = r.id === active.id;
           return (
-            <button key={r.id} onClick={() => onPick(r)} aria-pressed={isActive}
-              title={isActive ? r.name : `Work ${r.name}`}
+            <button key={r.id} aria-pressed={isActive}
+              onClick={() => (isActive ? setFocus((n) => n + 1) : onPick(r))}
+              title={isActive ? `Frame ${r.name} on the map` : `Work ${r.name}`}
               className={`flex min-h-11 items-baseline gap-2 rounded-full border-[1.5px] px-3.5 ${
                 isActive ? "border-ink bg-ink text-paper" : "border-rule bg-panel text-ink active:bg-band"
               }`}>
@@ -403,15 +402,27 @@ export default function Plots({
       {/* Finding ground, not drawing it: tap a plot to work it. The drawing
           map stays its own, further down, so a tap here never adds a corner. */}
       <div className="mt-2.5">
-        <PlotsMap plots={regions} activeId={active.id} onPick={onPick} sun={sunControl} />
+        <PlotsMap plots={regions} activeId={active.id} onPick={onPick} sun={sunControl} focus={focus} />
       </div>
       {/* The plot being worked, in its numbers — what the cards used to
           say three times over, said once, under the map. */}
       <p className="data mt-1 text-[10.5px] text-ink-soft">
         {describe(active, u)}
         {" — "}
-        {sun.on && sun.grid ? "tap inside the plot for that spot's light" : "tap a plot to work it"}
+        {sun.on && sun.grid ? "tap inside the plot for that spot's light" : "tap a plot to work it, its chip again to frame it"}
       </p>
+      {/* The Sun's controls under the map, not over it: the strip across
+          the map's width hid a third of the ground it coloured. */}
+      {sun.on && (
+        <SunPanel
+          view={sun.state.view} month={sun.state.month} fullLeaf={sun.state.fullLeaf}
+          leafOff={sun.result?.light.leaf_off_months ?? []}
+          tilt={sun.result?.solar?.panel.tilt_deg ?? null}
+          azimuth={sun.result?.solar?.panel.azimuth_deg ?? null}
+          loading={sun.loading} error={sun.error}
+          onView={sun.setView} onMonth={sun.setMonth} onLeaf={sun.setLeaf}
+        />
+      )}
       {sun.on && sun.grid && (
         <SunSpotCard grid={sun.grid} result={sun.result} cell={sun.state.selected}
           month={sun.state.month} fullLeaf={sun.state.fullLeaf} onCost={onCost} />
