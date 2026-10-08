@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- My Plots: *Add a plot* is shown on request. The finder, the name form and
+  the drawing map took half the page from the plots already saved; they now
+  open from **+ Add a plot** beside Import, fold away on Save (the new plot
+  is the active chip) or on the close button, and open at once for a grower
+  who has no ground of their own yet.
+
 - My Plots, compact above the map: the saved plots are one row of chips
   (tap one to work it; rename, share and forget act on the plot being
   worked, at the row's end), the map follows at once, and the plot's numbers
