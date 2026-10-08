@@ -108,9 +108,10 @@ export default function RadarMap({ region }: { region: SavedRegion }) {
   return (
     // Enlarged, the player rides inside the frame under the map, so the rain
     // can still be played across the whole screen.
-    <div className={size.big ? size.frame : "mb-4"}>
-      <div className={size.big ? "relative min-h-0 flex-1" : "relative overflow-hidden rounded-md border border-rule"}>
-        <div ref={host} className={`${size.big ? "h-full w-full" : "h-[40vh] min-h-[280px] w-full"} bg-band`} />
+    <div className={size.big ? "fixed inset-0 z-[1000] flex flex-col bg-paper" : "mb-4"}>
+      <div className={size.big ? "relative min-h-0 flex-1" : "relative h-[40vh] min-h-[280px] overflow-hidden rounded-md border border-rule"}>
+        {/* Sized by the frame; its own classes never change (see MapFrame). */}
+        <div ref={host} className="h-full w-full bg-band" />
         <EnlargeButton big={size.big} onClick={size.toggle} />
       </div>
       <div className={`border-rule bg-panel px-3 py-2 ${size.big ? "border-t" : "mt-2 rounded-md border"}`}>
