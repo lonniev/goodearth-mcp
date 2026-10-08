@@ -353,6 +353,13 @@ export default function Plots({
               <span className={`data text-[11px] ${isActive ? "text-paper/75" : "text-ink-soft"}`}>
                 {r.areaHa != null ? `${r.areaHa.toFixed(1)} ha` : "unmeasured"}
               </span>
+              {/* The active chip's tap frames the plot on the map; a small
+                  eye says so without making the chip any bigger. */}
+              {isActive && (
+                <svg viewBox="0 0 24 24" className="h-3 w-3 self-center text-paper/75" fill="currentColor" aria-hidden="true">
+                  <path d={ICON.eye} />
+                </svg>
+              )}
             </button>
           );
         })}

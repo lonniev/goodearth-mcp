@@ -5,9 +5,10 @@
 // and tap across the farm without fear of editing it. The active plot is drawn
 // in the growth colour, the rest in honey, each labelled with its name.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import L from "leaflet";
 import { BASEMAPS } from "./FieldMap";
+import { FrameButton, useMapFrame } from "./MapFrame";
 import { ICON } from "./ui";
 import { plotShapes } from "../lib/plotShapes";
 import type { SavedRegion } from "../lib/regions";
@@ -52,27 +53,15 @@ export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0 }: {
   // one does, or every tap would yank the view away from where it was made.
   const ids = shapes.map((s) => s.id).join(",");
   const framed = useRef("");
-  /// Whether the view is the active plot's frame — pressed on the button
-  /// below, and cleared by any pan or pinch the grower makes.
-  const [onPlot, setOnPlot] = useState(false);
-  const ours = useRef(false);
+  const frame = useMapFrame();
 
-  const fit = useCallback((bounds: L.LatLngBounds, plot: boolean) => {
-    const m = map.current;
-    if (!m || !bounds.isValid()) return;
-    // Measure first: the container may not have its size yet, and fitting
-    // a zero-sized map leaves the farm a speck.
-    m.invalidateSize();
-    ours.current = true;
-    m.fitBounds(bounds, { padding: [30, 30], maxZoom: plot ? BASEMAPS.satellite.maxZoom : 17 });
-    setTimeout(() => { ours.current = false; }, 0);
-    setOnPlot(plot);
-  }, []);
-  const frameFarm = useCallback(() => { if (drawn.current) fit(drawn.current.getBounds(), false); }, [fit]);
+  const frameFarm = useCallback(() => {
+    if (map.current && drawn.current) frame.fit(map.current, drawn.current.getBounds(), false, 17);
+  }, [frame]);
   const framePlot = useCallback(() => {
     const l = layers.current.get(activeId);
-    if (l) fit(l.getBounds(), true);
-  }, [activeId, fit]);
+    if (map.current && l) frame.fit(map.current, l.getBounds(), true, BASEMAPS.satellite.maxZoom);
+  }, [activeId, frame]);
 
   useEffect(() => {
     if (!host.current || map.current) return;
@@ -83,12 +72,13 @@ export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0 }: {
       maxZoom: BASEMAPS.satellite.maxZoom,
     }).addTo(m);
     drawn.current = L.featureGroup().addTo(m);
-    // A move the grower makes leaves the plot's frame; one of ours does not.
-    m.on("movestart", () => { if (!ours.current) setOnPlot(false); });
+    frame.watch(m);
     map.current = m;
     setTimeout(() => m.invalidateSize(), 0);
     // A new map has framed nothing yet, whatever the last one had.
     return () => { m.remove(); map.current = null; framed.current = ""; };
+    // The frame's watch is stable; the map is made once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -125,9 +115,9 @@ export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0 }: {
     }
     if (framed.current !== ids && shapes.length) {
       framed.current = ids;
-      fit(g.getBounds(), false);
+      frame.fit(m, g.getBounds(), false, 17);
     }
-  }, [shapes, ids, activeId, plots, fit]);
+  }, [shapes, ids, activeId, plots, frame]);
 
   // The page asks for the active plot's frame: the chip tapped again.
   useEffect(() => { if (focus > 0) framePlot(); }, [focus, framePlot]);
@@ -152,35 +142,30 @@ export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0 }: {
   }, [sun, grid]);
 
   const activeName = plots.find((p) => p.id === activeId)?.name ?? "the plot";
-  const shell = "min-h-11 rounded-md border border-ink/30 shadow";
 
   return (
     <div className="relative overflow-hidden rounded-md border border-rule">
       <div ref={host} className="h-[40vh] min-h-[300px] w-full overflow-hidden rounded-md bg-band" />
 
-      <div className="absolute right-2 top-2 z-[400] flex gap-1.5">
-        {/* Frame the plot being worked; pressed, the same tap frames the
-            whole farm again. The map opens on the farm, so a plot inside
-            it needs no pinching to be seen. */}
+      {/* Frame the plot being worked; pressed, the same tap frames the whole
+          farm again. The map opens on the farm, so a plot inside it needs no
+          pinching to be seen. */}
+      <FrameButton pressed={frame.onThing} label={`Frame ${activeName}`} wideLabel="Frame the whole farm"
+        onClick={frame.onThing ? frameFarm : framePlot} />
+
+      {sun && (
         <button
-          onClick={onPlot ? frameFarm : framePlot}
-          aria-pressed={onPlot}
-          aria-label={onPlot ? "Frame the whole farm" : `Frame ${activeName}`}
-          title={onPlot ? "Frame the whole farm" : `Frame ${activeName}`}
-          className={`${shell} flex w-11 items-center justify-center ${onPlot ? "bg-ink text-paper" : "bg-panel/95 text-ink"}`}
+          onClick={sun.onToggle}
+          aria-pressed={sun.on}
+          aria-label="Sun and shade"
+          title="Sun and shade"
+          className={`absolute right-2 top-2 z-[400] flex h-11 w-11 items-center justify-center rounded-md border border-ink/30 shadow ${
+            sun.on ? "bg-ink text-paper" : "bg-panel/95 text-ink"
+          }`}
         >
-          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true"><path d={ICON.frame} /></svg>
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true"><path d={ICON.sunShade} /></svg>
         </button>
-        {sun && (
-          <button
-            onClick={sun.onToggle}
-            aria-pressed={sun.on}
-            className={`${shell} px-3 text-[12px] font-medium ${sun.on ? "bg-ink text-paper" : "bg-panel/95 text-ink"}`}
-          >
-            ☀️ Sun
-          </button>
-        )}
-      </div>
+      )}
     </div>
   );
 }
