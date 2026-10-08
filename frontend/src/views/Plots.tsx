@@ -37,6 +37,17 @@ const EMPTY: MapValue = { mode: "polygon", ring: [], centre: null, radiusM: 400 
 
 const RADII = [200, 400, 800, 1600, 3200];
 
+/// A plot in its numbers, for the line under the map:
+/// "Frogdale · polygon · 4 corners · 9.2 ha · 14 samples · base 50 °F".
+function describe(r: SavedRegion, u: ReturnType<typeof useUnits>): string {
+  const shape = "lat" in r.region
+    ? `pin ${r.region.lat.toFixed(4)}, ${r.region.lon.toFixed(4)} · ${r.region.radius_m} m`
+    : `polygon · ${r.region.coordinates[0].length - 1} corners`;
+  const size = r.areaHa != null ? `${r.areaHa.toFixed(1)} ha · ${r.sampleCount} samples` : "not measured yet";
+  const also = r.aliases?.length ? ` · also ${r.aliases.map((a) => `“${a}”`).join(", ")}` : "";
+  return `${r.name}${also} · ${shape} · ${size} · base ${u.showTemp(r.baseTempF)}`;
+}
+
 export default function Plots({
   active, onPick, onSaved, onCost, synced = true,
 }: {
@@ -316,8 +327,103 @@ export default function Plots({
       </div>
       {bundleMsg && <p className="-mt-2 mb-2.5 text-[12.5px] text-ink">{bundleMsg}</p>}
 
+      {/* ── The ground already saved ───────────────────────────────────── */}
+      {/* One chip per plot, the map right under them: the page is the map.
+          A chip tapped is the plot worked; rename, share and forget act on
+          the plot being worked, at the row's end, not on every card. */}
+      <div className="flex flex-wrap items-center gap-2">
+        {regions.map((r) => {
+          const isActive = r.id === active.id;
+          return (
+            <button key={r.id} onClick={() => onPick(r)} aria-pressed={isActive}
+              title={isActive ? r.name : `Work ${r.name}`}
+              className={`flex min-h-11 items-baseline gap-2 rounded-full border-[1.5px] px-3.5 ${
+                isActive ? "border-ink bg-ink text-paper" : "border-rule bg-panel text-ink active:bg-band"
+              }`}>
+              <span className="figure text-[14px] font-semibold">{r.name}</span>
+              <span className={`data text-[11px] ${isActive ? "text-paper/75" : "text-ink-soft"}`}>
+                {r.areaHa != null ? `${r.areaHa.toFixed(1)} ha` : "unmeasured"}
+              </span>
+            </button>
+          );
+        })}
+        {active.id !== EXAMPLE_ID && (
+          <div className="ml-auto flex gap-1.5">
+            {/* Not before the record has answered: the cache may not know
+                the plot's aliases, and saving what it does not know would
+                clear them. */}
+            {synced && editing !== active.id && (
+              <IconButton path={ICON.edit} label={`Rename ${active.name}`} tone="quiet" hideLabel
+                onClick={() => setEditing(active.id)} />
+            )}
+            {/* The plot and this season's plantings, pests and wildlife,
+                as a file another patron can import. A second tap is asked
+                for only when the share sheet refused the first. */}
+            {synced && editing !== active.id && (
+              waiting?.id === active.id ? (
+                <IconButton path={ICON.share} label="Share ready" title={`Share ${active.name}`}
+                  onClick={() => void share(active)} />
+              ) : (
+                <IconButton path={ICON.share} label={`Share ${active.name}`} tone="quiet" hideLabel
+                  title="Share this plot as a farm bundle" disabled={packing === active.id}
+                  onClick={() => void share(active)} />
+              )
+            )}
+            <IconButton path={ICON.delete} label={`Forget ${active.name}`} tone="quiet" hideLabel
+              onClick={() => { setConfirming(active); setErr(""); }} />
+          </div>
+        )}
+      </div>
+      {editing === active.id && (
+        <div className="mt-2 rounded-md border border-rule bg-panel p-3.5">
+          <PlotEditor plot={active} onDone={(saved) => {
+            setEditing(null);
+            if (!saved) return;
+            setRegions(listRegions());
+            // The top bar and every view carry the active plot's name.
+            onSaved(saved);
+          }} />
+        </div>
+      )}
+      {cardMsg && (
+        <p className="mt-2 text-[12px] text-ink-soft" role="status">{cardMsg.text}</p>
+      )}
+
+      {/* ── All of it, on one map ──────────────────────────────────────── */}
+      {/* Finding ground, not drawing it: tap a plot to work it. The drawing
+          map stays its own, further down, so a tap here never adds a corner. */}
+      {/* The spot card's column exists only once there is a grid to read: a
+          map that shrinks while the sky is still being cast — or after the
+          read failed — gives up a quarter of its width to nothing. */}
+      <div className={`mt-2.5 ${sun.on && sun.grid ? "grid gap-3 lg:grid-cols-[1fr_21rem]" : ""}`}>
+        <div>
+          <PlotsMap plots={regions} activeId={active.id} onPick={onPick} sun={sunControl} />
+          {/* The plot being worked, in its numbers — what the cards used to
+              say three times over, said once, under the map. */}
+          <p className="data mt-1 text-[10.5px] text-ink-soft">
+            {describe(active, u)}
+            {" — "}
+            {sun.on && sun.grid ? "tap inside the plot for that spot's light" : "tap a plot to work it"}
+          </p>
+        </div>
+        {sun.on && sun.grid && (
+          <div className="self-start">
+            <SunSpotCard grid={sun.grid} result={sun.result} cell={sun.state.selected}
+              month={sun.state.month} fullLeaf={sun.state.fullLeaf} onCost={onCost} />
+          </div>
+        )}
+      </div>
+      {sun.on && sun.grid && sun.result && sun.summary && (
+        <SunSummary name={active.name} summary={sun.summary} result={sun.result}
+          month={sun.state.month} onMonth={sun.setMonth} onShowBest={sun.showBest} />
+      )}
+
+      <h2 className="figure mt-6 text-[18px] font-semibold">Add a plot</h2>
+
       {/* ── Find the farm ──────────────────────────────────────────────── */}
-      <div className="mb-2.5 flex flex-wrap items-center gap-2">
+      {/* Search and the drawing mode centre and shape the drawing map below —
+          they live with it, not above the plots map every visit pays for. */}
+      <div className="mt-2.5 mb-2.5 flex flex-wrap items-center gap-2">
         <form onSubmit={search} className="flex flex-1 min-w-[240px] gap-2">
           <input
             value={query} onChange={(e) => setQuery(e.target.value)}
@@ -357,119 +463,6 @@ export default function Plots({
         </ul>
       )}
 
-      {/* ── The ground already saved ───────────────────────────────────── */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {regions.map((r) => {
-          const isActive = r.id === active.id;
-          return (
-            <div
-              key={r.id}
-              className={`rounded-md border bg-panel p-3.5 ${
-                isActive ? "border-ink border-l-4 border-l-growth" : "border-rule"
-              }`}
-            >
-              {editing === r.id ? (
-                <PlotEditor plot={r} onDone={(saved) => {
-                  setEditing(null);
-                  if (!saved) return;
-                  setRegions(listRegions());
-                  // The top bar and every view carry the active plot's name.
-                  if (isActive) onSaved(saved);
-                }} />
-              ) : (
-                <>
-                  <div className="flex items-start justify-between gap-2">
-                    <h2 className="figure text-[15.5px] font-semibold">{r.name}</h2>
-                    {isActive && <span className="eyebrow text-growth">active</span>}
-                  </div>
-                  {!!r.aliases?.length && (
-                    <p className="mt-0.5 text-[12px] text-ink-soft">
-                      also {r.aliases.map((a) => `“${a}”`).join(", ")}
-                    </p>
-                  )}
-                </>
-              )}
-
-              <p className="data mt-1 text-[11px] text-ink-soft">
-                {"lat" in r.region
-                  ? `pin ${r.region.lat.toFixed(4)}, ${r.region.lon.toFixed(4)} · ${r.region.radius_m} m`
-                  : `polygon · ${r.region.coordinates[0].length - 1} corners`}
-              </p>
-              <p className="data mt-0.5 text-[11px] text-ink-soft">
-                {r.areaHa != null
-                  ? `${r.areaHa.toFixed(1)} ha · ${r.sampleCount} samples`
-                  : "not measured yet"}
-                {" · base "}{u.showTemp(r.baseTempF)}
-              </p>
-
-              <div className="mt-3 flex gap-2">
-                {!isActive && (
-                  <button
-                    onClick={() => onPick(r)}
-                    className="min-h-11 rounded border-[1.5px] border-ink px-4 text-[13px] font-semibold active:bg-ink active:text-paper"
-                  >
-                    Work this plot
-                  </button>
-                )}
-                {/* Not before the record has answered: the cache may not know
-                    the plot's aliases, and saving what it does not know would
-                    clear them. */}
-                {r.id !== EXAMPLE_ID && synced && editing !== r.id && (
-                  <IconButton path={ICON.edit} label={`Rename ${r.name}`} tone="quiet" hideLabel
-                    onClick={() => setEditing(r.id)} />
-                )}
-                {/* The plot and this season's plantings, pests and wildlife,
-                    as a file another patron can import. A second tap is asked
-                    for only when the share sheet refused the first. */}
-                {r.id !== EXAMPLE_ID && synced && editing !== r.id && (
-                  waiting?.id === r.id ? (
-                    <IconButton path={ICON.share} label="Share ready" title={`Share ${r.name}`}
-                      onClick={() => void share(r)} />
-                  ) : (
-                    <IconButton path={ICON.share} label={`Share ${r.name}`} tone="quiet" hideLabel
-                      title="Share this plot as a farm bundle" disabled={packing === r.id}
-                      onClick={() => void share(r)} />
-                  )
-                )}
-                {r.id !== EXAMPLE_ID && (
-                  <IconButton path={ICON.delete} label={`Forget ${r.name}`} tone="quiet" hideLabel
-                    onClick={() => { setConfirming(r); setErr(""); }} />
-                )}
-              </div>
-              {cardMsg?.id === r.id && (
-                <p className="mt-2 text-[12px] text-ink-soft" role="status">{cardMsg.text}</p>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* ── All of it, on one map ──────────────────────────────────────── */}
-      {/* Finding ground, not drawing it: tap a plot to work it. The drawing
-          map stays its own, further down, so a tap here never adds a corner. */}
-      {/* The spot card's column exists only once there is a grid to read: a
-          map that shrinks while the sky is still being cast — or after the
-          read failed — gives up a quarter of its width to nothing. */}
-      <div className={`mt-4 ${sun.on && sun.grid ? "grid gap-3 lg:grid-cols-[1fr_21rem]" : ""}`}>
-        <div>
-          <PlotsMap plots={regions} activeId={active.id} onPick={onPick} sun={sunControl} />
-          <p className="data mt-1 text-[10.5px] text-ink-soft">
-            {sun.on && sun.grid ? "Tap inside the plot for that spot's light" : "Tap a plot to work it"}
-          </p>
-        </div>
-        {sun.on && sun.grid && (
-          <div className="self-start">
-            <SunSpotCard grid={sun.grid} result={sun.result} cell={sun.state.selected}
-              month={sun.state.month} fullLeaf={sun.state.fullLeaf} onCost={onCost} />
-          </div>
-        )}
-      </div>
-      {sun.on && sun.grid && sun.result && sun.summary && (
-        <SunSummary name={active.name} summary={sun.summary} result={sun.result}
-          month={sun.state.month} onMonth={sun.setMonth} onShowBest={sun.showBest} />
-      )}
-
-      <h2 className="figure mt-6 text-[18px] font-semibold">Add a plot</h2>
 
       {/* ── Name the new block, and save it ────────────────────────────── */}
       <div className="mt-4 rounded-md border border-rule bg-panel p-4">
