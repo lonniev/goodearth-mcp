@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Almanac: the weather radar is here now, under a 🌧️ button in the heading
+  — a map of the country round the block with RainViewer's last two hours
+  and the minutes ahead, played or scrubbed from a strip under the map.
+  It lived on the drawing map, which *Add a plot* folded away; the Almanac
+  is where the weather is read. Opened once, it stays open on this device.
+
 - Sun layer: the controls — garden light or solar panels, the month, the
   leaf, the key — are a strip under the map across its width, not a panel
   over it that hid a third of the ground it coloured. The map keeps only the

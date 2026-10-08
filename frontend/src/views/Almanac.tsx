@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import MeasureChart from "../components/MeasureChart";
 import OutlookSummary from "../components/OutlookSummary";
 import Provenance from "../components/Provenance";
+import RadarMap from "../components/RadarMap";
 import { readingTime } from "../lib/readingTime";
 import { trendLift } from "../lib/trend";
 import { QuoteScroller } from "@tollbooth-dpyc/web/react";
@@ -131,17 +132,28 @@ export default function Almanac({
   /// The ten-day outlook against the record, in words. Every number is already
   /// on this page, so opening it asks the service for nothing.
   const [outlook, setOutlook] = useState(false);
+  /// The rain on the radar, on request and remembered on this device: a map
+  /// on every visit would push the fortnight and the charts down the page.
+  const [radar, setRadar] = useState(() => { try { return localStorage.getItem(RADAR_KEY) === "1"; } catch { return false; } });
+  const toggleRadar = () => setRadar((v) => { try { localStorage.setItem(RADAR_KEY, v ? "0" : "1"); } catch { /* a private window */ } return !v; });
 
   return (
     <>
       <div className="mb-3.5 flex items-baseline gap-3">
         <h1 className="figure text-[26px] font-bold">Almanac</h1>
         <span className="text-[13px] text-ink-soft">{region.name}</span>
+        <button onClick={toggleRadar} aria-pressed={radar}
+          title="Rain on the radar"
+          aria-label="Rain on the radar"
+          className={`ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center self-center rounded border text-[18px] ${
+            radar ? "border-ink bg-ink" : "border-rule active:bg-band"}`}>
+          🌧️
+        </button>
         {data && (data.forecast_dates?.length ?? 0) > 0 && (
           <button onClick={() => setOutlook(true)}
             title="The days ahead, against the record"
             aria-label="The days ahead, against the record"
-            className="ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center self-center rounded border border-rule text-ink-soft active:bg-band">
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center self-center rounded border border-rule text-ink-soft active:bg-band">
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true">
               {/* A spyglass: looking ahead, which is what this summarises. */}
               <path d="M21.2 2.6a1.4 1.4 0 0 0-1.5-.3l-4.2 1.7-9.6 6.2a2 2 0 0 0-.6.6l-2.1 3.5a1.2 1.2 0 0 0 .3 1.6l3.6 2.6-.9 2.7a.8.8 0 0 0 1.3.8l2.2-1.9 3.5 2.5a1.2 1.2 0 0 0 1.8-.5l1.7-4 4.6-14a1.4 1.4 0 0 0-.1-1.5M9.4 15.6l-2.6-1.9 1.4-2.3 3.9 2.8zm5 3.6-2.2-1.6 2.5-2.2a.8.8 0 0 0-1-1.2l-.3.2-4.2-3 8.3-5.4z" />
@@ -195,6 +207,9 @@ export default function Almanac({
           </div>
         </div>
       )}
+
+      {/* ── The rain, now ──────────────────────────────────────────────── */}
+      {radar && <RadarMap region={region} />}
 
       {/* ── The fortnight ──────────────────────────────────────────────── */}
       {data && data.upcoming.length > 0 && (
@@ -294,6 +309,9 @@ export default function Almanac({
 /// How far the warmest day in the fortnight rides above the coolest. Enough to
 /// see a trend across fourteen cards, little enough to keep the strip compact.
 const TREND_PX = 10;
+
+/// Whether the radar map is open, kept on this device beside the chart order.
+const RADAR_KEY = "goodearth.almanac.radar";
 
 function Stat({ emoji, label, value, sub }: {
   emoji: string; label: string; value: string; sub?: string;
