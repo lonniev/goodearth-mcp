@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- My Plots, compact above the map: the saved plots are one row of chips
+  (tap one to work it; rename, share and forget act on the plot being
+  worked, at the row's end), the map follows at once, and the plot's numbers
+  — shape, corners, area, samples, base, other names — are the line under
+  it. Search, *Use my location* and the Trace / Pin switch move down to
+  *Add a plot*, the drawing map they serve. On an iPad the map began halfway
+  down the screen; now it begins under the chips. The Sun panel waits with
+  the quotes scroller, like every other call in flight.
+
 - Sun layer on iPad: the grid never drew. The browser's `DecompressionStream`
   read through a `Response` never resolves on WebKit, so the panel said
   *Casting the sky…* for minutes after the answer arrived; the horizons now
