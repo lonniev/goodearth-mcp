@@ -37,13 +37,24 @@ export default function SunPanel({
         // One row on a tablet, wrapping to two or three on a phone: the
         // view, then the month (or the panel), the leaf, and the key last.
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-          <div className="flex shrink-0 overflow-hidden rounded-md border border-ink/30 text-[12px]" role="group" aria-label="What to show">
-            {(["garden", "solar"] as SunView[]).map((v) => (
-              <button key={v} onClick={() => onView(v)} aria-pressed={view === v}
-                className={`min-h-10 px-3 font-medium ${view === v ? "bg-ink text-paper" : "text-ink active:bg-band"}`}>
-                {v === "garden" ? "Garden light" : "Solar panels"}
-              </button>
-            ))}
+          {/* Two glyphs, no words: a sprout for the garden's light, a bolt
+              for the power a panel would make. */}
+          <div className="flex shrink-0 overflow-hidden rounded-md border border-ink/30" role="group" aria-label="What to show">
+            {(["garden", "solar"] as SunView[]).map((v) => {
+              const label = v === "garden" ? "Garden light" : "Solar panels";
+              return (
+                <button key={v} onClick={() => onView(v)} aria-pressed={view === v}
+                  aria-label={label} title={label}
+                  className={`flex h-10 w-11 items-center justify-center ${view === v ? "bg-ink text-paper" : "text-ink active:bg-band"}`}>
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor"
+                    strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    {v === "garden"
+                      ? <path d="M12 22V10M12 10c-5 0-8-3-8-8 5 0 8 3 8 8zM12 14c0-4 3-7 8-7 0 5-3 8-8 8" />
+                      : <path d="M13 2L4 14h7l-1 8 9-12h-7z" />}
+                  </svg>
+                </button>
+              );
+            })}
           </div>
 
           {view === "garden" ? (

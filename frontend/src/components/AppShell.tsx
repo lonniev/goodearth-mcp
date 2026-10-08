@@ -45,7 +45,9 @@ export const RAIL: RailItem[] = [
   { key: "ledger", label: "Dashboard", ready: true,
     icon: I(<><path d="M3 20h18M4 16c3-7 6-9 8-9s5 2 8 9" /></>) },
   { key: "almanac", label: "Almanac", ready: true,
-    icon: I(<><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>) },
+    // A cloud raining, not a sun: the sun now means the Sun layer on the map
+    // and the screen's own brightness, and the Almanac is the weather.
+    icon: I(<><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2" /><path d="M16 14v6M8 14v6M12 16v6" /></>) },
   { key: "crops", label: "Flora", ready: true,
     icon: I(<><path d="M12 22V10M12 10c-5 0-8-3-8-8 5 0 8 3 8 8zM12 14c0-4 3-7 8-7 0 5-3 8-8 8" /></>) },
   { key: "pests", label: "Pests", ready: true,
