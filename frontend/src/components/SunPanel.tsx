@@ -1,6 +1,8 @@
 // The Sun layer's panel: what to show, which month, whether the trees are in
 // leaf, and what the colours mean. Sits where the radar panel sits.
 
+import { QuoteScroller } from "@tollbooth-dpyc/web/react";
+import { AGRARIAN_QUOTES, AGRARIAN_SOURCE, quoteStyles } from "../lib/quotes";
 import { MONTHS } from "../lib/companions";
 import { bareSpan, css, KWH_RAMP, SUN_STOPS, type SunView } from "../lib/sunGrid";
 
@@ -29,7 +31,7 @@ export default function SunPanel({
       {error ? (
         <p className="text-[12px] text-clay">{error}</p>
       ) : loading ? (
-        <p className="text-[12px] text-ink-soft">Casting the sky over this plot…</p>
+        <QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Casting the sky over this plot" intervalMs={6500} classNames={quoteStyles} />
       ) : (
         <>
           <div className="flex overflow-hidden rounded-md border border-ink/30 text-[12px]" role="group" aria-label="What to show">
