@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Maps: the frame button moves to the top-left under the zoom control, on
+  the plots map and the radar map alike — one place for a map's controls.
+  The Sun layer's switch is a glyph, a sun half in shade, not a word. The
+  active plot's chip carries a small eye: a tap on it frames the plot.
+
 - Almanac: the weather radar is here now, under a 🌧️ button in the heading
   — a map of the country round the block with RainViewer's last two hours
   and the minutes ahead, played or scrubbed from a strip under the map.
