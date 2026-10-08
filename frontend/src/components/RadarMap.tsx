@@ -6,11 +6,11 @@
 // block, and the grower zooms to the ground only if they want to. The
 // controls sit under the map, as the Sun's do, so nothing hides the rain.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import { useTimezone } from "@tollbooth-dpyc/web/react";
 import { BASEMAPS } from "./FieldMap";
-import { FrameButton, useMapFrame } from "./MapFrame";
+import { EnlargeButton, useEnlarged } from "./MapFrame";
 import { coverageLabel, fetchRadarIndex, frameLabel, RADAR_MAX_NATIVE_ZOOM, tileUrl, type RadarIndex } from "../lib/radar";
 import { plotShapes } from "../lib/plotShapes";
 import type { SavedRegion } from "../lib/regions";
@@ -30,16 +30,7 @@ export default function RadarMap({ region }: { region: SavedRegion }) {
   const [err, setErr] = useState("");
   const [, zone] = useTimezone();
   const shape = useMemo(() => plotShapes([region])[0], [region]);
-  const block = useRef<L.Polygon | L.Circle | null>(null);
-  const framing = useMapFrame();
-
-  /// The block's ground, close; pressed, the country round it again.
-  const frameBlock = useCallback(() => {
-    if (map.current && block.current) framing.fit(map.current, block.current.getBounds(), true, BASEMAPS.street.maxZoom);
-  }, [framing]);
-  const frameRegion = useCallback(() => {
-    if (map.current && block.current) framing.view(map.current, block.current.getBounds().getCenter(), REGION_ZOOM, false);
-  }, [framing]);
+  const size = useEnlarged(map);
 
   // ── Map lifecycle ────────────────────────────────────────────────────
   useEffect(() => {
@@ -53,12 +44,9 @@ export default function RadarMap({ region }: { region: SavedRegion }) {
       maxZoom: BASEMAPS.street.maxZoom,
     }).addTo(m);
     drawn.current = L.layerGroup().addTo(m);
-    framing.watch(m);
     map.current = m;
     setTimeout(() => m.invalidateSize(), 0);
     return () => { m.remove(); map.current = null; radarLayer.current = null; };
-    // The frame's watch is stable; the map is made once.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // The block: its shape for when the grower zooms in, and a dot for the
@@ -73,13 +61,12 @@ export default function RadarMap({ region }: { region: SavedRegion }) {
       ? L.polygon(shape.ring.map((p) => [p.lat, p.lng] as [number, number]), style)
       : L.circle([shape.centre.lat, shape.centre.lng], { ...style, radius: shape.radiusM });
     layer.addTo(g);
-    block.current = layer;
     const centre = layer.getBounds().getCenter();
     L.circleMarker(centre, { radius: 6, color: "#FAFAF3", weight: 2, fillColor: GROWTH, fillOpacity: 1 })
       .bindTooltip(shape.name, { permanent: true, direction: "top", offset: [0, -6], className: "plot-label" })
       .addTo(g);
-    framing.view(m, centre, REGION_ZOOM, false);
-  }, [shape, framing]);
+    m.setView(centre, REGION_ZOOM);
+  }, [shape]);
 
   // ── Radar ────────────────────────────────────────────────────────────
   // RainViewer's index: the frames on offer. Once per mount — the index
@@ -119,13 +106,14 @@ export default function RadarMap({ region }: { region: SavedRegion }) {
   }, [playing, radar]);
 
   return (
-    <div className="mb-4">
-      <div className="relative overflow-hidden rounded-md border border-rule">
-        <div ref={host} className="h-[40vh] min-h-[280px] w-full bg-band" />
-        <FrameButton pressed={framing.onThing} label={`Frame ${region.name}`} wideLabel="Frame the country round it"
-          onClick={framing.onThing ? frameRegion : frameBlock} />
+    // Enlarged, the player rides inside the frame under the map, so the rain
+    // can still be played across the whole screen.
+    <div className={size.big ? size.frame : "mb-4"}>
+      <div className={size.big ? "relative min-h-0 flex-1" : "relative overflow-hidden rounded-md border border-rule"}>
+        <div ref={host} className={`${size.big ? "h-full w-full" : "h-[40vh] min-h-[280px] w-full"} bg-band`} />
+        <EnlargeButton big={size.big} onClick={size.toggle} />
       </div>
-      <div className="mt-2 rounded-md border border-rule bg-panel px-3 py-2">
+      <div className={`border-rule bg-panel px-3 py-2 ${size.big ? "border-t" : "mt-2 rounded-md border"}`}>
         {err ? (
           <p className="text-[12px] text-clay">{err}</p>
         ) : !radar ? (

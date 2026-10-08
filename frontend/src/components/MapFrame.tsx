@@ -1,67 +1,62 @@
-// Framing a map on one thing, and knowing when the grower has left it.
+// Enlarging a map's frame to the whole screen, and shrinking it back.
 //
-// Both maps — the plots on My Plots, the rain on the Almanac — open wide and
-// have one thing on them worth framing. The button sits under Leaflet's own
-// zoom control, where the eye already looks for the map's controls; pressed
-// again it frames the wide view, and any pan or pinch of the grower's own
-// releases it.
+// Both maps — the plots on My Plots, the rain on the Almanac — sit in a box
+// two-fifths of the screen tall, which is right for the page and small for
+// the ground. The button under Leaflet's zoom control lets the frame grow
+// to the screen's edges; the same button, or Escape, brings it back. It is
+// the frame that grows, not the zoom: the map keeps its view.
 
-import { useCallback, useRef, useState } from "react";
-import L from "leaflet";
+import { useCallback, useEffect, useState, type RefObject } from "react";
+import type L from "leaflet";
 import { ICON } from "./ui";
 
-export function useMapFrame() {
-  /// Whether the view is the thing's frame — pressed on the button.
-  const [onThing, setOnThing] = useState(false);
-  const ours = useRef(false);
+export function useEnlarged(map: RefObject<L.Map | null>) {
+  const [big, setBig] = useState(false);
+  const toggle = useCallback(() => setBig((v) => !v), []);
 
-  /// Hook the map so a move the grower makes leaves the frame; ours do not.
-  const watch = useCallback((m: L.Map) => {
-    m.on("movestart", () => { if (!ours.current) setOnThing(false); });
-  }, []);
+  useEffect(() => {
+    // The map must re-measure its box once the frame has changed size.
+    const t = setTimeout(() => map.current?.invalidateSize(), 0);
+    if (!big) return () => clearTimeout(t);
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setBig(false); };
+    window.addEventListener("keydown", onKey);
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = overflow;
+    };
+  }, [big, map]);
 
-  const fit = useCallback((m: L.Map, bounds: L.LatLngBounds, thing: boolean, maxZoom: number) => {
-    if (!bounds.isValid()) return;
-    // Measure first: the container may not have its size yet, and fitting
-    // a zero-sized map leaves the farm a speck.
-    m.invalidateSize();
-    ours.current = true;
-    m.fitBounds(bounds, { padding: [30, 30], maxZoom });
-    setTimeout(() => { ours.current = false; }, 0);
-    setOnThing(thing);
-  }, []);
-
-  const view = useCallback((m: L.Map, centre: L.LatLngExpression, zoom: number, thing: boolean) => {
-    ours.current = true;
-    m.setView(centre, zoom);
-    setTimeout(() => { ours.current = false; }, 0);
-    setOnThing(thing);
-  }, []);
-
-  return { onThing, watch, fit, view };
+  return {
+    big,
+    toggle,
+    /// The frame round the map (and, on the radar, its player).
+    frame: big
+      ? "fixed inset-0 z-[1000] flex flex-col bg-paper"
+      : "relative overflow-hidden rounded-md border border-rule",
+    /// The map's own box inside the frame.
+    box: big ? "min-h-0 w-full flex-1" : "h-[40vh] min-h-[300px] w-full",
+  };
 }
 
-/// The frame button, under the zoom control at the map's top-left.
-export function FrameButton({ pressed, label, wideLabel, onClick }: {
-  pressed: boolean;
-  /// What a press frames, e.g. "Frame Lower Meadow".
-  label: string;
-  /// What a press frames once pressed, e.g. "Frame the whole farm".
-  wideLabel: string;
-  onClick: () => void;
-}) {
-  const title = pressed ? wideLabel : label;
+/// The enlarge button, under the zoom control at the map's top-left.
+export function EnlargeButton({ big, onClick }: { big: boolean; onClick: () => void }) {
+  const title = big ? "Shrink the map" : "Enlarge the map";
   return (
     <button
       onClick={onClick}
-      aria-pressed={pressed}
+      aria-pressed={big}
       aria-label={title}
       title={title}
       className={`absolute left-[10px] top-[108px] z-[400] flex h-11 w-11 items-center justify-center rounded-md border border-ink/30 shadow ${
-        pressed ? "bg-ink text-paper" : "bg-panel/95 text-ink"
+        big ? "bg-ink text-paper" : "bg-panel/95 text-ink"
       }`}
     >
-      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true"><path d={ICON.frame} /></svg>
+      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true">
+        <path d={big ? ICON.collapse : ICON.expand} />
+      </svg>
     </button>
   );
 }

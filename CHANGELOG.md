@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Maps: the button under the zoom control enlarges the map to the whole
+  screen and shrinks it back (Escape too) — the frame grows, not the zoom.
+  On the Almanac the radar's player rides inside the enlarged frame. The
+  active plot's chip still frames its plot on the map.
+
 - Maps: the frame button moves to the top-left under the zoom control, on
   the plots map and the radar map alike — one place for a map's controls.
   The Sun layer's switch is a glyph, a sun half in shade, not a word. The
