@@ -153,12 +153,33 @@ def typical_dates(iso_dates: list[str], reference_year: int) -> tuple[date, date
     cross the new year — an October first frost in most seasons, a January one
     in a mild one — they are ordered by the SEASON, so January comes after
     December rather than before October, and lands in the following year.
+
+    Whether they cross is read from the dates themselves: one event's dates
+    cluster, and the widest empty stretch of the calendar between them is the
+    off-season. If that stretch is the one over New Year, nothing crosses.
+    "Some dates fall before July and some after" is not the test — a soil
+    warming that came in late June nine years and early July once would have
+    sent June into next year, and the planting window came out a year wrong
+    (−353 days, "will not fit").
     """
     if not iso_dates:
         return None
-    md = [(int(d[5:7]), int(d[8:10])) for d in iso_dates]
-    wraps = any(m >= 7 for m, _ in md) and any(m < 7 for m, _ in md)
-    keys = sorted((m + 12 if wraps and m < 7 else m, dd) for m, dd in md)
+    md = sorted({(int(d[5:7]), int(d[8:10])) for d in iso_dates})
+    doy = [on_year(2001, m, dd).timetuple().tm_yday for m, dd in md]
+    # The widest gap between consecutive dates round the year; the dates after
+    # it begin the season, and any before it belong to the season's end — the
+    # following calendar year.
+    gaps = [(doy[i] - doy[i - 1]) for i in range(1, len(doy))]
+    wrap_gap = 365 - doy[-1] + doy[0]
+    cut = 0
+    if gaps and max(gaps) > wrap_gap:
+        cut = gaps.index(max(gaps)) + 1
+    order = {k: i for i, k in enumerate(md)}
+    keys = sorted(
+        ((m + 12 if order[(m, dd)] < cut else m), dd)
+        for d in iso_dates
+        for m, dd in [(int(d[5:7]), int(d[8:10]))]
+    )
 
     def on(k: tuple[int, int]) -> date:
         later = k[0] > 12
