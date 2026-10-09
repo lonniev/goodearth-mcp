@@ -86,8 +86,10 @@ export default function RegionPicker({
         <span className="text-[10px] text-ink-soft">▼</span>
       </button>
 
+      {/* Above Leaflet: its panes sit at 400 and its controls at 1000, and
+          the maps on My Plots and the Almanac begin right under this bar. */}
       {open && (
-        <div className="absolute left-0 top-full z-20 mt-1.5 w-[min(22rem,calc(100vw-2rem))] rounded-md border border-rule bg-panel p-2 shadow-lg">
+        <div className="absolute left-0 top-full z-[1100] mt-1.5 w-[min(22rem,calc(100vw-2rem))] rounded-md border border-rule bg-panel p-2 shadow-lg">
           <div className="eyebrow px-2 pb-1">Your ground</div>
           <ul role="listbox" className="max-h-64 overflow-auto overscroll-contain">
             {regions.map((r) => (
