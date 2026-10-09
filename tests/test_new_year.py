@@ -52,6 +52,37 @@ def test_spring_dates_are_left_where_they_are():
     assert (s["earliest"], s["median"], s["latest"]) == ("2026-04-20", "2026-04-28", "2026-05-02")
 
 
+def test_a_soil_warming_that_once_slipped_into_july_stays_in_this_year():
+    """Ginger on Frogdale Farm, 2026-10-09: soil reached 65 °F in late June
+    most seasons and on July 2 once. "Dates on both sides of July" read as a
+    season crossing New Year, June went to 2027, the frost stayed in 2026,
+    and the window came out −353 days — "will not fit" for a crop that fits."""
+    hits = ["2017-06-14", "2018-06-20", "2019-06-25", "2020-06-11", "2021-06-18",
+            "2022-06-22", "2023-06-16", "2024-06-19", "2025-07-02"]
+    s = soil.typical_crossing(hits, 2026)
+    assert s["median"] == "2026-06-19"
+    assert s["earliest"] == "2026-06-11" and s["latest"] == "2026-07-02"
+
+
+def test_the_window_for_a_june_soil_date_is_no_longer_a_year_wrong():
+    today = date(2026, 10, 9)
+    soil_ready = date.fromisoformat(soil.typical_crossing(
+        ["2024-06-18", "2025-07-02", "2023-06-16"], 2026)["median"])
+    clim = {(date(2024, 1, 1) + timedelta(days=i)).strftime("%m-%d"): 14.0 for i in range(366)}
+    ginger = planting.validate({"crop": "Ginger", "gdd_target": 1400, "base_temp": 55,
+                                "min_soil_f": 65})
+    r = planting.assess(ginger, date(2026, 5, 4), date(2026, 10, 12), soil_ready, clim, today)
+    assert r["earliest_out"] == "2026-06-18"
+    assert r["window_days"] is not None and r["window_days"] > 0, r
+    assert r["state"] != "will_not_fit"
+
+
+def test_a_frost_season_that_truly_crosses_the_new_year_still_does():
+    """The gap test keeps the January frost in the following year."""
+    s = frost.summarize_frost_dates(["2021-10-20", "2022-10-22", "2023-12-30", "2024-01-12"], 2026)
+    assert (s["earliest"], s["latest"]) == ("2026-10-20", "2027-01-12")
+
+
 # ── The planting window in autumn ────────────────────────────────────────
 
 
