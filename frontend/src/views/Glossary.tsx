@@ -11,9 +11,11 @@
 // the end of. On a tablet or wider the cards share the width, two or three
 // across — the page used to sit in a 672 px column, half of an iPad.
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { GLOSSARY, GROUPS, searchGlossary } from "../lib/glossary";
 import { FIELD } from "../components/ui";
+import { useShare } from "../components/Share";
+import { termsSheet } from "../lib/exports";
 
 /// One column on a phone, two on a tablet, three on a wide screen.
 const GRID = "grid items-start gap-3 md:grid-cols-2 xl:grid-cols-3";
@@ -22,6 +24,9 @@ export default function Glossary() {
   const [q, setQ] = useState("");
   const hits = searchGlossary(q);
   const searching = q.trim().length > 0;
+  /// The words on screen — all of them, or the search's hits — for the share
+  /// button in the top bar.
+  useShare(useMemo(() => termsSheet(hits, GROUPS, GLOSSARY.length), [hits]));
 
   return (
     <div>

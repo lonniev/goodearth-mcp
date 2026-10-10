@@ -12,6 +12,7 @@
 
 import type { ReactNode } from "react";
 import { PUBLIC_VIEWS, type ViewKey } from "../lib/views";
+import { ShareButton } from "./Share";
 
 const LABEL: Record<string, string> = {
   welcome: "Welcome",
@@ -41,7 +42,9 @@ export default function GuestShell({ view, onView, onSignIn, children }: {
             Good<span className="ml-1 text-honey italic">Earth</span>
           </button>
 
-          <nav className="flex flex-1 flex-wrap items-center gap-x-1 gap-y-1">
+          {/* On a phone the pages take a row of their own under the wordmark
+              and the buttons: squeezed beside them they fell one per line. */}
+          <nav className="order-last flex w-full flex-wrap items-center gap-x-1 gap-y-1 md:order-none md:w-auto md:flex-1">
             {/* The page guides are public but not a row of eight more
                 buttons here: Welcome indexes them, and a guest reading one
                 has that door back. */}
@@ -56,10 +59,15 @@ export default function GuestShell({ view, onView, onSignIn, children }: {
             ))}
           </nav>
 
-          <button onClick={onSignIn}
-            className="min-h-9 shrink-0 rounded-full border-[1.5px] border-ink px-4 text-[12.5px] font-semibold">
-            Sign in
-          </button>
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            {/* The words and the sources leave the app the same way they do
+                for a grower: nothing here needs an npub. */}
+            <ShareButton />
+            <button onClick={onSignIn}
+              className="min-h-9 shrink-0 rounded-full border-[1.5px] border-ink px-4 text-[12.5px] font-semibold">
+              Sign in
+            </button>
+          </div>
         </div>
       </header>
 

@@ -294,6 +294,7 @@ export default function App() {
       );
     }
     return (
+      <ShareProvider>
       <GuestShell view={view} onView={setView} onSignIn={() => setAsking(true)}>
         {view === "welcome" && <Welcome onView={setView} onSignIn={() => setAsking(true)} />}
         {view === "plant" && <LifeOfAPlant />}
@@ -317,6 +318,7 @@ export default function App() {
         {view === "how-todo" && <HowTo page="todo" onView={setView} />}
         {view === "how-reports" && <HowTo page="reports" onView={setView} />}
       </GuestShell>
+      </ShareProvider>
     );
   }
 

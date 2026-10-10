@@ -23,6 +23,7 @@ import type { SavedPest } from "./pestModels.ts";
 import type { SavedWildlife } from "./wildlifeModels.ts";
 import { TAGS, type FieldReport } from "./reports.ts";
 import type { SavedRegion } from "./regions.ts";
+import type { Entry } from "./glossary.ts";
 import { areaM2, formatArea, geoJSONToRing } from "./geo.ts";
 import { showDD, showTemp, type Unit } from "./units.ts";
 import { compareOutlook, departure } from "./outlookSummary.ts";
@@ -325,6 +326,44 @@ export function todoSheet(region: SavedRegion, rows: TaskRow[], total?: number):
       t.done ? "✓" : "", t.due ?? "", t.starts_at ?? "", t.title, t.note ?? "",
     ]),
     json: { block: region.name, tasks: rows },
+  };
+}
+
+// ─── References ──────────────────────────────────────────────────────────
+
+/// The three kinds of thing the References page lists. Typed here, where the
+/// sheet reads them, so the page's constants and the export agree by
+/// construction.
+export interface Source { name: string; url: string; role: string; resolution: string; note: string }
+export interface Model { title: string; body: string; assumption: string }
+export interface Reading { name: string; url: string; said: string }
+
+/// Three lists with three shapes, as one table: what kind of thing each row
+/// is, its name, what it says, the caveat, and the link where there is one.
+export function referencesSheet(sources: Source[], models: Model[], reading: Reading[]): Sheet {
+  return {
+    title: "References", emoji: "📚",
+    eyebrow: `${n(sources.length, "source")} · ${n(models.length, "model")} · ${n(reading.length, "place")} to read on`,
+    head: ["Kind", "Name", "Says", "Caveat", "Resolution", "Link"],
+    rows: [
+      ...sources.map((s) => ["Source", s.name, s.role, s.note, s.resolution, s.url]),
+      ...models.map((m) => ["Model", m.title, m.body, m.assumption, "", ""]),
+      ...reading.map((r) => ["Reading", r.name, r.said, "", "", r.url]),
+    ],
+    json: { sources, models, disease_reading: reading },
+  };
+}
+
+// ─── Glossary ────────────────────────────────────────────────────────────
+
+export function termsSheet(entries: Entry[], groups: { key: Entry["group"]; label: string }[], of: number): Sheet {
+  const where = new Map(groups.map((g) => [g.key, g.label]));
+  return {
+    title: "What the words mean", emoji: "📖",
+    eyebrow: held(entries.length, of, "word"),
+    head: ["Term", "Also called", "Where", "Meaning"],
+    rows: entries.map((e) => [e.term, (e.aka ?? []).join(", "), where.get(e.group) ?? e.group, e.said]),
+    json: entries,
   };
 }
 
