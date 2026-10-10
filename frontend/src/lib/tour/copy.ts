@@ -268,9 +268,13 @@ export const TOURS: Record<Tour["page"], Tour> = {
       says: "Your Patron's tranche of api_sats. MCP tool fees are paid from it, per call, and each answer shows what it drew." },
     { target: () => document.querySelector(".ge-usage"), title: "What each tool drew",
       says: "Every MCP tool you have called, how many times, and the api_sats each cost. The operator sets the prices; this is what was paid.", side: "top" },
-    { target: () => [...document.querySelectorAll("h2")].find((h) => (h.textContent ?? "").trim() === "Profile")?.closest("section") ?? null,
+    // The persona panel is the package's; its copy-npub button is its one
+    // stable mark, and the card around it is the panel.
+    { target: () => document.querySelector('[title="Copy full npub"]')?.closest("div.rounded-2xl") ?? null,
       title: "Your Nostr persona",
-      says: "The name, picture, bio and addresses Nostr shows for your npub. Edit them here and they publish to your Nostr profile.", side: "top" },
+      says: "The name, picture, bio and addresses Nostr shows for your npub. Tap Edit to change them; they publish to your Nostr profile.", side: "top" },
+    { target: () => document.querySelector(".ge-coupons"), title: "Coupons",
+      says: "A code an operator hands out. Redeem it once here and it discounts your MCP tool fees on its own after that.", side: "top" },
     { target: "account.tutorial", title: "Live tutorial",
       says: "This tour, on every page. Turn it off here or from any popover; turn it on to see it all again." },
     { target: "account.season", title: "Season",
