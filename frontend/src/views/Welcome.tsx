@@ -9,6 +9,7 @@
 // explainers behind it carry the teaching.
 
 import { Claim } from "../components/Diagram";
+import { GUIDE_META, GUIDED } from "../lib/guides";
 import type { ViewKey } from "../lib/views";
 
 const EXPLAINERS: { view: ViewKey; emoji: string; title: string; said: string }[] = [
@@ -87,6 +88,28 @@ export default function Welcome({ onView, onSignIn, signedIn }: {
             </span>
           </button>
         ))}
+      </div>
+
+      {/* How each page is used: the (?) in the top bar lands here too. One
+          card per working page, in the rail's order, so a grower finds the
+          guide under the word the rail already uses. */}
+      <h2 className="figure mt-8 mb-2.5 text-[18px] font-semibold">
+        How each page is used
+      </h2>
+      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+        {GUIDED.map((p) => {
+          const m = GUIDE_META[p];
+          return (
+            <button key={p} onClick={() => onView(`how-${p}`)}
+              className="rounded-md border border-rule bg-panel p-4 text-left active:border-ink">
+              <span className="text-[26px]" aria-hidden="true">{m.emoji}</span>
+              <span className="figure mt-1 block text-[14.5px] font-semibold">{m.title}</span>
+              <span className="mt-1 block text-[12.5px] leading-relaxed text-ink-soft">
+                {m.said}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {!signedIn && (

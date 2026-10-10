@@ -10,6 +10,7 @@ import { centreOn, scrolls } from "../lib/railScroll";
 import { Avatar } from "@tollbooth-dpyc/web/react";
 import Boundary from "./Boundary";
 import FullscreenButton from "./FullscreenButton";
+import GuideButton from "./GuideButton";
 import OutboxChip from "./OutboxChip";
 import UndoChip from "./UndoChip";
 import RegionPicker from "./RegionPicker";
@@ -215,6 +216,8 @@ export default function AppShell({
         <div className="ml-auto flex shrink-0 items-center gap-2">
         <UndoChip blockId={region.id} />
         <OutboxChip />
+        {/* How the page on screen is used. Nothing on a page with no guide. */}
+        <GuideButton view={view} onView={onView} />
         <FullscreenButton />
         <button
           onClick={() => onView("account")}

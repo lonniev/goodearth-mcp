@@ -29,6 +29,7 @@ import LifeOfATree from "./views/LifeOfATree";
 import LifeOfADisease from "./views/LifeOfADisease";
 import Welcome from "./views/Welcome";
 import Glossary from "./views/Glossary";
+import HowTo from "./views/HowTo";
 import { showTemp, type Unit } from "./lib/units";
 import HeatLedger from "./views/HeatLedger";
 import Crops from "./views/Crops";
@@ -302,6 +303,18 @@ export default function App() {
         {view === "glossary" && <Glossary />}
         {view === "about" && <About />}
         {view === "references" && <References />}
+        {/* How each page is used — free, so a stranger can read what they
+            would be signing in for. Spelled out per key, as the public views
+            are above, because the test that keeps a guide from 404ing for one
+            side of the gate reads these lines. */}
+        {view === "how-plots" && <HowTo page="plots" onView={setView} />}
+        {view === "how-ledger" && <HowTo page="ledger" onView={setView} />}
+        {view === "how-almanac" && <HowTo page="almanac" onView={setView} />}
+        {view === "how-crops" && <HowTo page="crops" onView={setView} />}
+        {view === "how-pests" && <HowTo page="pests" onView={setView} />}
+        {view === "how-wildlife" && <HowTo page="wildlife" onView={setView} />}
+        {view === "how-todo" && <HowTo page="todo" onView={setView} />}
+        {view === "how-reports" && <HowTo page="reports" onView={setView} />}
       </GuestShell>
     );
   }
@@ -368,6 +381,14 @@ export default function App() {
         {view === "animal" && <LifeOfAnAnimal />}
         {view === "disease" && <LifeOfADisease />}
         {view === "glossary" && <Glossary />}
+        {view === "how-plots" && <HowTo page="plots" onView={setView} />}
+        {view === "how-ledger" && <HowTo page="ledger" onView={setView} />}
+        {view === "how-almanac" && <HowTo page="almanac" onView={setView} />}
+        {view === "how-crops" && <HowTo page="crops" onView={setView} />}
+        {view === "how-pests" && <HowTo page="pests" onView={setView} />}
+        {view === "how-wildlife" && <HowTo page="wildlife" onView={setView} />}
+        {view === "how-todo" && <HowTo page="todo" onView={setView} />}
+        {view === "how-reports" && <HowTo page="reports" onView={setView} />}
         {view === "account" && (
           // Two columns on a landscape screen: who you are on the left, how
           // the app behaves for you on the right. The page is one flat list,
