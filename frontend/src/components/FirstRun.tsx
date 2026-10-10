@@ -16,12 +16,16 @@ import {
   HOME_ACRES, proposeHomeBlock, type SavedRegion,
 } from "../lib/regions";
 import { saveBlock } from "../lib/saveBlock";
+import { tour } from "../lib/tour/targets";
+import { useTour } from "./Tour";
 
 export default function FirstRun({ onSaved, onDraw, onExample }: {
   onSaved: (r: SavedRegion) => void;
   onDraw: () => void;
   onExample: () => void;
 }) {
+  // The Dashboard's tour begins here for a grower with no ground yet.
+  useTour("ledger");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
@@ -59,7 +63,7 @@ export default function FirstRun({ onSaved, onDraw, onExample }: {
       </p>
 
       <div className="mt-5 grid gap-2.5 sm:grid-cols-2">
-        <button onClick={here} disabled={busy}
+        <button onClick={here} disabled={busy} {...tour("firstrun.here")}
           className="rounded-md border-[1.5px] border-ink bg-ink p-4 text-left text-paper disabled:opacity-50">
           <span className="text-[24px]" aria-hidden="true">📍</span>
           <span className="figure mt-1 block text-[15px] font-semibold">
@@ -71,7 +75,7 @@ export default function FirstRun({ onSaved, onDraw, onExample }: {
           </span>
         </button>
 
-        <button onClick={onDraw}
+        <button onClick={onDraw} {...tour("firstrun.draw")}
           className="rounded-md border border-rule bg-panel p-4 text-left active:border-ink">
           <span className="text-[24px]" aria-hidden="true">✏️</span>
           <span className="figure mt-1 block text-[15px] font-semibold">Draw it on the map</span>

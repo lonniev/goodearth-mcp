@@ -24,6 +24,8 @@ import { dropIndex, mergeOrder, moveItem } from "../lib/reorder";
 import { ChartFrame } from "../components/ui";
 import { useShare } from "../components/Share";
 import { almanacSheet } from "../lib/exports";
+import { useTour } from "../components/Tour";
+import { tour } from "../lib/tour/targets";
 
 const SERIES: { key: MeasureKey; label: string; emoji: string; color?: string }[] = [
   { key: "temp_max",  label: "Daily high",  emoji: "🌡️" },
@@ -132,6 +134,7 @@ export default function Almanac({
   const c = data?.conditions;
   /// The ten days ahead against the record, through the share button in the
   /// top bar. Every number is already on this page, so it asks for nothing.
+  useTour("almanac");
   useShare(useMemo(() => (data ? almanacSheet(data, region.name, u.unit) : null), [data, region.name, u.unit]));
   /// The rain on the radar, on request and remembered on this device: a map
   /// on every visit would push the fortnight and the charts down the page.
@@ -146,6 +149,7 @@ export default function Almanac({
         <button onClick={toggleRadar} aria-pressed={radar}
           title="Rain on the radar"
           aria-label="Rain on the radar"
+          {...tour("almanac.radar")}
           className={`ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center self-center rounded border text-[18px] ${
             radar ? "border-ink bg-ink" : "border-rule active:bg-band"}`}>
           🌧️
@@ -158,7 +162,7 @@ export default function Almanac({
 
       {/* ── Today ──────────────────────────────────────────────────────── */}
       {c && (
-        <div className="mb-4 rounded-md border border-rule bg-panel px-4 py-3.5">
+        <div className="mb-4 rounded-md border border-rule bg-panel px-4 py-3.5" {...tour("almanac.today")}>
           {/* Eight readings, eight equal cells, one anatomy each. Today's sky
               is a reading like the rest, so it takes the same cell rather than
               a wider one — the eye compares them across a single axis. */}
@@ -202,7 +206,7 @@ export default function Almanac({
         /* A fixed-width scroller left the right third of a wide screen empty
            while hiding days off the edge. A grid spends the whole width and
            wraps instead of scrolling, so the fortnight is all on screen. */
-        <div className="mb-5 grid grid-cols-4 gap-1.5 sm:grid-cols-7 lg:grid-cols-[repeat(14,minmax(0,1fr))]">
+        <div className="mb-5 grid grid-cols-4 gap-1.5 sm:grid-cols-7 lg:grid-cols-[repeat(14,minmax(0,1fr))]" {...tour("almanac.fortnight")}>
           {/* Each card rides a few pixels higher on a warmer day, so the
               fortnight's warming or cooling shows before a number is read.
               A transform, not a margin: the grid rows keep their height. */}
@@ -250,7 +254,7 @@ export default function Almanac({
           move its chart up or down the page; a tap still just shows or hides
           it. The arrangement is remembered on this device, beside the season
           and the units. */}
-      <div ref={row} className="mb-1.5 flex flex-wrap gap-1.5 select-none">
+      <div ref={row} className="mb-1.5 flex flex-wrap gap-1.5 select-none" {...tour("almanac.chiclets")}>
         {ordered.map((s, i) => (
           <button key={s.key}
             onPointerDown={(e) => onDown(e, i)}

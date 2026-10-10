@@ -37,6 +37,8 @@ import { entries, overlayTasks, subscribe } from "../lib/outbox";
 import { migrateLocalTodos } from "../lib/todos";
 import { makeFeedRefresher, publishedToken } from "../lib/publishFeed";
 import type { SavedRegion } from "../lib/regions";
+import { useTour } from "../components/Tour";
+import { tour } from "../lib/tour/targets";
 
 const nice = (iso?: string | null) =>
   iso ? new Date(iso.length > 10 ? iso : iso + "T12:00:00")
@@ -73,6 +75,7 @@ export default function TodoView({
   const [page, setPage] = useState<{ rows: TaskRow[]; total: number; page: number; pages: number } | null>(null);
   /// The page of tasks in hand, for the share button in the top bar.
   useShare(useMemo(() => (page ? todoSheet(region, page.rows, page.total) : null), [region, page]));
+  useTour("todo", { "show-times": () => setReminderOnly(false) });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [ranAt, setRanAt] = useState<Date | null>(null);
@@ -229,7 +232,7 @@ export default function TodoView({
         {/* The iCal control stays: it opens a settings page and belongs in the
             page's own row. The ADD button went down to the foot of the form,
             where the thing it submits actually is. */}
-        <IconButton path={ICON.settings} label="iCal" tone="quiet"
+        <IconButton path={ICON.settings} label="iCal" tone="quiet" tour="todo.gear"
           title="Calendar feed settings" onClick={() => onView?.("account")} />
       </div>
 
@@ -241,15 +244,15 @@ export default function TodoView({
           heading plus a full-width submit was two rows spent saying "add". */}
       <form id="new-task" onSubmit={add} className="mb-4 rounded-md border border-rule bg-panel p-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="block text-[11px] text-ink-soft lg:col-span-2">
+          <label className="block text-[11px] text-ink-soft lg:col-span-2" {...tour("todo.title")}>
             What needs doing
             <input name="title" placeholder="Cover the east beds" className={FIELD} />
           </label>
-          <label className="block text-[11px] text-ink-soft">
+          <label className="block text-[11px] text-ink-soft" {...tour("todo.due")}>
             Due
             <input name="due" type="date" className={FIELD} />
           </label>
-          <label className="flex min-h-11 items-center gap-2 self-end text-[12.5px]">
+          <label className="flex min-h-11 items-center gap-2 self-end text-[12.5px]" {...tour("todo.reminder")}>
             <input type="checkbox" checked={reminderOnly}
               onChange={(e) => setReminderOnly(e.target.checked)}
               className="h-5 w-5 accent-[var(--color-ink)]" />
@@ -260,7 +263,7 @@ export default function TodoView({
         {/* Times only mean something for a task that takes a slot. Hiding them
             for a reminder keeps the form from asking for what it will ignore. */}
         {!reminderOnly && (
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" {...tour("todo.times")}>
             <label className="block text-[11px] text-ink-soft">
               From
               <input name="starts" type="time" className={FIELD} />
@@ -279,19 +282,20 @@ export default function TodoView({
         <div className="mt-3 flex items-end gap-3">
           <label className="block min-w-0 flex-1 text-[11px] text-ink-soft">
             Note
-            <input name="note" placeholder="Row cover is in the east barn" className={FIELD} />
+            <input name="note" placeholder="Row cover is in the east barn" className={FIELD} {...tour("todo.note")} />
           </label>
-          <IconButton path={ICON.add} label={adding ? "Adding…" : "Task"} form="new-task"
+          <IconButton path={ICON.add} label={adding ? "Adding…" : "Task"} form="new-task" tour="todo.add"
             title="Add task" disabled={adding} />
         </div>
       </form>
 
       {/* ── What's on the list ─────────────────────────────────────────── */}
-      <Section emoji="✅" title="Planned Tasks">
+      <Section emoji="✅" title="Planned Tasks" tour="todo.list">
         <Provenance tool="goodearth_task_list" at={ranAt} onCost={onCost} />
       </Section>
 
       <div className="mb-2.5 flex flex-wrap items-center gap-1.5">
+        <span className="flex flex-wrap items-center gap-1.5" {...tour("todo.frames")}>
         {FRAMES.map((f) => (
           <Pill key={f.key} active={frame === f.key}
             onClick={() => { setFrame(f.key); setPageNo(0); }}>
@@ -300,8 +304,11 @@ export default function TodoView({
         ))}
         {/* Runs on submit, never on keystroke. This box used to refetch per
             character, so typing "mulch" billed five task_list calls. */}
+        </span>
+        <span {...tour("todo.search")}>
         <SearchBox value={search} placeholder="regex ok, e.g. mulch|cover"
           onSearch={(t) => { setSearch(t); setPageNo(0); }} />
+        </span>
       </div>
 
       {busy && !page ? (

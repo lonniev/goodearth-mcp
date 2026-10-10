@@ -28,6 +28,8 @@ import type { SavedRegion } from "../lib/regions";
 import { ErrorBox, FIELD, ICON, IconButton, Note, TrashGlyph } from "../components/ui";
 import { useSubmit } from "../lib/useSubmit";
 import { withId } from "../lib/submit";
+import { useTour } from "../components/Tour";
+import { tour } from "../lib/tour/targets";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const nice = (iso: string) =>
@@ -61,6 +63,7 @@ export default function FieldReports({
     useBlockItems<FieldReport>(region.id, "observation", reportCodec);
   /// The reports as one table, for the share button in the top bar.
   useShare(useMemo(() => reportsSheet(region, reports), [region, reports]));
+  useTour("reports", { "pick-tag:first_bloom": () => setTag("first_bloom") });
   const [tag, setTag] = useState<ReportTag>("frost");
   const [cal, setCal] = useState<CalibrationResult | null>(null);
   const [ranAt, setRanAt] = useState<Date | null>(null);
@@ -291,6 +294,7 @@ export default function FieldReports({
             way, so a closed list only ever hid that a grower may report
             whatever they actually saw. */}
         <div className="flex flex-wrap items-center gap-1.5">
+          <span className="flex flex-wrap items-center gap-1.5" {...tour("reports.tags")}>
           {TAGS.filter((t) => t.pick !== false).map((t) => (
             <button key={t.key} type="button" onClick={() => setTag(t.key)}
               className={`min-h-11 rounded-full border px-4 text-[13px] font-medium ${
@@ -298,45 +302,46 @@ export default function FieldReports({
               {t.label}
             </button>
           ))}
+          </span>
           <input
             value={TAGS.some((t) => t.key === tag) ? "" : tag}
             onChange={(e) => setTag(e.target.value)}
-            placeholder="or type what you saw"
+            placeholder="or type what you saw" {...tour("reports.custom")}
             className="h-11 min-w-[12rem] flex-1 rounded-full border border-rule bg-white px-4 text-[13px] focus:border-honey focus:outline-none"
           />
         </div>
 
         <div className="mt-3 flex flex-wrap items-end gap-3">
           <div className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="block text-[11px] text-ink-soft">Seen on
+          <label className="block text-[11px] text-ink-soft" {...tour("reports.on")}>Seen on
             <input name="on" type="date" defaultValue={today()}
               className={FIELD} /></label>
 
           {needsCrop && (
-            <label className="block text-[11px] text-ink-soft">Crop
+            <label className="block text-[11px] text-ink-soft" {...tour("reports.crop")}>Crop
               <input name="crop" placeholder="Dahlia"
                 className={FIELD} /></label>
           )}
           {calibrating && (
             <>
-              <label className="block text-[11px] text-ink-soft">Set out
+              <label className="block text-[11px] text-ink-soft" {...tour("reports.setout")}>Set out
                 <input name="setout" type="date"
                   className={FIELD} /></label>
-              <label className="block text-[11px] text-ink-soft">Expected at (GDD)
+              <label className="block text-[11px] text-ink-soft" {...tour("reports.target")}>Expected at (GDD)
                 <input name="target" inputMode="numeric" placeholder="1200"
                   className={FIELD} /></label>
             </>
           )}
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            <button title="Add observation" disabled={submit.busy}
+            <button title="Add observation" disabled={submit.busy} {...tour("reports.add")}
               className="flex min-h-11 items-center gap-1.5 rounded-full border-[1.5px] border-ink bg-ink px-3.5 text-[12.5px] font-semibold text-paper disabled:opacity-40">
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
                 <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
               </svg>
               Observation
             </button>
-            <button type="button" onClick={pin} title="Use my location"
+            <button type="button" onClick={pin} title="Use my location" {...tour("reports.here")}
               className={`flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-[12.5px] ${
                 here ? "border-growth/50 bg-growth/8" : "border-rule text-ink-soft active:bg-band"}`}>
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
@@ -356,7 +361,7 @@ export default function FieldReports({
 
       {/* ── Import ─────────────────────────────────────────────────────── */}
       <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold">🔭 Import from iNaturalist</h2>
-      <div className="rounded-md border border-rule bg-panel p-4">
+      <div className="rounded-md border border-rule bg-panel p-4" {...tour("reports.inat")}>
         <div className="flex flex-wrap items-end gap-2">
           {/* A div, not a label element: the suggestions below are buttons, and a
               tap inside a label can be handed to its input instead. */}
@@ -439,7 +444,7 @@ export default function FieldReports({
       )}
       {reports.length > 0 && (
         <>
-          <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold">
+          <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold" {...tour("reports.log")}>
             Log <span className="text-[13px] font-normal text-ink-soft">
               {reports.length} report{reports.length === 1 ? "" : "s"} · {usable} teaching the model
             </span>

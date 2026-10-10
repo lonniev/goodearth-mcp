@@ -5,6 +5,8 @@
 // bar showed at a glance the account page now shows in full: the balance, and
 // what today has drawn against it.
 
+import { tour } from "../lib/tour/targets";
+
 export default function AccountSummary({
   balanceSats, spentToday, onSignOut,
 }: {
@@ -13,7 +15,7 @@ export default function AccountSummary({
   onSignOut: () => void;
 }) {
   return (
-    <section className="rounded-xl border border-rule bg-panel px-4 py-3">
+    <section className="rounded-xl border border-rule bg-panel px-4 py-3" {...tour("account.summary")}>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <span className="text-[19px] leading-none text-honey">⚡</span>
         <b className="figure text-[22px] leading-none">

@@ -14,6 +14,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { sheetJSON, sheetText, type Sheet } from "../lib/exports";
+import { tour } from "../lib/tour/targets";
 import { Glyph, ICON } from "./ui";
 
 const Read = createContext<Sheet | null>(null);
@@ -44,7 +45,7 @@ export function ShareButton() {
   const label = `Share ${sheet.title}`;
   return (
     <>
-      <button type="button" aria-label={label} title={label}
+      <button type="button" aria-label={label} title={label} {...tour("shell.share")}
         onClick={() => setOpen(true)}
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-[1.5px] border-rule text-ink-soft active:bg-band">
         <Glyph path={ICON.shareUp} />

@@ -37,6 +37,7 @@ import {
   TrashGlyph,
 } from "../components/ui";
 import { speciesHabits, type SpeciesHabitsResult } from "../lib/mcp";
+import { useTour } from "../components/Tour";
 
 const CLOCK: Record<string, { label: string; cls: string }> = {
   heat:      { label: "heat",       cls: "bg-growth/12 text-growth" },
@@ -103,6 +104,7 @@ export default function Wildlife({
   const [data, setData] = useState<WildlifeResult | null>(null);
   /// The watches with when each falls, for the share button in the top bar.
   useShare(useMemo(() => wildlifeSheet(region, models, data, total), [region, models, data, total]));
+  useTour("wildlife");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [ranAt, setRanAt] = useState<Date | null>(null);
@@ -308,7 +310,7 @@ export default function Wildlife({
           filter and the search sit together on the right, and the summary
           sentence is gone — it was a fact about a list the list shows. */}
       <div className="mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <Section emoji="📅" first
+        <Section emoji="📅" first tour="wildlife.list"
           title={`The year${ranAt
             ? ` (at ${clockTime(ranAt, zone)})`
             : ""}`}>
@@ -450,7 +452,7 @@ export default function Wildlife({
           Four labelled rows of chiclets, each capped at 24, of 377 creatures
           recorded around one block — with no way to reach the rest. Scanning
           is what that was good at and searching is what fits the numbers. */}
-      <Section emoji="🔭" title="Community Observations">
+      <Section emoji="🔭" title="Community Observations" tour="wildlife.community">
         <Provenance tool="goodearth_nearby_species" at={catAt} onCost={onCost} />
       </Section>
 

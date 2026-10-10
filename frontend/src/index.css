@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 @import "leaflet/dist/leaflet.css";
+@import "driver.js/dist/driver.css";
 @import "tailwindcss";
 @import "@tollbooth-dpyc/web/theme.css";
 @source "../node_modules/@tollbooth-dpyc/web/dist";
@@ -210,3 +211,86 @@
   --tb-notice-line: var(--color-frost);
   --tb-notice-ink: var(--color-frost);
 }
+
+/* The guided tour's popover, in the page's own paper and ink. driver.js
+   draws it; these override its defaults so it reads as part of the page
+   rather than a visitor to it. */
+.driver-popover.ge-tour {
+  font-family: var(--font-body);
+  color: var(--color-ink);
+  background-color: var(--color-panel);
+  border: 1px solid var(--color-rule);
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .18);
+  max-width: min(320px, calc(100vw - 24px));
+  padding: 14px 16px 12px;
+}
+.ge-tour .driver-popover-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-size: 17px;
+  line-height: 1.3;
+  color: var(--color-ink);
+}
+.ge-tour .driver-popover-description {
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--color-ink);
+  margin-top: 6px;
+}
+.ge-tour .driver-popover-close-btn {
+  color: var(--color-ink-soft);
+  width: 36px;
+  height: 36px;
+  top: 2px;
+  right: 2px;
+}
+.ge-tour .driver-popover-close-btn:hover,
+.ge-tour .driver-popover-close-btn:focus { color: var(--color-ink); }
+.ge-tour .driver-popover-footer { margin-top: 12px; gap: 8px; }
+.ge-tour .driver-popover-progress-text {
+  font-family: var(--font-data);
+  font-size: 11px;
+  color: var(--color-ink-soft);
+}
+.ge-tour .driver-popover-footer-btn {
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 500;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--color-rule);
+  background-color: var(--color-panel);
+  color: var(--color-ink-soft);
+}
+.ge-tour .driver-popover-next-btn {
+  border-color: var(--color-ink);
+  background-color: var(--color-ink);
+  color: var(--color-paper);
+}
+.ge-tour .driver-popover-footer-btn:hover,
+.ge-tour .driver-popover-footer-btn:focus { background-color: var(--color-band); }
+.ge-tour .driver-popover-next-btn:hover,
+.ge-tour .driver-popover-next-btn:focus { background-color: var(--color-ink); }
+.ge-tour .ge-tour-stop {
+  display: block;
+  margin-top: 10px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  color: var(--color-ink-soft);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+/* The arrow takes the panel colour on whichever side it points from. */
+.ge-tour.driver-popover-arrow-side-left.driver-popover-arrow,
+.ge-tour .driver-popover-arrow-side-left { border-left-color: var(--color-panel); }
+.ge-tour .driver-popover-arrow-side-right { border-right-color: var(--color-panel); }
+.ge-tour .driver-popover-arrow-side-top { border-top-color: var(--color-panel); }
+.ge-tour .driver-popover-arrow-side-bottom { border-bottom-color: var(--color-panel); }

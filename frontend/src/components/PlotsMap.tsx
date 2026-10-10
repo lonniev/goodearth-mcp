@@ -16,6 +16,7 @@ import { type ArraySize } from "../lib/arrayEconomics";
 import { mountArray, type ArrayLayer } from "../lib/arrayLayer";
 import { cellAt, cellCentre, type SunGrid } from "../lib/sunGrid";
 import { mountSun, type SunLayer, type SunState } from "../lib/sunOverlay";
+import { tour } from "../lib/tour/targets";
 
 const GROWTH = "#4C7A3D";
 const HONEY = "#D99A06";
@@ -171,6 +172,7 @@ export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0 }: {
           aria-pressed={sun.on}
           aria-label="Sun and shade"
           title="Sun and shade"
+          {...tour("plots.sun")}
           // Under the enlarge button, which holds the corner on every frame.
           className={`absolute right-2 top-[60px] z-[400] flex h-11 w-11 items-center justify-center rounded-md border border-ink/30 shadow ${
             sun.on ? "bg-ink text-paper" : "bg-panel/95 text-ink"

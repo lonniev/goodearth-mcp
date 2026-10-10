@@ -13,6 +13,7 @@
 // about any particular one.
 
 import { Claim, Facts } from "../components/Diagram";
+import { TourButton } from "../components/Tour";
 import { ICON, IconButton } from "../components/ui";
 import { GUIDE_META, type GuidedView } from "../lib/guides";
 import type { ViewKey } from "../lib/views";
@@ -49,6 +50,8 @@ export default function HowTo({ page, onView }: {
         <div className="flex gap-1.5">
           <IconButton path={ICON.frame} label={`Open ${meta.title}`} tone="quiet"
             title={`Go to ${meta.title}`} onClick={() => onView(page)} />
+          {/* The same page, with its tour running: the guide in motion. */}
+          <TourButton page={page} onView={onView} />
           <IconButton path={ICON.ask} label="Guides" tone="quiet"
             title="All the guides" onClick={() => onView("welcome")} />
         </div>

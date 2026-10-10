@@ -32,6 +32,8 @@ import { type AlmanacResult, type MeasureKey,
   diseaseRisk, dryingWindow, frostWindow, soilTempProjection, taskList, type TaskRow, type DiseaseRiskResult, type DryingWindowResult, type FrostWindowResult, type SeasonCurveResult, type SoilWindowResult } from "../lib/mcp";
 import type { SavedRegion } from "../lib/regions";
 import { loadAlmanac, loadLedger } from "../lib/pageLoads";
+import { useTour } from "../components/Tour";
+import { tour } from "../lib/tour/targets";
 
 interface Props {
   region: SavedRegion;
@@ -45,6 +47,7 @@ interface Props {
 }
 
 export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
+  useTour("ledger");
   const u = useUnits();
   const [data, setData] = useState<SeasonCurveResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -232,7 +235,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1.5">
         <h1 className="figure text-[22px] font-bold leading-none">Dashboard</h1>
         {data && (
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5" {...tour("ledger.chips")}>
             <Tag>base {u.showTemp(data.base_temp_f)}</Tag>
             <Tag>from {fmt(data.season_start)}</Tag>
             {data.region && (
@@ -254,7 +257,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
       )}
 
       {/* ── Pulse strip ───────────────────────────────────────────────── */}
-      <div className="mb-4 grid grid-cols-2 border-t-2 border-b border-t-ink border-b-rule sm:grid-cols-3 lg:grid-cols-5">
+      <div className="mb-4 grid grid-cols-2 border-t-2 border-b border-t-ink border-b-rule sm:grid-cols-3 lg:grid-cols-5" {...tour("ledger.pulse")}>
         <Pulse
           emoji="🌡️"
           value={g ? Math.round(g.mean).toLocaleString() : busy ? "…" : "—"}
@@ -314,21 +317,21 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
       </div>
 
       <div className="mb-2.5 flex flex-wrap items-center gap-2">
-        <button onClick={() => setShowGround((v) => !v)}
+        <button onClick={() => setShowGround((v) => !v)} {...tour("ledger.ground")}
           title="Ghost your ground's satellite still behind the curve"
           className={`min-h-11 rounded-full border px-3.5 text-[12px] font-medium ${
             showGround ? "border-ink bg-ink text-paper" : "border-rule text-ink-soft active:bg-band"}`}>
           🛰️ Ground
         </button>
         {flags.length > 0 && (
-          <button onClick={() => setShowFlags((v) => !v)}
+          <button onClick={() => setShowFlags((v) => !v)} {...tour("ledger.events")}
             title="Your crops, pests and watches, placed where they meet this curve"
             className={`min-h-11 rounded-full border px-3.5 text-[12px] font-medium ${
               showFlags ? "border-ink bg-ink text-paper" : "border-rule text-ink-soft active:bg-band"}`}>
             🔔 Events
           </button>
         )}
-        <button onClick={cycleWeather} disabled={wxBusy}
+        <button onClick={cycleWeather} disabled={wxBusy} {...tour("ledger.weather")}
           title="Tap to cycle a weather reading behind the curve; tap past the last to clear it"
           className={`min-h-11 rounded-full border px-3.5 text-[12px] font-medium ${
             wx > 0 ? "border-ink bg-ink text-paper" : "border-rule text-ink-soft active:bg-band"}`}>
@@ -356,7 +359,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
           <QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading={`Reading the season for ${region.name}`} intervalMs={6500} classNames={quoteStyles} />
         </div>
       ) : data ? (
-        <ChartFrame label="The season's heat">
+        <ChartFrame label="The season's heat" tour="ledger.chart">
           <SeasonChart data={data} frostDayIndex={frostIndex(data, frost)}
             flags={showFlags ? flags : []} onFlag={setOpenFlag} showGround={showGround}
             overlay={overlay} bands={wetBands} focus={focus} />
@@ -369,7 +372,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
           re-declared inside each block, guarded by which blocks came before
           it; one heading shown when any trend is, is the same thing plainly. */}
       {(frost || soil || dryLine || sick) && (
-        <h2 className="figure mt-6 mb-1 text-[18px] font-semibold">
+        <h2 className="figure mt-6 mb-1 text-[18px] font-semibold" {...tour("ledger.trends")}>
           <span className="mr-0.5">🔔</span>Trends
         </h2>
       )}
@@ -422,7 +425,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
         <EventDetail flag={openFlag} curve={data} onClose={() => setOpenFlag(null)} />
       )}
 
-      <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold">🧭 More Views</h2>
+      <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold" {...tour("ledger.doors")}>🧭 More Views</h2>
       <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
         {[
           { to: "almanac" as const, emoji: "🌤️", title: "Almanac",

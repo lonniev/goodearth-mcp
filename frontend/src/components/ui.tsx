@@ -13,6 +13,7 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { TableFilterClassNames } from "@tollbooth-dpyc/web/react";
 import Term from "./Term";
+import type { Target } from "../lib/tour/targets";
 
 /// One field style, for every text and date input on every page.
 ///
@@ -37,11 +38,14 @@ export function PageTitle({ children }: { children: ReactNode }) {
 
 /// A section heading, with room for the action that fills it and the
 /// provenance of the answer it produced.
-export function Section({ emoji, title, first, children }: {
-  emoji: string; title: string; first?: boolean; children?: ReactNode;
+export function Section({ emoji, title, first, tour, children }: {
+  emoji: string; title: string; first?: boolean;
+  /// The name the guided tour points at this heading by.
+  tour?: Target;
+  children?: ReactNode;
 }) {
   return (
-    <h2 className={`figure mb-2.5 flex flex-wrap items-baseline gap-2.5 text-[18px] font-semibold ${
+    <h2 data-tour={tour} className={`figure mb-2.5 flex flex-wrap items-baseline gap-2.5 text-[18px] font-semibold ${
       first ? "" : "mt-7"
     }`}>
       <span className="mr-0.5">{emoji}</span>{title}
@@ -52,15 +56,16 @@ export function Section({ emoji, title, first, children }: {
 
 /// The round action/filter pill: a tab, a toggle, or a question to the
 /// service. Dark when it is the active one.
-export function Pill({ active, onClick, disabled, title, children }: {
+export function Pill({ active, onClick, disabled, title, tour, children }: {
   active?: boolean; onClick?: () => void; disabled?: boolean;
-  title?: string; children: ReactNode;
+  title?: string; tour?: Target; children: ReactNode;
 }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
       title={title}
+      data-tour={tour}
       className={`min-h-11 shrink-0 rounded-full border px-3.5 text-[12.5px] font-medium disabled:opacity-40 ${
         active ? "border-ink bg-ink text-paper" : "border-rule text-ink-soft active:bg-band"
       }`}
@@ -221,8 +226,11 @@ export function EnlargeButton({ big, onClick, label, where = "absolute right-2 t
   );
 }
 
-export function ChartFrame({ label, children }: {
-  label: string; children: ReactNode;
+export function ChartFrame({ label, tour, children }: {
+  label: string;
+  /// The name the guided tour points at this chart by.
+  tour?: Target;
+  children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -252,7 +260,7 @@ export function ChartFrame({ label, children }: {
   }, [open]);
 
   return (
-    <div className={open
+    <div data-tour={tour} className={open
       // `overflow-hidden` on the panel and `overflow-auto` on the slot, so the
       // slot's height is decided by the layout and never by its contents.
       ? "fixed inset-0 z-[1000] flex flex-col overflow-hidden bg-paper px-2 pt-1.5 pb-0"
@@ -356,7 +364,7 @@ export function StatusChip({ tone, children }: {
 /// `form` is what lets it sit in the header row above the form it submits: a
 /// button outside a <form> can still be its submit button by naming its id.
 export function IconButton({
-  path, label, onClick, form, title, tone = "solid", disabled, hideLabel,
+  path, label, onClick, form, title, tone = "solid", disabled, hideLabel, tour,
 }: {
   /// A 24×24 SVG path. One concept, one icon.
   path: string;
@@ -371,6 +379,8 @@ export function IconButton({
   /// screen reader and the tooltip — hiding it is a visual decision, not a
   /// licence to ship a button that announces itself as nothing.
   hideLabel?: boolean;
+  /// The name the guided tour points at this button by.
+  tour?: Target;
 }) {
   const solid = tone === "solid";
   return (
@@ -378,6 +388,7 @@ export function IconButton({
       type={form ? "submit" : "button"}
       form={form}
       onClick={onClick}
+      data-tour={tour}
       disabled={disabled}
       title={title ?? label}
       aria-label={hideLabel ? label : undefined}
@@ -465,6 +476,9 @@ export const ICON = {
   // people in company is what the word means, and two figures survive 18 px.
   // github.com/google/material-design-icons src/social/group/materialicons/24px.svg
   companions: "M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z",
+  // Material Design "explore" — a compass. The guided tour: being shown
+  // around the page itself, from its guide.
+  explore: "M12 10.9c-.61 0-1.1.49-1.1 1.1s.49 1.1 1.1 1.1c.61 0 1.1-.49 1.1-1.1s-.49-1.1-1.1-1.1zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm2.19 12.19L6 18l3.81-8.19L18 6l-3.81 8.19z",
   // Material Design "share" — handing a plot to another patron as a bundle.
   share: "M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z",
   // Material Design "file_upload" — bringing a bundle in as a plot.
@@ -559,8 +573,10 @@ export function RowActions({ onCommit, onCancel, saving, what }: {
 /// and a "look it up" beside it — and every control inside is `FIELD`, which
 /// is a fixed height too. Alignment is then a property of the component
 /// rather than a thing to get right ten times.
-export function Field({ label, htmlFor, width, hint, children }: {
+export function Field({ label, htmlFor, width, hint, tour, children }: {
   label: string;
+  /// The name the guided tour points at this field by.
+  tour?: Target;
   /// Given, the caption is a real <label> pointing at the control. Omitted,
   /// the caption is plain text — for a control that labels itself, or one a
   /// label may not wrap (see labelNesting.test.ts).
@@ -572,7 +588,7 @@ export function Field({ label, htmlFor, width, hint, children }: {
   children: React.ReactNode;
 }) {
   return (
-    <span className={`flex flex-col ${width ?? "flex-1"}`}>
+    <span data-tour={tour} className={`flex flex-col ${width ?? "flex-1"}`}>
       <span className="flex h-4 items-center gap-2 text-[11px] leading-none text-ink-soft">
         {htmlFor ? <label htmlFor={htmlFor}>{label}</label> : <span>{label}</span>}
         {hint}

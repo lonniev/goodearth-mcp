@@ -40,6 +40,7 @@ import {
 import QuantityField from "./QuantityField";
 import type { ItemSort } from "../lib/blockItems";
 import { baseBounds } from "../lib/baseTemp";
+import type { Target } from "../lib/tour/targets";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   past_target:     { label: "Past target",  cls: "bg-growth/15 text-growth" },
@@ -141,9 +142,11 @@ const COLS: Column<ItemSort>[] = [
 
 export default function CropLedger({
   rows, sort, dir, onSort, editing, onEdit, onCancel, onCommit, draft, onDraft,
-  saving, onDelete, harvesting, seeding, companioning,
+  saving, onDelete, harvesting, seeding, companioning, tour,
 }: {
   rows: LedgerRow[];
+  /// The name the guided tour points at the ledger by.
+  tour?: Target;
   sort?: ItemSort;
   dir: "asc" | "desc";
   onSort: (k: ItemSort) => void;
@@ -162,7 +165,7 @@ export default function CropLedger({
 }) {
   const u = useUnits();
   return (
-    <div className="overflow-x-auto overscroll-x-contain rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">
+    <div data-tour={tour} className="overflow-x-auto overscroll-x-contain rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">
       <table className="w-full border-collapse text-[13px]">
         <thead>
           <SortHeaders cols={COLS} sort={sort} dir={dir} onSort={onSort} />

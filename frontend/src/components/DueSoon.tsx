@@ -17,6 +17,7 @@ import { useState } from "react";
 import type { Due } from "../lib/husbandry";
 import type { WildlifeRow } from "../lib/mcp";
 import { FIELD, Pill, SpeciesMark } from "./ui";
+import { tour } from "../lib/tour/targets";
 
 const day = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -49,7 +50,7 @@ export default function DueSoon({
   if (!due.length) return null;
 
   return (
-    <div className="mb-5 rounded-md border border-rule border-l-4 border-l-honey bg-panel px-4 py-3">
+    <div className="mb-5 rounded-md border border-rule border-l-4 border-l-honey bg-panel px-4 py-3" {...tour("wildlife.due")}>
       <span className="eyebrow">Due soon</span>
       <ul className="mt-1.5 space-y-2.5">
         {due.map(({ row, daysAway, settled }) => {

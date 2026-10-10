@@ -11,6 +11,8 @@
 import { Claim } from "../components/Diagram";
 import { GUIDE_META, GUIDED } from "../lib/guides";
 import type { ViewKey } from "../lib/views";
+import { useTour } from "../components/Tour";
+import { tour } from "../lib/tour/targets";
 
 const EXPLAINERS: { view: ViewKey; emoji: string; title: string; said: string }[] = [
   { view: "plant", emoji: "🌱", title: "The life of a plant",
@@ -34,6 +36,8 @@ export default function Welcome({ onView, onSignIn, signedIn }: {
   /// worth having, are both answered by the fact that they are here.
   signedIn?: boolean;
 }) {
+  // A stranger's first tour: the key, the free reading, the guides.
+  useTour("welcome", undefined, !signedIn);
   return (
     <div>
       <h1 className="figure text-[30px] leading-tight font-bold">
@@ -62,7 +66,7 @@ export default function Welcome({ onView, onSignIn, signedIn }: {
           </p>
 
           <div className="mt-5 flex flex-wrap items-center gap-2.5">
-            <button onClick={onSignIn}
+            <button onClick={onSignIn} {...tour("welcome.signin")}
               className="min-h-11 rounded-full border-[1.5px] border-ink bg-ink px-5 text-[13.5px] font-semibold text-paper">
               Sign in with a Nostr key
             </button>
@@ -77,7 +81,7 @@ export default function Welcome({ onView, onSignIn, signedIn }: {
       <h2 className={`figure mb-2.5 text-[18px] font-semibold ${signedIn ? "mt-5" : "mt-8"}`}>
         How the season is counted
       </h2>
-      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3" {...tour("welcome.explainers")}>
         {EXPLAINERS.map((e) => (
           <button key={e.view} onClick={() => onView(e.view)}
             className="rounded-md border border-rule bg-panel p-4 text-left active:border-ink">
@@ -96,7 +100,12 @@ export default function Welcome({ onView, onSignIn, signedIn }: {
       <h2 className="figure mt-8 mb-2.5 text-[18px] font-semibold">
         How each page is used
       </h2>
-      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+      {signedIn && (
+        <p className="mb-2.5 text-[12.5px] text-ink-soft">
+          Each guide's compass walks you through its page, popover by popover.
+        </p>
+      )}
+      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4" {...tour("welcome.guides")}>
         {GUIDED.map((p) => {
           const m = GUIDE_META[p];
           return (
