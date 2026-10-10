@@ -69,3 +69,19 @@ describe("the guides render for everyone", () => {
     assert.match(shell, /<GuideButton/, "the shell has no (?) control");
   });
 });
+
+describe("the Plants guide gives Companions a group of its own", () => {
+  // The feature was one step under "Change", read by nobody; the owner asked
+  // for it to be shown. The guide names the control by the row's own glyph,
+  // so a reader can find it, and the glyph is the one the ledger draws.
+  it("names the group, its two kinds and the row's glyph", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const guide = await readFile("src/views/howto/crops.tsx", "utf8");
+    const ledger = await readFile("src/components/CropLedger.tsx", "utf8");
+    assert.match(guide, /heading: "Companions"/);
+    assert.match(guide, /<Glyph path=\{ICON\.companions\} \/> on a row/);
+    assert.match(guide, /"🤝 Synergy"/);
+    assert.match(guide, /"🎨 Design"/);
+    assert.match(ledger, /<Glyph path=\{ICON\.companions\} \/>/);
+  });
+});
