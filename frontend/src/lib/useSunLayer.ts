@@ -8,7 +8,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { sunlight, type SunlightResult } from "./mcp";
+import { clampSize, type ArraySize } from "./arrayEconomics";
 import { cached } from "./pageCache";
+import { readPrefs, writePrefs } from "./prefs";
 import type { SavedRegion } from "./regions";
 import { decodeGrid, summary, type SunGrid, type SunSummary, type SunView } from "./sunGrid";
 import type { SunState } from "./sunOverlay";
@@ -38,6 +40,9 @@ export interface SunLayerHandle {
   select: (cell: number) => void;
   /// Select the best place for panels and show the solar view.
   showBest: () => void;
+  /// The array laid on the selected spot, metres; remembered per device.
+  array: ArraySize;
+  setArray: (s: ArraySize) => void;
 }
 
 export function useSunLayer(active: SavedRegion): SunLayerHandle {
@@ -50,6 +55,12 @@ export function useSunLayer(active: SavedRegion): SunLayerHandle {
   const [grid, setGrid] = useState<SunGrid | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [array, setArrayState] = useState<ArraySize>(() => clampSize(readPrefs().array));
+  const setArray = useCallback((s: ArraySize) => {
+    const next = clampSize(s);
+    setArrayState(next);
+    writePrefs({ ...readPrefs(), array: next });
+  }, []);
 
   // New ground, new answer: nothing from the last block may show on this one.
   useEffect(() => {
@@ -92,6 +103,6 @@ export function useSunLayer(active: SavedRegion): SunLayerHandle {
 
   return {
     on, toggle, result, grid, loading, error, state, summary: sum,
-    setView, setMonth, setLeaf, select: setSelected, showBest,
+    setView, setMonth, setLeaf, select: setSelected, showBest, array, setArray,
   };
 }

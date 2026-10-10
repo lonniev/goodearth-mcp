@@ -143,6 +143,8 @@ mcp = FastMCP(
         "1. Register with an Authority (provides a Neon database automatically)\n"
         "2. Deliver operator secrets via Secure Courier:\n"
         "   - btcpay_host, btcpay_api_key, btcpay_store_id\n"
+        "   - eia_api_key, optional: a free EIA Open Data key, so the Sun page can "
+        "quote what a kWh sells for in a block's state\n"
         "   Call goodearth_request_credential_channel to start.\n\n"
         "## Pricing\n"
         "Tool prices are set dynamically by the operator's pricing model. Use "
@@ -436,6 +438,13 @@ runtime = OperatorRuntime(
             "btcpay_store_id": FieldSpec(
                 required=True, sensitive=True,
                 description="Your BTCPay Store ID. Find it under Stores > Settings > General.",
+            ),
+            "eia_api_key": FieldSpec(
+                required=False, sensitive=True, lifecycle="dynamic",
+                description=(
+                    "Optional. A free EIA Open Data API key (api.eia.gov/register), so the Sun page "
+                    "can quote what a kWh sells for in a block's state."
+                ),
             ),
         },
     ),
@@ -2601,6 +2610,16 @@ async def sunlight(
     years of the ERA5 archive, the isotropic sky model, a performance ratio
     of 0.80. Not a site survey.
 
+    `kw_prices` is what an array there would cost and earn, read live and
+    never stored in this code: `install` is DOE's PV system cost benchmark
+    (residential, commercial and utility $/W dc, modeled market price, with
+    its quarter) and `sell` is EIA's latest residential retail price for the
+    block's state in ¢/kWh (with its month) — the operator's EIA key makes the
+    second possible, and without one its `reasons.sell` says so.
+    `array_w_per_m2` (a 0.40 ground-coverage ratio of 220 W/m² modules) and
+    `tiers` turn a footprint into kW and pick the benchmark row. Sunlight ×
+    footprint × these is the arithmetic the web page does on a spot.
+
     Measurements and classes only — the nursery-label definitions — never
     what to plant. Trees cut or grown since the canopy imagery are not seen;
     `sources` gives its date. Buildings are not modelled.
@@ -2623,12 +2642,15 @@ async def sunlight(
     """
     parsed, found = await _block_region(npub, block)
     reports = await _stored_items(npub, found["block_id"], "observation")
+    # The operator's key, read here and handed down; it reaches no log, no
+    # answer and no error message.
+    keys = await runtime.load_credentials(["eia_api_key"])
 
     try:
         return await sunlight_impl(
             parsed, ring_of(found.get("geometry") or {}),
             month=month, panel_tilt_deg=panel_tilt_deg, panel_azimuth_deg=panel_azimuth_deg,
-            point=point, detail=detail, reports=reports,
+            point=point, detail=detail, reports=reports, eia_key=keys.get("eia_api_key", ""),
         )
     except (SunlightError, RegionError) as exc:
         return {"success": False, "error": str(exc), "error_code": "invalid_request"}

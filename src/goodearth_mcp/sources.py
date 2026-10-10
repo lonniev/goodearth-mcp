@@ -288,11 +288,13 @@ def _forget(key: str, task: asyncio.Task[Any]) -> None:
         task.exception()
 
 
-async def _once(client: httpx.AsyncClient, url: str, params: dict[str, Any], attempt: int) -> Any:
+async def _once(
+    client: httpx.AsyncClient, url: str, params: dict[str, Any], attempt: int, *, text: bool = False,
+) -> Any:
     try:
         resp = await client.get(url, params=params)
         resp.raise_for_status()
-        return resp.json()
+        return resp.text if text else resp.json()
     except httpx.HTTPStatusError as exc:
         if exc.response.status_code == 429:
             wait = _retry_after(exc.response, attempt)
@@ -306,7 +308,7 @@ async def _once(client: httpx.AsyncClient, url: str, params: dict[str, Any], att
         raise UpstreamError(f"{url} returned malformed JSON") from exc
 
 
-async def _get(url: str, params: dict[str, Any]) -> Any:
+async def _get(url: str, params: dict[str, Any], *, text: bool = False) -> Any:
     """One request — or a share of one already going out for the same thing.
 
     A caller that asks for something already in flight waits on that request
@@ -314,11 +316,14 @@ async def _get(url: str, params: dict[str, Any]) -> Any:
     which is the point: the duplicates this removes are two tools asking one
     question at the same moment, and there was never a reason for the feed to
     hear it twice.
+
+    ``text`` returns the body as it came rather than parsed as JSON — for the
+    one feed that publishes a table on a page and no API.
     """
-    key = _request_key(url, params)
+    key = _request_key(url, params) + ("#text" if text else "")
     task = _inflight.get(key)
     if task is None:
-        task = asyncio.create_task(_get_now(url, params))
+        task = asyncio.create_task(_get_now(url, params, text=text))
         _inflight[key] = task
         task.add_done_callback(lambda t, k=key: _forget(k, t))
     # Shielded: a caller who gives up must not cancel the request the others
@@ -326,7 +331,7 @@ async def _get(url: str, params: dict[str, Any]) -> Any:
     return await asyncio.shield(task)
 
 
-async def _get_now(url: str, params: dict[str, Any]) -> Any:
+async def _get_now(url: str, params: dict[str, Any], *, text: bool = False) -> Any:
     """One request, with backpressure honoured rather than reported.
 
     A 429 is the only failure retried here. It is also the only one that is
@@ -342,7 +347,7 @@ async def _get_now(url: str, params: dict[str, Any]) -> Any:
         if held:
             await asyncio.sleep(held)
         try:
-            return await _once(client, url, params, attempt)
+            return await _once(client, url, params, attempt, text=text)
         except RateLimited as exc:
             last = exc
             _start_cooloff(url, exc.retry_after or _BACKOFF[0])
@@ -1091,3 +1096,59 @@ async def fetch_normals_history(
     except UpstreamError:
         records = await fetch_daily_history([lat], [lon], start, end)
         return records, "Open-Meteo archived model runs", HISTORY_RESOLUTION_M
+
+
+# ── What a kW costs and what a kWh sells for ─────────────────────────────
+
+#: DOE's Solar Energy Technologies Office publishes the national PV system
+#: cost benchmarks — residential, commercial and utility, $/W dc — as a table
+#: on this page each year. There is no API; the dataset behind it is a
+#: spreadsheet. The page is read and the table parsed in ``kw_prices``.
+_PV_BENCHMARKS = "https://www.energy.gov/cmei/systems/solar-photovoltaic-system-cost-benchmarks"
+
+#: EIA's Open Data API: the average retail price of electricity by state and
+#: sector, monthly (Electric Power Monthly, Table 5.6.A). A free key, which
+#: the API only accepts in the query string.
+_EIA_RETAIL = "https://api.eia.gov/v2/electricity/retail-sales/data"
+
+#: Nominatim reverse geocoding at state zoom, for the ISO 3166-2 code EIA
+#: keys its states by. One request per place, remembered for good.
+_NOMINATIM_REVERSE = "https://nominatim.openstreetmap.org/reverse"
+
+
+async def fetch_pv_benchmark_page() -> str:
+    """The benchmark page as HTML, for ``kw_prices.parse_benchmark``."""
+    page = await _get(_PV_BENCHMARKS, {}, text=True)
+    if not isinstance(page, str) or not page:
+        raise UpstreamError("the PV cost benchmark page was empty")
+    return page
+
+
+async def fetch_retail_price(state_id: str, api_key: str) -> dict[str, Any]:
+    """EIA's latest monthly residential retail price for a state, ¢/kWh.
+
+    The key goes in the query, where EIA insists on it; the url that an
+    error names carries no query, and the key is never logged.
+    """
+    if not api_key:
+        raise UpstreamError("no EIA key on file")
+    return await _get(_EIA_RETAIL, {
+        "api_key": api_key,
+        "frequency": "monthly",
+        "data[]": "price",
+        "facets[sectorid][]": "RES",
+        "facets[stateid][]": state_id,
+        "sort[0][column]": "period",
+        "sort[0][direction]": "desc",
+        "length": 1,
+    })
+
+
+async def fetch_reverse_place(lat: float, lon: float) -> dict[str, Any]:
+    """Nominatim's address for a point at state zoom — country and state codes."""
+    payload = await _get(_NOMINATIM_REVERSE, {
+        "format": "jsonv2", "lat": f"{lat:.4f}", "lon": f"{lon:.4f}", "zoom": 5,
+    })
+    if not isinstance(payload, dict):
+        raise UpstreamError("Nominatim returned something other than an address")
+    return payload

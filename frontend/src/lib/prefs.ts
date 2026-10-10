@@ -35,12 +35,22 @@ export interface Prefs {
   /// that a measure added later can join the end instead of vanishing — see
   /// `mergeOrder`, which is where that is actually enforced.
   chartOrder: string[];
+
+  /// The array laid on a Sun spot, metres east–west by north–south. A
+  /// grower sizing one array taps a dozen spots to compare them, and it
+  /// should be the same array at each.
+  array: { w: number; l: number };
+
+  /// What this grower's utility pays for a kWh, ¢, when it is not the state's
+  /// retail price the operator reads — a net-metering credit is often less.
+  /// Null takes the read figure.
+  sellCents: number | null;
 }
 
 const KEY = "goodearth:prefs:v1";
 
 export const DEFAULTS: Prefs = {
-  bees: true, units: "F", theme: "follow", chartOrder: [],
+  bees: true, units: "F", theme: "follow", chartOrder: [], array: { w: 24, l: 12 }, sellCents: null,
 };
 
 /// The season to actually paint, resolving "follow" against today.
@@ -62,6 +72,8 @@ export function readPrefs(): Prefs {
       chartOrder: Array.isArray(v.chartOrder)
         ? v.chartOrder.filter((k) => typeof k === "string")
         : [],
+      array: v.array && Number.isFinite(v.array.w) && Number.isFinite(v.array.l) ? v.array : DEFAULTS.array,
+      sellCents: typeof v.sellCents === "number" && Number.isFinite(v.sellCents) ? v.sellCents : null,
     };
   } catch {
     return { ...DEFAULTS };
