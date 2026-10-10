@@ -12,6 +12,7 @@ import Boundary from "./Boundary";
 import FullscreenButton from "./FullscreenButton";
 import GuideButton from "./GuideButton";
 import OutboxChip from "./OutboxChip";
+import { ShareButton } from "./Share";
 import UndoChip from "./UndoChip";
 import RegionPicker from "./RegionPicker";
 import type { SavedRegion } from "../lib/regions";
@@ -218,6 +219,9 @@ export default function AppShell({
         <OutboxChip />
         {/* How the page on screen is used. Nothing on a page with no guide. */}
         <GuideButton view={view} onView={onView} />
+        {/* What the page has to give, as a table or as JSON. Nothing while
+            the page has nothing yet. */}
+        <ShareButton />
         <FullscreenButton />
         <button
           onClick={() => onView("account")}

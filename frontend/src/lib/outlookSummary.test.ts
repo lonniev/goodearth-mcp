@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { compareOutlook, outlookText } from "./outlookSummary.ts";
+import { compareOutlook, departure } from "./outlookSummary.ts";
 import type { AlmanacResult, Measure } from "./mcp.ts";
 
 const measure = (m: Partial<Measure>): Measure => ({
@@ -88,40 +88,29 @@ describe("compareOutlook — gaps and absences", () => {
   });
 });
 
-describe("outlookText — what it says, and what it refuses to", () => {
+describe("departure — how a line reads in words", () => {
   const data = almanac({
     temp_max: measure({ forecast: Array(10).fill(78), normal: splitBand(70, 70) }),
   });
 
-  it("names the ground, the window and the record it is measured against", () => {
-    const t = outlookText(data, "Frogdale Farm");
-    assert.match(t, /Frogdale Farm/);
-    assert.match(t, /next 10 days/);
-    assert.match(t, /10 seasons/);
-  });
-
   it("reports the departure with its direction and size", () => {
-    const t = outlookText(data, "Frogdale Farm");
-    assert.match(t, /above normal by 8 °F/);
+    const [line] = compareOutlook(data);
+    assert.equal(departure(line), "above normal by 8 °F");
   });
 
-  it("recommends nothing in its findings", () => {
+  it("calls a small departure normal, on a per-unit threshold", () => {
+    // 1 °F is nothing; a tenth of an inch over ten days is nothing too.
+    assert.equal(departure({ label: "Daily high", forecast: 70.6, normal: 70, delta: 0.6, unit: "°F", decimals: 0 }), "about normal");
+    assert.equal(departure({ label: "Rain", forecast: 0.6, normal: 0.5, delta: 0.1, unit: "in", decimals: 2 }), "about normal");
+    assert.equal(departure({ label: "Rain", forecast: 1.5, normal: 0.5, delta: 1, unit: "in", decimals: 2 }), "well above normal by 1.00 in");
+  });
+
+  it("recommends nothing", () => {
     // Good Earth computes against your ground; it does not publish agronomy.
-    //
-    // Checked over the FINDINGS only. The closing line says "no recommendation
-    // is implied", which contains the word and is the opposite of advice —
-    // scanning the whole text made this assertion fail on the very sentence
-    // that guarantees what it is asserting.
-    const full = outlookText(data, "Frogdale Farm");
-    const findings = full.split("\n").filter((l) => /:/.test(l)).join("\n").toLowerCase();
+    const said = compareOutlook(data).map(departure).join(" ").toLowerCase();
     for (const word of ["should", "recommend", "advise", "sow", "you ought", "plant now"]) {
-      assert.ok(!findings.includes(word), `the findings must not say "${word}"`);
+      assert.ok(!said.includes(word), `the departure must not say "${word}"`);
     }
-    assert.match(full, /no recommendation is implied/i);
-  });
-
-  it("answers even when there is nothing to say", () => {
-    assert.match(outlookText(almanac({}), "Frogdale Farm"), /No outlook available/);
   });
 });
 

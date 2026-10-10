@@ -84,8 +84,8 @@ export const plots: Guide = {
           active chip carries a small eye — tap it again to frame the plot on
           the map.</>],
       ["The map",
-        <>All your plots on one map; tap a plot to work it. The button under
-          the zoom control enlarges the map to the whole screen; the same
+        <>All your plots on one map; tap a plot to work it. The button in
+          the top right corner enlarges the map to the whole screen; the same
           button, or Escape, brings it back.</>],
       ["The line under the map",
         <>The plot being worked, in its numbers: shape, corners or radius,

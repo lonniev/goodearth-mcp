@@ -56,12 +56,13 @@ export const almanac: Guide = {
           much the day length is changing, and the moon.</>],
       ["🌧️ in the title row",
         <>Shows or hides the rain on the radar, now, over your ground. The map
-          plays the last hour; the button under its zoom control enlarges it.
+          plays the last hour; the button in its top right corner enlarges it.
           Whether it is open is remembered on this device.</>],
-      ["The spyglass",
-        <>The ten days ahead against the record, in words — warmer or cooler
-          than normal, wetter or drier, and the nights to watch. Every number
-          is already on the page, so opening it asks for nothing.</>],
+      ["Share, in the top bar",
+        <>The ten days ahead against the record as a table — each measure,
+          its normal, and how far off it runs. Braces copy it as JSON, the two
+          pages copy it as text. Every number is already on the page, so
+          opening it asks for nothing.</>],
       ["The fortnight",
         <>Fourteen cards, one per day: sky, high and low, chance of rain,
           humidity and wind. Each card rides a few pixels higher on a warmer

@@ -11,6 +11,8 @@ import CropLedger, { type LedgerRow } from "../components/CropLedger";
 import { remembered } from "../lib/undoEvents";
 import Term from "../components/Term";
 import { useUnits } from "../components/Units";
+import { useShare } from "../components/Share";
+import { cropsSheet } from "../lib/exports";
 import Provenance from "../components/Provenance";
 import { Pager } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
@@ -227,6 +229,8 @@ export default function Crops({
     } finally { setSavingRow(false); }
   }
   const [ledger, setLedger] = useState<CropLedgerResult | null>(null);
+  /// The plantings with where each stands, for the share button in the top bar.
+  useShare(useMemo(() => cropsSheet(region, plantings, ledger, u.unit, total), [region, plantings, ledger, u.unit, total]));
   /// Disease risk for this block, joined to the plantings by each model's own
   /// "developed for" list. Its own call because it reads HOURS, not the heat
   /// curve the ledger is built on.
