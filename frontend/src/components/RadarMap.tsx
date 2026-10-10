@@ -10,7 +10,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import { useTimezone } from "@tollbooth-dpyc/web/react";
 import { BASEMAPS } from "./FieldMap";
-import { EnlargeButton, useEnlarged } from "./MapFrame";
+import { useEnlarged } from "./MapFrame";
+import { EnlargeButton } from "./ui";
 import { coverageLabel, fetchRadarIndex, frameLabel, RADAR_MAX_NATIVE_ZOOM, tileUrl, type RadarIndex } from "../lib/radar";
 import { plotShapes } from "../lib/plotShapes";
 import type { SavedRegion } from "../lib/regions";
@@ -112,7 +113,7 @@ export default function RadarMap({ region }: { region: SavedRegion }) {
       <div className={size.big ? "relative min-h-0 flex-1" : "relative h-[40vh] min-h-[280px] overflow-hidden rounded-md border border-rule"}>
         {/* Sized by the frame; its own classes never change (see MapFrame). */}
         <div ref={host} className="h-full w-full bg-band" />
-        <EnlargeButton big={size.big} onClick={size.toggle} />
+        <EnlargeButton big={size.big} onClick={size.toggle} label="the rain" />
       </div>
       <div className={`border-rule bg-panel px-3 py-2 ${size.big ? "border-t" : "mt-2 rounded-md border"}`}>
         {err ? (

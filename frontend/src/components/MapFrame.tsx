@@ -15,7 +15,6 @@
 
 import { useCallback, useEffect, useState, type RefObject } from "react";
 import type L from "leaflet";
-import { ICON } from "./ui";
 
 export function useEnlarged(map: RefObject<L.Map | null>) {
   const [big, setBig] = useState(false);
@@ -45,24 +44,4 @@ export function useEnlarged(map: RefObject<L.Map | null>) {
       ? "fixed inset-0 z-[1000] bg-paper"
       : "relative h-[40vh] min-h-[300px] overflow-hidden rounded-md border border-rule",
   };
-}
-
-/// The enlarge button, under the zoom control at the map's top-left.
-export function EnlargeButton({ big, onClick }: { big: boolean; onClick: () => void }) {
-  const title = big ? "Shrink the map" : "Enlarge the map";
-  return (
-    <button
-      onClick={onClick}
-      aria-pressed={big}
-      aria-label={title}
-      title={title}
-      className={`absolute left-[10px] top-[108px] z-[400] flex h-11 w-11 items-center justify-center rounded-md border border-ink/30 shadow ${
-        big ? "bg-ink text-paper" : "bg-panel/95 text-ink"
-      }`}
-    >
-      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true">
-        <path d={big ? ICON.collapse : ICON.expand} />
-      </svg>
-    </button>
-  );
 }

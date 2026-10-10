@@ -8,8 +8,8 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import L from "leaflet";
 import { BASEMAPS } from "./FieldMap";
-import { EnlargeButton, useEnlarged } from "./MapFrame";
-import { ICON } from "./ui";
+import { useEnlarged } from "./MapFrame";
+import { EnlargeButton, ICON } from "./ui";
 import { plotShapes } from "../lib/plotShapes";
 import type { SavedRegion } from "../lib/regions";
 import { cellAt, type SunGrid } from "../lib/sunGrid";
@@ -148,7 +148,7 @@ export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0 }: {
       {/* Sized by the frame; its own classes never change (see MapFrame). */}
       <div ref={host} className="h-full w-full bg-band" />
 
-      <EnlargeButton big={size.big} onClick={size.toggle} />
+      <EnlargeButton big={size.big} onClick={size.toggle} label="the map" />
 
       {sun && (
         <button
