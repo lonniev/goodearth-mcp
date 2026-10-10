@@ -1,0 +1,1 @@
+- The Companions button on a planting is two figures side by side, not a handshake that read as a twig at that size. The Plants guide gives Companions a section of its own, naming the button by its glyph and the two kinds it offers.

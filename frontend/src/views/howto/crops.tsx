@@ -1,6 +1,7 @@
 // How Flora works.
 
 import Term from "../../components/Term";
+import { Glyph, ICON } from "../../components/ui";
 import type { Guide } from "./types";
 
 export const crops: Guide = {
@@ -115,6 +116,26 @@ export const crops: Guide = {
           green light. Choose <b>every 7–28 days</b> on a row for a succession
           schedule, then add the whole plan to the ledger in one write.</>],
     ]},
+    { emoji: "🤝", heading: "Companions", steps: [
+      [<span className="inline-flex items-center gap-1.5"><Glyph path={ICON.companions} /> on a row</span>,
+        <>Every planting on the ledger has this beside its bin. Tap it and
+          the row opens underneath with what grows well beside that planting —
+          ranked, each with its reason, and grouped by where it came from: on
+          this plot already, grown here before, or an example to try.</>],
+      ["🤝 Synergy",
+        <>Published rule, with the mechanism and a citation on every row:
+          nitrogen fixers beside heavy feeders, alliums that mask a carrot from
+          its fly, walnut that poisons the ground beside it. Nothing to fill in
+          first — the species is enough.</>],
+      ["🎨 Design",
+        <>Arithmetic over what you wrote down — Flower, Height and Blooms on
+          the form — pairing this planting by colour, by height and by the
+          months in bloom with the others you grow. A planting with none of
+          the three is simply not paired.</>],
+      ["Tap a companion",
+        <>Sends it to the form above with its figures filled in. The day it
+          goes in is yours to choose, and so is whether it goes in at all.</>],
+    ]},
     { emoji: "✏️", heading: "Change", steps: [
       ["Tap a row",
         <>Opens it for editing where it sits. Enter saves, Escape abandons.</>],
@@ -127,10 +148,6 @@ export const crops: Guide = {
         <>A cut or a pick, with an amount and a unit. It goes to the record as
           an observation; the first cut of a planting is the stage its target
           predicted and teaches the model, later cuts are yield.</>],
-      ["Companions",
-        <>🤝 Synergy or 🎨 Design for this planting, grouped by where they go.
-          Tap a companion to send it to the form — the day it goes in is yours
-          to choose, and so is whether it goes in at all.</>],
     ]},
     { emoji: "🗑️", heading: "Remove", steps: [
       ["The bin",
