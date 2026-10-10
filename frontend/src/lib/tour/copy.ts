@@ -11,7 +11,7 @@ import type { Tour, TourStep } from "./types.ts";
 const GUIDE: TourStep = {
   target: "shell.guide",
   title: "The guide",
-  says: "The whole story of this page lives behind the (?). Every page has one.",
+  says: "The full guide to this page is behind the (?). Every page has one.",
   side: "bottom", align: "end",
 };
 
@@ -265,12 +265,12 @@ export const TOURS: Record<Tour["page"], Tour> = {
 
   account: { page: "account", steps: [
     { target: "account.summary", title: "Your balance",
-      says: "Sats on hand, and what today has drawn. Every answer is paid from this balance, per call, and each shows what it drew." },
+      says: "Your Patron's tranche of api_sats. MCP tool fees are paid from it, per call, and each answer shows what it drew." },
     { target: () => document.querySelector(".ge-usage"), title: "What each tool drew",
-      says: "Every tool you have called, with its calls and the sats they cost. Prices are set by the operator and can change; this is the record of what was paid.", side: "top" },
+      says: "Every MCP tool you have called, how many times, and the api_sats each cost. The operator sets the prices; this is what was paid.", side: "top" },
     { target: () => [...document.querySelectorAll("h2")].find((h) => (h.textContent ?? "").trim() === "Profile")?.closest("section") ?? null,
       title: "Your Nostr persona",
-      says: "The name, picture, bio and addresses the network shows for your npub. Edit them here and they publish to Nostr, for every app that reads it.", side: "top" },
+      says: "The name, picture, bio and addresses Nostr shows for your npub. Edit them here and they publish to your Nostr profile.", side: "top" },
     { target: "account.tutorial", title: "Live tutorial",
       says: "This tour, on every page. Turn it off here or from any popover; turn it on to see it all again." },
     { target: "account.season", title: "Season",
