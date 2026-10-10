@@ -188,6 +188,35 @@ export function useChartFrame(): ChartSlot {
   return useContext(Frame);
 }
 
+/// The one control that grows a frame to the whole screen and shrinks it
+/// back — the maps' and the charts' alike. The grower saw two of them on
+/// the maps and a bare glyph on the GDD chart, and the bare one read as a
+/// different thing. `where` places it; the look is not a caller's to vary.
+export function EnlargeButton({ big, onClick, label, where = "absolute left-[10px] top-[108px] z-[400]" }: {
+  big: boolean; onClick: () => void;
+  /// What is being enlarged, for the title: "the map", "the season's heat".
+  label: string;
+  where?: string;
+}) {
+  const title = big ? `Shrink ${label}` : `Enlarge ${label}`;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={big}
+      aria-label={title}
+      title={title}
+      className={`${where} flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-ink/30 shadow ${
+        big ? "bg-ink text-paper" : "bg-panel/95 text-ink"
+      }`}
+    >
+      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true">
+        <path d={big ? ICON.collapse : ICON.expand} />
+      </svg>
+    </button>
+  );
+}
+
 export function ChartFrame({ label, children }: {
   label: string; children: ReactNode;
 }) {
@@ -231,13 +260,7 @@ export function ChartFrame({ label, children }: {
           {/* Beside the title, not at the foot of the page. A close control
               parked below a short chart sat alone in half a screen of nothing,
               nowhere near where the eye goes to leave. */}
-          <button type="button" onClick={() => setOpen(false)}
-            title={`Close ${label}`} aria-label={`Close ${label}`}
-            className="ml-auto inline-flex h-8 w-11 items-center justify-center rounded text-ink-soft active:bg-band">
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true">
-              <path d={ICON.collapse} />
-            </svg>
-          </button>
+          <EnlargeButton big onClick={() => setOpen(false)} label={label} where="ml-auto" />
         </div>
       )}
 
@@ -255,13 +278,8 @@ export function ChartFrame({ label, children }: {
       </div>
 
       {!open && (
-        <button type="button" onClick={() => setOpen(true)}
-          title={`${label} full screen`} aria-label={`${label} full screen`}
-          className="absolute right-1 top-1 z-10 inline-flex h-11 w-11 items-center justify-center rounded text-ink-soft active:bg-band">
-          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true">
-            <path d={ICON.expand} />
-          </svg>
-        </button>
+        <EnlargeButton big={false} onClick={() => setOpen(true)} label={label}
+          where="absolute right-2 top-2 z-10" />
       )}
     </div>
   );
