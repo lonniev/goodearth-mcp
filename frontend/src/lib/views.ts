@@ -16,6 +16,11 @@ export const VIEW_KEYS = [
   "reports", "references", "about", "account",
   // The front door and what it opens onto. Reachable without an npub.
   "welcome", "plant", "pest", "tree", "animal", "disease", "glossary",
+  // One guide per working page — the (?) in the top bar. Spelled out rather
+  // than built from `lib/guides`, because this list is what the type is made
+  // of; `guides.test.ts` holds the two in step.
+  "how-plots", "how-ledger", "how-almanac", "how-crops", "how-pests",
+  "how-wildlife", "how-todo", "how-reports",
 ] as const;
 
 export type ViewKey = (typeof VIEW_KEYS)[number];
@@ -37,6 +42,11 @@ export const PUBLIC_VIEWS = [
   // barrier before the farming is.
   "welcome", "plant", "pest", "tree", "animal", "disease", "about", "references",
   "glossary",
+  // The page guides pass it too: static, no patron named, no sats spent. A
+  // stranger deciding whether to sign in can read how My Plots is used
+  // before they have any plots.
+  "how-plots", "how-ledger", "how-almanac", "how-crops", "how-pests",
+  "how-wildlife", "how-todo", "how-reports",
 ] as const;
 
 export type PublicView = (typeof PUBLIC_VIEWS)[number];

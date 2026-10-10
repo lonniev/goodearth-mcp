@@ -42,13 +42,16 @@ export default function GuestShell({ view, onView, onSignIn, children }: {
           </button>
 
           <nav className="flex flex-1 flex-wrap items-center gap-x-1 gap-y-1">
-            {PUBLIC_VIEWS.map((k) => (
+            {/* The page guides are public but not a row of eight more
+                buttons here: Welcome indexes them, and a guest reading one
+                has that door back. */}
+            {PUBLIC_VIEWS.filter((k) => k in LABEL).map((k) => (
               <button key={k} onClick={() => onView(k)}
                 aria-current={view === k ? "page" : undefined}
                 className={`min-h-9 rounded-full px-3 text-[12.5px] font-medium ${
                   view === k ? "bg-ink text-paper" : "text-ink-soft active:bg-band"
                 }`}>
-                {LABEL[k] ?? k}
+                {LABEL[k]}
               </button>
             ))}
           </nav>
