@@ -8,9 +8,11 @@
 // workings are private, and a farmer who cannot audit an answer has to either
 // believe it or ignore it. Neither is what they are paying for.
 
-const SOURCES: {
-  name: string; url: string; role: string; resolution: string; note: string;
-}[] = [
+import { useMemo } from "react";
+import { useShare } from "../components/Share";
+import { referencesSheet, type Model, type Reading, type Source } from "../lib/exports";
+
+const SOURCES: Source[] = [
   {
     name: "Daymet v4 — daily surface weather (NASA ORNL)",
     url: "https://daymet.ornl.gov/",
@@ -125,7 +127,7 @@ const SOURCES: {
   },
 ];
 
-const MODELS: { title: string; body: string; assumption: string }[] = [
+const MODELS: Model[] = [
   {
     title: "Growing degree days",
     body: "Daily mean above a base temperature, by the standard averaging method: both bounds are clamped to the base before averaging, and to an upper threshold when a crop has one.",
@@ -225,7 +227,7 @@ const MODELS: { title: string; body: string; assumption: string }[] = [
 
 /// Where the disease models are published and run by others. Good Earth
 /// calls none of these; they are where a grower checks it, or goes next.
-const DISEASE_READING: { name: string; url: string; said: string }[] = [
+const DISEASE_READING: Reading[] = [
   {
     name: "NEWA — disease models on station data (Cornell)",
     url: "https://newa.cornell.edu/",
@@ -244,6 +246,8 @@ const DISEASE_READING: { name: string; url: string; said: string }[] = [
 ];
 
 export default function References() {
+  /// The whole page as one table, for the share button in the top bar.
+  useShare(useMemo(() => referencesSheet(SOURCES, MODELS, DISEASE_READING), []));
   return (
     <>
       <h1 className="figure mb-3.5 text-[22px] font-bold">References</h1>

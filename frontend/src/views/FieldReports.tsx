@@ -78,12 +78,16 @@ export default function FieldReports({
   /// login can pick it rather than guess and be told 422.
   const [handles, setHandles] = useState<
     { login: string; name: string | null; observations: number }[]>([]);
+  /// Only once the grower has typed in the box this visit. The remembered
+  /// handle used to be searched the moment the page opened, so the chooser
+  /// stood open over a field that already held the right answer.
+  const [typed, setTyped] = useState(false);
   useEffect(() => {
     const q = inatUser.trim();
     // Nothing to suggest once the field already holds an exact handle, and
     // nothing to suggest for an email — the message on the failed fetch says
     // more about that than a silent empty list would.
-    if (q.length < 2 || q.includes("@") || handles.some((h) => h.login === q)) {
+    if (!typed || q.length < 2 || q.includes("@") || handles.some((h) => h.login === q)) {
       setHandles([]);
       return;
     }
@@ -95,7 +99,7 @@ export default function FieldReports({
     }, 250);
     return () => { ac.abort(); clearTimeout(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inatUser]);
+  }, [inatUser, typed]);
 
   const [inat, setInat] = useState<INatObservation[] | null>(null);
   const [inatBusy, setInatBusy] = useState(false);
@@ -364,7 +368,7 @@ export default function FieldReports({
                 grower as a bare number. */}
             <input value={inatUser} name="inat-handle" autoComplete="off"
               aria-label="iNaturalist handle"
-              onChange={(e) => setInatUser(e.target.value)}
+              onChange={(e) => { setTyped(true); setInatUser(e.target.value); }}
               placeholder="your-handle"
               className={FIELD} />
             {handles.length > 0 && (
