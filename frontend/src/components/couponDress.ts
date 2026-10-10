@@ -8,7 +8,8 @@ const chip =
   "min-h-11 rounded-full border border-rule px-3.5 text-[12px] text-ink-soft active:bg-band disabled:opacity-60";
 
 export const COUPONS: CouponsPanelClassNames = {
-  root: "rounded-xl border border-rule bg-panel px-4 py-3",
+  // `ge-coupons` styles nothing; it is how the account tour finds the panel.
+  root: "ge-coupons rounded-xl border border-rule bg-panel px-4 py-3",
   heading: "eyebrow mb-1",
   intro: "mb-2.5 text-[11.5px] leading-snug text-ink-soft",
   form: "flex items-center gap-2",
