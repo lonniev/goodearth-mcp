@@ -124,12 +124,26 @@ function ShareSheet({ sheet, onClose }: { sheet: Sheet; onClose: () => void }) {
             className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-[18px] text-ink-soft active:text-ink">×</button>
         </div>
 
-        {/* The preview is the table itself, as the copy will read. It scrolls
-            both ways inside the sheet: eight columns of plantings do not fit
-            a phone, and the heading and buttons stay put above them. */}
+        {/* The preview is the table, as the copy will read. On a phone a
+            table with a prose column at the far right is a screen of empty
+            cells beside the text, so there each row is one labelled card
+            instead; the copy is the same either way. */}
         {sheet.rows.length ? (
           <div className="mt-4 min-h-0 overflow-auto">
-            <table className="w-full border-collapse text-[12.5px]">
+            <ul className="divide-y divide-rule sm:hidden">
+              {sheet.rows.map((r, i) => (
+                <li key={i} className="py-2.5">
+                  <b className="text-[13.5px]">{String(r[0] ?? "")}</b>
+                  {r.slice(1).map((c, j) => (c == null || c === "" ? null : (
+                    <div key={j} className="mt-1 flex gap-2 text-[12.5px] leading-snug">
+                      <span className="data w-[5.5rem] shrink-0 pt-0.5 text-[10px] uppercase tracking-[.1em] text-ink-soft">{sheet.head[j + 1]}</span>
+                      <span className={`min-w-0 text-ink-soft ${String(c).length > 40 ? "" : "data"}`}>{String(c)}</span>
+                    </div>
+                  )))}
+                </li>
+              ))}
+            </ul>
+            <table className="hidden w-full border-collapse text-[12.5px] sm:table">
               <thead>
                 <tr>
                   {sheet.head.map((h) => (
@@ -144,7 +158,7 @@ function ShareSheet({ sheet, onClose }: { sheet: Sheet; onClose: () => void }) {
                   <tr key={i} className="border-b border-rule last:border-b-0 align-top">
                     {r.map((c, j) => (
                       <td key={j} className={`px-2 py-1.5 ${j === 0 ? "font-medium" : "data text-ink-soft"} ${
-                        typeof c === "string" && c.length > 40 ? "min-w-[14rem]" : "whitespace-nowrap"}`}>
+                        typeof c === "string" && c.length > 40 ? "min-w-[18rem] max-w-[28rem]" : "whitespace-nowrap"}`}>
                         {c == null || c === "" ? "" : String(c)}
                       </td>
                     ))}

@@ -5,9 +5,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
-  almanacSheet, cropsSheet, ledgerSheet, pestsSheet, plotsSheet, reportsSheet,
-  sheetJSON, sheetText, todoSheet, wildlifeSheet, type Sheet,
+  almanacSheet, cropsSheet, ledgerSheet, pestsSheet, plotsSheet, referencesSheet, reportsSheet,
+  sheetJSON, sheetText, termsSheet, todoSheet, wildlifeSheet, type Sheet,
 } from "./exports.ts";
+import { GLOSSARY, GROUPS, searchGlossary } from "./glossary.ts";
 import { GUIDED } from "./guides.ts";
 import type { AlmanacResult, Measure } from "./mcp.ts";
 import type { SavedRegion } from "./regions.ts";
@@ -197,7 +198,40 @@ describe("pestsSheet, wildlifeSheet, todoSheet, reportsSheet", () => {
   });
 });
 
+describe("referencesSheet and termsSheet — the free reading", () => {
+  it("lists sources, models and further reading as one table, kind first", () => {
+    const s = referencesSheet(
+      [{ name: "Daymet", url: "https://daymet.ornl.gov/", role: "the normal band", resolution: "1 km", note: "history only" }],
+      [{ title: "Growing degree days", body: "mean above base", assumption: "a cold night does not un-grow" }],
+      [{ name: "NEWA", url: "https://newa.cornell.edu/", said: "station data" }],
+    );
+    assert.equal(s.eyebrow, "1 source · 1 model · 1 place to read on");
+    assert.deepEqual(s.rows, [
+      ["Source", "Daymet", "the normal band", "history only", "1 km", "https://daymet.ornl.gov/"],
+      ["Model", "Growing degree days", "mean above base", "a cold night does not un-grow", "", ""],
+      ["Reading", "NEWA", "station data", "", "", "https://newa.cornell.edu/"],
+    ]);
+  });
+
+  it("the words: every entry, grouped by where it is met, or the search's hits", () => {
+    const all = termsSheet(GLOSSARY, GROUPS, GLOSSARY.length);
+    assert.equal(all.rows.length, GLOSSARY.length);
+    assert.equal(all.eyebrow, `${GLOSSARY.length} words`);
+    const gdd = all.rows.find((r) => r[0] === "Growing degree day")!;
+    assert.equal(gdd[1], "GDD, degree day");
+    assert.equal(gdd[2], "Counting heat");
+    const hits = searchGlossary("biofix");
+    assert.equal(termsSheet(hits, GROUPS, GLOSSARY.length).eyebrow, `${hits.length} of ${GLOSSARY.length} words`);
+  });
+});
+
 describe("the share button", () => {
+  it("is on the guest top bar too, for the words and the sources", () => {
+    assert.match(src("components/GuestShell.tsx"), /<ShareButton/);
+    assert.match(src("views/References.tsx"), /useShare\(/);
+    assert.match(src("views/Glossary.tsx"), /useShare\(/);
+  });
+
   it("stands beside the (?) in the top bar", () => {
     const shell = src("components/AppShell.tsx");
     const guide = shell.indexOf("<GuideButton");
