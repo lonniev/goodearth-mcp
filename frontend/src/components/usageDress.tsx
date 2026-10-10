@@ -11,7 +11,8 @@ import type { UsageFigure, UsageSummaryClassNames } from "@tollbooth-dpyc/web/re
 export const USAGE_FIGURES: readonly UsageFigure[] = ["spent", "calls", "credited"];
 
 export const USAGE: UsageSummaryClassNames = {
-  root: "rounded-xl border border-rule bg-panel px-4 py-3",
+  // `ge-usage` styles nothing; it is how the account tour finds the table.
+  root: "ge-usage rounded-xl border border-rule bg-panel px-4 py-3",
   header: "mb-2 flex items-center justify-between gap-3",
   heading: "eyebrow",
   chip: "min-h-11 rounded-full border border-rule px-3.5 text-[12px] text-ink-soft active:bg-band disabled:opacity-60",

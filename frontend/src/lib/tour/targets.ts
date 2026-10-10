@@ -24,7 +24,8 @@ export const TARGETS = [
   // Flora.
   "crops.species", "crops.label", "crops.target", "crops.setout", "crops.base",
   "crops.flower", "crops.height", "crops.blooms", "crops.hardy", "crops.taps", "crops.add",
-  "crops.filter", "crops.search", "crops.ledger", "crops.rotation", "crops.fit", "crops.sow", "crops.community",
+  "crops.filter", "crops.search", "crops.ledgerhead", "crops.ledger", "crops.seed", "crops.cut", "crops.companions",
+  "crops.rotation", "crops.fit", "crops.sow", "crops.community",
   // Pests.
   "pests.species", "pests.base", "pests.biofix", "pests.stages", "pests.add",
   "pests.active", "pests.filter", "pests.list", "pests.catalog", "pests.community",

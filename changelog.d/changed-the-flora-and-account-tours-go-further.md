@@ -1,0 +1,1 @@
+- The Flora tour says what iNaturalist fills in on a pick, walks the seed, cut and companions buttons on a row, and says how a planting reaches the Dashboard's heat curve. The account tour dwells on the sats, what each tool drew, and the Nostr persona.
