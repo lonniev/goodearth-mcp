@@ -7,7 +7,7 @@ from datetime import date
 import numpy as np
 import pytest
 
-from goodearth_mcp import rasters, record_cache, sources, sunlight_window
+from goodearth_mcp import kw_prices, rasters, record_cache, sources, sunlight_window
 from goodearth_mcp.region import parse_region, ring_of
 
 GEO = {"type": "Polygon", "coordinates": [[
@@ -89,8 +89,25 @@ def stubbed(monkeypatch):
         calls["zone"] = calls.get("zone", 0) + 1
         return "America/New_York"
 
+    async def prices(lat, lon, eia_key=""):
+        calls["prices"] = calls.get("prices", 0) + 1
+        calls["eia_key"] = eia_key
+        return {
+            "place": {"country_code": "us", "state_id": "VT", "state_name": "Vermont"},
+            "sell": None,
+            "install": {
+                "residential_usd_per_w": 2.95, "commercial_usd_per_w": 1.98, "utility_usd_per_w": 1.12,
+                "quarter": "2025Q1", "basis": "modeled market price, $/W dc, before incentives",
+                "source": kw_prices.DOE_NAME,
+            },
+            "reasons": {"sell": "no EIA key on file"},
+            "array_w_per_m2": kw_prices.ARRAY_W_PER_M2, "tiers": dict(kw_prices.TIERS),
+            "as_of": "2026-06-01T00:00:00+00:00",
+        }
+
     monkeypatch.setattr(sources, "fetch_radiation_year", radiation)
     monkeypatch.setattr(sources, "fetch_time_zone", zone)
+    monkeypatch.setattr(kw_prices, "read", prices)
     sunlight_window._memo.clear()
     yield calls, store
     sunlight_window._memo.clear()
@@ -326,3 +343,27 @@ async def test_frost_reports_are_passed_over_and_a_bad_sunlight_report_is_named(
     assert acct["reports"] == 1 and acct["cells_corrected"] == 0
     assert acct["skipped"] == [{"ref": "bad", "reason": '"to" must come after "from" on the same day'}]
     assert "none moves the horizon yet" in r["note"]
+
+
+async def test_the_answer_carries_the_kw_prices_and_names_the_benchmark(stubbed):
+    """The block is read once with the operator's key, and the feed it used is in `sources`."""
+    calls, _ = stubbed
+    out = await _call(eia_key="k-test")
+    assert calls["prices"] == 1
+    assert calls["eia_key"] == "k-test"
+    assert out["kw_prices"]["install"]["quarter"] == "2025Q1"
+    assert out["kw_prices"]["sell"] is None
+    assert out["kw_prices"]["reasons"]["sell"] == "no EIA key on file"
+    names = [src["name"] for src in out["sources"]]
+    assert kw_prices.DOE_NAME in names
+    assert kw_prices.EIA_NAME not in names
+
+
+async def test_a_prices_failure_costs_the_answer_nothing(stubbed, monkeypatch):
+    async def broken(lat, lon, eia_key=""):
+        raise RuntimeError("the code around the feeds, not a feed")
+
+    monkeypatch.setattr(kw_prices, "read", broken)
+    out = await _call()
+    assert out["success"] is True
+    assert out["kw_prices"] is None

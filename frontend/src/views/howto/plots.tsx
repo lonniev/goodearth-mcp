@@ -96,7 +96,11 @@ export const plots: Guide = {
           The strip under the map chooses <b>Garden</b> or <b>Solar</b>, the
           month, and whether the trees are in leaf. Tap inside the plot for that
           spot's hours; the summary names the sunniest and shadiest ground and,
-          in Solar, the best place and tilt for a panel.</>],
+          in Solar, the best place and tilt for a panel. A tap also lays an
+          array on the spot: drag its corner or type its metres, and the card
+          prices it — what it costs to put up, the kWh it makes a day, and
+          what those sell for — from the day's DOE benchmark and your state's
+          EIA tariff, read live, or the rate you type.</>],
     ]},
     { emoji: "✏️", heading: "Change", steps: [
       ["The pencil",

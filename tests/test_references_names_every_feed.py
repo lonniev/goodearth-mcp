@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from goodearth_mcp import disease, sources
+from goodearth_mcp import disease, kw_prices, sources
 
 REFERENCES = Path(__file__).resolve().parents[1] / "frontend" / "src" / "views" / "References.tsx"
 
@@ -99,3 +99,16 @@ def test_sunlight_feeds_are_named() -> None:
     for name in ("Meta/WRI canopy height map", "Copernicus GLO-30 terrain", "Copernicus Global Land Cover"):
         assert name in text, f"References names no entry for {name}"
     assert 'title: "Sunlight"' in text
+
+
+def test_the_two_price_feeds_are_named_as_the_answer_names_them() -> None:
+    """A Sun answer's `sources` names each price feed; the page must carry the same names.
+
+    The names are the join between an answer and its audit: a reader who sees
+    "EIA Electric Power Monthly, Table 5.6.A" under a figure looks for exactly
+    that on References, and a page that called it "the EIA tariff" would send
+    them away empty.
+    """
+    text = page()
+    for name in (kw_prices.DOE_NAME, kw_prices.EIA_NAME):
+        assert name in text, f"References.tsx does not name {name!r}"

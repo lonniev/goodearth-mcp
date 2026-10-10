@@ -85,3 +85,14 @@ describe("the Plants guide gives Companions a group of its own", () => {
     assert.match(ledger, /<Glyph path=\{ICON\.companions\} \/>/);
   });
 });
+
+describe("the Plots guide tells of the array on a Sun spot", () => {
+  it("names the drag, the three figures and where the prices come from", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const guide = await readFile("src/views/howto/plots.tsx", "utf8");
+    assert.match(guide, /lays an\s+array on the spot/);
+    assert.match(guide, /drag its corner/);
+    assert.match(guide, /DOE benchmark/);
+    assert.match(guide, /EIA tariff/);
+  });
+});

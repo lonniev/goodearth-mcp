@@ -267,6 +267,23 @@ export interface SunlightSolar {
   estimate: string;
 }
 
+/// What an array there would cost and earn — read live by the operator from
+/// DOE's cost benchmark and EIA's retail price, never pasted into the app.
+/// A feed that did not answer is null with its reason.
+export interface SunlightKwPrices {
+  place: { country_code: string; state_id: string | null; state_name: string | null } | null;
+  sell: { cents_per_kwh: number; sector: string; period: string; state_id: string; source: string } | null;
+  install: {
+    residential_usd_per_w: number; commercial_usd_per_w: number; utility_usd_per_w: number;
+    quarter: string; basis: string; source: string;
+  } | null;
+  reasons: { sell?: string; install?: string };
+  /// Watts of array per square metre of ground: a 0.40 ground-coverage ratio of 220 W/m² modules.
+  array_w_per_m2: number;
+  tiers: { residential_max_kw: number; commercial_max_kw: number };
+  as_of: string;
+}
+
 export interface SunlightResult {
   success: boolean;
   error?: string;
@@ -279,6 +296,7 @@ export interface SunlightResult {
     leaf_off_months: number[];
   };
   solar: SunlightSolar | null;
+  kw_prices: SunlightKwPrices | null;
   grid?: WireGrid;
   sun_paths?: SunPath;
   horizon: "computed" | "cached";

@@ -125,6 +125,20 @@ const SOURCES: Source[] = [
     resolution: "100 m",
     note: "CC BY 4.0, 2019. When it cannot be read every tree is taken as evergreen and the answer says so; bare-season light is then understated, never overstated.",
   },
+  {
+    name: "DOE/NLR PV system cost benchmark",
+    url: "https://www.energy.gov/cmei/systems/solar-photovoltaic-system-cost-benchmarks",
+    role: "What an installed watt of panels costs, by the size of the array — residential, commercial, utility — for the array you lay on a Sun spot.",
+    resolution: "national · quarter",
+    note: "Read from the benchmark page each day, with its quarter; nothing is kept in the app. The modeled market price before incentives, in that year's dollars — a bid for your ground will differ. When the page no longer carries the table the card says so rather than guess.",
+  },
+  {
+    name: "EIA Electric Power Monthly, Table 5.6.A",
+    url: "https://www.eia.gov/electricity/monthly/epm_table_grapher.php?t=epmt_5_6_a",
+    role: "What a kWh sells for in your block's state — the average residential retail price, which is what net metering credits — for the income an array would bring.",
+    resolution: "state · month",
+    note: "Read live from EIA's open data for the latest month, with the operator's free EIA key; without one the card takes the rate you type. A utility's export credit can be less than retail. EIA prices the United States only — elsewhere the card waits for your figure.",
+  },
 ];
 
 const MODELS: Model[] = [
@@ -222,6 +236,11 @@ const MODELS: Model[] = [
     title: "Sunlight",
     body: "Hours of direct sun per day, cell by cell at 2–20 m: from every cell, 72 rays at 5° find the highest ground and the highest tree in each direction; then the sun's path on the 15th of each month (NOAA's solar position) is counted in ten-minute steps wherever it clears that line. Full sun is 6 hours or more, part shade 3 to 6, full shade under 3 — the nursery-label definitions.",
     assumption: "A bare deciduous crown passes half the beam and an evergreen none; a month is in leaf when its mean temperature reaches 50 °F in the block's own ten-year normals. The horizon is cast once per outline and kept — it changes when a tree is cut or the block redrawn, never with the weather.",
+  },
+  {
+    title: "An array on a spot",
+    body: "The rectangle is ground, not module: rows of fixed-tilt panels and the spacing between them, at a ground-coverage ratio of 0.40 and 220 W per square metre of module — 88 W per square metre of ground. Its yield is the mean of the Sun grid's cells under it, in the leaf state the view shows. Cost is that capacity at the benchmark's price per watt for its size: residential to 25 kW, commercial to 1 MW, utility above. Income is a day's kWh at the state's retail price, or at the rate you type.",
+    assumption: "A screening figure, not a quote. Nothing here for permitting, interconnection, a transformer, storage, degradation, incentives or what the land could otherwise grow — and a utility that credits exports below retail pays less than the card says.",
   },
 ];
 

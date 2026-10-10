@@ -26,7 +26,17 @@ from typing import Any
 
 import numpy as np
 
-from goodearth_mcp import calibration, rasters, record_cache, solar, sources, sunlight, sunlight_reports, sunpath
+from goodearth_mcp import (
+    calibration,
+    kw_prices,
+    rasters,
+    record_cache,
+    solar,
+    sources,
+    sunlight,
+    sunlight_reports,
+    sunpath,
+)
 from goodearth_mcp import horizon as hz
 from goodearth_mcp.region import M_PER_DEG_LAT, Region, m_per_deg_lon
 
@@ -242,9 +252,14 @@ async def region_sunlight(
     point: str | None = None,
     detail: str = "summary",
     reports: list[dict[str, Any]] | None = None,
+    eia_key: str = "",
     today: date | None = None,
 ) -> dict[str, Any]:
     """Hours of direct sun per day across a block, and what a fixed panel would yield there.
+
+    ``eia_key`` is the operator's EIA key, for what a kWh sells for in the
+    block's state; empty, the ``kw_prices`` block says so and carries the
+    installed-cost benchmark alone.
 
     ``reports`` are the block's stored observations; the sunlight ones
     correct the horizon where enough of them agree (``sunlight_reports``),
@@ -273,14 +288,20 @@ async def region_sunlight(
         date(today.year - 1, 12, 31).isoformat(),
     )
     sun_reports, skipped_reports = _sun_reports(reports)
-    rec, normals, clim, zone = await asyncio.gather(
+    rec, normals, clim, zone, prices = await asyncio.gather(
         _horizon_for(grid, subject), normals_task, _climatology_for(grid.lat0, grid.lon0, today),
         _zone_for(grid.lat0, grid.lon0) if sun_reports else asyncio.sleep(0),
+        kw_prices.read(grid.lat0, grid.lon0, eia_key),
         return_exceptions=True,
     )
     if isinstance(clim, BaseException):
         logger.warning("sunlight: climatology failed (%s) — no solar figure", clim)
         clim = None
+    if isinstance(prices, BaseException):
+        # Each feed inside already fails to a null with a reason; this is the
+        # code around them failing, which is ours and worth the log line.
+        logger.warning("sunlight: kw_prices failed (%s) — no prices this time", prices)
+        prices = None
     if isinstance(rec, rasters.RasterError):
         raise sources.UpstreamError(f"the canopy map did not answer: {rec}") from rec
     if isinstance(rec, BaseException):
@@ -357,6 +378,7 @@ async def region_sunlight(
             },
         },
         "solar": _solar_block(panel, grid, tilt, azimuth),
+        "kw_prices": prices,
         **({"point": _point_card(cell, spot, grid, horizon, hours, panel, leaf_months, today)} if cell is not None else {}),
         **({"grid": _grid_block(grid, horizon, hours, panel, in_leaf)} if detail == "grid" else {}),
         "calibration": account,
@@ -364,7 +386,7 @@ async def region_sunlight(
         "horizon": "computed" if rec.computed_now else "cached",
         "azimuth_convention": "degrees clockwise from north; 90 is east, 180 is south",
         "note": _note(rec, leaf_on, panel is not None, account),
-        "sources": _sources(rec, normals, panel),
+        "sources": _sources(rec, normals, panel, prices),
     }
 
 
@@ -475,7 +497,9 @@ def _note(rec: HorizonRecord, leaf_on: list[int] | None, solar_given: bool, acco
     return " ".join(parts)
 
 
-def _sources(rec: HorizonRecord, normals: Any, panel: dict[str, Any] | None) -> list[dict[str, Any]]:
+def _sources(
+    rec: HorizonRecord, normals: Any, panel: dict[str, Any] | None, prices: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = [
         {
             "name": "Meta/WRI canopy height map",
@@ -509,6 +533,20 @@ def _sources(rec: HorizonRecord, normals: Any, panel: dict[str, Any] | None) -> 
             "name": "Open-Meteo archive (ERA5)",
             "role": f"hourly radiation, {panel['years']} years averaged",
             "resolution_m": sources.RADIATION_RESOLUTION_M,
+        })
+    if prices and prices.get("install"):
+        out.append({
+            "name": kw_prices.DOE_NAME,
+            "role": "installed cost per watt, by array size",
+            "resolution_m": 0,
+            "as_of": prices["install"]["quarter"],
+        })
+    if prices and prices.get("sell"):
+        out.append({
+            "name": kw_prices.EIA_NAME,
+            "role": f"retail price of a kWh in {prices['sell']['state_id']}",
+            "resolution_m": 0,
+            "as_of": prices["sell"]["period"],
         })
     out.append({"name": "computed", "role": "sun position (NOAA), horizon cast, plane-of-array model", "resolution_m": 0})
     return out

@@ -8,13 +8,21 @@
 // it is plain JSX; no zoom, no frame.
 
 import { useTimezone } from "@tollbooth-dpyc/web/react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  arrayKwhPerKw, capacityKw, dailyIncomeUsd, dailyKwh, footprintBounds, installUsd, MAX_M, MIN_M, sellRate,
+  type ArraySize,
+} from "../lib/arrayEconomics";
 import { MONTHS } from "../lib/companions";
-import type { SunlightResult } from "../lib/mcp";
+import type { SunlightKwPrices, SunlightResult } from "../lib/mcp";
+import { roughly, usd } from "../lib/money";
+import { readPrefs, writePrefs } from "../lib/prefs";
 import { readingTime } from "../lib/readingTime";
 import {
-  accessOf, BINS, CLASS_COLOUR, classOf, hoursOf, kwhOf, leastLightMonth, type LightClass, type SunGrid,
+  accessOf, BINS, cellCentre, CLASS_COLOUR, classOf, hoursOf, kwhOf, leastLightMonth, type LightClass, type SunGrid,
 } from "../lib/sunGrid";
 import Provenance from "./Provenance";
+import { Glyph, ICON } from "./ui";
 
 const CLASS_NAME: Record<LightClass, string> = { full_sun: "Full sun", part_shade: "Part shade", full_shade: "Full shade" };
 const CLASS_CHIP: Record<LightClass, string> = {
@@ -27,14 +35,21 @@ const PATHS: [keyof NonNullable<SunlightResult["sun_paths"]>, string, string][] 
 ];
 const FULL_MONTH = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-export default function SunSpotCard({ grid, result, cell, month, fullLeaf, onCost }: {
+export default function SunSpotCard({ grid, result, cell, month, fullLeaf, onCost, array, onArray }: {
   grid: SunGrid | null;
   result: SunlightResult | null;
   cell: number;
   month: number;
   fullLeaf: boolean;
   onCost?: (sats: number) => void;
+  /// The array on the spot, metres, and the change a typed size makes.
+  array: ArraySize;
+  onArray: (s: ArraySize) => void;
 }) {
+  // When the answer was taken, once per answer. A fresh Date on every render
+  // re-fired the price report on every render — and this card now renders
+  // on every pixel of a drag.
+  const at = useMemo(() => new Date(), [result]);
   // Nothing until a tap: the line under the map already says to tap, and a
   // row of cards saying it again would be the space the answer needs.
   if (!grid || !result || cell < 0) return null;
@@ -95,6 +110,7 @@ export default function SunSpotCard({ grid, result, cell, month, fullLeaf, onCos
                 <div className="text-[11px] text-ink-soft">of open-sky yield</div>
               </div>
             </div>
+            <ArrayRows grid={grid} cell={cell} fullLeaf={fullLeaf} prices={result.kw_prices} array={array} onArray={onArray} />
             <p className="mt-2 text-[12px] text-ink-soft">A screening estimate, not a site survey.</p>
           </>
         ) : (
@@ -102,7 +118,7 @@ export default function SunSpotCard({ grid, result, cell, month, fullLeaf, onCos
         )}
         <div className="mt-2 flex items-baseline gap-2">
           <span className="data text-[10.5px] text-ink-soft">{sourcesLine}</span>
-          <Provenance tool="goodearth_sunlight" at={new Date()} from={readingTime(result)} onCost={onCost} />
+          <Provenance tool="goodearth_sunlight" at={at} from={readingTime(result)} onCost={onCost} />
         </div>
       </div>
     </div>
@@ -249,5 +265,140 @@ export function MonthBars({ grid, cell, month, fullLeaf }: { grid: SunGrid; cell
       })}
       {[3, 6].map((t) => <line key={t} x1={L} x2={W} y1={y(t)} y2={y(t)} stroke="#3A2210" strokeDasharray="3 3" strokeWidth={0.8} opacity={0.55} />)}
     </svg>
+  );
+}
+
+
+// ── The array on the spot ────────────────────────────────────────────────
+
+/// A footprint in metres, what it would cost and what it would earn. The
+/// prices arrived with the answer, read live by the operator; the arithmetic
+/// is here, so a drag costs nothing and a typed metre answers at once.
+function ArrayRows({ grid, cell, fullLeaf, prices, array, onArray }: {
+  grid: SunGrid;
+  cell: number;
+  fullLeaf: boolean;
+  prices: SunlightKwPrices | null;
+  array: ArraySize;
+  onArray: (s: ArraySize) => void;
+}) {
+  const [sellCents, setSellCents] = useState<number | null>(() => readPrefs().sellCents);
+  const [editing, setEditing] = useState(false);
+  const perKw = arrayKwhPerKw(grid, footprintBounds(cellCentre(grid, cell), array), fullLeaf, cell);
+  const m2 = array.w * array.l;
+  const kw = prices ? capacityKw(array, prices.array_w_per_m2) : null;
+  const cost = prices && kw != null ? installUsd(kw, prices) : null;
+  const made = kw != null && perKw != null ? dailyKwh(kw, perKw) : null;
+  const rate = sellRate(prices, sellCents);
+  const income = made != null && rate ? dailyIncomeUsd(made, rate.cents) : null;
+
+  const setRate = (v: number | null) => {
+    setSellCents(v);
+    writePrefs({ ...readPrefs(), sellCents: v });
+    setEditing(false);
+  };
+
+  return (
+    <>
+      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px]">
+        <span className="text-ink-soft">Array</span>
+        <Metres value={array.w} glyph="⟷" label="Width, metres east to west" onChange={(w) => onArray({ ...array, w })} />
+        <Metres value={array.l} glyph="↕" label="Length, metres north to south" onChange={(l) => onArray({ ...array, l })} />
+        <span className="data text-ink-soft">
+          {m2.toLocaleString()} m²{kw != null && <> · {kw < 10 ? kw.toFixed(1) : Math.round(kw).toLocaleString()} kW</>}
+        </span>
+      </div>
+      {prices ? (
+        <>
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            <Fig big={cost == null ? "—" : usd(roughly(cost))} small="to install" why={cost == null ? prices.reasons.install : undefined} />
+            <Fig big={made == null ? "—" : Math.round(made).toLocaleString()} small="kWh a day" />
+            <Fig big={income == null ? "—" : usd(roughly(income), 2)} small="a day, sold" why={rate ? undefined : prices.reasons.sell} />
+          </div>
+          <div className="data mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10.5px] text-ink-soft">
+            {prices.install
+              ? <span>DOE benchmark {prices.install.quarter}</span>
+              : <span title={prices.reasons.install}>no benchmark read</span>}
+            <span aria-hidden="true">·</span>
+            {editing ? (
+              <RateInput initial={sellCents ?? prices.sell?.cents_per_kwh ?? null} onDone={setRate} />
+            ) : (
+              // One span, so the pencil wraps with the rate it edits and never alone.
+              <span className="inline-flex items-center gap-1">
+                {rate
+                  ? <span>{rate.label} · {rate.cents.toFixed(1)} ¢/kWh</span>
+                  : <span title={prices.reasons.sell}>no tariff on file</span>}
+                <button type="button" onClick={() => setEditing(true)}
+                  aria-label="Set what a kWh sells for" title="What your utility pays for a kWh"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded text-ink-soft active:text-ink">
+                  <Glyph path={ICON.edit} size={14} />
+                </button>
+              </span>
+            )}
+          </div>
+        </>
+      ) : (
+        <p className="mt-2 text-[12px] text-ink-soft">No prices came with this reading.</p>
+      )}
+    </>
+  );
+}
+
+function Fig({ big, small, why }: { big: string; small: string; why?: string }) {
+  return (
+    <div className="rounded border border-rule px-2 py-1.5" title={why}>
+      <div className="figure text-[17px] leading-tight">{big}</div>
+      <div className="text-[10.5px] text-ink-soft">{small}</div>
+    </div>
+  );
+}
+
+/// A metre field that takes what is typed as it is typed, and settles to the
+/// limits on leaving. The prop moves under it when the handle is dragged.
+function Metres({ value, glyph, label, onChange }: {
+  value: number; glyph: string; label: string; onChange: (v: number) => void;
+}) {
+  const [text, setText] = useState(String(value));
+  useEffect(() => { setText(String(value)); }, [value]);
+  const commit = () => {
+    const n = Number(text);
+    if (Number.isFinite(n) && n >= MIN_M && n <= MAX_M) onChange(n);
+    else setText(String(value));
+  };
+  return (
+    <label className="flex items-center gap-1">
+      <span aria-hidden="true" className="text-ink-soft">{glyph}</span>
+      <input type="number" inputMode="numeric" min={MIN_M} max={MAX_M} step={1} value={text} aria-label={label}
+        onChange={(e) => {
+          setText(e.target.value);
+          const n = Number(e.target.value);
+          if (Number.isFinite(n) && n >= MIN_M && n <= MAX_M) onChange(n);
+        }}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+        className="data h-8 w-14 rounded border border-rule bg-paper px-1.5 text-right text-[12.5px]" />
+      <span className="text-ink-soft">m</span>
+    </label>
+  );
+}
+
+/// The ¢/kWh a grower types; empty clears it and the read rate stands again.
+function RateInput({ initial, onDone }: { initial: number | null; onDone: (v: number | null) => void }) {
+  const [text, setText] = useState(initial == null ? "" : String(initial));
+  const done = () => {
+    const n = Number(text);
+    onDone(text.trim() && Number.isFinite(n) && n > 0 && n < 200 ? Math.round(n * 10) / 10 : null);
+  };
+  return (
+    <span className="flex items-center gap-1">
+      <input type="number" inputMode="decimal" min={0} max={200} step={0.1} value={text} autoFocus
+        aria-label="Cents per kWh your utility pays"
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") done(); if (e.key === "Escape") onDone(initial); }}
+        className="data h-7 w-16 rounded border border-rule bg-paper px-1.5 text-right text-[11px]" />
+      <span>¢/kWh</span>
+      <button type="button" onClick={done} aria-label="Keep this rate"
+        className="inline-flex h-7 w-7 items-center justify-center rounded text-growth">✓</button>
+    </span>
   );
 }

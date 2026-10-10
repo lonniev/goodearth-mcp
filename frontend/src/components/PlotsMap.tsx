@@ -7,12 +7,14 @@
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import L from "leaflet";
-import { BASEMAPS } from "./FieldMap";
+import { BASEMAPS, cornerIcon } from "./FieldMap";
 import { useEnlarged } from "./MapFrame";
 import { EnlargeButton, ICON } from "./ui";
 import { plotShapes } from "../lib/plotShapes";
 import type { SavedRegion } from "../lib/regions";
-import { cellAt, type SunGrid } from "../lib/sunGrid";
+import { type ArraySize } from "../lib/arrayEconomics";
+import { mountArray, type ArrayLayer } from "../lib/arrayLayer";
+import { cellAt, cellCentre, type SunGrid } from "../lib/sunGrid";
 import { mountSun, type SunLayer, type SunState } from "../lib/sunOverlay";
 
 const GROWTH = "#4C7A3D";
@@ -27,6 +29,9 @@ export interface SunControl {
   grid: SunGrid | null;
   state: SunState;
   onSelect: (cell: number) => void;
+  /// The array on the selected spot, metres, and the drag that resizes it.
+  array: ArraySize;
+  onResize: (s: ArraySize) => void;
 }
 
 export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0 }: {
@@ -42,6 +47,7 @@ export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0 }: {
   const drawn = useRef<L.FeatureGroup | null>(null);
   const layers = useRef(new Map<string, L.Polygon | L.Circle>());
   const sunLayer = useRef<SunLayer | null>(null);
+  const arrayLayer = useRef<ArrayLayer | null>(null);
   const shapes = useMemo(() => plotShapes(plots), [plots]);
   // The tap handlers are bound once per redraw; read the picker through a ref
   // so a new callback identity does not force one.
@@ -131,16 +137,25 @@ export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0 }: {
     if (!m) return;
     sunLayer.current?.remove();
     sunLayer.current = null;
+    arrayLayer.current?.remove();
+    arrayLayer.current = null;
     if (!grid || !sun) return;
     sunLayer.current = mountSun(m, grid, sun.state);
-    return () => { sunLayer.current?.remove(); sunLayer.current = null; };
-    // The layer is rebuilt only when the grid itself changes; state updates
+    arrayLayer.current = mountArray(m, cornerIcon(), (size) => sunRef.current?.onResize(size));
+    return () => {
+      sunLayer.current?.remove(); sunLayer.current = null;
+      arrayLayer.current?.remove(); arrayLayer.current = null;
+    };
+    // The layers are rebuilt only when the grid itself changes; state updates
     // go through update() below, which repaints without a remount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [grid]);
 
   useEffect(() => {
-    if (sun && grid) sunLayer.current?.update(sun.state);
+    if (!sun || !grid) return;
+    sunLayer.current?.update(sun.state);
+    const k = sun.state.selected;
+    arrayLayer.current?.update(k >= 0 ? cellCentre(grid, k) : null, sun.array);
   }, [sun, grid]);
 
   return (

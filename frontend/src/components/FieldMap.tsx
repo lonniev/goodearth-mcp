@@ -72,7 +72,7 @@ const INK = "#20301B";
 const TOUCH = 44;
 const DOT = 12;
 
-function cornerIcon(): L.DivIcon {
+export function cornerIcon(): L.DivIcon {
   return L.divIcon({
     className: "",
     iconSize: [TOUCH, TOUCH],

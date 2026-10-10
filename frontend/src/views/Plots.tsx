@@ -74,6 +74,7 @@ export default function Plots({
   const sun = useSunLayer(active);
   const sunControl: SunControl = {
     on: sun.on, onToggle: sun.toggle, grid: sun.grid, state: sun.state, onSelect: sun.select,
+    array: sun.array, onResize: sun.setArray,
   };
   /// Each tap on the active chip is one request to frame its plot on the map.
   const [focus, setFocus] = useState(0);
@@ -437,7 +438,8 @@ export default function Plots({
       )}
       {sun.on && sun.grid && (
         <SunSpotCard grid={sun.grid} result={sun.result} cell={sun.state.selected}
-          month={sun.state.month} fullLeaf={sun.state.fullLeaf} onCost={onCost} />
+          month={sun.state.month} fullLeaf={sun.state.fullLeaf} onCost={onCost}
+          array={sun.array} onArray={sun.setArray} />
       )}
       {sun.on && sun.grid && sun.result && sun.summary && (
         <SunSummary name={active.name} summary={sun.summary} result={sun.result}
