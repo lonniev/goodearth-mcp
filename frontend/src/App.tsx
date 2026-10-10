@@ -55,6 +55,7 @@ import { migrateToBlocks } from "./lib/migrateBlocks";
 import { peerOf, WARM_AFTER_MS } from "./lib/peerPage";
 import { warmPage } from "./lib/pageLoads";
 import { forgetAll } from "./lib/pageCache";
+import { TourProvider, useTour } from "./components/Tour";
 
 /** The site's own words above the sign-in card. */
 const WELCOME = "Natural phenomena for your acreage. Frost, heat, rain and daylight, read for the ground you actually farm, season by season.";
@@ -287,13 +288,15 @@ export default function App() {
       // the calls a patron who cannot get in needs to see. The reading pages
       // below call nothing that logs, so they go without.
       return (
-        <>
+        <TourProvider prefs={prefs} onChange={(p) => setPrefs(writePrefs(p))}>
+          <SignInTour />
           <NpubGate onLogin={login} notice={notice} welcome={WELCOME} />
           <DebugPanel />
-        </>
+        </TourProvider>
       );
     }
     return (
+      <TourProvider prefs={prefs} onChange={(p) => setPrefs(writePrefs(p))}>
       <ShareProvider>
       <GuestShell view={view} onView={setView} onSignIn={() => setAsking(true)}>
         {view === "welcome" && <Welcome onView={setView} onSignIn={() => setAsking(true)} />}
@@ -319,6 +322,7 @@ export default function App() {
         {view === "how-reports" && <HowTo page="reports" onView={setView} />}
       </GuestShell>
       </ShareProvider>
+      </TourProvider>
     );
   }
 
@@ -328,6 +332,7 @@ export default function App() {
           so the two can never disagree: tonight's low on the coldest ground
           against the 55°F flight threshold, and shut on a live frost watch. */}
       <UnitProvider value={prefs.units}>
+      <TourProvider prefs={prefs} onChange={(p) => setPrefs(writePrefs(p))}>
       {/* Around the shell, not inside it: a page publishes what it has to
           give and the top bar's share button reads it. */}
       <ShareProvider>
@@ -448,6 +453,7 @@ export default function App() {
         )}
       </AppShell>
       </ShareProvider>
+      </TourProvider>
       </UnitProvider>
 
       {/* The foragers work the whole page. pointer-events:none throughout, so
@@ -459,4 +465,11 @@ export default function App() {
       <DebugPanel />
     </>
   );
+}
+
+/// The sign-in page's tour. The gate's markup is the package's, so this sits
+/// beside it rather than in it.
+function SignInTour() {
+  useTour("signin");
+  return null;
 }

@@ -6,13 +6,14 @@
 // are not published to Nostr with the regions and reports.
 
 import { seasonOf, type Season } from "./season.ts";
+import { fromStored, TOUR_DEFAULTS, type TourPrefs } from "./tour/state.ts";
 import type { Unit } from "./units.ts";
 
 /// "follow" tracks the calendar; the four seasons are a deliberate choice to
 /// stay in one.
 export type ThemeChoice = Season | "follow";
 
-export interface Prefs {
+export interface Prefs extends TourPrefs {
   /// Which season the page wears. Per-device like the rest of this file: a
   /// grower who likes winter on the shed tablet is not asking for it on the
   /// laptop, and it is a viewing choice rather than farm data.
@@ -45,12 +46,16 @@ export interface Prefs {
   /// retail price the operator reads — a net-metering credit is often less.
   /// Null takes the read figure.
   sellCents: number | null;
+
+  // `tour`, `toured` and `replay` — the guided tour's three facts — come
+  // from TourPrefs; see lib/tour/state.ts for what each means.
 }
 
 const KEY = "goodearth:prefs:v1";
 
 export const DEFAULTS: Prefs = {
   bees: true, units: "F", theme: "follow", chartOrder: [], array: { w: 24, l: 12 }, sellCents: null,
+  ...TOUR_DEFAULTS,
 };
 
 /// The season to actually paint, resolving "follow" against today.
@@ -74,6 +79,9 @@ export function readPrefs(): Prefs {
         : [],
       array: v.array && Number.isFinite(v.array.w) && Number.isFinite(v.array.l) ? v.array : DEFAULTS.array,
       sellCents: typeof v.sellCents === "number" && Number.isFinite(v.sellCents) ? v.sellCents : null,
+      // A device that saved preferences before the tour existed has been
+      // here a while; it starts with the tutorial off.
+      ...fromStored(v),
     };
   } catch {
     return { ...DEFAULTS };

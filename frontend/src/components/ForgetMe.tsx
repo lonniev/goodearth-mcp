@@ -13,6 +13,7 @@ import { useState } from "react";
 import { getStoredNpub, logOut } from "@tollbooth-dpyc/web";
 import { FORGET_PHRASE, forgetMyGround } from "../lib/mcp";
 import { clear as clearUndo } from "../lib/undo";
+import { tour } from "../lib/tour/targets";
 
 export default function ForgetMe({ onForgotten }: { onForgotten: () => void }) {
   const [open, setOpen] = useState(false);
@@ -44,7 +45,7 @@ export default function ForgetMe({ onForgotten }: { onForgotten: () => void }) {
   }
 
   return (
-    <div className="rounded-xl border border-clay/40 bg-panel px-4 py-3">
+    <div className="rounded-xl border border-clay/40 bg-panel px-4 py-3" {...tour("account.forget")}>
       <div className="eyebrow mb-1 text-clay">Forget me</div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
       <p className="min-w-[14rem] flex-1 text-[12.5px] leading-snug text-ink-soft">

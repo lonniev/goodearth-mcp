@@ -6,6 +6,7 @@ import { QuoteScroller } from "@tollbooth-dpyc/web/react";
 import { AGRARIAN_QUOTES, AGRARIAN_SOURCE, quoteStyles } from "../lib/quotes";
 import { MONTHS } from "../lib/companions";
 import { bareSpan, css, KWH_RAMP, SUN_STOPS, type SunView } from "../lib/sunGrid";
+import { tour } from "../lib/tour/targets";
 
 const RAMP = `linear-gradient(90deg, ${SUN_STOPS.map(([h, c]) => `${css(c)} ${(h / 12) * 100}%`).join(", ")})`;
 
@@ -39,7 +40,7 @@ export default function SunPanel({
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
           {/* Two glyphs, no words: a sprout for the garden's light, a bolt
               for the power a panel would make. */}
-          <div className="flex shrink-0 overflow-hidden rounded-md border border-ink/30" role="group" aria-label="What to show">
+          <div className="flex shrink-0 overflow-hidden rounded-md border border-ink/30" role="group" aria-label="What to show" {...tour("plots.sunview")}>
             {(["garden", "solar"] as SunView[]).map((v) => {
               const label = v === "garden" ? "Garden light" : "Solar panels";
               return (

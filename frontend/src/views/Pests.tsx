@@ -39,6 +39,8 @@ import {
 import SpeciesFinder from "../components/SpeciesFinder";
 import type { Chosen } from "../lib/basket";
 import type { SavedRegion } from "../lib/regions";
+import { useTour } from "../components/Tour";
+import { tour } from "../lib/tour/targets";
 
 const d = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -108,6 +110,7 @@ export default function Pests({
   const [data, setData] = useState<PestWindowResult | null>(null);
   /// The models with where each stands, for the share button in the top bar.
   useShare(useMemo(() => pestsSheet(region, models, data, u.unit, total), [region, models, data, u.unit, total]));
+  useTour("pests");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [ranAt, setRanAt] = useState<Date | null>(null);
@@ -262,7 +265,7 @@ export default function Pests({
 
 
       {data && data.scout_now.length > 0 && (
-        <div className="mb-5 rounded-md border border-rule border-l-4 border-l-honey bg-panel px-4 py-3">
+        <div className="mb-5 rounded-md border border-rule border-l-4 border-l-honey bg-panel px-4 py-3" {...tour("pests.active")}>
           <span className="eyebrow">Active now</span>
           <ul className="mt-1.5 space-y-1 text-[13px]">
             {data.scout_now.map((s) => <li key={s}>{s}</li>)}
@@ -283,7 +286,7 @@ export default function Pests({
               already holds a chipmunk and a slug, and neither is an insect. A
               typed name still stands when iNaturalist has not heard of it —
               "pest" is the grower's word for whatever is eating the crop. */}
-          <Field label="Pest" width="min-w-[15rem] flex-1">
+          <Field label="Pest" width="min-w-[15rem] flex-1" tour="pests.species">
             <SpeciesPicker key={pickKey} kingdom="animals" seed={seedName}
               value={picked && {
                 commonName: picked.commonName ?? undefined,
@@ -310,7 +313,7 @@ export default function Pests({
               50: it is the number this ground's season curve is accumulated
               from, so leaving the field alone now agrees with the chart
               instead of quietly disagreeing with it. */}
-          <Field label={`Base${u.tempUnit}`} htmlFor="pest-base" width="w-[7rem]"
+          <Field label={`Base${u.tempUnit}`} htmlFor="pest-base" width="w-[7rem]" tour="pests.base"
             hint={
               <Term of="base_temp">
                 A codling moth counts from 50&nbsp;°F and a cabbage maggot from
@@ -323,7 +326,7 @@ export default function Pests({
               className={FIELD} />
           </Field>
 
-          <Field label="Biofix" htmlFor="pest-biofix" width="w-[10rem]"
+          <Field label="Biofix" htmlFor="pest-biofix" width="w-[10rem]" tour="pests.biofix"
             hint={
               <Term of="biofix">
                 Leave it empty and the count runs from the first of January.
@@ -332,7 +335,7 @@ export default function Pests({
             <input id="pest-biofix" name="biofix" type="date" className={FIELD} />
           </Field>
 
-          <Field label="Stages" htmlFor="pest-stages" width="min-w-[15rem] flex-1"
+          <Field label="Stages" htmlFor="pest-stages" width="min-w-[15rem] flex-1" tour="pests.stages"
             hint={
               <Term of="threshold">
                 A life-cycle event and the degree-day total it arrives at, comma
@@ -345,7 +348,7 @@ export default function Pests({
           </Field>
 
           <span className="pt-3.5">
-            <IconButton path={ICON.bug} label="Pest" hideLabel form="new-pest"
+            <IconButton path={ICON.bug} label="Pest" hideLabel form="new-pest" tour="pests.add"
               title="Watch a pest" disabled={submit.busy} />
           </span>
         </div>
@@ -358,7 +361,7 @@ export default function Pests({
           "Nothing crossed or due in the next 10 days" is a fact about the
           list the list already shows. */}
       <div className="mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <Section emoji="👀" first
+        <Section emoji="👀" first tour="pests.list"
           title={`What you're watching${ranAt
             ? ` (at ${clockTime(ranAt, zone)})`
             : ""}`}>
@@ -367,6 +370,7 @@ export default function Pests({
           )}
         </Section>
         <div className="ml-auto flex items-center gap-2">
+          <span {...tour("pests.filter")}>
           <TableFilter classNames={TABLE_FILTER} clearLabel="Clear" clearPlacement="panel"
             onClear={() => { setFilter(NO_PEST_FILTER); setPageNo(0); }}
             questions={{
@@ -379,6 +383,7 @@ export default function Pests({
                 { kind: "toggle", key: "watchedOnly", label: "Watched, no model" },
               ],
             }} />
+          </span>
           <SearchBox value={search} placeholder="regex ok, e.g. moth|borer"
             onSearch={(t) => { setSearch(t); setPageNo(0); }} />
         </div>
@@ -512,7 +517,7 @@ export default function Pests({
         </Empty>
       )}
 
-      <Section emoji="🐛" title="When they appear here">
+      <Section emoji="🐛" title="When they appear here" tour="pests.catalog">
         {!cat && (
           <Pill onClick={loadCatalog} disabled={catBusy} active>
             {catBusy ? "🧠 Reading…" : "🧠 What's here?"}
@@ -548,7 +553,7 @@ export default function Pests({
           The sightings list used to sit above, capped at eighteen with no way
           to see the rest — of 3,542 insects and spiders recorded around one
           block. Searching is the only shape that fits that. */}
-      <Section emoji="🔭" title="Community Observations" />
+      <Section emoji="🔭" title="Community Observations" tour="pests.community" />
       <SpeciesFinder
         block={region.id}
         blockName={region.name}

@@ -52,6 +52,8 @@ import { withId } from "../lib/submit";
 import type { SavedRegion } from "../lib/regions";
 import { Empty, ErrorBox, FIELD, Glyph, ICON, IconButton, Pill,
   Section, TABLE_FILTER } from "../components/ui";
+import { useTour } from "../components/Tour";
+import { tour } from "../lib/tour/targets";
 
 const short = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -231,6 +233,7 @@ export default function Crops({
   const [ledger, setLedger] = useState<CropLedgerResult | null>(null);
   /// The plantings with where each stands, for the share button in the top bar.
   useShare(useMemo(() => cropsSheet(region, plantings, ledger, u.unit, total), [region, plantings, ledger, u.unit, total]));
+  useTour("crops");
   /// Disease risk for this block, joined to the plantings by each model's own
   /// "developed for" list. Its own call because it reads HOURS, not the heat
   /// curve the ledger is built on.
@@ -719,7 +722,7 @@ export default function Crops({
               caret went back into the box, and nothing was chosen. */}
           {/* "Species", as on Fauna. It said "Plant" until the box learned to
               find fungi, and a shiitake under that word reads as a mistake. */}
-          <div className="block text-[11px] text-ink-soft sm:col-span-2">
+          <div className="block text-[11px] text-ink-soft sm:col-span-2" {...tour("crops.species")}>
             Species
             <SpeciesPicker
               kingdom={FLORA}
@@ -735,7 +738,7 @@ export default function Crops({
           </div>
           <label className="block text-[11px] text-ink-soft">
             Your name for it <span className="opacity-60">(optional)</span>
-            <input name="label" placeholder="succession 4, north lot" className={FIELD}
+            <input name="label" placeholder="succession 4, north lot" {...tour("crops.label")} className={FIELD}
               defaultValue={repeating?.label ?? ""} />
           </label>
           <label className="block text-[11px] text-ink-soft">
@@ -743,13 +746,13 @@ export default function Crops({
               Leave it blank for a tree, or for anything you are not pacing.
             </Term>{" "}
             <span className="opacity-60">(optional)</span>
-            <input name="target" inputMode="numeric" placeholder="780" className={FIELD}
+            <input name="target" inputMode="numeric" placeholder="780" {...tour("crops.target")} className={FIELD}
               defaultValue={repeating?.gddTargetF != null
                 ? String(Math.round(u.degreeDays(repeating.gddTargetF))) : ""} />
           </label>
           <label className="block text-[11px] text-ink-soft">
             Planted <span className="opacity-60">(set out or sown)</span>
-            <input name="setout" type="date" className={FIELD} />
+            <input name="setout" type="date" {...tour("crops.setout")} className={FIELD} />
           </label>
           {/* The explanation used to be a sixty-word paragraph under the
               form. It is a definition, not a control, so it moved behind the
@@ -763,7 +766,7 @@ export default function Crops({
             {/* A number field bounded to what the service accepts, in the
                 reader's scale. `submit` checks it again: a number field still
                 lets a thumb type 780 into it. */}
-            <input name="base" type="number" inputMode="decimal" step="1"
+            <input name="base" type="number" {...tour("crops.base")} inputMode="decimal" step="1"
               defaultValue={repeating?.baseTempF != null
                 ? String(Math.round(u.temp(repeating.baseTempF))) : ""}
               min={baseBounds(u).min} max={baseBounds(u).max}
@@ -778,14 +781,14 @@ export default function Crops({
             <label htmlFor="pl-color" className="col-start-1">Flower <span className="opacity-60">(optional)</span></label>
             <label htmlFor="pl-height" className="col-start-2">Height, in</label>
             <label htmlFor="pl-bloom-from" className="col-start-3">Blooms</label>
-            <select id="pl-color" name="color" defaultValue="" className={`${FIELD} col-start-1 w-auto pr-8`}>
+            <select id="pl-color" name="color" {...tour("crops.flower")} defaultValue="" className={`${FIELD} col-start-1 w-auto pr-8`}>
               <option value="">—</option>
               {HUES.map((h) => <option key={h} value={h}>{HUE_GLYPH[h]} {h}</option>)}
             </select>
-            <input id="pl-height" name="height" type="number" inputMode="decimal" step="1" min={1} max={600}
+            <input id="pl-height" name="height" type="number" {...tour("crops.height")} inputMode="decimal" step="1" min={1} max={600}
               placeholder="30" className={`${FIELD} col-start-2`} />
             <span className="col-start-3 flex items-center gap-1">
-              <select id="pl-bloom-from" name="bloom_from" defaultValue="" aria-label="Blooms from" className={`${FIELD} w-auto pr-7`}>
+              <select id="pl-bloom-from" name="bloom_from" defaultValue="" aria-label="Blooms from" {...tour("crops.blooms")} className={`${FIELD} w-auto pr-7`}>
                 <option value="">—</option>
                 {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
               </select>
@@ -797,12 +800,12 @@ export default function Crops({
           </div>
           <div className="flex flex-wrap items-end gap-4 text-[12px] sm:col-span-2">
             <label className="flex min-h-11 items-center gap-2">
-              <input type="checkbox" name="hardy" className="size-4"
+              <input type="checkbox" name="hardy" className="size-4" {...tour("crops.hardy")}
                 defaultChecked={!!repeating?.frostHardy} />
               Handles Light Frost
             </label>
             <label className="flex min-h-11 items-center gap-2">
-              <input type="checkbox" name="taps" className="size-4"
+              <input type="checkbox" name="taps" className="size-4" {...tour("crops.taps")}
                 defaultChecked={!!repeating?.taps} />
               Sap Producer
             </label>
@@ -811,7 +814,7 @@ export default function Crops({
               * the end of the last row rather than on a row of its own, so the
               * ledger below gets that height back. */}
             <div className="ml-auto">
-              <IconButton path={ICON.add} label="Planting" form="new-planting"
+              <IconButton path={ICON.add} label="Planting" form="new-planting" tour="crops.add"
                 title="Add a planting" disabled={submit.busy} />
             </div>
           </div>
@@ -834,6 +837,7 @@ export default function Crops({
           )}
         </Section>
         <div className="ml-auto flex items-center gap-2">
+          <span {...tour("crops.filter")}>
           <TableFilter classNames={TABLE_FILTER} clearLabel="Clear" clearPlacement="panel"
             onClear={() => { setFilter(NO_FILTER); setPageNo(0); }}
             questions={{
@@ -847,8 +851,11 @@ export default function Crops({
                 { kind: "number", key: "gddUnder", label: "Heat left under", unit: "GDD" },
               ],
             }} />
+          </span>
+          <span {...tour("crops.search")}>
           <SearchBox value={search} placeholder="regex ok, e.g. zinnia|dahlia"
             onSearch={(t) => { setSearch(t); setPageNo(0); }} />
+          </span>
         </div>
       </div>
 
@@ -858,7 +865,7 @@ export default function Crops({
         </div>
       ) : ledger ? (
         <>
-          <CropLedger
+          <CropLedger tour="crops.ledger"
             rows={shown} sort={sort} dir={dir} onSort={sortBy}
             editing={editing} draft={draft} saving={savingRow}
             onEdit={(pl) => { setEditing(pl.id); setDraft(pl); }}
@@ -942,7 +949,7 @@ export default function Crops({
       )}
 
       {/* ── Rotation ───────────────────────────────────────────────── */}
-      <Section emoji="🔄" title="Rotation">
+      <Section emoji="🔄" title="Rotation" tour="crops.rotation">
         {!rotationRows && (
           <Pill onClick={() => void readRotation()} disabled={rotationBusy} active>
             {rotationBusy ? "Reading…" : "What grew here?"}
@@ -961,7 +968,7 @@ export default function Crops({
       )}
 
       {/* ── Grows here ─────────────────────────────────────────────── */}
-      <Section emoji="🌾" title="Grows here">
+      <Section emoji="🌾" title="Grows here" tour="crops.fit">
         {!fit && (
           <Pill onClick={checkFit} disabled={fitBusy} active>
             {fitBusy ? "🧠 Reading…" : "🧠 What?"}
@@ -1118,7 +1125,7 @@ export default function Crops({
       )}
 
       {/* ── When to sow ────────────────────────────────────────────── */}
-      <Section emoji="🌱" title="When to sow">
+      <Section emoji="🌱" title="When to sow" tour="crops.sow">
         {!when && (
           <Pill onClick={checkWhen} disabled={whenBusy} active>
             {whenBusy ? "🧠 Reading…" : "🧠 When?"}
@@ -1252,7 +1259,7 @@ export default function Crops({
           grower who wanted six plants did that six times. There are 2,267
           plants recorded around one block, so a grid was never going to be
           the shape of it. */}
-      <Section emoji="🔭" title="Community Observations">
+      <Section emoji="🔭" title="Community Observations" tour="crops.community">
         <Provenance tool="goodearth_nearby_species" at={nearAt} onCost={onCost} />
       </Section>
 

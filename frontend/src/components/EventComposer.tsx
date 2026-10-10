@@ -34,6 +34,7 @@ import {
   ErrorBox, FIELD, ICON, IconButton, LifecycleMark, MonthDay, Note, Pill,
   SpeciesMark, Stepper, TrashGlyph,
 } from "./ui";
+import { tour } from "../lib/tour/targets";
 
 type Driver = "calendar" | "interval" | "daylight" | "heat" | "condition";
 
@@ -331,7 +332,7 @@ export default function EventComposer({
         {/* ── What is being tracked ──────────────────────────────────── */}
         {/* What is SEARCHED for here is animals. Fungi are named on Flora;
             a row already on this record shows whatever it is. */}
-        <label className="block text-[11px] text-ink-soft">
+        <label className="block text-[11px] text-ink-soft" {...tour("wildlife.species")}>
           Species
           <input
             value={animal ? animal.name : q}
@@ -408,7 +409,7 @@ export default function EventComposer({
         )}
 
         {animal && (
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5" {...tour("wildlife.role")}>
             {(["friend", "foe", "watch"] as const).map((r) => (
               <Pill key={r} active={role === r} onClick={() => setRole(role === r ? "" : r)}>
                 {r}
@@ -422,7 +423,7 @@ export default function EventComposer({
         )}
 
         {/* ── The clock ──────────────────────────────────────────────── */}
-        <div className="mt-3 flex flex-wrap gap-1.5">
+        <div className="mt-3 flex flex-wrap gap-1.5" {...tour("wildlife.clock")}>
           {CLOCKS.map((c) => (
             <Pill key={c.key} active={driver === c.key}
               onClick={() => {
@@ -439,7 +440,7 @@ export default function EventComposer({
         <datalist id="goodearth-labels">
           {[...new Set([...habits, ...mine])].map((h) => <option key={h} value={h} />)}
         </datalist>
-        <label className="mt-3 block text-[11px] text-ink-soft">
+        <label className="mt-3 block text-[11px] text-ink-soft" {...tour("wildlife.label")}>
           {driver === "interval" ? "What you saw" : "What it does"}
           <input value={label} list="goodearth-labels"
             onChange={(e) => setLabel(e.target.value)}
@@ -458,7 +459,7 @@ export default function EventComposer({
         )}
 
         {/* ── The clock's own question ───────────────────────────────── */}
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2" {...tour("wildlife.figures")}>
           {driver === "interval" && (
             <>
               <label className="block text-[11px] text-ink-soft">
@@ -623,7 +624,7 @@ export default function EventComposer({
           {/* `+ Record`, like every other editor on the site. "Record 2 events"
               counted the rows in a sentence on the button; the count is beside
               it, where a count belongs. */}
-          <IconButton path={ICON.add} label="Record"
+          <IconButton path={ICON.add} label="Record" tour="wildlife.record"
             disabled={!ready || submit.busy}
             onClick={() => {
               if (typeof rows === "string") { setError(rows); return; }

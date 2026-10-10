@@ -35,6 +35,8 @@ import {
 } from "../lib/farmBundle";
 import { exportPlot, importBundle } from "../lib/farmBundleIO";
 import { shareOrDownload } from "@tollbooth-dpyc/web";
+import { useTour } from "../components/Tour";
+import { tour } from "../lib/tour/targets";
 
 const EMPTY: MapValue = { mode: "polygon", ring: [], centre: null, radiusM: 400 };
 
@@ -67,6 +69,7 @@ export default function Plots({
   const [regions, setRegions] = useState<SavedRegion[]>(() => listRegions());
   /// The plots as one table, for the share button in the top bar.
   useShare(useMemo(() => plotsSheet(regions, u.unit), [regions, u.unit]));
+  useTour("plots", { "open-add-form": () => setAdding(true) });
   /// The finder, the form and the drawing map are shown on request: a new
   /// plot is a once-a-season act, and open all the time they took half the
   /// page from the plots already saved. Open at once for a grower with none.
@@ -328,10 +331,10 @@ export default function Plots({
             plots the record says you have. */}
         <div className="flex gap-1.5">
           {!adding && (
-            <IconButton path={ICON.add} label="Add a plot" tone="quiet"
+            <IconButton path={ICON.add} label="Add a plot" tone="quiet" tour="plots.add"
               title="Trace or pin new ground" onClick={() => setAdding(true)} />
           )}
-          <IconButton path={ICON.upload} label="Import" tone="quiet"
+          <IconButton path={ICON.upload} label="Import" tone="quiet" tour="plots.import"
             title="Import a farm bundle" disabled={!synced || importing}
             onClick={() => fileRef.current?.click()} />
         </div>
@@ -344,7 +347,7 @@ export default function Plots({
       {/* One chip per plot, the map right under them: the page is the map.
           A chip tapped is the plot worked; rename, share and forget act on
           the plot being worked, at the row's end, not on every card. */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2" {...tour("plots.chips")}>
         {regions.map((r) => {
           const isActive = r.id === active.id;
           return (
@@ -375,7 +378,7 @@ export default function Plots({
                 the plot's aliases, and saving what it does not know would
                 clear them. */}
             {synced && editing !== active.id && (
-              <IconButton path={ICON.edit} label={`Rename ${active.name}`} tone="quiet" hideLabel
+              <IconButton path={ICON.edit} label={`Rename ${active.name}`} tone="quiet" hideLabel tour="plots.rename"
                 onClick={() => setEditing(active.id)} />
             )}
             {/* The plot and this season's plantings, pests and wildlife,
@@ -386,12 +389,12 @@ export default function Plots({
                 <IconButton path={ICON.share} label="Share ready" title={`Share ${active.name}`}
                   onClick={() => void share(active)} />
               ) : (
-                <IconButton path={ICON.share} label={`Share ${active.name}`} tone="quiet" hideLabel
+                <IconButton path={ICON.share} label={`Share ${active.name}`} tone="quiet" hideLabel tour="plots.share"
                   title="Share this plot as a farm bundle" disabled={packing === active.id}
                   onClick={() => void share(active)} />
               )
             )}
-            <IconButton path={ICON.delete} label={`Forget ${active.name}`} tone="quiet" hideLabel
+            <IconButton path={ICON.delete} label={`Forget ${active.name}`} tone="quiet" hideLabel tour="plots.forget"
               onClick={() => { setConfirming(active); setErr(""); }} />
           </div>
         )}
@@ -457,7 +460,7 @@ export default function Plots({
       {/* Search and the drawing mode centre and shape the drawing map below —
           they live with it, not above the plots map every visit pays for. */}
       <div className="mt-2.5 mb-2.5 flex flex-wrap items-center gap-2">
-        <form onSubmit={search} className="flex flex-1 min-w-[240px] gap-2">
+        <form onSubmit={search} className="flex flex-1 min-w-[240px] gap-2" {...tour("plots.search")}>
           <input
             value={query} onChange={(e) => setQuery(e.target.value)}
             placeholder="Find a town, road or address"
@@ -467,12 +470,12 @@ export default function Plots({
             {searching ? "…" : "Search"}
           </button>
         </form>
-        <button onClick={locate}
+        <button onClick={locate} {...tour("plots.locate")}
           className="min-h-11 rounded border-[1.5px] border-ink px-4 text-[13px] font-semibold active:bg-ink active:text-paper">
           Use my location
         </button>
 
-        <div className="ml-auto flex overflow-hidden rounded-md border-[1.5px] border-ink text-[12.5px] font-semibold">
+        <div className="ml-auto flex overflow-hidden rounded-md border-[1.5px] border-ink text-[12.5px] font-semibold" {...tour("plots.shape")}>
           {(["polygon", "pin"] as const).map((mo) => (
             <button key={mo}
               onClick={() => setValue({ ...EMPTY, mode: mo, radiusM: value.radiusM })}
@@ -500,13 +503,13 @@ export default function Plots({
       {/* ── Name the new block, and save it ────────────────────────────── */}
       <div className="mt-4 rounded-md border border-rule bg-panel p-4">
         <div className="grid gap-3 sm:grid-cols-[2fr_1fr_auto] sm:items-end">
-          <label className="block text-[11px] text-ink-soft">
+          <label className="block text-[11px] text-ink-soft" {...tour("plots.name")}>
             Name
             <input value={name} onChange={(e) => setName(e.target.value)}
               placeholder="East Bench"
               className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" />
           </label>
-          <label className="block text-[11px] text-ink-soft">
+          <label className="block text-[11px] text-ink-soft" {...tour("plots.base")}>
             Base{u.tempUnit}
             {/* Shown in the reader's scale, stored in the Fahrenheit the
                 service validates against. */}
@@ -515,7 +518,7 @@ export default function Plots({
               onChange={(e) => setBaseTemp(u.toF(Number(e.target.value)) || 50)}
               className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" />
           </label>
-          <IconButton path={ICON.save} label="Save" onClick={save} disabled={!ready}
+          <IconButton path={ICON.save} label="Save" onClick={save} disabled={!ready} tour="plots.save"
             title="Save this ground and work it" />
         </div>
 
@@ -528,7 +531,7 @@ export default function Plots({
       </div>
 
       {/* ── Draw it ────────────────────────────────────────────────────── */}
-      <div className="mt-4">
+      <div className="mt-4" {...tour("plots.map")}>
         <FieldMap value={value} onChange={setValue} others={others} centreOn={centreOn} />
       </div>
 
