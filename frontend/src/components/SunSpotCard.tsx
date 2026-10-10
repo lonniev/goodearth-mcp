@@ -10,8 +10,8 @@
 import { useTimezone } from "@tollbooth-dpyc/web/react";
 import { useEffect, useMemo, useState } from "react";
 import {
-  arrayKwhPerKw, capacityKw, dailyIncomeUsd, dailyKwh, footprintBounds, installUsd, MAX_M, MIN_M, sellRate,
-  type ArraySize,
+  arrayKwhPerKw, capacityKw, dailyIncomeUsd, dailyKwh, dailyUpkeepUsd, footprintBounds, installUsd, MAX_M, MIN_M,
+  paybackYears, sellRate, type ArraySize,
 } from "../lib/arrayEconomics";
 import { MONTHS } from "../lib/companions";
 import type { SunlightKwPrices, SunlightResult } from "../lib/mcp";
@@ -19,7 +19,7 @@ import { roughly, usd } from "../lib/money";
 import { readPrefs, writePrefs } from "../lib/prefs";
 import { readingTime } from "../lib/readingTime";
 import {
-  accessOf, BINS, cellCentre, CLASS_COLOUR, classOf, hoursOf, kwhOf, leastLightMonth, type LightClass, type SunGrid,
+  accessOf, BINS, cellCentre, CLASS_COLOUR, classOf, hoursOf, leastLightMonth, type LightClass, type SunGrid,
 } from "../lib/sunGrid";
 import Provenance from "./Provenance";
 import { Glyph, ICON } from "./ui";
@@ -56,7 +56,10 @@ export default function SunSpotCard({ grid, result, cell, month, fullLeaf, onCos
   const hours = hoursOf(grid, cell, month, fullLeaf);
   const cls = classOf(hours);
   const low = leastLightMonth(grid, cell, fullLeaf);
-  const kwh = kwhOf(grid, cell, fullLeaf);
+  // The panels' yield is the array's: the mean of the cells under the
+  // rectangle, which is the spot's own when it covers no more than one.
+  // The spot's figure beside a day's kWh from the array's did not agree.
+  const kwh = arrayKwhPerKw(grid, footprintBounds(cellCentre(grid, cell), array), fullLeaf, cell);
   const access = accessOf(grid, cell, fullLeaf);
   const canopy = result.sources.find((s) => s.name.includes("canopy"));
   const years = result.solar?.radiation_years;
@@ -110,7 +113,7 @@ export default function SunSpotCard({ grid, result, cell, month, fullLeaf, onCos
                 <div className="text-[11px] text-ink-soft">of open-sky yield</div>
               </div>
             </div>
-            <ArrayRows grid={grid} cell={cell} fullLeaf={fullLeaf} prices={result.kw_prices} array={array} onArray={onArray} />
+            <ArrayRows perKw={kwh} prices={result.kw_prices} array={array} onArray={onArray} />
             <p className="mt-2 text-[12px] text-ink-soft">A screening estimate, not a site survey.</p>
           </>
         ) : (
@@ -274,23 +277,24 @@ export function MonthBars({ grid, cell, month, fullLeaf }: { grid: SunGrid; cell
 /// A footprint in metres, what it would cost and what it would earn. The
 /// prices arrived with the answer, read live by the operator; the arithmetic
 /// is here, so a drag costs nothing and a typed metre answers at once.
-function ArrayRows({ grid, cell, fullLeaf, prices, array, onArray }: {
-  grid: SunGrid;
-  cell: number;
-  fullLeaf: boolean;
+function ArrayRows({ perKw, prices, array, onArray }: {
+  /// The array's yield, kWh per kW a year.
+  perKw: number;
   prices: SunlightKwPrices | null;
   array: ArraySize;
   onArray: (s: ArraySize) => void;
 }) {
   const [sellCents, setSellCents] = useState<number | null>(() => readPrefs().sellCents);
   const [editing, setEditing] = useState(false);
-  const perKw = arrayKwhPerKw(grid, footprintBounds(cellCentre(grid, cell), array), fullLeaf, cell);
   const m2 = array.w * array.l;
   const kw = prices ? capacityKw(array, prices.array_w_per_m2) : null;
   const cost = prices && kw != null ? installUsd(kw, prices) : null;
-  const made = kw != null && perKw != null ? dailyKwh(kw, perKw) : null;
+  const upkeep = prices && kw != null ? dailyUpkeepUsd(kw, prices) : null;
+  const made = kw != null ? dailyKwh(kw, perKw) : null;
   const rate = sellRate(prices, sellCents);
-  const income = made != null && rate ? dailyIncomeUsd(made, rate.cents) : null;
+  // Net of the day's upkeep: what the array leaves, not what it grosses.
+  const net = made != null && rate && upkeep != null ? dailyIncomeUsd(made, rate.cents) - upkeep : null;
+  const payback = cost != null && net != null ? paybackYears(cost, net) : null;
 
   const setRate = (v: number | null) => {
     setSellCents(v);
@@ -313,18 +317,20 @@ function ArrayRows({ grid, cell, fullLeaf, prices, array, onArray }: {
           <div className="mt-2 grid grid-cols-3 gap-2">
             <Fig big={cost == null ? "—" : usd(roughly(cost))} small="to install" why={cost == null ? prices.reasons.install : undefined} />
             <Fig big={made == null ? "—" : Math.round(made).toLocaleString()} small="kWh a day" />
-            <Fig big={income == null ? "—" : usd(roughly(income), 2)} small="a day, sold" why={rate ? undefined : prices.reasons.sell} />
+            <Fig big={net == null ? "—" : usd(roughly(net), 2)} small="a day, net" why={rate ? prices.reasons.install : prices.reasons.sell} />
           </div>
           <div className="data mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10.5px] text-ink-soft">
             {prices.install
               ? <span>DOE benchmark {prices.install.quarter}</span>
               : <span title={prices.reasons.install}>no benchmark read</span>}
-            <span aria-hidden="true">·</span>
+            {payback != null && <span>· {payback < 1 ? "under a year" : `${Math.round(payback)} yr`} to pay back</span>}
+            {/* Each separator rides with what follows it, so a wrap never strands a dot. */}
             {editing ? (
-              <RateInput initial={sellCents ?? prices.sell?.cents_per_kwh ?? null} onDone={setRate} />
+              <span className="inline-flex items-center gap-1">· <RateInput initial={sellCents ?? prices.sell?.cents_per_kwh ?? null} onDone={setRate} /></span>
             ) : (
               // One span, so the pencil wraps with the rate it edits and never alone.
               <span className="inline-flex items-center gap-1">
+                <span aria-hidden="true">·</span>
                 {rate
                   ? <span>{rate.label} · {rate.cents.toFixed(1)} ¢/kWh</span>
                   : <span title={prices.reasons.sell}>no tariff on file</span>}

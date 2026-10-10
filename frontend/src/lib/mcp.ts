@@ -275,6 +275,8 @@ export interface SunlightKwPrices {
   sell: { cents_per_kwh: number; sector: string; period: string; state_id: string; source: string } | null;
   install: {
     residential_usd_per_w: number; commercial_usd_per_w: number; utility_usd_per_w: number;
+    /// Upkeep, $ per kW a year, from the same table.
+    residential_om_usd_per_kw_year: number; commercial_om_usd_per_kw_year: number; utility_om_usd_per_kw_year: number;
     quarter: string; basis: string; source: string;
   } | null;
   reasons: { sell?: string; install?: string };

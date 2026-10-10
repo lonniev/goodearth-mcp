@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { deflateSync } from "node:zlib";
 import {
-  arrayKwhPerKw, capacityKw, cellsUnder, clampSize, dailyIncomeUsd, dailyKwh, DEFAULT_ARRAY, footprintBounds,
-  installUsd, M_PER_DEG_LAT, periodLabel, sellRate, sizeFromCorner, tierFor,
+  arrayKwhPerKw, capacityKw, cellsUnder, clampSize, dailyIncomeUsd, dailyKwh, dailyUpkeepUsd, DEFAULT_ARRAY,
+  footprintBounds, installUsd, M_PER_DEG_LAT, paybackYears, periodLabel, sellRate, sizeFromCorner, tierFor,
 } from "./arrayEconomics.ts";
 import { lonScaleAt } from "./geo.ts";
 import type { SunlightKwPrices } from "./mcp.ts";
@@ -41,7 +41,11 @@ function wire(withKwh = true): WireGrid {
 const PRICES: SunlightKwPrices = {
   place: { country_code: "us", state_id: "VT", state_name: "Vermont" },
   sell: { cents_per_kwh: 22.61, sector: "residential", period: "2026-07", state_id: "VT", source: "EIA Electric Power Monthly, Table 5.6.A" },
-  install: { residential_usd_per_w: 2.95, commercial_usd_per_w: 1.98, utility_usd_per_w: 1.12, quarter: "2025Q1", basis: "mmp", source: "DOE/NLR PV system cost benchmark" },
+  install: {
+    residential_usd_per_w: 2.95, commercial_usd_per_w: 1.98, utility_usd_per_w: 1.12,
+    residential_om_usd_per_kw_year: 34, commercial_om_usd_per_kw_year: 40, utility_om_usd_per_kw_year: 20,
+    quarter: "2025Q1", basis: "mmp", source: "DOE/NLR PV system cost benchmark",
+  },
   reasons: {},
   array_w_per_m2: 88,
   tiers: { residential_max_kw: 25, commercial_max_kw: 1000 },
@@ -106,6 +110,14 @@ describe("what the array costs and earns", () => {
     const made = dailyKwh(25.344, 1212);
     assert.ok(Math.abs(made - 84.15) < 0.01);
     assert.ok(Math.abs(dailyIncomeUsd(made, 22.61) - 19.03) < 0.01);
+  });
+  it("keeps the upkeep at the benchmark's rate for its size, and pays back", () => {
+    assert.ok(Math.abs(dailyUpkeepUsd(10, PRICES)! - (10 * 34) / 365) < 1e-9);
+    assert.ok(Math.abs(dailyUpkeepUsd(100, PRICES)! - (100 * 40) / 365) < 1e-9);
+    assert.equal(dailyUpkeepUsd(10, { ...PRICES, install: null }), null);
+    assert.ok(Math.abs(paybackYears(29_500, 10)! - 29_500 / 3650) < 1e-9);
+    assert.equal(paybackYears(29_500, 0), null);
+    assert.equal(paybackYears(29_500, -1), null);
   });
   it("takes the grower's own rate before the read one, and says whose it is", () => {
     assert.deepEqual(sellRate(PRICES, null), { cents: 22.61, label: "EIA Vermont, Jul 2026", yours: false });

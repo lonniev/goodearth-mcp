@@ -1,0 +1,1 @@
+- "Panels here" prices the array by its own yield, the mean under the rectangle, so the figure, the kW and the day's kWh agree; the day's dollars are net of the benchmark's upkeep, and the small print says the payback. The "An array on a spot" model on References states where the figure stops being honest: above the net-metering tier, and what it leaves out.
