@@ -137,7 +137,7 @@ const SOURCES: Source[] = [
     url: "https://www.eia.gov/electricity/monthly/epm_table_grapher.php?t=epmt_5_6_a",
     role: "What a kWh sells for in your block's state — the average residential retail price, which is what net metering credits — for the income an array would bring.",
     resolution: "state · month",
-    note: "Read live from EIA's open data for the latest month, with the operator's free EIA key; without one the card takes the rate you type. A utility's export credit can be less than retail. EIA prices the United States only — elsewhere the card waits for your figure.",
+    note: "Read live from EIA's open data for the latest month, with the operator's free EIA key (registered at eia.gov/opendata/register.php); without one the card takes the rate you type. A utility's export credit can be less than retail. EIA prices the United States only — elsewhere the card waits for your figure.",
   },
 ];
 

@@ -143,8 +143,9 @@ mcp = FastMCP(
         "1. Register with an Authority (provides a Neon database automatically)\n"
         "2. Deliver operator secrets via Secure Courier:\n"
         "   - btcpay_host, btcpay_api_key, btcpay_store_id\n"
-        "   - eia_api_key, optional: a free EIA Open Data key, so the Sun page can "
-        "quote what a kWh sells for in a block's state\n"
+        "   - eia_api_key, optional: a free EIA Open Data key "
+        "(https://www.eia.gov/opendata/register.php), so the Sun page can quote "
+        "what a kWh sells for in a block's state\n"
         "   Call goodearth_request_credential_channel to start.\n\n"
         "## Pricing\n"
         "Tool prices are set dynamically by the operator's pricing model. Use "
@@ -442,7 +443,7 @@ runtime = OperatorRuntime(
             "eia_api_key": FieldSpec(
                 required=False, sensitive=True, lifecycle="dynamic",
                 description=(
-                    "Optional. A free EIA Open Data API key (api.eia.gov/register), so the Sun page "
+                    "Optional. A free EIA Open Data API key (https://www.eia.gov/opendata/register.php), so the Sun page "
                     "can quote what a kWh sells for in a block's state."
                 ),
             ),
