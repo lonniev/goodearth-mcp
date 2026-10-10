@@ -828,7 +828,7 @@ export default function Crops({
           is gone — the Dashboard carries frost, and the questions that
           sentence was answering are the filter's now. */}
       <div className="mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <Section emoji="📒" first
+        <Section emoji="📒" first tour="crops.ledgerhead"
           title={`Plant ledger${ranAt
             ? ` (at ${clockTime(ranAt, zone)})`
             : ""}`}>

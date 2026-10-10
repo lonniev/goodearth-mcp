@@ -171,7 +171,7 @@ export default function CropLedger({
           <SortHeaders cols={COLS} sort={sort} dir={dir} onSort={onSort} />
         </thead>
         <tbody>
-          {rows.map(({ planting: p, status: r, reason, watch, harvest }) =>
+          {rows.map(({ planting: p, status: r, reason, watch, harvest }, i) =>
             editing === p.id && draft ? (
               <Editor key={p.id} draft={draft} onChange={onDraft} onCommit={onCommit}
                 onCancel={onCancel} saving={saving} />
@@ -260,7 +260,7 @@ export default function CropLedger({
                   {seeding && (() => {
                     const held = seeding.lotsFor(p).length > 0;
                     return (
-                      <button onClick={() => seeding.onOpen(p)}
+                      <button onClick={() => seeding.onOpen(p)} data-tour={i === 0 ? "crops.seed" : undefined}
                         aria-label={held ? `Seed for ${p.crop} — on hand` : `Seed for ${p.crop}`}
                         title={held ? "Seed on hand" : "Seed"}
                         className={`inline-flex h-11 w-11 items-center justify-center ${
@@ -269,13 +269,13 @@ export default function CropLedger({
                     );
                   })()}
                   {harvesting && (
-                    <button onClick={() => harvesting.onOpen(p)}
+                    <button onClick={() => harvesting.onOpen(p)} data-tour={i === 0 ? "crops.cut" : undefined}
                       aria-label={`Record a cut of ${p.crop}`} title="Record a harvest"
                       className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-growth">
                       <Glyph path={ICON.shears} size={24} grid={512} /></button>
                   )}
                   {companioning && (
-                    <button onClick={() => companioning.onOpen(p)}
+                    <button onClick={() => companioning.onOpen(p)} data-tour={i === 0 ? "crops.companions" : undefined}
                       aria-label={`Companions for ${p.crop}`} title="Companions"
                       className={`inline-flex h-11 w-11 items-center justify-center ${
                         companioning.open === p.id ? "text-growth" : "text-ink-soft active:text-growth"}`}>
