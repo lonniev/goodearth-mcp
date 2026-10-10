@@ -564,7 +564,7 @@ export default function Plots({
       </>)}
 
       {incoming && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink/40 px-5">
+        <div className="fixed inset-0 z-[900] flex items-center justify-center bg-ink/40 px-5">
           <div className="w-full max-w-sm rounded-xl border border-rule bg-paper p-5 shadow-xl">
             <h2 className="figure text-[17px] font-semibold">
               Import {incoming.bundle.plot.name}?
@@ -590,7 +590,7 @@ export default function Plots({
       )}
 
       {bigFile && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink/40 px-5">
+        <div className="fixed inset-0 z-[900] flex items-center justify-center bg-ink/40 px-5">
           <div className="w-full max-w-sm rounded-xl border border-rule bg-paper p-5 shadow-xl">
             <h2 className="figure text-[17px] font-semibold">Open a large bundle?</h2>
             {/* Asked, not refused. A big farm makes a big bundle, and the
@@ -614,7 +614,7 @@ export default function Plots({
       )}
 
       {confirming && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink/40 px-5">
+        <div className="fixed inset-0 z-[900] flex items-center justify-center bg-ink/40 px-5">
           <div className="w-full max-w-sm rounded-xl border border-rule bg-paper p-5 shadow-xl">
             <h2 className="figure text-[17px] font-semibold">
               Forget {confirming.name}?

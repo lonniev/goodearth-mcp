@@ -255,7 +255,7 @@ export function ChartFrame({ label, children }: {
     <div className={open
       // `overflow-hidden` on the panel and `overflow-auto` on the slot, so the
       // slot's height is decided by the layout and never by its contents.
-      ? "fixed inset-0 z-50 flex flex-col overflow-hidden bg-paper px-2 pt-1.5 pb-0"
+      ? "fixed inset-0 z-[1000] flex flex-col overflow-hidden bg-paper px-2 pt-1.5 pb-0"
       : "relative"}>
       {open && (
         <div className="flex shrink-0 items-center gap-2">
