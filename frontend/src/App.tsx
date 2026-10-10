@@ -22,6 +22,7 @@ import FirstRun from "./components/FirstRun";
 import ForgetMe from "./components/ForgetMe";
 import GuestShell from "./components/GuestShell";
 import { UnitProvider } from "./components/Units";
+import { ShareProvider } from "./components/Share";
 import LifeOfAPest from "./views/LifeOfAPest";
 import LifeOfAPlant from "./views/LifeOfAPlant";
 import LifeOfAnAnimal from "./views/LifeOfAnAnimal";
@@ -325,6 +326,9 @@ export default function App() {
           so the two can never disagree: tonight's low on the coldest ground
           against the 55°F flight threshold, and shut on a live frost watch. */}
       <UnitProvider value={prefs.units}>
+      {/* Around the shell, not inside it: a page publishes what it has to
+          give and the top bar's share button reads it. */}
+      <ShareProvider>
       <AppShell
         view={view}
         onView={setView}
@@ -441,6 +445,7 @@ export default function App() {
           />
         )}
       </AppShell>
+      </ShareProvider>
       </UnitProvider>
 
       {/* The foragers work the whole page. pointer-events:none throughout, so

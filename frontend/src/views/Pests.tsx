@@ -8,7 +8,7 @@
 // what a farm cares about, the same for a Vermont lakeshore and a Georgia
 // orchard.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Provenance from "../components/Provenance";
 import { QuoteScroller, TableFilter, useTimezone } from "@tollbooth-dpyc/web/react";
 import { clockTime } from "../lib/clock";
@@ -23,6 +23,8 @@ import type { SpeciesHit } from "../lib/species";
 import { remembered } from "../lib/undoEvents";
 import Term from "../components/Term";
 import { useUnits } from "../components/Units";
+import { useShare } from "../components/Share";
+import { pestsSheet } from "../lib/exports";
 import {
   CELL, Chiclet, Empty, ErrorBox, Field, FIELD, Glyph, ICON, IconButton, Note, PageTitle, Pill,
   RowActions, Section, StatusChip, TABLE_FILTER, TrashGlyph,
@@ -104,6 +106,8 @@ export default function Pests({
       pageSize: narrowed ? 200 : 20,
     });
   const [data, setData] = useState<PestWindowResult | null>(null);
+  /// The models with where each stands, for the share button in the top bar.
+  useShare(useMemo(() => pestsSheet(region, models, data, u.unit, total), [region, models, data, u.unit, total]));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [ranAt, setRanAt] = useState<Date | null>(null);

@@ -8,7 +8,7 @@
 // changes how much to trust the date. A daylight event is astronomy and barely
 // moves; a heat event moves with the season.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Provenance from "../components/Provenance";
 import { QuoteScroller, TableFilter, useTimezone } from "@tollbooth-dpyc/web/react";
 import { clockTime } from "../lib/clock";
@@ -23,6 +23,8 @@ import { useBlockItems, type ItemSort } from "../lib/blockItems";
 import { photosByName } from "../lib/species";
 import { makeRoster, wildlifeCodec, type SavedWildlife } from "../lib/wildlifeModels";
 import EventComposer from "../components/EventComposer";
+import { useShare } from "../components/Share";
+import { wildlifeSheet } from "../lib/exports";
 import DueSoon from "../components/DueSoon";
 import { makeReport, reportCodec, type FieldReport } from "../lib/reports";
 import { cycleOf, dueList, nextCycle, repeatable,
@@ -99,6 +101,8 @@ export default function Wildlife({
   const { items: seen, save: storeSeen, reload: reloadSeen } =
     useBlockItems<FieldReport>(region.id, "observation", reportCodec);
   const [data, setData] = useState<WildlifeResult | null>(null);
+  /// The watches with when each falls, for the share button in the top bar.
+  useShare(useMemo(() => wildlifeSheet(region, models, data, total), [region, models, data, total]));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [ranAt, setRanAt] = useState<Date | null>(null);

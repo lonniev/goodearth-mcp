@@ -1,0 +1,1 @@
+- The two ground maps' enlarge button is in the top right corner, where the charts' is, rather than under the zoom control on the left. On My Plots the Sun and shade toggle sits beneath it.

@@ -6,7 +6,7 @@
 // fabricated frost date loses a crop.
 
 import { useUnits } from "../components/Units";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import SeasonChart from "../components/SeasonChart";
 import { ChartFrame } from "../components/ui";
 import FrostCard from "../components/FrostCard";
@@ -26,6 +26,8 @@ import { plantingCodec, type Planting } from "../lib/plantings";
 import { pestCodec, type SavedPest } from "../lib/pestModels";
 import { wildlifeCodec, type SavedWildlife } from "../lib/wildlifeModels";
 import { useBlockItems } from "../lib/blockItems";
+import { useShare } from "../components/Share";
+import { ledgerSheet } from "../lib/exports";
 import { type AlmanacResult, type MeasureKey,
   diseaseRisk, dryingWindow, frostWindow, soilTempProjection, taskList, type TaskRow, type DiseaseRiskResult, type DryingWindowResult, type FrostWindowResult, type SeasonCurveResult, type SoilWindowResult } from "../lib/mcp";
 import type { SavedRegion } from "../lib/regions";
@@ -175,6 +177,14 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
 
   // Find an event by name and centre the chart on it. Every keystroke is a
   // local search over marks already on the page — nothing is fetched.
+  /// The five readings as one table, for the share button in the top bar.
+  useShare(useMemo(
+    () => (data || frost || soil || drying || sick
+      ? ledgerSheet({ region, heat: data, frost, soil, drying, disease: sick }, u.unit)
+      : null),
+    [region, data, frost, soil, drying, sick, u.unit],
+  ));
+
   const [find, setFind] = useState("");
   const [focus, setFocus] = useState<{ flag: LedgerFlag; nonce: number } | null>(null);
   const todayIdx = (data?.curve?.cumulative_mean?.length ?? 1) - 1;

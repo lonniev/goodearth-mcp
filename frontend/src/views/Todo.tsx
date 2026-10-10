@@ -17,6 +17,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { once } from "../lib/once";
+import { useShare } from "../components/Share";
+import { todoSheet } from "../lib/exports";
 import Provenance from "../components/Provenance";
 import { QuoteScroller } from "@tollbooth-dpyc/web/react";
 import { AGRARIAN_QUOTES, AGRARIAN_SOURCE, quoteStyles } from "../lib/quotes";
@@ -69,6 +71,8 @@ export default function TodoView({
   onView?: (v: "account") => void;
 }) {
   const [page, setPage] = useState<{ rows: TaskRow[]; total: number; page: number; pages: number } | null>(null);
+  /// The page of tasks in hand, for the share button in the top bar.
+  useShare(useMemo(() => (page ? todoSheet(region, page.rows, page.total) : null), [region, page]));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [ranAt, setRanAt] = useState<Date | null>(null);

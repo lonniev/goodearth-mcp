@@ -156,7 +156,8 @@ export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0 }: {
           aria-pressed={sun.on}
           aria-label="Sun and shade"
           title="Sun and shade"
-          className={`absolute right-2 top-2 z-[400] flex h-11 w-11 items-center justify-center rounded-md border border-ink/30 shadow ${
+          // Under the enlarge button, which holds the corner on every frame.
+          className={`absolute right-2 top-[60px] z-[400] flex h-11 w-11 items-center justify-center rounded-md border border-ink/30 shadow ${
             sun.on ? "bg-ink text-paper" : "bg-panel/95 text-ink"
           }`}
         >

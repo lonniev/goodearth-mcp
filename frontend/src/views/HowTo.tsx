@@ -102,6 +102,11 @@ export default function HowTo({ page, onView }: {
         </p>
       </div>
       <p className="mt-3 text-[12.5px] leading-relaxed text-ink-soft">
+        The share button beside the (?) in the top bar shows this page's
+        table — braces copy it as JSON for an agent, the two pages copy it as
+        text for a note or a mail.
+      </p>
+      <p className="mt-3 text-[12.5px] leading-relaxed text-ink-soft">
         Connecting is on the About page: the MCP endpoint goes into Claude.ai
         or Claude Desktop under Connectors, and the first call asks for your
         npub and a Nostr reply to prove it. The same record answers either way

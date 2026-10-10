@@ -9,7 +9,7 @@
 // and enough of them turn a 9 km grid into this block's own calendar. That is
 // the one thing here that gets better the longer a farm uses it.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Provenance from "../components/Provenance";
 import { QuoteScroller } from "@tollbooth-dpyc/web/react";
 import { AGRARIAN_QUOTES, AGRARIAN_SOURCE, quoteStyles } from "../lib/quotes";
@@ -18,6 +18,8 @@ import { boundsFrom, fetchObservations, searchUsers,
   type INatObservation } from "../lib/inaturalist";
 import { geoJSONToRing, lonScaleAt, withinRing } from "../lib/geo";
 import { useBlockItems } from "../lib/blockItems";
+import { useShare } from "../components/Share";
+import { reportsSheet } from "../lib/exports";
 import {
   makeReport, reportCodec, TAGS,
   toObservations, type FieldReport, type ReportTag,
@@ -57,6 +59,8 @@ export default function FieldReports({
           loading: reportsLoading, error: reportsError,
           unknownBlock: reportsUnknown, pendingIds: reportsWaiting } =
     useBlockItems<FieldReport>(region.id, "observation", reportCodec);
+  /// The reports as one table, for the share button in the top bar.
+  useShare(useMemo(() => reportsSheet(region, reports), [region, reports]));
   const [tag, setTag] = useState<ReportTag>("frost");
   const [cal, setCal] = useState<CalibrationResult | null>(null);
   const [ranAt, setRanAt] = useState<Date | null>(null);

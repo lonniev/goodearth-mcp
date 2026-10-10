@@ -11,6 +11,8 @@
 // control a phone never shows you.
 
 import { useUnits } from "../components/Units";
+import { useShare } from "../components/Share";
+import { plotsSheet } from "../lib/exports";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FieldMap, { type MapValue } from "../components/FieldMap";
 import { ICON, IconButton } from "../components/ui";
@@ -63,6 +65,8 @@ export default function Plots({
 }) {
   const u = useUnits();
   const [regions, setRegions] = useState<SavedRegion[]>(() => listRegions());
+  /// The plots as one table, for the share button in the top bar.
+  useShare(useMemo(() => plotsSheet(regions, u.unit), [regions, u.unit]));
   /// The finder, the form and the drawing map are shown on request: a new
   /// plot is a once-a-season act, and open all the time they took half the
   /// page from the plots already saved. Open at once for a grower with none.

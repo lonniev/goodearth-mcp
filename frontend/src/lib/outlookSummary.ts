@@ -1,4 +1,4 @@
-// The next ten days against the last ten seasons, in words.
+// The next ten days against the last ten seasons, as a table.
 //
 // Every number here is already on the page — the almanac fetch carries the
 // forecast and the normal band together — so this costs nothing and asks
@@ -8,6 +8,10 @@
 // does not say what to do about them: Good Earth computes against your ground
 // and does not publish agronomy, so "4 °F above normal" is the sentence and
 // "so sow early" is not.
+//
+// The Almanac's share sheet (`lib/exports`) is what carries this out of the
+// app; it was a prose summary of its own with a copy button of its own, which
+// made the Almanac the one page that exported differently from the rest.
 
 import type { AlmanacResult, Measure, MeasureKey } from "./mcp.ts";
 import { temp, tempUnit, type Unit } from "./units.ts";
@@ -91,38 +95,10 @@ export function compareOutlook(data: AlmanacResult, unit: Unit = "F"): Line[] {
 /// How a departure reads in words. "About normal" needs a threshold, and the
 /// threshold has to be per-unit: 1 °F is nothing, 1 inch of rain in ten days
 /// is a great deal.
-function departure(l: Line): string {
+export function departure(l: Line): string {
   const scale = Math.max(Math.abs(l.normal) * 0.08, l.decimals === 2 ? 0.15 : 1);
   const d = l.delta;
   if (Math.abs(d) < scale) return "about normal";
   const size = Math.abs(d) > scale * 3 ? "well " : "";
   return `${size}${d > 0 ? "above" : "below"} normal by ${Math.abs(d).toFixed(l.decimals)} ${l.unit}`;
-}
-
-/// The whole thing as plain text, ready to paste into a note or an email.
-export function outlookText(data: AlmanacResult, place: string, unit: Unit = "F"): string {
-  const lines = compareOutlook(data, unit);
-  const days = (data.forecast_dates ?? []).length;
-  const span = data.normals_span_years ?? 0;
-  if (!lines.length) return `No outlook available for ${place}.`;
-
-  const head = `${place} — next ${days} days against the last ${span} seasons`;
-  const body = lines.map((l) => {
-    const what = l.forecast.toFixed(l.decimals);
-    const norm = l.normal.toFixed(l.decimals);
-    const total = /rain|sunshine/i.test(l.label) ? " total" : " average";
-    return `${l.label}: ${what} ${l.unit}${total}, ${departure(l)} (normally ${norm} ${l.unit}).`;
-  });
-
-  return [
-    head,
-    "=".repeat(head.length),
-    "",
-    ...body,
-    "",
-    // Say where it came from and what it is not. A number pasted into an email
-    // outlives the page that explained it.
-    `Computed by Good Earth from the forecast and the ${span}-season record for `
-      + `this ground. Measurements only — no recommendation is implied.`,
-  ].join("\n");
 }
