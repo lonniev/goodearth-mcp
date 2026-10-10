@@ -77,6 +77,10 @@ class Benchmark:
     residential_usd_per_w: float
     commercial_usd_per_w: float
     utility_usd_per_w: float
+    #: Operation and maintenance, $ per kW dc a year — the table's last column.
+    residential_om_usd_per_kw_year: float
+    commercial_om_usd_per_kw_year: float
+    utility_om_usd_per_kw_year: float
 
 
 @dataclass(frozen=True)
@@ -102,7 +106,8 @@ _PV_ONLY = re.compile(
 _ROW = re.compile(r"<tr>(.*?)</tr>", re.DOTALL)
 _CELL = re.compile(r"<t[hd][^>]*>(.*?)</t[hd]>", re.DOTALL)
 _USD_PER_W = re.compile(r"\$\s*([\d.]+)\s*/\s*W")
-_ROWS = {"RPV": "residential_usd_per_w", "CPV": "commercial_usd_per_w", "UPV": "utility_usd_per_w"}
+_USD_PER_KW_YR = re.compile(r"\$\s*([\d.]+)\s*/\s*kW")
+_ROWS = {"RPV": "residential", "CPV": "commercial", "UPV": "utility"}
 
 
 def _text(cell: str) -> str:
@@ -114,7 +119,8 @@ def parse_benchmark(page: str) -> Benchmark | None:
 
     The table's columns are Type, Size, MSP, MMP, O&M. The modeled market
     price is what a buyer is asked, which is the figure a grower wants; the
-    minimum sustainable price is what an installer could survive on.
+    minimum sustainable price is what an installer could survive on. O&M is
+    what keeping the array running costs each year, per kW.
     """
     m = _PV_ONLY.search(page)
     if not m:
@@ -123,16 +129,17 @@ def parse_benchmark(page: str) -> Benchmark | None:
     found: dict[str, float] = {}
     for row in _ROW.findall(body):
         cells = [_text(c) for c in _CELL.findall(row)]
-        if len(cells) < 4 or cells[0] not in _ROWS:
+        if len(cells) < 5 or cells[0] not in _ROWS:
             continue
-        price = _USD_PER_W.search(cells[3])
-        if not price:
+        price, upkeep = _USD_PER_W.search(cells[3]), _USD_PER_KW_YR.search(cells[4])
+        if not price or not upkeep:
             continue
         try:
-            found[_ROWS[cells[0]]] = float(price.group(1))
+            found[f"{_ROWS[cells[0]]}_usd_per_w"] = float(price.group(1))
+            found[f"{_ROWS[cells[0]]}_om_usd_per_kw_year"] = float(upkeep.group(1))
         except ValueError:
             continue
-    if len(found) != len(_ROWS):
+    if len(found) != 2 * len(_ROWS):
         return None
     return Benchmark(quarter=quarter, **found)
 
@@ -279,6 +286,9 @@ async def read(lat: float, lon: float, eia_key: str = "") -> dict[str, Any]:
             "residential_usd_per_w": bench.residential_usd_per_w,
             "commercial_usd_per_w": bench.commercial_usd_per_w,
             "utility_usd_per_w": bench.utility_usd_per_w,
+            "residential_om_usd_per_kw_year": bench.residential_om_usd_per_kw_year,
+            "commercial_om_usd_per_kw_year": bench.commercial_om_usd_per_kw_year,
+            "utility_om_usd_per_kw_year": bench.utility_om_usd_per_kw_year,
             "quarter": bench.quarter,
             "basis": "modeled market price, $/W dc, before incentives",
             "source": DOE_NAME,

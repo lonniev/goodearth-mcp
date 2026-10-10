@@ -2613,8 +2613,8 @@ async def sunlight(
 
     `kw_prices` is what an array there would cost and earn, read live and
     never stored in this code: `install` is DOE's PV system cost benchmark
-    (residential, commercial and utility $/W dc, modeled market price, with
-    its quarter) and `sell` is EIA's latest residential retail price for the
+    (residential, commercial and utility $/W dc, modeled market price, and
+    the upkeep in $/kW a year, with its quarter) and `sell` is EIA's latest residential retail price for the
     block's state in ¢/kWh (with its month) — the operator's EIA key makes the
     second possible, and without one its `reasons.sell` says so.
     `array_w_per_m2` (a 0.40 ground-coverage ratio of 220 W/m² modules) and

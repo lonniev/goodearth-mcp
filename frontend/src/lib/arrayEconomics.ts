@@ -106,6 +106,19 @@ export function dailyIncomeUsd(dailyKwhMade: number, centsPerKwh: number): numbe
   return (dailyKwhMade * centsPerKwh) / 100;
 }
 
+/// What keeping the array running costs a day, at the benchmark's upkeep
+/// for its size; null when the benchmark was not read.
+export function dailyUpkeepUsd(kw: number, prices: SunlightKwPrices): number | null {
+  if (!prices.install) return null;
+  return (kw * prices.install[`${tierFor(kw, prices.tiers)}_om_usd_per_kw_year`]) / 365;
+}
+
+/// Years for the net income to repay the install, or null when it never does.
+export function paybackYears(installCost: number, dailyNetUsd: number): number | null {
+  if (dailyNetUsd <= 0) return null;
+  return installCost / (dailyNetUsd * 365);
+}
+
 const MONTH = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /// "2026-07" → "Jul 2026"; anything else as it came.

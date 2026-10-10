@@ -30,6 +30,7 @@ def test_the_pv_only_table_gives_the_three_market_prices_and_its_quarter():
     b = kw_prices.parse_benchmark(_page())
     assert b == kw_prices.Benchmark(
         quarter="2025Q1", residential_usd_per_w=2.95, commercial_usd_per_w=1.98, utility_usd_per_w=1.12,
+        residential_om_usd_per_kw_year=34.0, commercial_om_usd_per_kw_year=40.0, utility_om_usd_per_kw_year=20.0,
     )
 
 
@@ -144,6 +145,7 @@ async def test_with_a_key_both_prices_are_read_and_named(feeds):
     }
     assert out["install"]["quarter"] == "2025Q1"
     assert out["install"]["residential_usd_per_w"] == 2.95
+    assert out["install"]["commercial_om_usd_per_kw_year"] == 40.0
     assert out["install"]["source"] == kw_prices.DOE_NAME
     assert out["reasons"] == {}
     assert out["array_w_per_m2"] == pytest.approx(88.0)
