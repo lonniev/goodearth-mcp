@@ -1,0 +1,1 @@
+- Community Observations on Flora, Pests and Fauna is folded: the heading carries an arrow and one line under it, and the arrow opens the picker list. The nearby read is made when it opens.

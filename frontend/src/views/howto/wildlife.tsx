@@ -61,7 +61,7 @@ export const wildlife: Guide = {
       ["Community Observations",
         <>Creatures people have actually seen near here. Search, tick, add
           them all — they go on the roster named and undated; the clock and its
-          figure are yours to set.</>],
+          figure are yours to set. The arrow by the heading opens it.</>],
     ]},
     { emoji: "👀", heading: "Read the year", steps: [
       ["Watch for these",

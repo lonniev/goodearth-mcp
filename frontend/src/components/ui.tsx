@@ -485,6 +485,8 @@ export const ICON = {
   upload: "M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z",
   // Material Design "edit" — the pencil. Renaming a plot and its other names.
   edit: "M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z",
+  // Material Design "expand_more" — a fold that opens downward.
+  chevron: "M16.59 8.59 12 13.17 7.41 8.59 6 10l6 6 6-6z",
   expand: "M7 14H5v5h5v-2H7zm-2-4h2V7h3V5H5zm12 7h-3v2h5v-5h-2zM14 5v2h3v3h2V5z",
   collapse: "M5 16h3v3h2v-5H5zm3-8H5v2h5V5H8zm6 11h2v-3h3v-2h-5zm2-11V5h-2v5h5V8z",
   // Material "brightness_medium" — a sun, its disc half in shade: the Sun layer.

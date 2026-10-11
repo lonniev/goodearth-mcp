@@ -41,6 +41,7 @@ import type { Chosen } from "../lib/basket";
 import type { SavedRegion } from "../lib/regions";
 import { useTour } from "@tollbooth-dpyc/web/react";
 import { tour } from "../lib/tour/targets";
+import CommunityObservations from "../components/CommunityObservations";
 
 const d = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -553,15 +554,16 @@ export default function Pests({
           The sightings list used to sit above, capped at eighteen with no way
           to see the rest — of 3,542 insects and spiders recorded around one
           block. Searching is the only shape that fits that. */}
-      <Section emoji="🔭" title="Community Observations" tour="pests.community" />
-      <SpeciesFinder
-        block={region.id}
-        blockName={region.name}
-        kingdom="insects"
-        adding={addingMany}
-        hint="What people have actually seen near here, rather than what is modelled above. Choose any number, keep searching, then add them all — they go on as watched, with no thresholds. A degree-day model is yours to add, and voles and slugs never get one."
-        onAdd={addChosen}
-      />
+      <CommunityObservations blockName={region.name} tour="pests.community">
+        <SpeciesFinder
+          block={region.id}
+          blockName={region.name}
+          kingdom="insects"
+          adding={addingMany}
+          hint="What people have actually seen near here, rather than what is modelled above. Choose any number, keep searching, then add them all — they go on as watched, with no thresholds. A degree-day model is yours to add, and voles and slugs never get one."
+          onAdd={addChosen}
+        />
+      </CommunityObservations>
     </>
   );
 }

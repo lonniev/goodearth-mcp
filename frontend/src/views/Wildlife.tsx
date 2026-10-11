@@ -38,6 +38,7 @@ import {
 } from "../components/ui";
 import { speciesHabits, type SpeciesHabitsResult } from "../lib/mcp";
 import { useTour } from "@tollbooth-dpyc/web/react";
+import CommunityObservations from "../components/CommunityObservations";
 
 const CLOCK: Record<string, { label: string; cls: string }> = {
   heat:      { label: "heat",       cls: "bg-growth/12 text-growth" },
@@ -152,7 +153,6 @@ export default function Wildlife({
       setError(String((e as Error).message ?? e));
     } finally { setAddingMany(false); }
   }
-  const [catAt] = useState<Date | null>(null);
   /// The animal whose habits are open, and what USA-NPN tracks it doing.
   const [habitsOf, setHabitsOf] = useState<{ name: string } | null>(null);
   const [habits, setHabits] = useState<SpeciesHabitsResult | null>(null);
@@ -452,18 +452,16 @@ export default function Wildlife({
           Four labelled rows of chiclets, each capped at 24, of 377 creatures
           recorded around one block — with no way to reach the rest. Scanning
           is what that was good at and searching is what fits the numbers. */}
-      <Section emoji="🔭" title="Community Observations" tour="wildlife.community">
-        <Provenance tool="goodearth_nearby_species" at={catAt} onCost={onCost} />
-      </Section>
-
-      <SpeciesFinder
-        block={region.id}
-        blockName={region.name}
-        kingdom="wildlife"
-        adding={addingMany}
-        hint="What people have actually seen near here. Choose any number, keep searching, then add them all. They go on the roster named and undated — the clock and its figure are yours to set."
-        onAdd={addChosen}
-      />
+      <CommunityObservations blockName={region.name} tour="wildlife.community">
+        <SpeciesFinder
+          block={region.id}
+          blockName={region.name}
+          kingdom="wildlife"
+          adding={addingMany}
+          hint="What people have actually seen near here. Choose any number, keep searching, then add them all. They go on the roster named and undated — the clock and its figure are yours to set."
+          onAdd={addChosen}
+        />
+      </CommunityObservations>
 
       {habitsOf && (
         <div className="mb-3 rounded-md border border-rule border-l-4 border-l-growth bg-panel px-4 py-3">

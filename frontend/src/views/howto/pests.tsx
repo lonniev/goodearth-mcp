@@ -64,7 +64,7 @@ export const pests: Guide = {
           numbers stay blank and yours to set.</>],
       ["Community Observations",
         <>Insects and spiders people have actually recorded near here. Search,
-          tick, add them all — they go on as watched, with no thresholds.</>],
+          tick, add them all — they go on as watched, with no thresholds. The arrow by the heading opens it.</>],
     ]},
     { emoji: "👀", heading: "Read what you're watching", steps: [
       ["Active now",

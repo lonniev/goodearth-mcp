@@ -81,7 +81,7 @@ export const crops: Guide = {
       ["Community Observations",
         <>What people have recorded growing near here, most-seen first —
           plants or fungi. Search, tick any number, keep searching, then add
-          them all in one write. They land as presence rows.</>],
+          them all in one write. They land as presence rows. The arrow by the heading opens it.</>],
     ]},
     { emoji: "📒", heading: "Read the ledger", steps: [
       ["The heading",
