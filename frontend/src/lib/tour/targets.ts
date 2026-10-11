@@ -20,7 +20,7 @@ export const TARGETS = [
   // My Plots.
   "plots.add", "plots.import", "plots.chips", "plots.rename", "plots.share", "plots.forget",
   "plots.search", "plots.locate", "plots.shape", "plots.map", "plots.name", "plots.base", "plots.save",
-  "plots.sun", "plots.sunview",
+  "plots.sun", "plots.labels", "plots.sunview",
   // Flora.
   "crops.species", "crops.label", "crops.target", "crops.setout", "crops.base",
   "crops.flower", "crops.height", "crops.blooms", "crops.hardy", "crops.taps", "crops.add",
