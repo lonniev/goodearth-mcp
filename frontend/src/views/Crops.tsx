@@ -54,6 +54,7 @@ import { Empty, ErrorBox, FIELD, Glyph, ICON, IconButton, Pill,
   Section, TABLE_FILTER } from "../components/ui";
 import { useTour } from "@tollbooth-dpyc/web/react";
 import { tour } from "../lib/tour/targets";
+import CommunityObservations from "../components/CommunityObservations";
 
 const short = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -256,7 +257,6 @@ export default function Crops({
   const [year, setYear] = useState<TreeYearResult | null>(null);
   const [yearAt, setYearAt] = useState<Date | null>(null);
   const [yearBusy, setYearBusy] = useState(false);
-  const [nearAt] = useState<Date | null>(null);
   /// The add form's crop field, held here so a chiclet can fill it. The
   /// species is a fact about this country; what you do with it is yours.
   /// A name handed to the picker from elsewhere on the page.
@@ -1259,23 +1259,21 @@ export default function Crops({
           grower who wanted six plants did that six times. There are 2,267
           plants recorded around one block, so a grid was never going to be
           the shape of it. */}
-      <Section emoji="🔭" title="Community Observations" tour="crops.community">
-        <Provenance tool="goodearth_nearby_species" at={nearAt} onCost={onCost} />
-      </Section>
-
-      <SpeciesFinder
-        block={region.id}
-        blockName={region.name}
-        kingdom={near}
-        kingdoms={[
-          { key: "plants", label: "🌿 Plants" },
-          { key: "fungi", label: "🍄 Fungi" },
-        ]}
-        onKingdom={(k) => setNear(k as "plants" | "fungi")}
-        adding={addingMany}
-        hint="What people have actually seen near here, most-seen first. Choose any number, keep searching, then add them all. They land on the ledger with no dates and no figures — those are yours to fill in."
-        onAdd={addChosen}
-      />
+      <CommunityObservations blockName={region.name} tour="crops.community">
+        <SpeciesFinder
+          block={region.id}
+          blockName={region.name}
+          kingdom={near}
+          kingdoms={[
+            { key: "plants", label: "🌿 Plants" },
+            { key: "fungi", label: "🍄 Fungi" },
+          ]}
+          onKingdom={(k) => setNear(k as "plants" | "fungi")}
+          adding={addingMany}
+          hint="What people have actually seen near here, most-seen first. Choose any number, keep searching, then add them all. They land on the ledger with no dates and no figures — those are yours to fill in."
+          onAdd={addChosen}
+        />
+      </CommunityObservations>
     </>
   );
 }

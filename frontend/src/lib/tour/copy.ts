@@ -135,7 +135,7 @@ export const TOURS: Record<Tour["page"], Tour> = {
     { target: "crops.sow", title: "When to sow", guide: ["Read the ledger", "🌱 When to sow — 🧠 When?"],
       says: "Seed indoors, out, last sowing, and the window between, per planting." },
     { target: "crops.community", title: "Community Observations", guide: ["Add a planting", "Community Observations"],
-      says: "What people have recorded growing near here. Tick some and add them in one write." },
+      says: "What people have recorded growing near here. Tap the arrow to open it, tick some, and add them in one write." },
     GUIDE,
   ]},
 
@@ -159,7 +159,7 @@ export const TOURS: Record<Tour["page"], Tour> = {
     { target: "pests.catalog", title: "When they appear here", guide: ["Watch a pest", "🐛 When they appear here — What's here?"],
       says: "The pests known to this region and when each is due here. Tap one to watch it." },
     { target: "pests.community", title: "Community Observations", guide: ["Watch a pest", "Community Observations"],
-      says: "What people have recorded seeing near here. Tick some and add them in one write." },
+      says: "What people have recorded seeing near here. Tap the arrow to open it, tick some, and add them in one write." },
     GUIDE,
   ]},
 
@@ -181,7 +181,7 @@ export const TOURS: Record<Tour["page"], Tour> = {
     { target: "wildlife.list", title: "The year", guide: ["Read the year", "The columns"],
       says: "Every watch with its clock and when it falls. Tap a row to edit it; the bin removes it.", side: "top" },
     { target: "wildlife.community", title: "Community Observations", guide: ["Track something", "Community Observations"],
-      says: "What people have recorded seeing near here. Tick some and add them in one write." },
+      says: "What people have recorded seeing near here. Tap the arrow to open it, tick some, and add them in one write." },
     GUIDE,
   ]},
 
