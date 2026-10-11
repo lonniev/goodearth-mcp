@@ -35,13 +35,17 @@ export interface SunControl {
   onResize: (s: ArraySize) => void;
 }
 
-export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0 }: {
+export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0, hidden = [], onFramed }: {
   plots: SavedRegion[];
   activeId: string;
   onPick: (r: SavedRegion) => void;
   sun?: SunControl;
   /// A request to frame the active plot; each change is one request.
   focus?: number;
+  /// Plots left off the map — a viewing choice made on their chips.
+  hidden?: readonly string[];
+  /// The plot the map is framed on, or null once the grower moves it.
+  onFramed?: (id: string | null) => void;
 }) {
   const host = useRef<HTMLDivElement | null>(null);
   const map = useRef<L.Map | null>(null);
@@ -49,7 +53,17 @@ export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0 }: {
   const layers = useRef(new Map<string, L.Polygon | L.Circle>());
   const sunLayer = useRef<SunLayer | null>(null);
   const arrayLayer = useRef<ArrayLayer | null>(null);
-  const shapes = useMemo(() => plotShapes(plots), [plots]);
+  const hiddenKey = hidden.join(",");
+  const shapes = useMemo(
+    () => plotShapes(plots.filter((p) => !hidden.includes(p.id))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [plots, hiddenKey],
+  );
+  const framedCb = useRef(onFramed);
+  framedCb.current = onFramed;
+  // A move the map made for itself (a fit) says nothing about the grower;
+  // one they made by hand means the plot is no longer framed.
+  const programmatic = useRef(false);
   // The tap handlers are bound once per redraw; read the picker through a ref
   // so a new callback identity does not force one.
   const pick = useRef(onPick);
@@ -68,11 +82,17 @@ export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0 }: {
     const m = map.current;
     if (!m || !bounds.isValid()) return;
     m.invalidateSize();
+    programmatic.current = true;
     m.fitBounds(bounds, { padding: [30, 30], maxZoom });
+    // A fit that changes nothing fires no moveend; do not let it swallow the
+    // grower's next move.
+    window.setTimeout(() => { programmatic.current = false; }, 600);
   }, []);
   const framePlot = useCallback(() => {
     const l = layers.current.get(activeId);
-    if (l) fit(l.getBounds(), BASEMAPS.satellite.maxZoom);
+    if (!l) return;
+    fit(l.getBounds(), BASEMAPS.satellite.maxZoom);
+    framedCb.current?.(activeId);
   }, [activeId, fit]);
 
   useEffect(() => {
@@ -84,6 +104,8 @@ export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0 }: {
       maxZoom: BASEMAPS.satellite.maxZoom,
     }).addTo(m);
     drawn.current = L.featureGroup().addTo(m);
+    m.on("movestart", () => { if (!programmatic.current) framedCb.current?.(null); });
+    m.on("moveend", () => { programmatic.current = false; });
     map.current = m;
     setTimeout(() => m.invalidateSize(), 0);
     // A new map has framed nothing yet, whatever the last one had.
@@ -110,7 +132,7 @@ export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0 }: {
       layer.on("click", (e) => {
         L.DomEvent.stop(e);
         const r = plots.find((p) => p.id === s.id);
-        if (r && r.id !== activeId) { pick.current(r); return; }
+        if (r && r.id !== activeId) { framedCb.current?.(null); pick.current(r); return; }
         // A tap inside the active plot, with the Sun on, is a question about
         // that spot — not a re-pick of ground already active.
         const sc = sunRef.current;

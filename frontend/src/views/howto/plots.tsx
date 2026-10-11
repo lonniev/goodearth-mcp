@@ -81,8 +81,10 @@ export const plots: Guide = {
       ["The chips",
         <>One per plot, with its area. Tap one to work it: the top bar's name
           changes and every page answers for that ground from then on. The
-          active chip carries a small eye — tap it again to frame the plot on
-          the map.</>],
+          tap frames it on the map too, and a tap on the framed plot's chip
+          asks whether to hide it from the map or forget it. A hidden plot's
+          chip is dimmed with its eye struck through; tap it to bring the plot
+          back.</>],
       ["The map",
         <>All your plots on one map; tap a plot to work it. The button in
           the top right corner enlarges the map to the whole screen; the same

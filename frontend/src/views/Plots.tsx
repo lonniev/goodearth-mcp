@@ -15,13 +15,14 @@ import { useShare } from "../components/Share";
 import { plotsSheet } from "../lib/exports";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FieldMap, { type MapValue } from "../components/FieldMap";
-import { ICON, IconButton } from "../components/ui";
+import { Glyph, ICON, IconButton } from "../components/ui";
 import {
   areaM2, formatArea, geoJSONToRing, isDrawable, ringToGeoJSON, searchPlace,
   type LatLng, type Place,
 } from "../lib/geo";
 import { blockSave } from "../lib/mcp";
 import { deleteRegion, EXAMPLE_ID, listRegions, type SavedRegion } from "../lib/regions";
+import { chipTap, hide, readHidden, show, stillHidden, writeHidden } from "../lib/hiddenPlots";
 import { saveBlock } from "../lib/saveBlock";
 import { baseBounds } from "../lib/baseTemp";
 import PlotEditor from "../components/PlotEditor";
@@ -81,6 +82,13 @@ export default function Plots({
   };
   /// Each tap on the active chip is one request to frame its plot on the map.
   const [focus, setFocus] = useState(0);
+  /// Plots hidden from the map on this device, and the plot the map is
+  /// framed on. A tap on a framed plot's chip asks what to do with it.
+  const [hiddenIds, setHiddenIds] = useState<string[]>(readHidden);
+  const [framedId, setFramedId] = useState<string | null>(null);
+  const [asking, setAsking] = useState<string | null>(null);
+  const setHidden = (ids: string[]) => setHiddenIds(writeHidden(ids));
+  const hiddenNow = stillHidden(hiddenIds, regions.map((r) => r.id));
 
   /// Re-read the saved ground whenever something could have written it.
   ///
@@ -350,12 +358,25 @@ export default function Plots({
       <div className="flex flex-wrap items-center gap-2" {...tour("plots.chips")}>
         {regions.map((r) => {
           const isActive = r.id === active.id;
+          const isHidden = hiddenNow.includes(r.id);
+          // First tap works the plot and frames it; a tap on the framed plot
+          // asks Hide or Forget; a hidden plot's chip brings it back.
+          const tap = chipTap(isHidden, isActive, framedId === r.id);
           return (
             <button key={r.id} aria-pressed={isActive}
-              onClick={() => (isActive ? setFocus((n) => n + 1) : onPick(r))}
-              title={isActive ? `Frame ${r.name} on the map` : `Work ${r.name}`}
+              onClick={() => {
+                setAsking(null);
+                if (tap === "show") setHidden(show(hiddenNow, r.id));
+                if (tap === "ask") { setAsking(r.id); return; }
+                if (!isActive) onPick(r);
+                setFocus((n) => n + 1);
+              }}
+              title={tap === "show" ? `Show ${r.name} on the map`
+                : tap === "ask" ? `Hide or forget ${r.name}`
+                : tap === "frame" ? `Frame ${r.name} on the map` : `Work ${r.name}`}
               className={`flex min-h-11 flex-col items-start justify-center rounded-full border-[1.5px] px-3.5 leading-none ${
-                isActive ? "border-ink bg-ink text-paper" : "border-rule bg-panel text-ink active:bg-band"
+                isHidden ? "border-dashed border-rule bg-panel text-ink-soft opacity-60"
+                  : isActive ? "border-ink bg-ink text-paper" : "border-rule bg-panel text-ink active:bg-band"
               }`}>
               <span className="figure text-[14px] font-semibold">{r.name}</span>
               {/* The area under the name, not beside it, keeps the chip as
@@ -363,9 +384,9 @@ export default function Plots({
                   its tap frames the plot on the map. */}
               <span className={`data mt-0.5 flex items-center gap-1 text-[10.5px] ${isActive ? "text-paper/75" : "text-ink-soft"}`}>
                 {r.areaHa != null ? `${r.areaHa.toFixed(1)} ha` : "unmeasured"}
-                {isActive && (
+                {(isActive || isHidden) && (
                   <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor" aria-hidden="true">
-                    <path d={ICON.eye} />
+                    <path d={isHidden ? ICON.eyeOff : ICON.eye} />
                   </svg>
                 )}
               </span>
@@ -399,6 +420,23 @@ export default function Plots({
           </div>
         )}
       </div>
+      {asking === active.id && (
+        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-rule bg-panel px-3.5 py-2">
+          <span className="text-[13px]">{active.name}</span>
+          <button onClick={() => { setHidden(hide(hiddenNow, active.id)); setAsking(null); setFramedId(null); }}
+            className="flex min-h-11 items-center gap-1.5 rounded-full border border-rule px-3.5 text-[12.5px] font-medium active:bg-band">
+            <Glyph path={ICON.eyeOff} size={16} /> Hide
+          </button>
+          {active.id !== EXAMPLE_ID && (
+            <button onClick={() => { setAsking(null); setConfirming(active); setErr(""); }}
+              className="flex min-h-11 items-center gap-1.5 rounded-full border border-clay/50 px-3.5 text-[12.5px] font-medium text-clay active:bg-band">
+              <Glyph path={ICON.delete} size={16} /> Forget
+            </button>
+          )}
+          <button onClick={() => setAsking(null)} aria-label="Close"
+            className="ml-auto inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft">×</button>
+        </div>
+      )}
       {editing === active.id && (
         <div className="mt-2 rounded-md border border-rule bg-panel p-3.5">
           <PlotEditor plot={active} onDone={(saved) => {
@@ -418,7 +456,10 @@ export default function Plots({
       {/* Finding ground, not drawing it: tap a plot to work it. The drawing
           map stays its own, further down, so a tap here never adds a corner. */}
       <div className="mt-2.5">
-        <PlotsMap plots={regions} activeId={active.id} onPick={onPick} sun={sunControl} focus={focus} />
+        {/* A hidden worked plot takes its Sun layer with it. */}
+        <PlotsMap plots={regions} activeId={active.id} onPick={onPick}
+          sun={hiddenNow.includes(active.id) ? undefined : sunControl} focus={focus}
+          hidden={hiddenNow} onFramed={setFramedId} />
       </div>
       {/* The plot being worked, in its numbers — what the cards used to
           say three times over, said once, under the map. */}
