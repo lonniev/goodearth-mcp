@@ -3,10 +3,9 @@
 import { TimezonePicker } from "@tollbooth-dpyc/web/react";
 import type { Prefs, ThemeChoice } from "../lib/prefs";
 import { SEASONS, seasonOf } from "../lib/season";
-import { replayAll, stopAll } from "../lib/tour/state";
+import { useTour, useTourSwitch } from "@tollbooth-dpyc/web/react";
 import { tour } from "../lib/tour/targets";
 import { showTemp, type Unit } from "../lib/units";
-import { useTour } from "./Tour";
 
 export default function Preferences({
   prefs, onChange,
@@ -14,8 +13,9 @@ export default function Preferences({
   prefs: Prefs;
   onChange: (p: Prefs) => void;
 }) {
-  // The account page's own tour: these switches, the balance, forgetting.
+  // The account page's own tour: the package's panels, then these switches.
   useTour("account");
+  const tutorial = useTourSwitch();
   return (
     <div className="rounded-xl border border-rule bg-panel px-4 py-3">
       <div className="eyebrow mb-2">Viewing</div>
@@ -82,15 +82,16 @@ export default function Preferences({
       <label className="flex min-h-11 items-center gap-3" {...tour("account.tutorial")}>
         <input
           type="checkbox"
-          checked={prefs.tour}
-          onChange={(e) => onChange(e.target.checked ? replayAll(prefs) : stopAll(prefs))}
+          checked={tutorial.on}
+          onChange={(e) => tutorial.setOn(e.target.checked)}
           className="h-5 w-5 accent-[color:var(--color-honey)]"
         />
         <span className="text-[13.5px]">
           🧭 Live tutorial
           <span className="block text-[12px] leading-snug text-ink-soft">
-            A short walk around each page the first time you open it, pointing
-            at what to do. Any popover can stop it; this switch starts it again.
+            A short walk around each page, offered the first time it sits quiet
+            a moment, pointing at what to do. Any popover can stop it; this
+            switch starts it again.
           </span>
         </span>
       </label>

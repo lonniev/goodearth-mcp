@@ -52,7 +52,7 @@ import { withId } from "../lib/submit";
 import type { SavedRegion } from "../lib/regions";
 import { Empty, ErrorBox, FIELD, Glyph, ICON, IconButton, Pill,
   Section, TABLE_FILTER } from "../components/ui";
-import { useTour } from "../components/Tour";
+import { useTour } from "@tollbooth-dpyc/web/react";
 import { tour } from "../lib/tour/targets";
 
 const short = (iso: string) =>

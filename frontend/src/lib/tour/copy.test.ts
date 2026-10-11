@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
+import { lintTours } from "@tollbooth-dpyc/web";
 import { TOURS } from "./copy.ts";
 import { TARGETS } from "./targets.ts";
 import { TOUR_PAGES } from "./types.ts";
@@ -61,8 +62,12 @@ describe("every page has its tour", () => {
 });
 
 describe("every step points at something drawn", () => {
+  // The package's own names (tb.*) are drawn by the package's markup; this
+  // site's registry holds only its own.
   const named = new Set<string>();
-  for (const t of Object.values(TOURS)) for (const s of t.steps) if (typeof s.target === "string") named.add(s.target);
+  for (const t of Object.values(TOURS)) for (const s of t.steps) {
+    if (typeof s.target === "string" && !s.target.startsWith("tb.")) named.add(s.target);
+  }
 
   it("each named target is in the registry", () => {
     for (const n of named) assert.ok((TARGETS as readonly string[]).includes(n), `${n} is not a registered target`);
@@ -103,16 +108,7 @@ describe("each step abbreviates a guide step that still exists", () => {
 });
 
 describe("the copy says what a thing is", () => {
-  const CONTRAST = /\b(not|no|never|nothing|instead of|rather than)\b/i;
-  for (const t of Object.values(TOURS)) {
-    it(`${t.page}: short, and free of contrast`, () => {
-      for (const s of t.steps) {
-        assert.ok(s.says.length <= 180, `${t.page} "${s.title}" runs ${s.says.length} characters`);
-        assert.ok(s.title.length <= 28, `${t.page} title "${s.title}" is long`);
-        assert.ok(s.says.split(/[.!?](\s|$)/).filter((x) => x.trim()).length <= 2, `${t.page} "${s.title}" is more than two sentences`);
-        assert.doesNotMatch(s.says, CONTRAST, `${t.page} "${s.title}" says what something is not: ${s.says}`);
-        assert.doesNotMatch(s.title, CONTRAST, `${t.page} title "${s.title}"`);
-      }
-    });
-  }
+  it("holds every tour to the package's voice", () => {
+    assert.deepEqual(lintTours(TOURS), []);
+  });
 });

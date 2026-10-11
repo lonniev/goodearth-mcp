@@ -55,7 +55,8 @@ import { migrateToBlocks } from "./lib/migrateBlocks";
 import { peerOf, WARM_AFTER_MS } from "./lib/peerPage";
 import { warmPage } from "./lib/pageLoads";
 import { forgetAll } from "./lib/pageCache";
-import { TourProvider, useTour } from "./components/Tour";
+import { TourProvider, useTour } from "@tollbooth-dpyc/web/react";
+import { TOURS } from "./lib/tour/copy";
 
 /** The site's own words above the sign-in card. */
 const WELCOME = "Natural phenomena for your acreage. Frost, heat, rain and daylight, read for the ground you actually farm, season by season.";
@@ -288,7 +289,7 @@ export default function App() {
       // the calls a patron who cannot get in needs to see. The reading pages
       // below call nothing that logs, so they go without.
       return (
-        <TourProvider prefs={prefs} onChange={(p) => setPrefs(writePrefs(p))}>
+        <TourProvider tours={TOURS}>
           <SignInTour />
           <NpubGate onLogin={login} notice={notice} welcome={WELCOME} />
           <DebugPanel />
@@ -296,7 +297,7 @@ export default function App() {
       );
     }
     return (
-      <TourProvider prefs={prefs} onChange={(p) => setPrefs(writePrefs(p))}>
+      <TourProvider tours={TOURS}>
       <ShareProvider>
       <GuestShell view={view} onView={setView} onSignIn={() => setAsking(true)}>
         {view === "welcome" && <Welcome onView={setView} onSignIn={() => setAsking(true)} />}
@@ -332,7 +333,7 @@ export default function App() {
           so the two can never disagree: tonight's low on the coldest ground
           against the 55°F flight threshold, and shut on a live frost watch. */}
       <UnitProvider value={prefs.units}>
-      <TourProvider prefs={prefs} onChange={(p) => setPrefs(writePrefs(p))}>
+      <TourProvider tours={TOURS}>
       {/* Around the shell, not inside it: a page publishes what it has to
           give and the top bar's share button reads it. */}
       <ShareProvider>

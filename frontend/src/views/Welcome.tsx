@@ -11,7 +11,7 @@
 import { Claim } from "../components/Diagram";
 import { GUIDE_META, GUIDED } from "../lib/guides";
 import type { ViewKey } from "../lib/views";
-import { useTour } from "../components/Tour";
+import { useTour } from "@tollbooth-dpyc/web/react";
 import { tour } from "../lib/tour/targets";
 
 const EXPLAINERS: { view: ViewKey; emoji: string; title: string; said: string }[] = [
@@ -37,7 +37,7 @@ export default function Welcome({ onView, onSignIn, signedIn }: {
   signedIn?: boolean;
 }) {
   // A stranger's first tour: the key, the free reading, the guides.
-  useTour("welcome", undefined, !signedIn);
+  useTour("welcome", { ready: !signedIn });
   return (
     <div>
       <h1 className="figure text-[30px] leading-tight font-bold">

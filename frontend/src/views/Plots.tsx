@@ -35,7 +35,7 @@ import {
 } from "../lib/farmBundle";
 import { exportPlot, importBundle } from "../lib/farmBundleIO";
 import { shareOrDownload } from "@tollbooth-dpyc/web";
-import { useTour } from "../components/Tour";
+import { useTour } from "@tollbooth-dpyc/web/react";
 import { tour } from "../lib/tour/targets";
 
 const EMPTY: MapValue = { mode: "polygon", ring: [], centre: null, radiusM: 400 };
@@ -69,7 +69,7 @@ export default function Plots({
   const [regions, setRegions] = useState<SavedRegion[]>(() => listRegions());
   /// The plots as one table, for the share button in the top bar.
   useShare(useMemo(() => plotsSheet(regions, u.unit), [regions, u.unit]));
-  useTour("plots", { "open-add-form": () => setAdding(true) });
+  useTour("plots", { actions: { "open-add-form": () => setAdding(true) } });
   /// The finder, the form and the drawing map are shown on request: a new
   /// plot is a once-a-season act, and open all the time they took half the
   /// page from the plots already saved. Open at once for a grower with none.

@@ -24,7 +24,7 @@ import { dropIndex, mergeOrder, moveItem } from "../lib/reorder";
 import { ChartFrame } from "../components/ui";
 import { useShare } from "../components/Share";
 import { almanacSheet } from "../lib/exports";
-import { useTour } from "../components/Tour";
+import { useTour } from "@tollbooth-dpyc/web/react";
 import { tour } from "../lib/tour/targets";
 
 const SERIES: { key: MeasureKey; label: string; emoji: string; color?: string }[] = [
