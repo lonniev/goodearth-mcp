@@ -63,6 +63,7 @@ import math
 import re
 import unicodedata
 import uuid
+from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from typing import Any
 
@@ -482,6 +483,25 @@ def new_block_id(requested: str = "") -> str:
     return want
 
 
+#: The most blocks one call may save. A garden subdivided into beds is a few
+#: dozen; a hundred leaves room and still bounds one request's work.
+MAX_BATCH = 100
+
+
+@dataclass(frozen=True)
+class BlockSpec:
+    """One block to save, as the tool was handed it and the outline measured."""
+
+    name: str
+    geometry: dict[str, Any]
+    block_id: str = ""
+    aliases: Any = None
+    base_temp_f: float = 50.0
+    area_ha: float | None = None
+    sample_count: int | None = None
+    retired: bool = False
+
+
 async def save_block(
     npub: str, *, name: str, geometry: dict[str, Any],
     block_id: str = "", aliases: Any = None, base_temp_f: float = 50.0,
@@ -495,59 +515,128 @@ async def save_block(
     wipe them, because the upsert wrote whatever it was handed — and the page
     never sent them at all, so every save from it erased what an agent had set.
     """
-    clean = _clean_name(name)
-    alias_list = _clean_aliases(aliases)
-    bid = block_id.strip() if block_id.strip() else ""
-    existing: dict[str, Any] | None = None
-    if bid and bid != EXAMPLE_BLOCK_ID:
-        existing = await _row_by_id(npub, bid)
-        if existing is None and not LEGACY_ID.match(bid):
-            # An id we minted, i.e. an update of a block that is not there.
-            raise UnknownBlock("no block of yours has that id")
-    if aliases is None and existing is not None:
-        alias_list = list(existing.get("aliases") or [])
-    bid = bid or new_block_id()
+    (stored,) = await save_blocks(npub, [BlockSpec(
+        name=name, geometry=geometry, block_id=block_id, aliases=aliases,
+        base_temp_f=base_temp_f, area_ha=area_ha, sample_count=sample_count,
+        retired=retired,
+    )])
+    return stored
 
-    key = lookup_key(npub, clean)
-    clash = await _row_by_lookup(npub, key)
-    if clash is not None and clash["block_id"] != bid:
-        # Name which block and say what to do. "Another of your blocks
-        # already answers to this" states the obstacle and leaves the grower
-        # to guess the way round it — and the way round is not obvious,
-        # because editing the other block is usually what they meant.
-        raise AmbiguousBlock(
-            f"another of your blocks already answers to {clean!r} "
-            f"(id {clash['block_id']}). Give this one a different name, or "
-            f"edit that block instead — saving it with its own id updates it "
-            f"rather than clashing with it.",
-            [clash["block_id"]],
-        )
 
+async def save_blocks(npub: str, specs: list[BlockSpec]) -> list[dict[str, Any]]:
+    """Create or update several blocks in one go. Returns the stored rows, in order.
+
+    All or nothing: every block is checked before any is written — its id
+    known, its name free among the grower's other blocks and within this
+    batch — and one problem refuses the lot. Two trips to the record whatever
+    the batch's size: one read that answers "does this id exist" and "does
+    another block hold this name" for every block at once, then one upsert
+    that returns what it stored. It was four trips per block, one after the
+    other, and an agent laying out a garden made one call per bed.
+    """
+    if not specs:
+        raise BlockError("no blocks to save")
+    if len(specs) > MAX_BATCH:
+        raise BlockError(f"at most {MAX_BATCH} blocks in one call; this one has {len(specs)}")
+    cleaned = []
+    for spec in specs:
+        clean = _clean_name(spec.name)
+        given = spec.block_id.strip()
+        cleaned.append((spec, clean, _clean_aliases(spec.aliases), given, lookup_key(npub, clean)))
+
+    ids = [g for _, _, _, g, _ in cleaned if g and g != EXAMPLE_BLOCK_ID]
+    keys = [k for *_, k in cleaned]
+    params: list[Any] = [npub, *ids, *keys]
+    id_marks = ", ".join(f"${i + 2}" for i in range(len(ids))) or "NULL"
+    key_marks = ", ".join(f"${i + 2 + len(ids)}" for i in range(len(keys)))
     v = await _vault_for()
-    await v._execute(
+    r = await v._execute(
+        _t(
+            f"SELECT {_BLOCK_COLS} FROM {BLOCKS} WHERE npub = $1 "
+            f"AND (block_id IN ({id_marks}) OR lookup_key IN ({key_marks}))"
+        ),
+        params,
+    )
+    found = r.get("rows") or []
+    by_id = {row["block_id"]: row for row in found}
+    by_key = {row["lookup_key"]: row for row in found}
+
+    problems: list[tuple[int, BlockError]] = []
+    plan: list[tuple[str, str, list[str], str, BlockSpec]] = []
+    seen_keys: dict[str, int] = {}
+    seen_ids: dict[str, int] = {}
+    for i, (spec, clean, alias_list, given, key) in enumerate(cleaned):
+        existing = by_id.get(given) if given and given != EXAMPLE_BLOCK_ID else None
+        if given and given != EXAMPLE_BLOCK_ID and existing is None and not LEGACY_ID.match(given):
+            # An id we minted, i.e. an update of a block that is not there.
+            problems.append((i, UnknownBlock("no block of yours has that id")))
+            continue
+        if spec.aliases is None and existing is not None:
+            alias_list = list(_hydrate(existing, npub).get("aliases") or [])
+        bid = given or new_block_id()
+        clash = by_key.get(key)
+        if clash is not None and clash["block_id"] != bid:
+            # Name which block and say what to do. "Another of your blocks
+            # already answers to this" states the obstacle and leaves the grower
+            # to guess the way round it — and the way round is not obvious,
+            # because editing the other block is usually what they meant.
+            problems.append((i, AmbiguousBlock(
+                f"another of your blocks already answers to {clean!r} "
+                f"(id {clash['block_id']}). Give this one a different name, or "
+                f"edit that block instead — saving it with its own id updates it "
+                f"rather than clashing with it.",
+                [clash["block_id"]],
+            )))
+            continue
+        if key in seen_keys:
+            problems.append((i, BlockError(f"the name {clean!r} is also block {seen_keys[key] + 1} in this call")))
+            continue
+        if bid in seen_ids:
+            problems.append((i, BlockError(f"the id {bid} is also block {seen_ids[bid] + 1} in this call")))
+            continue
+        seen_keys[key] = i
+        seen_ids[bid] = i
+        plan.append((bid, clean, alias_list, key, spec))
+
+    if problems:
+        if len(specs) == 1:
+            raise problems[0][1]
+        raise BlockError("; ".join(
+            f"block {i + 1} ({cleaned[i][1]!r}): {exc}" for i, exc in problems
+        ) + ". Nothing was saved.")
+
+    values: list[str] = []
+    args: list[Any] = []
+    for bid, clean, alias_list, key, spec in plan:
+        n = len(args)
+        values.append("(" + ", ".join(f"${n + j + 1}" for j in range(10)) + ")")
+        args.extend([
+            npub, bid, key,
+            _seal(clean, npub, bid), _seal(alias_list, npub, bid),
+            _seal(spec.geometry, npub, bid),
+            float(spec.base_temp_f or 50.0), spec.area_ha, spec.sample_count,
+            datetime.now(UTC).isoformat() if spec.retired else None,
+        ])
+    r = await v._execute(
         _t(
             f"INSERT INTO {BLOCKS} (npub, block_id, lookup_key, name_enc, aliases_enc, "
             "geometry_enc, base_temp_f, area_ha, sample_count, retired_at) "
-            "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) "
+            f"VALUES {', '.join(values)} "
             "ON CONFLICT (npub, block_id) DO UPDATE SET "
             "lookup_key = EXCLUDED.lookup_key, name_enc = EXCLUDED.name_enc, "
             "aliases_enc = EXCLUDED.aliases_enc, geometry_enc = EXCLUDED.geometry_enc, "
             "base_temp_f = EXCLUDED.base_temp_f, area_ha = EXCLUDED.area_ha, "
             "sample_count = EXCLUDED.sample_count, retired_at = EXCLUDED.retired_at, "
-            f"updated_at = NOW() WHERE {BLOCKS}.npub = EXCLUDED.npub"
+            f"updated_at = NOW() WHERE {BLOCKS}.npub = EXCLUDED.npub "
+            f"RETURNING {_BLOCK_COLS}"
         ),
-        [
-            npub, bid, key,
-            _seal(clean, npub, bid), _seal(alias_list, npub, bid),
-            _seal(geometry, npub, bid),
-            float(base_temp_f or 50.0), area_ha, sample_count,
-            datetime.now(UTC).isoformat() if retired else None,
-        ],
+        args,
     )
-    stored = await _row_by_id(npub, bid)
-    if stored is None:  # pragma: no cover — the insert just succeeded
-        raise BlockError("the block did not store")
-    return stored
+    stored = {row["block_id"]: _hydrate(row, npub) for row in (r.get("rows") or [])}
+    missing = [bid for bid, *_ in plan if bid not in stored]
+    if missing:  # pragma: no cover — the upsert just succeeded
+        raise BlockError(f"{len(missing)} block(s) did not store")
+    return [stored[bid] for bid, *_ in plan]
 
 
 def _hydrate(row: dict[str, Any], npub: str) -> dict[str, Any]:

@@ -1,0 +1,1 @@
+- `goodearth_block_save` takes a `blocks` list: a whole layout in one call, every block checked before any is saved, one problem refusing the lot. A save now makes two trips to the record whatever the number of blocks, where it made four per block.
