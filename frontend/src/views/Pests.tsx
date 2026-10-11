@@ -39,7 +39,7 @@ import {
 import SpeciesFinder from "../components/SpeciesFinder";
 import type { Chosen } from "../lib/basket";
 import type { SavedRegion } from "../lib/regions";
-import { useTour } from "../components/Tour";
+import { useTour } from "@tollbooth-dpyc/web/react";
 import { tour } from "../lib/tour/targets";
 
 const d = (iso: string) =>

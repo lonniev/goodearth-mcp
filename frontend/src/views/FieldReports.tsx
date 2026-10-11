@@ -28,7 +28,7 @@ import type { SavedRegion } from "../lib/regions";
 import { ErrorBox, FIELD, ICON, IconButton, Note, TrashGlyph } from "../components/ui";
 import { useSubmit } from "../lib/useSubmit";
 import { withId } from "../lib/submit";
-import { useTour } from "../components/Tour";
+import { useTour } from "@tollbooth-dpyc/web/react";
 import { tour } from "../lib/tour/targets";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -63,7 +63,7 @@ export default function FieldReports({
     useBlockItems<FieldReport>(region.id, "observation", reportCodec);
   /// The reports as one table, for the share button in the top bar.
   useShare(useMemo(() => reportsSheet(region, reports), [region, reports]));
-  useTour("reports", { "pick-tag:first_bloom": () => setTag("first_bloom") });
+  useTour("reports", { actions: { "pick-tag:first_bloom": () => setTag("first_bloom") } });
   const [tag, setTag] = useState<ReportTag>("frost");
   const [cal, setCal] = useState<CalibrationResult | null>(null);
   const [ranAt, setRanAt] = useState<Date | null>(null);

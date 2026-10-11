@@ -1,0 +1,1 @@
+- The guided tour's mechanics come from `@tollbooth-dpyc/web` 1.8.0, and it is offered: a page that sits quiet for ten seconds asks "Would you like a tour of this page?" and runs on Yes. The sign-in and account tours are the package's, and the gate's buttons are found by name.

@@ -37,7 +37,7 @@ import {
   TrashGlyph,
 } from "../components/ui";
 import { speciesHabits, type SpeciesHabitsResult } from "../lib/mcp";
-import { useTour } from "../components/Tour";
+import { useTour } from "@tollbooth-dpyc/web/react";
 
 const CLOCK: Record<string, { label: string; cls: string }> = {
   heat:      { label: "heat",       cls: "bg-growth/12 text-growth" },

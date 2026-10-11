@@ -6,6 +6,7 @@
 // by the test that reads both. The last step on every page is the (?), where
 // the whole story is.
 
+import { accountTour, signInTour } from "@tollbooth-dpyc/web";
 import type { Tour, TourStep } from "./types.ts";
 
 const GUIDE: TourStep = {
@@ -14,12 +15,6 @@ const GUIDE: TourStep = {
   says: "The full guide to this page is behind the (?). Every page has one.",
   side: "bottom", align: "end",
 };
-
-/// The one page whose markup belongs to the sign-in package: its field has
-/// an id, its two strips have labels, and its two buttons are found by
-/// their words until the package carries a tour name of its own.
-const byText = (prefix: string) => () =>
-  [...document.querySelectorAll("button")].find((b) => (b.textContent ?? "").trim().startsWith(prefix)) ?? null;
 
 export const TOURS: Record<Tour["page"], Tour> = {
   welcome: { page: "welcome", steps: [
@@ -31,18 +26,7 @@ export const TOURS: Record<Tour["page"], Tour> = {
       says: "Each working page has a guide like these. The (?) on every page opens its own.", side: "top" },
   ]},
 
-  signin: { page: "signin", steps: [
-    { target: () => document.getElementById("tb-npub-field"), title: "Your npub",
-      says: "Paste your npub here. An nsec works too and stays in this browser." },
-    { target: () => document.querySelector('nav[aria-label="Tools for signing in"]'), title: "Get a key",
-      says: "Get a free key in 0xchat or Pricing Studio. Either makes one in a minute.", side: "top" },
-    { target: byText("Send message"), title: "Send",
-      says: "We send a message to your Nostr client. Reply to it with any words." },
-    { target: () => document.querySelector('[aria-label="How signing in works"]'), title: "The proof",
-      says: "Your signed reply is the proof. The tiles show where you are.", side: "top" },
-    { target: byText("I've replied"), title: "Verify",
-      says: "Replied? Tap here and you are in." },
-  ]},
+  signin: signInTour("signin"),
 
   ledger: { page: "ledger", steps: [
     { target: "firstrun.here", title: "Start where you are",
@@ -263,18 +247,9 @@ export const TOURS: Record<Tour["page"], Tour> = {
     GUIDE,
   ]},
 
-  account: { page: "account", steps: [
+  account: accountTour("account", [
     { target: "account.summary", title: "Your balance",
       says: "Your Patron's tranche of api_sats. MCP tool fees are paid from it, per call, and each answer shows what it drew." },
-    { target: () => document.querySelector(".ge-usage"), title: "What each tool drew",
-      says: "Every MCP tool you have called, how many times, and the api_sats each cost. The operator sets the prices; this is what was paid.", side: "top" },
-    // The persona panel is the package's; its copy-npub button is its one
-    // stable mark, and the card around it is the panel.
-    { target: () => document.querySelector('[title="Copy full npub"]')?.closest("div.rounded-2xl") ?? null,
-      title: "Your Nostr persona",
-      says: "The name, picture, bio and addresses Nostr shows for your npub. Tap Edit to change them; they publish to your Nostr profile.", side: "top" },
-    { target: () => document.querySelector(".ge-coupons"), title: "Coupons",
-      says: "A code an operator hands out. Redeem it once here and it discounts your MCP tool fees on its own after that.", side: "top" },
     { target: "account.tutorial", title: "Live tutorial",
       says: "This tour, on every page. Turn it off here or from any popover; turn it on to see it all again." },
     { target: "account.season", title: "Season",
@@ -285,5 +260,5 @@ export const TOURS: Record<Tour["page"], Tour> = {
       says: "They fly on warm days. Switch them off for a still page." },
     { target: "account.forget", title: "Forget my ground",
       says: "Removes your plots and everything recorded on them. Your balance stays.", side: "top" },
-  ]},
+  ]),
 };

@@ -32,7 +32,7 @@ import { type AlmanacResult, type MeasureKey,
   diseaseRisk, dryingWindow, frostWindow, soilTempProjection, taskList, type TaskRow, type DiseaseRiskResult, type DryingWindowResult, type FrostWindowResult, type SeasonCurveResult, type SoilWindowResult } from "../lib/mcp";
 import type { SavedRegion } from "../lib/regions";
 import { loadAlmanac, loadLedger } from "../lib/pageLoads";
-import { useTour } from "../components/Tour";
+import { useTour } from "@tollbooth-dpyc/web/react";
 import { tour } from "../lib/tour/targets";
 
 interface Props {

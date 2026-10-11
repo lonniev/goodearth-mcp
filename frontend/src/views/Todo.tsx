@@ -37,7 +37,7 @@ import { entries, overlayTasks, subscribe } from "../lib/outbox";
 import { migrateLocalTodos } from "../lib/todos";
 import { makeFeedRefresher, publishedToken } from "../lib/publishFeed";
 import type { SavedRegion } from "../lib/regions";
-import { useTour } from "../components/Tour";
+import { useTour } from "@tollbooth-dpyc/web/react";
 import { tour } from "../lib/tour/targets";
 
 const nice = (iso?: string | null) =>
@@ -75,7 +75,7 @@ export default function TodoView({
   const [page, setPage] = useState<{ rows: TaskRow[]; total: number; page: number; pages: number } | null>(null);
   /// The page of tasks in hand, for the share button in the top bar.
   useShare(useMemo(() => (page ? todoSheet(region, page.rows, page.total) : null), [region, page]));
-  useTour("todo", { "show-times": () => setReminderOnly(false) });
+  useTour("todo", { actions: { "show-times": () => setReminderOnly(false) } });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [ranAt, setRanAt] = useState<Date | null>(null);

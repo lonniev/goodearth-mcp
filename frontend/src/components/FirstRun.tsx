@@ -17,7 +17,7 @@ import {
 } from "../lib/regions";
 import { saveBlock } from "../lib/saveBlock";
 import { tour } from "../lib/tour/targets";
-import { useTour } from "./Tour";
+import { useTour } from "@tollbooth-dpyc/web/react";
 
 export default function FirstRun({ onSaved, onDraw, onExample }: {
   onSaved: (r: SavedRegion) => void;

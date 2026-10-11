@@ -46,12 +46,8 @@ export const TARGETS = [
 
 export type Target = (typeof TARGETS)[number];
 
-/// The attribute to spread on the element a step points at.
+/// The attribute to spread on the element a step points at — the package's
+/// helper, typed to this site's names.
 export function tour(id: Target): { "data-tour": Target } {
   return { "data-tour": id };
-}
-
-/// The selector for a target.
-export function selector(id: Target): string {
-  return `[data-tour="${id}"]`;
 }
