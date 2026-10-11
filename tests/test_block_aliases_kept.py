@@ -9,63 +9,45 @@ block did the same.
 from __future__ import annotations
 
 import asyncio
-import json
 
 import pytest
 
 from goodearth_mcp import block_store as bs
 
-HAS = {"block_id": "map-farm", "name": "North Farm", "aliases": ["home", "the farm"], "retired": False}
+from .block_vault import BlockVault
+
+GEO = {"lat": 44, "lon": -73, "radius_m": 200}
 
 
 @pytest.fixture
-def written(monkeypatch):
-    """Stub the store; return the aliases each save wrote."""
-    out: list[list[str]] = []
+def vault(monkeypatch):
+    v = BlockVault()
 
-    class Vault:
-        async def _execute(self, _sql, params):
-            out.append(json.loads(params[4]))
-            return {"rows": []}
-
-    async def vault():
-        return Vault()
-
-    async def by_id(npub, bid):
-        # The farm exists before any save; a new block only once it is written.
-        if bid != "map-farm" and not out:
-            return None
-        return {**HAS, "block_id": bid, "aliases": out[-1] if out else HAS["aliases"]}
-
-    async def by_lookup(*_a):
-        return None
+    async def vault_for():
+        return v
 
     monkeypatch.setattr(bs, "_cipher", None)
-    monkeypatch.setattr(bs, "_vault_for", vault)
-    monkeypatch.setattr(bs, "_row_by_id", by_id)
-    monkeypatch.setattr(bs, "_row_by_lookup", by_lookup)
-    return out
+    monkeypatch.setattr(bs, "_vault_for", vault_for)
+    asyncio.run(bs.save_block("npub1x", name="North Farm", geometry=GEO, block_id="map-farm",
+                              aliases=["home", "the farm"]))
+    return v
 
 
 def save(**kw):
-    return asyncio.run(bs.save_block("npub1x", geometry={"lat": 44, "lon": -73, "radius_m": 200}, **kw))
+    return asyncio.run(bs.save_block("npub1x", geometry=GEO, **kw))
 
 
-def test_a_rename_that_omits_aliases_keeps_them(written):
-    save(name="North Farm (east)", block_id="map-farm")
-    assert written == [["home", "the farm"]]
+def test_a_rename_that_omits_aliases_keeps_them(vault):
+    assert save(name="North Farm (east)", block_id="map-farm")["aliases"] == ["home", "the farm"]
 
 
-def test_an_empty_list_clears_them(written):
-    save(name="North Farm", block_id="map-farm", aliases=[])
-    assert written == [[]]
+def test_an_empty_list_clears_them(vault):
+    assert save(name="North Farm", block_id="map-farm", aliases=[])["aliases"] == []
 
 
-def test_a_given_list_replaces_them(written):
-    save(name="North Farm", block_id="map-farm", aliases=["the bench"])
-    assert written == [["the bench"]]
+def test_a_given_list_replaces_them(vault):
+    assert save(name="North Farm", block_id="map-farm", aliases=["the bench"])["aliases"] == ["the bench"]
 
 
-def test_a_new_block_starts_with_none(written):
-    save(name="Lower Meadow", block_id="map-new")
-    assert written == [[]]
+def test_a_new_block_starts_with_none(vault):
+    assert save(name="Lower Meadow", block_id="map-new")["aliases"] == []

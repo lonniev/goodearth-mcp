@@ -117,7 +117,8 @@ mcp = FastMCP(
         "it.\n\n"
         "Start with goodearth_block_list. If the grower has saved nothing it "
         "answers with a worked example, so there is always ground to stand on; "
-        "save theirs with goodearth_block_save and it takes over. What they "
+        "save theirs with goodearth_block_save and it takes over; a layout of "
+        "many beds is one goodearth_block_save call with a `blocks` list. What they "
         "grow, watch for and have seen is recorded per block with "
         "goodearth_block_item_save, which is why the season tools need no "
         "collections passed to them.\n\n"
@@ -2148,16 +2149,16 @@ async def forget_my_ground(
 async def block_save(
     name: Annotated[
         str,
-        Field(description="What you call this ground, e.g. 'North Field'. Unique among your blocks."),
-    ],
+        Field(description="What you call this ground, e.g. 'North Field'. Unique among your blocks. Omit when passing `blocks`."),
+    ] = "",
     geometry: Annotated[
-        dict[str, Any],
+        dict[str, Any] | None,
         Field(description=(
             "Its bounds: a GeoJSON Polygon, or {lat, lon, radius_m}. It may overlap "
             "or sit inside another block — a meadow within the farm around it is "
-            "two blocks, each answered for its own ground."
+            "two blocks, each answered for its own ground. Omit when passing `blocks`."
         )),
-    ],
+    ] = None,
     block: Annotated[
         str,
         Field(description="Omit to create. Pass an existing block's id to update it."),
@@ -2178,6 +2179,15 @@ async def block_save(
         bool,
         Field(description="True to retire it. Nothing is deleted — its record stays readable."),
     ] = False,
+    blocks: Annotated[
+        list[dict[str, Any]] | None,
+        Field(description=(
+            "Several blocks in one call, each {name, geometry, block?, aliases?, "
+            "base_temp?, retired?} — the fields above, per block. A garden laid out "
+            f"as beds is one call, not one per bed. Up to {block_store.MAX_BATCH}; "
+            "all are checked before any is saved, and one problem refuses the lot."
+        )),
+    ] = None,
     npub: Annotated[
         str,
         Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
@@ -2185,6 +2195,10 @@ async def block_save(
     dpop_token: str = "",
 ) -> dict[str, Any]:
     """Save a plot of land, so every other tool can work it by name.
+
+    Several at once go in `blocks`: a whole layout in one call, because a
+    garden subdivided into beds produces many blocks at once and each one
+    should not be its own fare.
 
     Its area and sample count are measured here from the bounds you give, and
     returned — they are facts about the geometry, so there is nothing for you to
@@ -2194,6 +2208,12 @@ async def block_save(
     meadow inside it has asked two questions about two pieces of ground, and
     both are right; the overlap is not a drawing error to correct.
     """
+    if blocks is not None:
+        return await _save_many_blocks(npub, blocks, single_given=bool(
+            name or geometry is not None or block or aliases is not None or retired or base_temp != 50.0
+        ))
+    if not name or geometry is None:
+        raise block_store.BlockError("name and geometry are required, or a list in `blocks`")
     try:
         parsed = parse_region(geometry)
     except RegionError as exc:
@@ -2218,6 +2238,75 @@ async def block_save(
 
     return {"success": True, "block": stored, "region": described}
 
+
+
+_BLOCK_FIELDS = {"name", "geometry", "block", "aliases", "base_temp", "retired"}
+
+
+async def _save_many_blocks(npub: str, blocks: Any, *, single_given: bool) -> dict[str, Any]:
+    """`block_save` with a list: every block checked, then all written together.
+
+    The list is a tool argument, so it is read as adversarial: a list of
+    objects, each with only the known fields, each outline parsed. Every
+    problem is named by position and the call is refused — raised, so the
+    fare is rolled back — before anything is written.
+    """
+    if single_given:
+        raise block_store.BlockError("pass either one block's fields or `blocks`, not both")
+    if not isinstance(blocks, list):
+        raise block_store.BlockError("`blocks` must be a list")
+    if not blocks or len(blocks) > block_store.MAX_BATCH:
+        raise block_store.BlockError(f"`blocks` holds 1 to {block_store.MAX_BATCH} blocks")
+    specs: list[block_store.BlockSpec] = []
+    problems: list[str] = []
+    for i, b in enumerate(blocks, start=1):
+        if not isinstance(b, dict):
+            problems.append(f"block {i}: must be an object")
+            continue
+        extra = set(b) - _BLOCK_FIELDS
+        if extra:
+            problems.append(f"block {i}: unknown field(s) {', '.join(sorted(map(str, extra)))}")
+            continue
+        name, geometry = b.get("name"), b.get("geometry")
+        if not isinstance(name, str) or not name.strip():
+            problems.append(f"block {i}: needs a name")
+            continue
+        block_id = b.get("block", "")
+        base_temp = b.get("base_temp", 50.0)
+        retired = b.get("retired", False)
+        aliases = b.get("aliases")
+        if not isinstance(block_id, str) or not isinstance(retired, bool) \
+                or isinstance(base_temp, bool) or not isinstance(base_temp, (int, float)) \
+                or (aliases is not None and not isinstance(aliases, list)):
+            problems.append(
+                f"block {i} ({name!r}): block must be text, base_temp a number, "
+                "retired true or false, aliases a list"
+            )
+            continue
+        try:
+            parsed = parse_region(geometry)
+        except RegionError as exc:
+            problems.append(f"block {i} ({name!r}): {exc}")
+            continue
+        described = parsed.describe()
+        specs.append(block_store.BlockSpec(
+            name=name, geometry=geometry, block_id=block_id, aliases=aliases,
+            base_temp_f=float(base_temp),
+            area_ha=round(described.get("area_km2", 0.0) * 100.0, 4),
+            sample_count=parsed.sample_count, retired=retired,
+        ))
+    if problems:
+        raise block_store.BlockError("; ".join(problems) + ". Nothing was saved.")
+    try:
+        stored = await block_store.save_blocks(npub, specs)
+    except OSError as exc:
+        logger.error("block_save persistence failed: %s", exc)
+        return {
+            "success": False,
+            "error": "The record is unreachable right now — try again shortly.",
+            "error_code": "persistence_unavailable",
+        }
+    return {"success": True, "blocks": stored, "count": len(stored)}
 
 @tool
 @runtime.paid_tool(BLOCK_LIST_UUID)
