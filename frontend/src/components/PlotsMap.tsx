@@ -5,7 +5,7 @@
 // and tap across the farm without fear of editing it. The active plot is drawn
 // in the growth colour, the rest in honey, each labelled with its name.
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import { BASEMAPS, cornerIcon } from "./FieldMap";
 import { useEnlarged } from "./MapFrame";
@@ -64,6 +64,10 @@ export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0, hidd
   // A move the map made for itself (a fit) says nothing about the grower;
   // one they made by hand means the plot is no longer framed.
   const programmatic = useRef(false);
+  // The plots' names on the map, on or off, remembered on this device: the
+  // labels sit over the ground and can hide what a grower came to look at.
+  const [labels, setLabels] = useState(readLabels);
+  const toggleLabels = () => setLabels((v) => writeLabels(!v));
   // The tap handlers are bound once per redraw; read the picker through a ref
   // so a new callback identity does not force one.
   const pick = useRef(onPick);
@@ -128,7 +132,7 @@ export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0, hidd
       const layer = s.kind === "polygon"
         ? L.polygon(s.ring.map((p) => [p.lat, p.lng] as [number, number]), style)
         : L.circle([s.centre.lat, s.centre.lng], { ...style, radius: s.radiusM });
-      layer.bindTooltip(s.name, { permanent: true, direction: "center", className: "plot-label" });
+      if (labels) layer.bindTooltip(s.name, { permanent: true, direction: "center", className: "plot-label" });
       layer.on("click", (e) => {
         L.DomEvent.stop(e);
         const r = plots.find((p) => p.id === s.id);
@@ -148,7 +152,7 @@ export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0, hidd
       framed.current = ids;
       fit(g.getBounds(), 17);
     }
-  }, [shapes, ids, activeId, plots, fit]);
+  }, [shapes, ids, activeId, plots, fit, labels]);
 
   // The page asks for the active plot's frame: the chip tapped again.
   useEffect(() => { if (focus > 0) framePlot(); }, [focus, framePlot]);
@@ -203,6 +207,31 @@ export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0, hidd
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true"><path d={ICON.sunShade} /></svg>
         </button>
       )}
+
+      <button
+        onClick={toggleLabels}
+        aria-pressed={labels}
+        aria-label="Plot names"
+        title="Plot names"
+        {...tour("plots.labels")}
+        // Under the Sun button when there is one, else under the enlarge button.
+        className={`absolute right-2 ${sun ? "top-[112px]" : "top-[60px]"} z-[400] flex h-11 w-11 items-center justify-center rounded-md border border-ink/30 shadow ${
+          labels ? "bg-ink text-paper" : "bg-panel/95 text-ink"
+        }`}
+      >
+        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true"><path d={ICON.label} /></svg>
+      </button>
     </div>
   );
+}
+
+const LABELS_KEY = "goodearth:map-labels:v1";
+
+function readLabels(): boolean {
+  try { return window.localStorage.getItem(LABELS_KEY) !== "off"; } catch { return true; }
+}
+
+function writeLabels(on: boolean): boolean {
+  try { window.localStorage.setItem(LABELS_KEY, on ? "on" : "off"); } catch { /* a viewing choice */ }
+  return on;
 }

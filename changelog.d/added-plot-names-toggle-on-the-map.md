@@ -1,0 +1,1 @@
+- The plots map gains a tag button under the Sun button that shows or hides the plots' names, so the ground under them is clear. The choice is remembered on this device.

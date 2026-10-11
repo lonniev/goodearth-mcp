@@ -86,6 +86,8 @@ export const TOURS: Record<Tour["page"], Tour> = {
       says: "Forgets the plot. The record keeps it, and saving it again brings it back." },
     { target: "plots.sun", title: "The Sun", guide: ["Read and switch", "The Sun button"],
       says: "Turns the Sun layer on: hours of sun across the plot, and the best place for panels.", side: "left" },
+    { target: "plots.labels", title: "Plot names", guide: ["Read and switch", "The map"],
+      says: "Shows or hides the plots' names on the map, so the ground under them is clear.", side: "left" },
     { target: "plots.sunview", title: "Garden or Solar", guide: ["Read and switch", "The Sun button"],
       says: "Garden shows hours of light; Solar shows what panels would make. Tap inside the plot for that spot." },
     GUIDE,
