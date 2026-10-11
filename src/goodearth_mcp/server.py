@@ -17,6 +17,7 @@ from typing import Annotated, Any
 
 from fastmcp import FastMCP
 from pydantic import Field
+from shapely.geometry import Point, Polygon
 from tollbooth.credential_templates import CredentialTemplate, FieldSpec
 from tollbooth.credential_validators import validate_btcpay_creds
 from tollbooth.runtime import OperatorRuntime, register_standard_tools
@@ -58,6 +59,7 @@ from goodearth_mcp.forget import ForgetError
 from goodearth_mcp.forget import everything as forget_everything_impl
 from goodearth_mcp.frost_window import FrostError
 from goodearth_mcp.frost_window import region_frost_window as frost_window_impl
+from goodearth_mcp.layout import transform as layout_transform
 from goodearth_mcp.perennial import PerennialError
 from goodearth_mcp.perennial_window import PerennialWindowError
 from goodearth_mcp.perennial_window import region_tree_window as tree_window_impl
@@ -118,7 +120,8 @@ mcp = FastMCP(
         "Start with goodearth_block_list. If the grower has saved nothing it "
         "answers with a worked example, so there is always ground to stand on; "
         "save theirs with goodearth_block_save and it takes over; a layout of "
-        "many beds is one goodearth_block_save call with a `blocks` list. What they "
+        "many beds is one goodearth_block_save call with a `blocks` list, and "
+        "goodearth_block_transform proposes such a layout inside a plot. What they "
         "grow, watch for and have seen is recorded per block with "
         "goodearth_block_item_save, which is why the season tools need no "
         "collections passed to them.\n\n"
@@ -203,6 +206,7 @@ COMPANIONS_UUID            = "0bfd5920-12fa-5cff-aefb-466d9c0e2fd0"
 DISEASE_RISK_UUID          = "b12c4ed8-c3cd-5a14-8e4b-a9fa344b7096"
 DRYING_WINDOW_UUID         = "9e07633f-a43a-5298-9691-7678a59cfb32"
 SUNLIGHT_UUID              = "64b04d3a-134c-5c42-85f6-e5a97eb3322d"
+BLOCK_TRANSFORM_UUID       = "2743c05c-ff22-5324-8f25-4faed396b50a"
 
 _DOMAIN_TOOLS = [
     ToolIdentity(
@@ -413,6 +417,12 @@ _DOMAIN_TOOLS = [
         capability="sunlight",
         category="heavy",
         intent="Hours of direct sun each part of a plot gets, month by month, from its trees and hills",
+    ),
+    ToolIdentity(
+        tool_id=BLOCK_TRANSFORM_UUID,
+        capability="block_transform",
+        category="heavy",
+        intent="Propose bed layouts inside a plot, ready to accept in one save",
     ),
 ]
 
@@ -2645,6 +2655,136 @@ async def drying_window(
             "error": f"The forecast did not answer: {exc}",
             "error_code": "upstream_unavailable",
         }
+
+
+@tool
+@runtime.paid_tool(BLOCK_TRANSFORM_UUID)
+async def block_transform(
+    block: Annotated[str, BLOCK_FIELD],
+    style: Annotated[
+        str,
+        Field(description='"organic" (rooms of irregular beds) or "commercial_rows" (parallel beds on a bearing).',
+              pattern="^(organic|commercial_rows)$"),
+    ],
+    variants: Annotated[int, Field(description="How many layouts to propose, 1–5.", ge=1, le=5)] = 3,
+    seed: Annotated[int, Field(description="The same seed gives the same layout.", ge=0, le=2**31 - 1)] = 0,
+    paths: Annotated[
+        dict[str, float] | None,
+        Field(description=(
+            "Path widths in metres: {perimeter, room, bed}. Defaults 3.0, 3.0 and 1.8 "
+            "for organic; rows default to a 0.6 m path between rows."
+        )),
+    ] = None,
+    compactness_min: Annotated[
+        float, Field(description="The Polsby-Popper floor a bed must meet, 0.2–0.9.", ge=0.2, le=0.9),
+    ] = 0.5,
+    edge: Annotated[str, Field(description='"straight", "soft" or "curved" bed edges (organic).',
+                               pattern="^(straight|soft|curved)$")] = "soft",
+    rooms: Annotated[int, Field(description="Organic: garden rooms, 1–20.", ge=1, le=20)] = 4,
+    beds_per_room: Annotated[int, Field(description="Organic: beds in each room, 1–40.", ge=1, le=40)] = 8,
+    size_mix: Annotated[
+        list[float] | None,
+        Field(description="Organic: relative bed sizes dealt across the beds, e.g. [1, 1, 2]."),
+    ] = None,
+    irregularity: Annotated[float, Field(description="Organic: 0 even, 1 varied.", ge=0, le=1)] = 0.5,
+    bearing: Annotated[
+        float | None, Field(description="Rows: degrees clockwise from north the rows run along.", ge=0, le=360),
+    ] = None,
+    bearing_rule: Annotated[
+        str, Field(description='Rows, when no bearing: "longest_axis" (fewest turns) or "east_west" (even light).',
+                   pattern="^(longest_axis|east_west)$"),
+    ] = "longest_axis",
+    bed_width_m: Annotated[float, Field(description="Rows: bed width, 0.3–10 m.", ge=0.3, le=10)] = 1.2,
+    headland_m: Annotated[float, Field(description="Rows: turning room clear at both ends, 0–30 m.", ge=0, le=30)] = 6.0,
+    min_row_length_m: Annotated[
+        float, Field(description="Rows: shorter fragments are dropped, 1–200 m.", ge=1, le=200),
+    ] = 10.0,
+    npub: Annotated[
+        str,
+        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
+    ] = "",
+    dpop_token: str = "",
+) -> dict[str, Any]:
+    """Propose bed layouts inside a plot. Writes nothing.
+
+    Reads the plot's outline and returns `variants` layouts, each with its
+    metrics (beds, path share, worst and median compactness, narrowest path,
+    and for rows the row-metres, turns and headland share), warnings, a small
+    SVG preview, and `accept.blocks`: the exact list to pass to
+    goodearth_block_save(blocks=…) to keep it. Blocks already inside the plot
+    are retired under a `v1 ` name in that same list, so the old layout stays
+    readable and its names are free. A layout over 100 blocks comes as
+    `accept.batches`, saved in order.
+
+    Paths are the space between beds, kept at the width asked for after the
+    edges are softened. Below one terrain cell (about 90 m) neighbouring beds
+    share a climate sample; the warning says so, because the beds are then
+    bookkeeping and the climate answers stay at the plot's scale.
+    """
+    parsed, found = await _block_region(npub, block)
+    ring = ring_of(found.get("geometry") or {})
+    params = _layout_params(
+        style, paths, size_mix, rooms=rooms, beds_per_room=beds_per_room,
+        compactness_min=compactness_min, edge=edge, irregularity=irregularity, bearing=bearing,
+        bearing_rule=bearing_rule, bed_width_m=bed_width_m, headland_m=headland_m,
+        min_row_length_m=min_row_length_m,
+    )
+    everyone = await block_store.list_blocks(npub, include_retired=True)
+    inside = _blocks_inside(found, everyone)
+    out = await asyncio.to_thread(
+        layout_transform.propose, found.get("name") or "Plot", ring, params,
+        seed=seed, variants=variants, base_temp_f=float(found.get("base_temp_f") or 50.0),
+        grid_spacing_m=float(parsed.spacing_m), inside=inside,
+        taken_names={(b.get("name") or "").lower() for b in everyone},
+    )
+    return {"success": True, "block": found.get("block_id"), "style": style, "seed": seed,
+            "replaces": [b["block_id"] for b in inside], "variants": out}
+
+
+def _layout_params(style: str, paths: Any, size_mix: Any, **kw: Any) -> layout_transform.Params:
+    """The layout's settings from the tool's arguments, read as adversarial:
+    the declared fields bound the scalars; the two free-form ones are checked
+    here, and a bad value refuses the call before any work."""
+    lanes = {"perimeter": 3.0, "room": 3.0, "bed": 1.8 if style == "organic" else 0.6}
+    if paths is not None and not isinstance(paths, dict):
+        raise block_store.BlockError("paths is an object: {perimeter, room, bed} in metres")
+    for k, v in (paths or {}).items():
+        if k not in lanes or not isinstance(v, (int, float)) or isinstance(v, bool) or not 0.3 <= float(v) <= 20:
+            raise block_store.BlockError(f"paths.{k} must be one of perimeter, room, bed, each 0.3–20 m")
+        lanes[k] = float(v)
+    raw = size_mix if size_mix is not None else [1.0]
+    if not isinstance(raw, list) or not 1 <= len(raw) <= 10 or any(
+        isinstance(x, bool) or not isinstance(x, (int, float)) or not 0.1 <= float(x) <= 10 for x in raw
+    ):
+        raise block_store.BlockError("size_mix takes 1–10 relative sizes, each 0.1–10")
+    if style == "organic" and kw["rooms"] * kw["beds_per_room"] > block_store.MAX_BATCH * 2:
+        raise block_store.BlockError(f"rooms × beds_per_room is at most {block_store.MAX_BATCH * 2}")
+    return layout_transform.Params(
+        style=style, perimeter=lanes["perimeter"], room_lane=lanes["room"], bed_lane=lanes["bed"],
+        compactness_min=kw["compactness_min"], edge=kw["edge"], rooms=kw["rooms"],
+        beds_per_room=kw["beds_per_room"], size_mix=[float(x) for x in raw],
+        irregularity=kw["irregularity"], bearing=kw["bearing"], bearing_rule=kw["bearing_rule"],
+        bed_width=kw["bed_width_m"], headland=kw["headland_m"], min_row_length=kw["min_row_length_m"],
+    )
+
+
+def _blocks_inside(parent: dict[str, Any], blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The grower's live blocks lying within this one: its current layout."""
+    outline = Polygon([(lon, lat) for lat, lon in ring_of(parent.get("geometry") or {})])
+    if not outline.is_valid:
+        outline = outline.buffer(0)
+    out = []
+    for b in blocks:
+        if b.get("block_id") == parent.get("block_id") or b.get("retired"):
+            continue
+        try:
+            ring = ring_of(b.get("geometry") or {})
+        except RegionError:
+            continue
+        poly = Polygon([(lon, lat) for lat, lon in ring])
+        if poly.area < outline.area and outline.contains(Point(poly.centroid.x, poly.centroid.y)):
+            out.append(b)
+    return out
 
 
 @tool

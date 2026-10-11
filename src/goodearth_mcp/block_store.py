@@ -565,6 +565,11 @@ async def save_blocks(npub: str, specs: list[BlockSpec]) -> list[dict[str, Any]]
     plan: list[tuple[str, str, list[str], str, BlockSpec]] = []
     seen_keys: dict[str, int] = {}
     seen_ids: dict[str, int] = {}
+    # Blocks renamed by this batch, by id: a name one of them gives up earlier
+    # in the batch is free for a later block, because the upsert writes rows
+    # in the order given. Retiring an old layout and saving its replacement
+    # under the same names is one call.
+    freed: dict[str, int] = {}
     for i, (spec, clean, alias_list, given, key) in enumerate(cleaned):
         existing = by_id.get(given) if given and given != EXAMPLE_BLOCK_ID else None
         if given and given != EXAMPLE_BLOCK_ID and existing is None and not LEGACY_ID.match(given):
@@ -575,6 +580,8 @@ async def save_blocks(npub: str, specs: list[BlockSpec]) -> list[dict[str, Any]]
             alias_list = list(_hydrate(existing, npub).get("aliases") or [])
         bid = given or new_block_id()
         clash = by_key.get(key)
+        if clash is not None and clash["block_id"] in freed:
+            clash = None
         if clash is not None and clash["block_id"] != bid:
             # Name which block and say what to do. "Another of your blocks
             # already answers to this" states the obstacle and leaves the grower
@@ -596,6 +603,8 @@ async def save_blocks(npub: str, specs: list[BlockSpec]) -> list[dict[str, Any]]
             continue
         seen_keys[key] = i
         seen_ids[bid] = i
+        if existing is not None and existing["lookup_key"] != key:
+            freed[bid] = i
         plan.append((bid, clean, alias_list, key, spec))
 
     if problems:
@@ -648,6 +657,8 @@ def _hydrate(row: dict[str, Any], npub: str) -> dict[str, Any]:
         "geometry": _open(row.get("geometry_enc"), npub, bid, default={}) or {},
         "base_temp_f": row.get("base_temp_f") or 50.0,
         "area_ha": row.get("area_ha"),
+        # The exact area, for bed-sized blocks: `area_ha` reads 0 under 0.05 ha.
+        "area_m2": round(row["area_ha"] * 10_000, 1) if row.get("area_ha") is not None else None,
         "sample_count": row.get("sample_count"),
         "retired": bool(row.get("retired_at")),
         "created_at": row.get("created_at"),
