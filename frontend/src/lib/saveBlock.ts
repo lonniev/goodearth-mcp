@@ -14,7 +14,7 @@
 // cache follows, and the migration goes back to being what it says it is —
 // a lift of what old devices are still holding.
 
-import { blockSave } from "./mcp";
+import { blockSave, blockSaveMany, type BlockRow } from "./mcp";
 import { saveRegion, type SavedRegion } from "./regions";
 
 /// Put ground on the record and in the cache. Throws with a readable message
@@ -28,6 +28,7 @@ export async function saveBlock(r: SavedRegion): Promise<SavedRegion> {
     base_temp: r.baseTempF,
     // Omitted when unknown, so the server keeps what it has.
     ...(r.aliases ? { aliases: r.aliases } : {}),
+    ...(r.groups ? { groups: r.groups } : {}),
   });
   // This used to make an exception for `error_code === "ambiguous_block"`, on
   // the reasoning that a name the record already holds means the block is
@@ -50,8 +51,34 @@ export async function saveBlock(r: SavedRegion): Promise<SavedRegion> {
         areaHa: res.block.area_ha ?? undefined,
         sampleCount: res.block.sample_count ?? undefined,
         aliases: res.block.aliases ?? r.aliases,
+        groups: res.block.groups ?? r.groups,
       }
     : r;
   saveRegion(measured);
   return measured;
+}
+
+function measuredFrom(r: SavedRegion, b: BlockRow | undefined): SavedRegion {
+  return b
+    ? { ...r, name: b.name ?? r.name, areaHa: b.area_ha ?? undefined,
+        sampleCount: b.sample_count ?? undefined,
+        aliases: b.aliases ?? r.aliases, groups: b.groups ?? r.groups }
+    : r;
+}
+
+/// Several plots in one save — regrouping them is one call. All or nothing,
+/// and the cache follows only what the record took.
+export async function saveBlocks(rs: SavedRegion[]): Promise<SavedRegion[]> {
+  if (!rs.length) return [];
+  const res = await blockSaveMany(rs.map((r) => ({
+    block: r.id, name: r.name, geometry: r.region, base_temp: r.baseTempF,
+    ...(r.aliases ? { aliases: r.aliases } : {}),
+    ...(r.groups ? { groups: r.groups } : {}),
+  })));
+  if (!res?.success) {
+    throw new Error(res?.error || "The record would not take these plots.");
+  }
+  const out = rs.map((r, i) => measuredFrom(r, res.blocks?.[i]));
+  out.forEach(saveRegion);
+  return out;
 }

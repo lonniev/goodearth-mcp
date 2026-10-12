@@ -254,6 +254,7 @@ export default function App() {
         areaHa: b.area_ha ?? undefined,
         sampleCount: b.sample_count ?? undefined,
         aliases: b.aliases ?? [],
+        groups: b.groups ?? [],
       }));
       hydrate(rows);
       // Through `listRegions` rather than `rows`, so an empty record lands on

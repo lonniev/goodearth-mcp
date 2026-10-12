@@ -168,10 +168,12 @@ def propose(
     grid_spacing_m: float = 90.0,
     inside: list[dict[str, Any]] | None = None,
     taken_names: set[str] | None = None,
+    bed_groups: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Variants of a layout for one plot. `inside` are the blocks already within
     it (each {block_id, name, geometry, base_temp_f}), retired by acceptance;
-    `taken_names` are every name the grower uses, lower-cased."""
+    `taken_names` are every name the grower uses, lower-cased; `bed_groups`
+    are the groups every new bed is saved in."""
     frame: Frame = frame_for(ring)
     plot = to_polygon(frame, ring)
     inner = largest(plot.buffer(-p.perimeter, join_style="mitre"))
@@ -201,7 +203,8 @@ def propose(
             layout = _rows(inner, p, bearings[v % len(bearings)])
         metrics, warnings = _metrics(plot, layout, p, grid_spacing_m)
         new_blocks = [{"name": f"{plot_name} · {name}", "geometry": to_geojson(frame, poly),
-                       "base_temp": base_temp_f} for name, poly in layout.beds]
+                       "base_temp": base_temp_f, "groups": list(bed_groups or [])}
+                      for name, poly in layout.beds]
         everything = retire + new_blocks
         batches = [everything[i:i + BATCH] for i in range(0, len(everything), BATCH)]
         if len(batches) > 1:

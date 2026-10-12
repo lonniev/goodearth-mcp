@@ -12,7 +12,7 @@ import re
 from typing import Any
 
 COLS = ["npub", "block_id", "lookup_key", "name_enc", "aliases_enc", "geometry_enc",
-        "base_temp_f", "area_ha", "sample_count", "retired_at"]
+        "base_temp_f", "area_ha", "sample_count", "retired_at", "groups_enc"]
 
 
 class BlockVault:

@@ -89,6 +89,9 @@ export interface SavedRegion {
   /// Other names the plot answers to. Undefined means "not known here", and a
   /// save leaves the server's copy alone; `[]` clears them.
   aliases?: string[];
+  /// Group paths this plot is in, `North Farm / Orchard`. Undefined means
+  /// "not known here", and a save leaves the server's copy alone.
+  groups?: string[];
 }
 
 /// The worked example's id, exported because four files were checking for it

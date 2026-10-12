@@ -18,7 +18,7 @@ export const TARGETS = [
   "ledger.chips", "ledger.pulse", "ledger.ground", "ledger.events", "ledger.weather",
   "ledger.chart", "ledger.trends", "ledger.doors",
   // My Plots.
-  "plots.add", "plots.import", "plots.chips", "plots.rename", "plots.share", "plots.forget",
+  "plots.add", "plots.import", "plots.groups", "plots.chips", "plots.rename", "plots.share", "plots.forget",
   "plots.search", "plots.locate", "plots.shape", "plots.map", "plots.name", "plots.base", "plots.save",
   "plots.sun", "plots.labels", "plots.sunview",
   // Flora.

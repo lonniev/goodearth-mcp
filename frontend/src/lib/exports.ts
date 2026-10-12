@@ -105,17 +105,17 @@ export function plotsSheet(regions: SavedRegion[], unit: Unit): Sheet {
   return {
     title: "My Plots", emoji: "🗺️",
     eyebrow: n(regions.length, "plot"),
-    head: ["Plot", "Also called", "Shape", "Area", "Base", "Latitude", "Longitude"],
+    head: ["Plot", "Also called", "Groups", "Shape", "Area", "Base", "Latitude", "Longitude"],
     rows: regions.map((r) => {
       const c = centre(r);
       return [
-        r.name, (r.aliases ?? []).join(", "),
+        r.name, (r.aliases ?? []).join(", "), (r.groups ?? []).join("; "),
         "lat" in r.region ? `pin · ${Math.round(r.region.radius_m)} m` : "drawn",
         area(r), showTemp(r.baseTempF, unit), c.lat.toFixed(5), c.lon.toFixed(5),
       ];
     }),
     json: regions.map((r) => ({
-      id: r.id, name: r.name, aliases: r.aliases ?? [], base_temp_f: r.baseTempF,
+      id: r.id, name: r.name, aliases: r.aliases ?? [], groups: r.groups ?? [], base_temp_f: r.baseTempF,
       area_ha: r.areaHa ?? null, region: r.region,
     })),
   };
