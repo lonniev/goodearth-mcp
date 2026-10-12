@@ -17,7 +17,7 @@ import { showDD, showTemp } from "./units.ts";
 const src = (rel: string) => readFileSync(new URL(`../${rel}`, import.meta.url), "utf8");
 
 const meadow: SavedRegion = {
-  id: "blk_1", name: "Lower Meadow", baseTempF: 50, aliases: ["Meadow"],
+  id: "blk_1", name: "Lower Meadow", baseTempF: 50, aliases: ["Meadow"], groups: ["North Farm / Hay"],
   region: { type: "Polygon", coordinates: [[[-73.25, 44.16], [-73.24, 44.16], [-73.24, 44.17], [-73.25, 44.17], [-73.25, 44.16]]] },
 };
 const pin: SavedRegion = {
@@ -56,16 +56,17 @@ describe("plotsSheet", () => {
     assert.equal(s.eyebrow, "2 plots");
     assert.equal(s.rows[0][0], "Lower Meadow");
     assert.equal(s.rows[0][1], "Meadow");
-    assert.equal(s.rows[0][2], "drawn");
-    assert.match(String(s.rows[0][3]), /acres/);
-    assert.equal(s.rows[0][4], showTemp(50, "F"));
-    assert.equal(s.rows[0][5], "44.16500");
-    assert.equal(s.rows[1][2], "pin · 100 m");
-    assert.equal(s.rows[1][4], showTemp(45, "F"));
+    assert.equal(s.rows[0][2], "North Farm / Hay");
+    assert.equal(s.rows[0][3], "drawn");
+    assert.match(String(s.rows[0][4]), /acres/);
+    assert.equal(s.rows[0][5], showTemp(50, "F"));
+    assert.equal(s.rows[0][6], "44.16500");
+    assert.equal(s.rows[1][3], "pin · 100 m");
+    assert.equal(s.rows[1][5], showTemp(45, "F"));
   });
 
   it("reads the base in the scale the reader asked for", () => {
-    assert.equal(plotsSheet([meadow], "C").rows[0][4], showTemp(50, "C"));
+    assert.equal(plotsSheet([meadow], "C").rows[0][5], showTemp(50, "C"));
   });
 
   it("carries the geometry in the JSON, which the agent needs and the table does not", () => {

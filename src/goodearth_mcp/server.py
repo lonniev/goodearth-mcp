@@ -2189,11 +2189,20 @@ async def block_save(
         bool,
         Field(description="True to retire it. Nothing is deleted — its record stays readable."),
     ] = False,
+    groups: Annotated[
+        list[str] | None,
+        Field(description=(
+            "The groups this ground belongs to. A group inside a group is a path: "
+            "'North Farm / Orchard' is in 'North Farm' too. "
+            "Omit to keep the groups it has; pass [] to clear them."
+        )),
+    ] = None,
     blocks: Annotated[
         list[dict[str, Any]] | None,
         Field(description=(
             "Several blocks in one call, each {name, geometry, block?, aliases?, "
-            "base_temp?, retired?} — the fields above, per block. A garden laid out "
+            "base_temp?, retired?, groups?} — the fields above, per block. Regrouping "
+            "many plots is one call. A garden laid out "
             f"as beds is one call, not one per bed. Up to {block_store.MAX_BATCH}; "
             "all are checked before any is saved, and one problem refuses the lot."
         )),
@@ -2220,7 +2229,8 @@ async def block_save(
     """
     if blocks is not None:
         return await _save_many_blocks(npub, blocks, single_given=bool(
-            name or geometry is not None or block or aliases is not None or retired or base_temp != 50.0
+            name or geometry is not None or block or aliases is not None or retired
+            or base_temp != 50.0 or groups is not None
         ))
     if not name or geometry is None:
         raise block_store.BlockError("name and geometry are required, or a list in `blocks`")
@@ -2236,7 +2246,7 @@ async def block_save(
             aliases=aliases, base_temp_f=base_temp,
             area_ha=round(described.get("area_km2", 0.0) * 100.0, 4),
             sample_count=parsed.sample_count,
-            retired=retired,
+            retired=retired, groups=groups,
         )
     except OSError as exc:
         logger.error("block_save persistence failed: %s", exc)
@@ -2250,7 +2260,7 @@ async def block_save(
 
 
 
-_BLOCK_FIELDS = {"name", "geometry", "block", "aliases", "base_temp", "retired"}
+_BLOCK_FIELDS = {"name", "geometry", "block", "aliases", "base_temp", "retired", "groups"}
 
 
 async def _save_many_blocks(npub: str, blocks: Any, *, single_given: bool) -> dict[str, Any]:
@@ -2285,12 +2295,14 @@ async def _save_many_blocks(npub: str, blocks: Any, *, single_given: bool) -> di
         base_temp = b.get("base_temp", 50.0)
         retired = b.get("retired", False)
         aliases = b.get("aliases")
+        groups = b.get("groups")
         if not isinstance(block_id, str) or not isinstance(retired, bool) \
                 or isinstance(base_temp, bool) or not isinstance(base_temp, (int, float)) \
-                or (aliases is not None and not isinstance(aliases, list)):
+                or (aliases is not None and not isinstance(aliases, list)) \
+                or (groups is not None and not isinstance(groups, list)):
             problems.append(
                 f"block {i} ({name!r}): block must be text, base_temp a number, "
-                "retired true or false, aliases a list"
+                "retired true or false, aliases and groups lists"
             )
             continue
         try:
@@ -2303,7 +2315,7 @@ async def _save_many_blocks(npub: str, blocks: Any, *, single_given: bool) -> di
             name=name, geometry=geometry, block_id=block_id, aliases=aliases,
             base_temp_f=float(base_temp),
             area_ha=round(described.get("area_km2", 0.0) * 100.0, 4),
-            sample_count=parsed.sample_count, retired=retired,
+            sample_count=parsed.sample_count, retired=retired, groups=groups,
         ))
     if problems:
         raise block_store.BlockError("; ".join(problems) + ". Nothing was saved.")
@@ -2325,6 +2337,10 @@ async def block_list(
         bool,
         Field(description="Include ground you have retired."),
     ] = False,
+    group: Annotated[
+        str,
+        Field(description="Only the ground in this group, or in a group inside it, e.g. 'North Farm'."),
+    ] = "",
     npub: Annotated[
         str,
         Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
@@ -2343,7 +2359,12 @@ async def block_list(
     Blocks can overlap — a meadow drawn inside the farm that contains it is two
     blocks, each answered for its own ground. Read an overlap as intent, not as
     one outline being wrong.
+
+    Each block names its `groups`. A group path like 'North Farm / Orchard'
+    sits inside 'North Farm'; `group` lists one group with everything inside it.
     """
+    if group:
+        group = block_store.clean_group_path(group)
     try:
         blocks = await block_store.list_blocks(npub, include_retired=include_retired)
     except OSError as exc:
@@ -2357,6 +2378,8 @@ async def block_list(
     seeded = not blocks
     if seeded:
         blocks = [dict(block_store.EXAMPLE_BLOCK)]
+    elif group:
+        blocks = [b for b in blocks if block_store.in_group(b.get("groups") or [], group)]
     return {
         "success": True,
         "blocks": blocks,
@@ -2713,7 +2736,8 @@ async def block_transform(
     SVG preview, and `accept.blocks`: the exact list to pass to
     goodearth_block_save(blocks=…) to keep it. Blocks already inside the plot
     are retired under a `v1 ` name in that same list, so the old layout stays
-    readable and its names are free. A layout over 100 blocks comes as
+    readable and its names are free. The new beds are saved in a group named
+    for the plot, inside each group the plot is in. A layout over 100 blocks comes as
     `accept.batches`, saved in order.
 
     Paths are the space between beds, kept at the width asked for after the
@@ -2736,6 +2760,7 @@ async def block_transform(
         seed=seed, variants=variants, base_temp_f=float(found.get("base_temp_f") or 50.0),
         grid_spacing_m=float(parsed.spacing_m), inside=inside,
         taken_names={(b.get("name") or "").lower() for b in everyone},
+        bed_groups=block_store.beds_groups(found.get("name") or "Plot", found.get("groups") or []),
     )
     return {"success": True, "block": found.get("block_id"), "style": style, "seed": seed,
             "replaces": [b["block_id"] for b in inside], "variants": out}

@@ -23,6 +23,9 @@ import {
 import { blockSave } from "../lib/mcp";
 import { deleteRegion, EXAMPLE_ID, listRegions, type SavedRegion } from "../lib/regions";
 import { chipTap, hide, readHidden, show, stillHidden, writeHidden } from "../lib/hiddenPlots";
+import { narrowTo } from "../lib/plotGroups";
+import { readFocusGroup, writeFocusGroup } from "../lib/focusGroup";
+import PlotGroups from "../components/PlotGroups";
 import { saveBlock } from "../lib/saveBlock";
 import { baseBounds } from "../lib/baseTemp";
 import PlotEditor from "../components/PlotEditor";
@@ -89,6 +92,18 @@ export default function Plots({
   const [asking, setAsking] = useState<string | null>(null);
   const setHidden = (ids: string[]) => setHiddenIds(writeHidden(ids));
   const hiddenNow = stillHidden(hiddenIds, regions.map((r) => r.id));
+  /// The group the page is narrowed to, on this device; "" is every plot.
+  /// A group whose last plot left it widens back to every plot.
+  const [groupPick, setGroupPick] = useState<string>(readFocusGroup);
+  const narrowed = narrowTo(regions, groupPick);
+  const focusGroup = narrowed.length ? groupPick : "";
+  const shown = focusGroup ? narrowed : regions;
+  function workOnGroup(g: string) {
+    setGroupPick(writeFocusGroup(g));
+    setAsking(null);
+    const members = narrowTo(regions, g);
+    if (g && members.length && !members.some((r) => r.id === active.id)) onPick(members[0]);
+  }
 
   /// Re-read the saved ground whenever something could have written it.
   ///
@@ -355,8 +370,15 @@ export default function Plots({
       {/* One chip per plot, the map right under them: the page is the map.
           A chip tapped is the plot worked; rename, share and forget act on
           the plot being worked, at the row's end, not on every card. */}
+      <PlotGroups plots={regions} focus={focusGroup} onFocus={workOnGroup}
+        hidden={hiddenNow} onHidden={setHidden} synced={synced}
+        onSaved={(saved) => {
+          setRegions(listRegions());
+          const mine = saved.find((r) => r.id === active.id);
+          if (mine) onSaved(mine);
+        }} />
       <div className="flex flex-wrap items-center gap-2" {...tour("plots.chips")}>
-        {regions.map((r) => {
+        {shown.map((r) => {
           const isActive = r.id === active.id;
           const isHidden = hiddenNow.includes(r.id);
           // First tap works the plot and frames it; a tap on the framed plot
@@ -457,7 +479,7 @@ export default function Plots({
           map stays its own, further down, so a tap here never adds a corner. */}
       <div className="mt-2.5">
         {/* A hidden worked plot takes its Sun layer with it. */}
-        <PlotsMap plots={regions} activeId={active.id} onPick={onPick}
+        <PlotsMap plots={shown} activeId={active.id} onPick={onPick}
           sun={hiddenNow.includes(active.id) ? undefined : sunControl} focus={focus}
           hidden={hiddenNow} onFramed={setFramedId} />
       </div>

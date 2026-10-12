@@ -1321,6 +1321,8 @@ export interface BlockRow {
   block_id: string;
   name: string;
   aliases: string[];
+  /// Group paths, `North Farm / Orchard`; absent from an older server.
+  groups?: string[];
   geometry: Region;
   base_temp_f: number;
   area_ha?: number | null;
@@ -1379,9 +1381,21 @@ export async function blockList(includeRetired = false): Promise<BlockListResult
 
 export async function blockSave(b: {
   name: string; geometry: Region; block?: string; aliases?: string[];
-  base_temp?: number; retired?: boolean;
+  base_temp?: number; retired?: boolean; groups?: string[];
 }): Promise<{ success: boolean; block?: BlockRow; error?: string; error_code?: string }> {
   return callTool("block_save", b);
+}
+
+export type BlockFields = {
+  name: string; geometry: Region; block?: string; aliases?: string[];
+  base_temp?: number; retired?: boolean; groups?: string[];
+};
+
+/// Several blocks in one call: all checked, then all saved, or none.
+export async function blockSaveMany(blocks: BlockFields[]): Promise<{
+  success: boolean; blocks?: BlockRow[]; error?: string; error_code?: string;
+}> {
+  return callTool("block_save", { blocks });
 }
 
 export async function blockItemSave(

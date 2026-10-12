@@ -1,0 +1,1 @@
+- Plots can be grouped, and groups can sit inside groups (`North Farm / Orchard`). A group chip on My Plots shows, hides or works on every plot in it at once. `block_save` takes `groups`, and `block_list` takes a `group` to list one group with everything inside it. Accepting a bed layout puts the new beds in a group named for their plot.

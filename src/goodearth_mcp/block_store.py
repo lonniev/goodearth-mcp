@@ -113,6 +113,7 @@ EXAMPLE_BLOCK: dict[str, Any] = {
     "block_id": EXAMPLE_BLOCK_ID,
     "name": "Champlain Valley",
     "aliases": [],
+    "groups": [],
     "geometry": {
         "type": "Polygon",
         "coordinates": [[
@@ -205,6 +206,8 @@ _MIGRATIONS: list[str] = [
     f"ALTER TABLE {ITEMS} ALTER COLUMN payload_enc DROP NOT NULL",
     f"CREATE INDEX IF NOT EXISTS ge_items_name_idx ON {ITEMS} (npub, block_id, kind, name)",
     f"CREATE INDEX IF NOT EXISTS ge_items_starts_idx ON {ITEMS} (npub, block_id, kind, starts_on)",
+    # The groups a block belongs to, sealed like its aliases.
+    f"ALTER TABLE {BLOCKS} ADD COLUMN IF NOT EXISTS groups_enc TEXT",
 
 ]
 
@@ -471,6 +474,66 @@ def _clean_aliases(aliases: Any) -> list[str]:
     return out
 
 
+#: Group paths: `North Farm / Orchard / Apples` is a group inside a group.
+GROUP_SEP = " / "
+MAX_GROUP_DEPTH = 6
+MAX_GROUPS = 20
+
+
+def clean_group_path(path: Any) -> str:
+    """One group path, its segments trimmed and joined with `` / ``."""
+    parts = [p.strip() for p in str(path or "").split("/")]
+    if not any(parts):
+        raise BlockError("a group needs a name")
+    if not all(parts):
+        raise BlockError(f"the group {str(path)!r} has an empty step between its slashes")
+    if len(parts) > MAX_GROUP_DEPTH:
+        raise BlockError(f"a group is at most {MAX_GROUP_DEPTH} levels deep")
+    clean = GROUP_SEP.join(parts)
+    if len(clean) > MAX_NAME_LEN:
+        raise BlockError(f"a group path is at most {MAX_NAME_LEN} characters")
+    return clean
+
+
+def _clean_groups(groups: Any) -> list[str]:
+    if not groups:
+        return []
+    if not isinstance(groups, list):
+        raise BlockError("groups must be a list of group names")
+    out: list[str] = []
+    seen: set[str] = set()
+    for g in groups:
+        clean = clean_group_path(g)
+        if clean.casefold() not in seen:
+            seen.add(clean.casefold())
+            out.append(clean)
+    if len(out) > MAX_GROUPS:
+        raise BlockError(f"a block is in at most {MAX_GROUPS} groups")
+    return out
+
+
+def in_group(block_groups: list[str], group: str) -> bool:
+    """Whether a block is in ``group`` itself or in a group inside it."""
+    want = clean_group_path(group).casefold()
+    return any(
+        g.casefold() == want or g.casefold().startswith(want + GROUP_SEP.casefold())
+        for g in block_groups
+    )
+
+
+def beds_groups(plot_name: str, plot_groups: list[str]) -> list[str]:
+    """The group a plot's beds go in: the plot's name, inside each group the
+    plot is in, so `North Farm / Cottage Garden` holds Cottage Garden's beds."""
+    own = (plot_name or "Plot").replace("/", "-").strip() or "Plot"
+    out: list[str] = []
+    for g in plot_groups or []:
+        try:
+            out.append(clean_group_path(f"{g}{GROUP_SEP}{own}"))
+        except BlockError:
+            continue
+    return out or [clean_group_path(own[:MAX_NAME_LEN])]
+
+
 def new_block_id(requested: str = "") -> str:
     """A block's id: the caller's only if it is a migrating browser id."""
     want = (requested or "").strip()
@@ -500,13 +563,14 @@ class BlockSpec:
     area_ha: float | None = None
     sample_count: int | None = None
     retired: bool = False
+    groups: Any = None
 
 
 async def save_block(
     npub: str, *, name: str, geometry: dict[str, Any],
     block_id: str = "", aliases: Any = None, base_temp_f: float = 50.0,
     area_ha: float | None = None, sample_count: int | None = None,
-    retired: bool = False,
+    retired: bool = False, groups: Any = None,
 ) -> dict[str, Any]:
     """Create or update one block. Returns the stored row, decrypted.
 
@@ -518,7 +582,7 @@ async def save_block(
     (stored,) = await save_blocks(npub, [BlockSpec(
         name=name, geometry=geometry, block_id=block_id, aliases=aliases,
         base_temp_f=base_temp_f, area_ha=area_ha, sample_count=sample_count,
-        retired=retired,
+        retired=retired, groups=groups,
     )])
     return stored
 
@@ -543,6 +607,7 @@ async def save_blocks(npub: str, specs: list[BlockSpec]) -> list[dict[str, Any]]
         clean = _clean_name(spec.name)
         given = spec.block_id.strip()
         cleaned.append((spec, clean, _clean_aliases(spec.aliases), given, lookup_key(npub, clean)))
+    group_lists = [_clean_groups(spec.groups) for spec in specs]
 
     ids = [g for _, _, _, g, _ in cleaned if g and g != EXAMPLE_BLOCK_ID]
     keys = [k for *_, k in cleaned]
@@ -562,7 +627,7 @@ async def save_blocks(npub: str, specs: list[BlockSpec]) -> list[dict[str, Any]]
     by_key = {row["lookup_key"]: row for row in found}
 
     problems: list[tuple[int, BlockError]] = []
-    plan: list[tuple[str, str, list[str], str, BlockSpec]] = []
+    plan: list[tuple[str, str, list[str], str, BlockSpec, list[str]]] = []
     seen_keys: dict[str, int] = {}
     seen_ids: dict[str, int] = {}
     # Blocks renamed by this batch, by id: a name one of them gives up earlier
@@ -576,8 +641,13 @@ async def save_blocks(npub: str, specs: list[BlockSpec]) -> list[dict[str, Any]]
             # An id we minted, i.e. an update of a block that is not there.
             problems.append((i, UnknownBlock("no block of yours has that id")))
             continue
-        if spec.aliases is None and existing is not None:
-            alias_list = list(_hydrate(existing, npub).get("aliases") or [])
+        group_list = group_lists[i]
+        if existing is not None and (spec.aliases is None or spec.groups is None):
+            had = _hydrate(existing, npub)
+            if spec.aliases is None:
+                alias_list = list(had.get("aliases") or [])
+            if spec.groups is None:
+                group_list = list(had.get("groups") or [])
         bid = given or new_block_id()
         clash = by_key.get(key)
         if clash is not None and clash["block_id"] in freed:
@@ -605,7 +675,7 @@ async def save_blocks(npub: str, specs: list[BlockSpec]) -> list[dict[str, Any]]
         seen_ids[bid] = i
         if existing is not None and existing["lookup_key"] != key:
             freed[bid] = i
-        plan.append((bid, clean, alias_list, key, spec))
+        plan.append((bid, clean, alias_list, key, spec, group_list))
 
     if problems:
         if len(specs) == 1:
@@ -616,26 +686,28 @@ async def save_blocks(npub: str, specs: list[BlockSpec]) -> list[dict[str, Any]]
 
     values: list[str] = []
     args: list[Any] = []
-    for bid, clean, alias_list, key, spec in plan:
+    for bid, clean, alias_list, key, spec, group_list in plan:
         n = len(args)
-        values.append("(" + ", ".join(f"${n + j + 1}" for j in range(10)) + ")")
+        values.append("(" + ", ".join(f"${n + j + 1}" for j in range(11)) + ")")
         args.extend([
             npub, bid, key,
             _seal(clean, npub, bid), _seal(alias_list, npub, bid),
             _seal(spec.geometry, npub, bid),
             float(spec.base_temp_f or 50.0), spec.area_ha, spec.sample_count,
             datetime.now(UTC).isoformat() if spec.retired else None,
+            _seal(group_list, npub, bid),
         ])
     r = await v._execute(
         _t(
             f"INSERT INTO {BLOCKS} (npub, block_id, lookup_key, name_enc, aliases_enc, "
-            "geometry_enc, base_temp_f, area_ha, sample_count, retired_at) "
+            "geometry_enc, base_temp_f, area_ha, sample_count, retired_at, groups_enc) "
             f"VALUES {', '.join(values)} "
             "ON CONFLICT (npub, block_id) DO UPDATE SET "
             "lookup_key = EXCLUDED.lookup_key, name_enc = EXCLUDED.name_enc, "
             "aliases_enc = EXCLUDED.aliases_enc, geometry_enc = EXCLUDED.geometry_enc, "
             "base_temp_f = EXCLUDED.base_temp_f, area_ha = EXCLUDED.area_ha, "
             "sample_count = EXCLUDED.sample_count, retired_at = EXCLUDED.retired_at, "
+            "groups_enc = EXCLUDED.groups_enc, "
             f"updated_at = NOW() WHERE {BLOCKS}.npub = EXCLUDED.npub "
             f"RETURNING {_BLOCK_COLS}"
         ),
@@ -654,6 +726,7 @@ def _hydrate(row: dict[str, Any], npub: str) -> dict[str, Any]:
         "block_id": bid,
         "name": _open(row.get("name_enc"), npub, bid, default=""),
         "aliases": _open(row.get("aliases_enc"), npub, bid, default=[]) or [],
+        "groups": _open(row.get("groups_enc"), npub, bid, default=[]) or [],
         "geometry": _open(row.get("geometry_enc"), npub, bid, default={}) or {},
         "base_temp_f": row.get("base_temp_f") or 50.0,
         "area_ha": row.get("area_ha"),
@@ -668,7 +741,7 @@ def _hydrate(row: dict[str, Any], npub: str) -> dict[str, Any]:
 
 _BLOCK_COLS = (
     "npub, block_id, lookup_key, name_enc, aliases_enc, geometry_enc, "
-    "base_temp_f, area_ha, sample_count, retired_at, created_at, updated_at"
+    "base_temp_f, area_ha, sample_count, retired_at, created_at, updated_at, groups_enc"
 )
 
 
