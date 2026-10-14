@@ -16,12 +16,23 @@ from datetime import UTC, date, datetime
 from typing import Annotated, Any
 
 from fastmcp import FastMCP
+from mcp.types import Icon
 from pydantic import Field
 from shapely.geometry import Point, Polygon
 from tollbooth.credential_templates import CredentialTemplate, FieldSpec
 from tollbooth.credential_validators import validate_btcpay_creds
+from tollbooth.params import DpopToken, PatronNpub
 from tollbooth.runtime import OperatorRuntime, register_standard_tools
-from tollbooth.tool_identity import STANDARD_IDENTITIES, ToolIdentity
+from tollbooth.tool_identity import (
+    DELETES,
+    READS,
+    READS_REMOTE,
+    REPLACES,
+    STANDARD_IDENTITIES,
+    WRITES,
+    ToolBehavior,
+    ToolIdentity,
+)
 
 from goodearth_mcp import (
     __version__,
@@ -95,6 +106,12 @@ SITE = f"https://{SITE_HOST}"
 
 mcp = FastMCP(
     "goodearth-mcp",
+    version=__version__,
+    website_url=SITE,
+    icons=[
+        Icon(src=f"{SITE}/icon.svg", mimeType="image/svg+xml"),
+        Icon(src=f"{SITE}/apple-touch-icon.png", mimeType="image/png", sizes=["180x180"]),
+    ],
     instructions=(
         "Good Earth — region-scoped climate analytics for small specialty-crop "
         "and flower farms, monetized via Tollbooth DPYC Bitcoin Lightning "
@@ -208,174 +225,237 @@ DRYING_WINDOW_UUID         = "9e07633f-a43a-5298-9691-7678a59cfb32"
 SUNLIGHT_UUID              = "64b04d3a-134c-5c42-85f6-e5a97eb3322d"
 BLOCK_TRANSFORM_UUID       = "2743c05c-ff22-5324-8f25-4faed396b50a"
 
+# A save with no id records a new row every time; a save with an id replaces
+# that row's payload. So it can overwrite, and repeating it can add more.
+SAVES = ToolBehavior(read_only=False, destructive=True, idempotent=False, open_world=False)
+# calendar_dataset reads the weather feeds, then stores the feed it built: a
+# new feed without a token, the same feed replaced with one.
+PUBLISHES_REMOTE = ToolBehavior(read_only=False, destructive=True, idempotent=False, open_world=True)
+
 _DOMAIN_TOOLS = [
     ToolIdentity(
         tool_id=GDD_SEASON_CURVE_UUID,
         capability="gdd_season_curve",
         category="read",
-        intent="Growing degree day accumulation across a region, against recent seasons",
+        title="Growing degree days",
+        behavior=READS_REMOTE,
+intent="Growing degree day accumulation across a region, against recent seasons",
     ),
     ToolIdentity(
         tool_id=FROST_WINDOW_UUID,
         capability="frost_window",
         category="read",
-        intent="First-frost dates for a region, and this week's risk to its coldest ground",
+        title="Frost window",
+        behavior=READS_REMOTE,
+intent="First-frost dates for a region, and this week's risk to its coldest ground",
     ),
     ToolIdentity(
         tool_id=CROP_GDD_STATUS_UUID,
         capability="crop_gdd_status",
         category="heavy",
-        intent="Heat to target and projected date for every planting on a block, with a frost verdict",
+        title="Crop heat status",
+        behavior=READS_REMOTE,
+intent="Heat to target and projected date for every planting on a block, with a frost verdict",
     ),
     ToolIdentity(
         tool_id=SOIL_TEMP_PROJECTION_UUID,
         capability="soil_temp_projection",
         category="read",
-        intent="When soil at planting depth crosses a threshold on this ground",
+        title="Soil temperature projection",
+        behavior=READS_REMOTE,
+intent="When soil at planting depth crosses a threshold on this ground",
     ),
     ToolIdentity(
         tool_id=PEST_THRESHOLD_UUID,
         capability="pest_threshold",
         category="read",
-        intent="Where a pest model's degree-day stages stand on this ground, and when the next arrives",
+        title="Pest stage timing",
+        behavior=READS_REMOTE,
+intent="Where a pest model's degree-day stages stand on this ground, and when the next arrives",
     ),
     ToolIdentity(
         tool_id=DISEASE_RISK_UUID,
         capability="disease_risk",
         category="read",
-        intent="How many hours this ground stayed wet, and what the published disease models make of them",
+        title="Disease risk",
+        behavior=READS_REMOTE,
+intent="How many hours this ground stayed wet, and what the published disease models make of them",
     ),
     ToolIdentity(
         tool_id=DRYING_WINDOW_UUID,
         capability="drying_window",
         category="read",
-        intent="When the dew burns off this ground, the dry days ahead, and the next rain",
+        title="Drying window",
+        behavior=READS_REMOTE,
+intent="When the dew burns off this ground, the dry days ahead, and the next rain",
     ),
     ToolIdentity(
         tool_id=CALIBRATION_UUID,
         capability="calibration",
         category="write",
-        intent="Turn a block's own field reports into a per-region correction on the model",
+        title="Calibrate from field reports",
+        behavior=READS_REMOTE,
+intent="Turn a block's own field reports into a per-region correction on the model",
     ),
     ToolIdentity(
         tool_id=ALMANAC_UUID,
         capability="almanac",
         category="heavy",
-        intent="Temperature, dew point, rain, sun and moon for a region — normal, actual and forecast",
+        title="Weather almanac",
+        behavior=READS_REMOTE,
+intent="Temperature, dew point, rain, sun and moon for a region — normal, actual and forecast",
     ),
     ToolIdentity(
         tool_id=WILDLIFE_CALENDAR_UUID,
         capability="wildlife_calendar",
         category="read",
-        intent="When a grower's own wildlife events arrive on this ground — heat, daylight or calendar driven",
+        title="Wildlife calendar",
+        behavior=READS_REMOTE,
+intent="When a grower's own wildlife events arrive on this ground — heat, daylight or calendar driven",
     ),
     ToolIdentity(
         tool_id=PLAN_THE_SEASON_UUID,
         capability="plan_the_season",
         category="read",
-        intent="The season-planning interview, for clients that do not surface MCP prompts",
+        title="Plan the season",
+        behavior=READS,
+intent="The season-planning interview, for clients that do not surface MCP prompts",
     ),
     ToolIdentity(
         tool_id=REVIEW_ROSTER_UUID,
         capability="review_roster",
         category="heavy",
-        intent="Audit a grower's pests, wildlife and observations against what this ground's record actually knows",
+        title="Review the roster",
+        behavior=READS_REMOTE,
+intent="Audit a grower's pests, wildlife and observations against what this ground's record actually knows",
     ),
     ToolIdentity(
         tool_id=TASK_SAVE_UUID,
         capability="task_save",
         category="write",
-        intent="Create or update one task on a region's list",
+        title="Save a task",
+        behavior=SAVES,
+intent="Create or update one task on a region's list",
     ),
     ToolIdentity(
         tool_id=TASK_LIST_UUID,
         capability="task_list",
         category="read",
-        intent="One page of a region's tasks, filtered by timeframe and search, ordered by the database",
+        title="List tasks",
+        behavior=READS,
+intent="One page of a region's tasks, filtered by timeframe and search, ordered by the database",
     ),
     ToolIdentity(
         tool_id=TASK_DELETE_UUID,
         capability="task_delete",
         category="write",
-        intent="Remove one task from a region's list",
+        title="Delete a task",
+        behavior=DELETES,
+intent="Remove one task from a region's list",
     ),
     ToolIdentity(
         tool_id=TASK_SET_DONE_UUID,
         capability="task_set_done",
         category="write",
-        intent="Mark one task done or not done",
+        title="Mark a task done",
+        behavior=WRITES,
+intent="Mark one task done or not done",
     ),
     ToolIdentity(
         tool_id=PEST_CATALOG_UUID,
         capability="pest_catalog",
         category="read",
-        intent="Which pest stages are modelled for this ground this season, and the insects recorded near it",
+        title="Pest catalog",
+        behavior=READS_REMOTE,
+intent="Which pest stages are modelled for this ground this season, and the insects recorded near it",
     ),
     ToolIdentity(
         tool_id=WILDLIFE_CATALOG_UUID,
         capability="wildlife_catalog",
         category="read",
-        intent="Which animals are actually recorded around this ground, by group and by how often they are seen",
+        title="Wildlife catalog",
+        behavior=READS_REMOTE,
+intent="Which animals are actually recorded around this ground, by group and by how often they are seen",
     ),
     ToolIdentity(
         tool_id=NEARBY_SPECIES_UUID,
         capability="nearby_species",
         category="read",
-        intent="Search what is recorded near this ground — plants, insects, wildlife or fungi — a page at a time",
+        title="Nearby species",
+        behavior=READS_REMOTE,
+intent="Search what is recorded near this ground — plants, insects, wildlife or fungi — a page at a time",
     ),
     ToolIdentity(
         tool_id=CROP_SUITABILITY_UUID,
         capability="crop_suitability",
         category="read",
-        intent="Which crops finish on this ground, measured against its own frost-free heat budget",
+        title="Crop suitability",
+        behavior=READS_REMOTE,
+intent="Which crops finish on this ground, measured against its own frost-free heat budget",
     ),
     ToolIdentity(
         tool_id=TREE_SUITABILITY_UUID,
         capability="tree_suitability",
         category="read",
-        intent="Whether a tree survives and gets its chill on this ground, across every winter on record",
+        title="Tree suitability",
+        behavior=READS_REMOTE,
+intent="Whether a tree survives and gets its chill on this ground, across every winter on record",
     ),
     ToolIdentity(
         tool_id=TREE_YEAR_UUID,
         capability="tree_year",
         category="read",
-        intent="When spring reached this block — first leaf and first bloom against their normals — and what the sap did",
+        title="Tree year",
+        behavior=READS_REMOTE,
+intent="When spring reached this block — first leaf and first bloom against their normals — and what the sap did",
     ),
     ToolIdentity(
         tool_id=COMPANIONS_UUID,
         capability="companions",
         category="read",
-        intent="Companions for one planting on a block — synergy by cited family rules, or design from the grower's own colour, height and bloom",
+        title="Companion plants",
+        behavior=READS_REMOTE,
+intent="Companions for one planting on a block — synergy by cited family rules, or design from the grower's own colour, height and bloom",
     ),
     ToolIdentity(
         tool_id=PLANTING_WINDOW_UUID,
         capability="planting_window",
         category="read",
-        intent="When to start seed, when to put it out, and the last day a sowing still finishes",
+        title="Planting window",
+        behavior=READS_REMOTE,
+intent="When to start seed, when to put it out, and the last day a sowing still finishes",
     ),
     ToolIdentity(
         tool_id=CALENDAR_DATASET_UUID,
         capability="calendar_dataset",
         category="heavy",
-        intent="Compute a block's dated season — crop, pest, wildlife, frost and task events — as a dataset",
+        title="Publish a season calendar",
+        behavior=PUBLISHES_REMOTE,
+intent="Compute a block's dated season — crop, pest, wildlife, frost and task events — as a dataset",
     ),
     ToolIdentity(
         tool_id=CALENDAR_FETCH_UUID,
         capability="calendar_fetch",
         category="free",
-        intent="Read a stored calendar dataset by its feed token, for the site that serves it",
+        title="Fetch a calendar feed",
+        behavior=READS,
+intent="Read a stored calendar dataset by its feed token, for the site that serves it",
     ),
     ToolIdentity(
         tool_id=CALENDAR_LIST_UUID,
         capability="calendar_list",
         category="free",
-        intent="List the calendar feeds this patron has published",
+        title="List calendar feeds",
+        behavior=READS,
+intent="List the calendar feeds this patron has published",
     ),
     ToolIdentity(
         tool_id=CALENDAR_REVOKE_UUID,
         capability="calendar_revoke",
         category="free",
-        intent="Stop publishing a calendar feed",
+        title="Revoke a calendar feed",
+        behavior=DELETES,
+intent="Stop publishing a calendar feed",
     ),
     ToolIdentity(
         tool_id=FORGET_MY_GROUND_UUID,
@@ -383,13 +463,17 @@ _DOMAIN_TOOLS = [
         # Free, deliberately. Charging someone to leave is a toll on the door
         # out, and the operator's own interest is not the one to serve here.
         category="free",
-        intent="Delete every block and everything recorded on it for this patron — the ground, not the account",
+        title="Forget my ground",
+        behavior=DELETES,
+intent="Delete every block and everything recorded on it for this patron — the ground, not the account",
     ),
     ToolIdentity(
         tool_id=BLOCK_SAVE_UUID,
         capability="block_save",
         category="write",
-        intent="Save a plot of land — its name, the names you also call it, and its bounds",
+        title="Save a block",
+        behavior=REPLACES,
+intent="Save a plot of land — its name, the names you also call it, and its bounds",
     ),
     ToolIdentity(
         tool_id=BLOCK_LIST_UUID,
@@ -398,31 +482,41 @@ _DOMAIN_TOOLS = [
         # which ground it is working, and an app that cannot answer that without
         # a fare is one that fails for anyone whose balance has run out.
         category="free",
-        intent="The plots you have saved, with their bounds",
+        title="List blocks",
+        behavior=READS,
+intent="The plots you have saved, with their bounds",
     ),
     ToolIdentity(
         tool_id=BLOCK_ITEM_SAVE_UUID,
         capability="block_item_save",
         category="write",
-        intent="Record what you grow, watch for, or saw on a plot",
+        title="Record block items",
+        behavior=SAVES,
+intent="Record what you grow, watch for, or saw on a plot",
     ),
     ToolIdentity(
         tool_id=BLOCK_ITEM_LIST_UUID,
         capability="block_item_list",
         category="read",
-        intent="What you grow, watch for, or saw on a plot — including as it stood on a past day",
+        title="List block items",
+        behavior=READS,
+intent="What you grow, watch for, or saw on a plot — including as it stood on a past day",
     ),
     ToolIdentity(
         tool_id=SUNLIGHT_UUID,
         capability="sunlight",
         category="heavy",
-        intent="Hours of direct sun each part of a plot gets, month by month, from its trees and hills",
+        title="Sunlight and solar",
+        behavior=READS_REMOTE,
+intent="Hours of direct sun each part of a plot gets, month by month, from its trees and hills",
     ),
     ToolIdentity(
         tool_id=BLOCK_TRANSFORM_UUID,
         capability="block_transform",
         category="heavy",
-        intent="Propose bed layouts inside a plot, ready to accept in one save",
+        title="Propose bed layouts",
+        behavior=READS,
+intent="Propose bed layouts inside a plot, ready to accept in one save",
     ),
 ]
 
@@ -646,11 +740,8 @@ async def gdd_season_curve(
             ),
         ),
     ] = 50.0,
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Growing degree day accumulation across a region, season to date.
 
@@ -687,11 +778,8 @@ async def gdd_season_curve(
 @runtime.paid_tool(FROST_WINDOW_UUID)
 async def frost_window(
     block: Annotated[str, BLOCK_FIELD],
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """When frost normally arrives on this ground, and whether it is coming this week.
 
@@ -740,11 +828,8 @@ async def crop_gdd_status(
         float,
         Field(description="Default base temperature in °F for plantings that do not set their own."),
     ] = 50.0,
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Where every planting on a block stands, and whether it finishes before frost.
 
@@ -792,11 +877,8 @@ async def soil_temp_projection(
         str,
         Field(description="'planting' for 7-28 cm (~3-11 in, the default) or 'shallow' for 0-7 cm."),
     ] = "planting",
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """When the soil on this ground crosses a planting threshold.
 
@@ -848,11 +930,8 @@ async def pest_threshold(
             ),
         ),
     ],
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Where a pest model's degree-day stages stand on this ground.
 
@@ -907,11 +986,8 @@ async def calibration(
         float,
         Field(description="Base temperature in °F the stage targets are counted at."),
     ] = 50.0,
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Turn a block's own field reports into a correction on the model.
 
@@ -968,11 +1044,8 @@ async def calibration(
 @runtime.paid_tool(ALMANAC_UUID)
 async def almanac(
     block: Annotated[str, BLOCK_FIELD],
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """The sky's own record for this ground — normal, actual, and what is coming.
 
@@ -1006,11 +1079,8 @@ async def almanac(
 @tool
 @runtime.paid_tool(PLAN_THE_SEASON_UUID)
 async def plan_the_season(
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """The season-planning interview, as a workflow to follow.
 
@@ -1053,11 +1123,8 @@ async def review_roster(
         int | None,
         Field(description="Which season's roster to audit. Defaults to this one."),
     ] = None,
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Audit a roster against what this ground's record actually knows.
 
@@ -1147,9 +1214,9 @@ async def task_save(
         bool,
         Field(description="True publishes a reminder; false publishes an entry that takes the slot."),
     ] = True,
-    done: bool = False,
-    npub: Annotated[str, Field(description="Required. Your Nostr public key (npub1...).")] = "",
-    dpop_token: str = "",
+    done: Annotated[bool, Field(description="True records the task as already done.")] = False,
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Create or update one task.
 
@@ -1194,8 +1261,8 @@ async def task_list(
     season_start: Annotated[
         str, Field(description="Optional YYYY-MM-DD, so 'season' means the grower's season."),
     ] = "",
-    npub: Annotated[str, Field(description="Required. Your Nostr public key (npub1...).")] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """One page of a region's tasks, ordered and filtered by the database.
 
@@ -1230,8 +1297,8 @@ async def task_list(
 @runtime.paid_tool(TASK_DELETE_UUID)
 async def task_delete(
     task_id: Annotated[str, Field(description="The task's id.")],
-    npub: Annotated[str, Field(description="Required. Your Nostr public key (npub1...).")] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Remove one task.
 
@@ -1254,8 +1321,8 @@ async def task_delete(
 async def task_set_done(
     task_id: Annotated[str, Field(description="The task's id.")],
     done: Annotated[bool, Field(description="True to tick it off.")] = True,
-    npub: Annotated[str, Field(description="Required. Your Nostr public key (npub1...).")] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Mark one task done, or put it back.
 
@@ -1275,11 +1342,8 @@ async def task_set_done(
 @runtime.paid_tool(PEST_CATALOG_UUID)
 async def pest_catalog(
     block: Annotated[str, BLOCK_FIELD],
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Which pest stages are modelled for this ground this season.
 
@@ -1339,11 +1403,8 @@ async def nearby_species(
             ),
         ),
     ] = False,
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Search what is actually recorded near this ground, a page at a time.
 
@@ -1405,11 +1466,8 @@ async def wildlife_catalog(
             ),
         ),
     ] = False,
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Which animals are actually recorded around this ground.
 
@@ -1485,11 +1543,8 @@ async def wildlife_calendar(
             ),
         ),
     ],
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """When the other creatures working your season arrive.
 
@@ -1536,11 +1591,8 @@ async def crop_suitability(
             ),
         ),
     ],
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Which crops finish on this ground, and with how much room to spare.
 
@@ -1589,11 +1641,8 @@ async def tree_suitability(
             ),
         ),
     ],
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Whether a tree survives and gets its chill on this ground.
 
@@ -1640,11 +1689,8 @@ async def tree_suitability(
 @runtime.paid_tool(TREE_YEAR_UUID)
 async def tree_year(
     block: Annotated[str, BLOCK_FIELD],
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """When spring reached this ground, and what the sap did.
 
@@ -1699,11 +1745,8 @@ async def companions(
         str,
         Field(description="'synergy' — biological companions by cited family rules; 'design' — visually complementary plants from the flower colour, height and bloom months you recorded."),
     ] = "synergy",
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Companions for one planting on this block, of one of two kinds.
 
@@ -1786,11 +1829,8 @@ async def calendar_dataset(
         int | None,
         Field(description="Which season to publish. Defaults to this one."),
     ] = None,
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Compute this block's dated season as a dataset, and store it for publishing.
 
@@ -1996,8 +2036,8 @@ async def calendar_fetch(
 @tool
 @runtime.paid_tool(CALENDAR_LIST_UUID)
 async def calendar_list(
-    npub: Annotated[str, Field(description="Required. Your Nostr public key.")] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """The calendar feeds you have published, and how often each is polled."""
     try:
@@ -2019,8 +2059,8 @@ async def calendar_list(
 @runtime.paid_tool(CALENDAR_REVOKE_UUID)
 async def calendar_revoke(
     token: Annotated[str, Field(description="The feed token to stop publishing.")],
-    npub: Annotated[str, Field(description="Required. Your Nostr public key.")] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Stop publishing a feed. Subscribers stop receiving updates. Free."""
     try:
@@ -2056,11 +2096,8 @@ async def planting_window(
             ),
         ),
     ],
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """When to start seed, when to put it out, and the last day it still finishes.
 
@@ -2118,11 +2155,8 @@ async def forget_my_ground(
             ),
         ),
     ] = "",
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) — whose ground to forget."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Delete every block you have here, and everything recorded on them.
 
@@ -2207,11 +2241,8 @@ async def block_save(
             "all are checked before any is saved, and one problem refuses the lot."
         )),
     ] = None,
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Save a plot of land, so every other tool can work it by name.
 
@@ -2341,11 +2372,8 @@ async def block_list(
         str,
         Field(description="Only the ground in this group, or in a group inside it, e.g. 'North Farm'."),
     ] = "",
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """The ground you have saved, with its bounds.
 
@@ -2428,11 +2456,8 @@ async def block_item_save(
             "own date. Observations and seed lots belong to no season."
         )),
     ] = None,
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Record what you grow, watch for, saw, or hold seed for on a plot.
 
@@ -2523,11 +2548,8 @@ async def block_item_list(
     sort_dir: Annotated[str, Field(description="'asc' or 'desc'.")] = "asc",
     page: Annotated[int, Field(description="Zero-based page number.")] = 0,
     page_size: Annotated[int, Field(description="Rows per page, up to 200.")] = 50,
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """What you grow, watch for, or saw on a plot — a page at a time.
 
@@ -2584,11 +2606,8 @@ async def disease_risk(
         int | None,
         Field(description="A past season year to count instead of this one. Omit for the season to date."),
     ] = None,
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Hours of leaf wetness on this ground, and what the disease models make of them.
 
@@ -2638,11 +2657,8 @@ async def disease_risk(
 @runtime.paid_tool(DRYING_WINDOW_UUID)
 async def drying_window(
     block: Annotated[str, BLOCK_FIELD],
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """When the dew burns off this ground, the dry days ahead, and the next rain.
 
@@ -2722,11 +2738,8 @@ async def block_transform(
     min_row_length_m: Annotated[
         float, Field(description="Rows: shorter fragments are dropped, 1–200 m.", ge=1, le=200),
     ] = 10.0,
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Propose bed layouts inside a plot. Writes nothing.
 
@@ -2836,11 +2849,8 @@ async def sunlight(
         str,
         Field(description='"summary" (default) or "grid": every cell\'s numbers, packed for a map overlay.', pattern="^(summary|grid)$"),
     ] = "summary",
-    npub: Annotated[
-        str,
-        Field(description="Required. Your Nostr public key (npub1...) for credit billing."),
-    ] = "",
-    dpop_token: str = "",
+    npub: PatronNpub = "",
+    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """How many hours of direct sun each part of this ground gets, month by month — and what a panel would make.
 
