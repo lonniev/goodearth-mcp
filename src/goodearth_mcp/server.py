@@ -721,7 +721,14 @@ them to their extension service for that, and say plainly that its word counts
 and yours does not."""
 
 
-@mcp.prompt(name="plan_the_season")
+@mcp.prompt(
+    name="plan_the_season",
+    title="Plan the season",
+    description=(
+        "Advise and assist a landowner in gathering information within "
+        "Good Earth for their Plots."
+    ),
+)
 def season_interview_prompt() -> str:
     """Walk a grower through planning a season on their own ground."""
     return SEASON_INTERVIEW
