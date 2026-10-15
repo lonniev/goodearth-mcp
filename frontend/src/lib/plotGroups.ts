@@ -115,6 +115,18 @@ export function reveal(open: readonly string[], group: string): string[] {
   return out;
 }
 
+/// The open set with every folder that holds `plot` open too.
+export function revealPlot(open: readonly string[], plot: SavedRegion): string[] {
+  return (plot.groups ?? []).reduce<string[]>((acc, g) => reveal(acc, g), [...open]);
+}
+
+/// The plots whose name, another name or a group has `query` in it.
+export function matching(plots: readonly SavedRegion[], query: string): SavedRegion[] {
+  const q = fold(query.trim());
+  if (!q) return [...plots];
+  return plots.filter((p) => [p.name, ...(p.aliases ?? []), ...(p.groups ?? [])].some((s) => fold(s).includes(q)));
+}
+
 /// The open set after `from` was renamed or moved to `to`.
 export function moveOpen(open: readonly string[], from: string, to: string): string[] {
   const f = cleanPath(from);

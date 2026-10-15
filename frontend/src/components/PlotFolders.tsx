@@ -1,17 +1,17 @@
 // Groups of plots, on the Plots page, as folders around the plot chips.
 //
-// A folder opens to the groups inside it and the plots filed in it; closed,
-// they are out of sight. A plot in several groups sits in each of their
-// folders. A folder's menu holds Show and Hide, which act on every plot below
-// it, a new group inside it, Edit plots and Rename; the edits save the plots
-// whose groups change, in one batched save. A group is a path on each plot
+// The folders are `FolderTree`'s; this adds each folder's menu. It holds Show
+// and Hide, which act on every plot below it, a new group inside it, Edit
+// plots and Rename; the edits save the plots whose groups change, in one
+// batched save. A group is a path on each plot
 // (see `lib/plotGroups`).
 
 import { useState, type ReactNode } from "react";
 import { CELL, Glyph, ICON, RowActions } from "./ui";
+import FolderTree from "./FolderTree";
 import {
-  childrenOf, cleanPath, filedIn, hideGroup, isOpen, isWithin, leaf, memberIds, moveOpen,
-  renameGroup, reveal, showGroup, toggleOpen, ungrouped, withGroup,
+  cleanPath, hideGroup, isWithin, leaf, memberIds, moveOpen,
+  renameGroup, reveal, showGroup, ungrouped, withGroup,
 } from "../lib/plotGroups";
 import { readOpenGroups, writeOpenGroups } from "../lib/openGroups";
 import { saveBlocks } from "../lib/saveBlock";
@@ -24,21 +24,6 @@ type Sheet =
   | { kind: "rename"; group: string };
 
 const PILL = "flex min-h-11 items-center gap-1.5 rounded-full border border-rule px-3.5 text-[12.5px] font-medium active:bg-band";
-
-/// What every folder needs from the page.
-type Tree = {
-  own: SavedRegion[];
-  hidden: string[];
-  onHidden: (ids: string[]) => void;
-  synced: boolean;
-  open: string[];
-  setOpen: (open: string[]) => void;
-  sheet: Sheet | null;
-  setSheet: (sheet: Sheet | null) => void;
-  /// One plot's chip, drawn by the page.
-  chip: (plot: SavedRegion) => ReactNode;
-  sheets: (group: string) => ReactNode;
-};
 
 export default function PlotFolders({ plots, hidden, onHidden, onSaved, synced, chip, actions }: {
   plots: SavedRegion[];
@@ -56,7 +41,6 @@ export default function PlotFolders({ plots, hidden, onHidden, onSaved, synced, 
   const [open, setOpenState] = useState<string[]>(readOpenGroups);
   const setOpen = (next: string[]) => setOpenState(writeOpenGroups(next));
   const [sheet, setSheet] = useState<Sheet | null>(null);
-  const top = childrenOf(own, "");
   const loose = ungrouped(plots);
 
   function sheets(group: string): ReactNode {
@@ -111,8 +95,6 @@ export default function PlotFolders({ plots, hidden, onHidden, onSaved, synced, 
     );
   }
 
-  const tree: Tree = { own, hidden, onHidden, synced, open, setOpen, sheet, setSheet, chip, sheets };
-
   return (
     <div {...tour("plots.chips")}>
       <div className="mb-1 flex flex-wrap items-center gap-2">
@@ -126,60 +108,23 @@ export default function PlotFolders({ plots, hidden, onHidden, onSaved, synced, 
         {actions}
       </div>
       {sheets("")}
-      {top.length > 0 && (
-        <ul role="tree" aria-label="Groups" {...tour("plots.groups")}>
-          {top.map((g) => <Folder key={g} path={g} tree={tree} />)}
-        </ul>
-      )}
+      <div {...tour("plots.groups")}>
+        <FolderTree plots={own} open={open} onOpen={setOpen} plot={chip}
+          faint={(g) => { const ids = memberIds(own, g); return ids.length > 0 && ids.every((id) => hidden.includes(id)); }}
+          under={sheets}
+          extra={(g) => (
+            <button onClick={() => setSheet(sheet?.group === g ? null : { kind: "ask", group: g })}
+              aria-expanded={sheet?.group === g} aria-label={`${leaf(g)}: show, hide or edit`}
+              className={`inline-flex h-11 w-11 items-center justify-center rounded-full ${
+                sheet?.group === g ? "bg-ink text-paper" : "text-ink-soft active:bg-band"}`}>
+              <Glyph path={ICON.more} size={18} />
+            </button>
+          )} />
+      </div>
       {loose.length > 0 && (
         <div className="mt-1 flex flex-wrap items-center gap-2">{loose.map(chip)}</div>
       )}
     </div>
-  );
-}
-
-/// One group: its row, and when open, the groups inside it and its plots.
-function Folder({ path, tree }: { path: string; tree: Tree }) {
-  const { own, hidden, open, setOpen, sheet, setSheet } = tree;
-  const opened = isOpen(open, path);
-  const ids = memberIds(own, path);
-  const allHidden = ids.length > 0 && ids.every((id) => hidden.includes(id));
-  const kids = childrenOf(own, path);
-  const filed = filedIn(own, path);
-  const asking = sheet?.group === path;
-  return (
-    <li role="treeitem" aria-expanded={opened} aria-label={leaf(path)}>
-      <div className="flex items-center">
-        <button onClick={() => setOpen(toggleOpen(open, path))}
-          title={opened ? `Close ${leaf(path)}` : `Open ${leaf(path)}`}
-          className={`flex min-h-11 items-center gap-1.5 pr-2 text-[14px] font-semibold ${
-            allHidden ? "text-ink-soft opacity-60" : "text-ink"}`}>
-          <span className={`text-ink-soft transition-transform ${opened ? "" : "-rotate-90"}`}>
-            <Glyph path={ICON.chevron} size={18} />
-          </span>
-          <Glyph path={opened ? ICON.groupOpen : ICON.group} size={18} />
-          {leaf(path)}
-          <span className="data text-[10.5px] font-normal text-ink-soft">{ids.length}</span>
-        </button>
-        <button onClick={() => setSheet(asking ? null : { kind: "ask", group: path })}
-          aria-expanded={asking} aria-label={`${leaf(path)}: show, hide or edit`}
-          className={`inline-flex h-11 w-11 items-center justify-center rounded-full ${
-            asking ? "bg-ink text-paper" : "text-ink-soft active:bg-band"}`}>
-          <Glyph path={ICON.more} size={18} />
-        </button>
-      </div>
-      {tree.sheets(path)}
-      {opened && (
-        <div className="ml-[8px] border-l border-rule pl-3">
-          {kids.length > 0 && (
-            <ul role="group">{kids.map((g) => <Folder key={g} path={g} tree={tree} />)}</ul>
-          )}
-          {filed.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 pb-2 pt-0.5">{filed.map(tree.chip)}</div>
-          )}
-        </div>
-      )}
-    </li>
   );
 }
 

@@ -1,0 +1,1 @@
+- The plot picker in the top bar lists plots in their group folders, with the folders holding the plot being worked opened. Past seven plots it has a find box that matches a plot's name, other names or groups, and lists each match with its groups. My Plots and the picker draw the same folders and share which are open.
