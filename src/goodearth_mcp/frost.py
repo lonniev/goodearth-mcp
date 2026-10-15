@@ -18,7 +18,7 @@ Pure domain logic: no billing, no npubs, no MCP.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 from goodearth_mcp import gdd
@@ -40,15 +40,19 @@ FALL_SEARCH_START = (7, 15)  # Jul 15
 SPRING_SEARCH_END = (6, 30)  # Jun 30
 
 
-def first_fall_frost(dates: list[str], tmin: list[float | None], year: int) -> str | None:
-    """The first date on or after Jul 15 of ``year`` with a min at or below freezing.
+def first_fall_frost(
+    dates: list[str], tmin: list[float | None], year: int,
+    start: tuple[int, int] = FALL_SEARCH_START,
+) -> str | None:
+    """The first night at or below freezing in the season that begins on
+    ``start`` of ``year`` and runs a full year.
 
-    The search runs on into the next spring. On the Gulf Coast a season's
-    first frost can come in January, and stopping at Dec 31 dropped that
-    season from the record and pulled the median early.
+    The search runs on past New Year. On the Gulf Coast a season's first
+    frost can come in January, and stopping at Dec 31 dropped that season
+    from the record and pulled the median early.
     """
-    cutoff = date(year, *FALL_SEARCH_START)
-    end = date(year + 1, *SPRING_SEARCH_END)
+    begin = gdd.on_year(year, *start)
+    end = gdd.on_year(year + 1, *start)
     for d, lo in zip(dates, tmin, strict=False):
         if lo is None:
             continue
@@ -56,16 +60,58 @@ def first_fall_frost(dates: list[str], tmin: list[float | None], year: int) -> s
             day = date.fromisoformat(d)
         except ValueError:
             continue
-        if cutoff <= day <= end and lo <= FROST_F:
+        if begin <= day < end and lo <= FROST_F:
             return d
     return None
 
 
-def frost_dates(dates: list[str], tmin: list[float | None], years: list[int]) -> list[str]:
-    """First fall frost for each year that has one on record."""
+def season_start(dates: list[str], tmin: list[float | None]) -> tuple[int, int] | None:
+    """The day this ground's frost season begins, read from its own record.
+
+    The middle of the longest stretch of the calendar that never frosted in
+    the record: mid-July in Vermont and on the Gulf Coast, mid-January south
+    of the equator. A fixed Jul 15 put the Southern Hemisphere's season break
+    in the middle of its frosts. ``None`` for ground that never frosted, or
+    frosted on every day of the year — there is no season to find.
+    """
+    frosted = [False] * 365
+    for d, lo in zip(dates, tmin, strict=False):
+        if lo is None or lo > FROST_F:
+            continue
+        try:
+            day = date.fromisoformat(d)
+        except ValueError:
+            continue
+        frosted[gdd.on_year(2001, day.month, day.day).timetuple().tm_yday - 1] = True
+    if not any(frosted) or all(frosted):
+        return None
+    # The longest run of frost-free days round the year, from any frosted day.
+    first = frosted.index(True)
+    best_len, best_mid, run = 0, 0, 0
+    for k in range(1, 366):
+        i = (first + k) % 365
+        if frosted[i]:
+            if run > best_len:
+                best_len, best_mid = run, (i - run + run // 2) % 365
+            run = 0
+        else:
+            run += 1
+    mid = date(2001, 1, 1) + timedelta(days=best_mid)
+    return (mid.month, mid.day)
+
+
+def frost_dates(
+    dates: list[str], tmin: list[float | None], years: list[int],
+    start: tuple[int, int] | None = None,
+) -> list[str]:
+    """First frost of each season on record, a season beginning on ``start``
+    of each year — this ground's own season start when not given."""
+    start = start or season_start(dates, tmin)
+    if start is None:
+        return []
     out = []
     for y in years:
-        d = first_fall_frost(dates, tmin, y)
+        d = first_fall_frost(dates, tmin, y, start)
         if d:
             out.append(d)
     return out
@@ -96,28 +142,34 @@ def summarize_frost_dates(iso_dates: list[str], reference_year: int) -> dict[str
     }
 
 
-def season_day(day: date) -> int:
-    """Days since the fall search began for the season ``day`` falls in, so a
-    January frost sorts after a December one."""
-    year = day.year if (day.month, day.day) >= FALL_SEARCH_START else day.year - 1
-    return (day - date(year, *FALL_SEARCH_START)).days
+def season_of(day: date, start: tuple[int, int]) -> date:
+    """The day the season holding ``day`` began."""
+    begin = gdd.on_year(day.year, *start)
+    return begin if day >= begin else gdd.on_year(day.year - 1, *start)
+
+
+def season_day(day: date, start: tuple[int, int] = FALL_SEARCH_START) -> int:
+    """Days since the season holding ``day`` began, so a January frost sorts
+    after a December one."""
+    return (day - season_of(day, start)).days
 
 
 def season_so_far(
     dates: list[str], tmin: list[float | None], record_frosts: list[str], today: date,
+    start: tuple[int, int] = FALL_SEARCH_START,
 ) -> dict[str, Any] | None:
-    """This fall up to yesterday: its first frost, or none yet and when the
+    """This season up to yesterday: its first frost, or none yet and when the
     record's seasons that were still frost-free by now went on to frost.
 
     The record's median is a date in a typical season. Once it has passed
     with no frost, it is no longer when frost is expected; the seasons that
     also went frost-free this long are the record that still applies.
-    ``None`` before the fall search begins, or with nothing observed since.
+    ``None`` with nothing observed since the season began.
     """
-    start = date(today.year, *FALL_SEARCH_START).isoformat()
+    begin = season_of(today, start)
     seen = [
         (d, lo) for d, lo in zip(dates, tmin, strict=False)
-        if lo is not None and start <= d < today.isoformat()
+        if lo is not None and begin.isoformat() <= d < today.isoformat()
     ]
     if not seen:
         return None
@@ -126,9 +178,9 @@ def season_so_far(
     first = next((d for d, lo in seen if lo <= FROST_F), None)
     out: dict[str, Any] = {"first_frost": first, "through": through}
     if first is None:
-        now = season_day(date.fromisoformat(through))
-        later = [d for d in record_frosts if season_day(date.fromisoformat(d)) > now]
-        got = gdd.typical_dates(later, today.year)
+        now = season_day(date.fromisoformat(through), start)
+        later = [d for d in record_frosts if season_day(date.fromisoformat(d), start) > now]
+        got = gdd.typical_dates(later, begin.year)
         out["given_none_yet"] = {
             **(
                 {"median": got[0].isoformat(), "earliest": got[1].isoformat(), "latest": got[2].isoformat()}

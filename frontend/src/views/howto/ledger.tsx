@@ -59,8 +59,10 @@ export const ledger: Guide = {
         <>Five figures: heat so far with its gauge; the spread across the
           block, in GDD and in days; how far ahead of or behind the recent
           seasons, with the grid the band was read from; the first frost — this
-          fall's once it has come, otherwise when it is projected, with the
-          average beneath; and the coldest ground in the coming week
+          season's once it has come, otherwise when it is projected, with the
+          average beneath. A season begins in the stretch of the year this
+          ground has never frosted, mid-July in the north, so the figure turns
+          to the next frost on that day; and the coldest ground in the coming week
           against the plain forecast.</>],
       ["The chart",
         <>Drag or pinch to move along the season; the glasses on the left zoom

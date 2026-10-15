@@ -222,9 +222,12 @@ export interface FrostWindowResult {
     latest: string;
     years_on_record: number;
     note: string;
+    /// The day this season began: the middle of the stretch of the year
+    /// this ground's record never frosted.
+    season_starts?: string;
   } | null;
   days_to_median_first_frost: number | null;
-  /// This fall up to yesterday; null before the fall search begins.
+  /// This season up to yesterday; null when nothing has been observed yet.
   this_season: {
     first_frost: string | null;
     through: string;

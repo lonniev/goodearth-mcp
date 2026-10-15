@@ -792,10 +792,12 @@ async def frost_window(
 
     Returns first-frost dates from the last ten seasons, how far the region's
     own terrain spreads that, and a night-by-night assessment of the coming
-    forecast for the *coldest* ground rather than the average. ``this_season``
-    is this fall up to yesterday: its first frost, or with none yet,
-    ``given_none_yet`` — when the seasons still frost-free by now went on to
-    frost, which is the answer once the record's median has passed.
+    forecast for the *coldest* ground rather than the average. A season
+    begins where this ground's own record never frosts — mid-July in Vermont,
+    mid-January south of the equator — given as ``first_frost.season_starts``.
+    ``this_season`` is the season so far, up to yesterday: its first frost,
+    or with none yet, ``given_none_yet`` — when the seasons still frost-free
+    by now went on to frost, which is the answer once the median has passed.
 
     The spread is the answer's point. Frost forms on still, clear nights when
     cold air drains off high ground and pools in low, so a single forecast low

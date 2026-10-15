@@ -28,8 +28,23 @@ class FrostError(ValueError):
     """A caller's request cannot be answered as asked."""
 
 
-async def _nothing() -> list[dict[str, Any]]:
-    return []
+async def _season_so_far(
+    region: Region, begin: date, today: date, record_frosts: list[str], start: tuple[int, int],
+) -> dict[str, Any] | None:
+    """This season from its first day to yesterday, read apart from the record."""
+    yesterday = today - timedelta(days=1)
+    if yesterday < begin:
+        return None
+    try:
+        season = await record_cache.daily_history(
+            [region.centroid.lat], [region.centroid.lon], begin.isoformat(), yesterday.isoformat()
+        )
+    except sources.UpstreamError:
+        return None
+    if not season:
+        return None
+    dates, _tmax, tmin = sources.daily_series(season[0])
+    return frost.season_so_far(dates, tmin, record_frosts, today, start)
 
 
 async def region_frost_window(
@@ -59,35 +74,27 @@ async def region_frost_window(
     forecast_task = sources.fetch_frost_forecast(
         region.centroid.lat, region.centroid.lon, FORECAST_NIGHTS
     )
-    # This fall so far, read on its own and only once the fall has begun.
-    fall_start = date(today.year, *frost.FALL_SEARCH_START)
-    season_task = (
-        record_cache.daily_history(
-            [region.centroid.lat],
-            [region.centroid.lon],
-            fall_start.isoformat(),
-            (today - timedelta(days=1)).isoformat(),
-        )
-        if today > fall_start
-        else _nothing()
-    )
 
-    record, forecast, season = await asyncio.gather(
-        record_task, forecast_task, season_task, return_exceptions=True
-    )
+    record, forecast = await asyncio.gather(record_task, forecast_task, return_exceptions=True)
 
     # ── Climatology ──────────────────────────────────────────────────────
+    # The season begins where this ground's own record says frost never
+    # comes, so the projection turns to the next season on that day: mid-July
+    # in Vermont and on the Gulf Coast, mid-January south of the equator.
     history: dict[str, Any] | None = None
     so_far: dict[str, Any] | None = None
     if not isinstance(record, BaseException) and record:
         try:
             dates, _tmax, tmin = sources.daily_series(record[0])
-            years = list(range(sources.record_start_year(today.year, RECORD_SPAN_YEARS), today.year))
-            record_frosts = frost.frost_dates(dates, tmin, years)
-            history = frost.summarize_frost_dates(record_frosts, today.year)
-            if not isinstance(season, BaseException) and season:
-                s_dates, _s_tmax, s_tmin = sources.daily_series(season[0])
-                so_far = frost.season_so_far(s_dates, s_tmin, record_frosts, today)
+            start = frost.season_start(dates, tmin)
+            if start is not None:
+                begin = frost.season_of(today, start)
+                years = list(range(sources.record_start_year(today.year, RECORD_SPAN_YEARS), begin.year))
+                record_frosts = frost.frost_dates(dates, tmin, years, start)
+                history = frost.summarize_frost_dates(record_frosts, begin.year)
+                if history is not None:
+                    history["season_starts"] = begin.isoformat()
+                so_far = await _season_so_far(region, begin, today, record_frosts, start)
         except (sources.UpstreamError, IndexError, ValueError):
             history, so_far = None, None
 
