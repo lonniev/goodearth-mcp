@@ -34,11 +34,6 @@ HARD_FREEZE_F = 28.0
 # snap in May is a late spring frost, a different question entirely.
 FALL_SEARCH_START = (7, 15)  # Jul 15
 
-# A spring frost only counts before midsummer. A freak cold night in August is
-# an early FALL frost, and calling it a late spring one would tell a grower the
-# planting season had not started yet.
-SPRING_SEARCH_END = (6, 30)  # Jun 30
-
 
 def first_fall_frost(
     dates: list[str], tmin: list[float | None], year: int,
@@ -260,27 +255,72 @@ def worst(nights: list[dict[str, Any]]) -> dict[str, Any] | None:
     return max(nights, key=lambda n: (LEVEL_RANK.get(n["level"], 0), -n["low_ground_f"]))
 
 
-def last_spring_frost(dates: list[str], tmin: list[float | None], year: int) -> str | None:
-    """The LAST date on or before Jun 30 of ``year`` with a min at or below freezing.
+def last_spring_frost(
+    dates: list[str], tmin: list[float | None], year: int,
+    start: tuple[int, int] = FALL_SEARCH_START,
+) -> str | None:
+    """The LAST night at or below freezing before the midsummer that falls on
+    ``start`` of ``year`` — this ground's spring, on either side of the equator.
 
     The date a tender crop can finally go out. Note it is the last, not the
     first: the season opens when the freezes stop, and a grower who plants
     after the first thaw rather than the last frost loses the crop.
     """
-    cutoff = date(year, *SPRING_SEARCH_END)
+    begin, end = gdd.on_year(year - 1, *start), gdd.on_year(year, *start)
     found: str | None = None
     for d, lo in zip(dates, tmin, strict=False):
-        if lo is None:
+        if lo is None or lo > FROST_F:
             continue
         try:
             day = date.fromisoformat(d)
         except ValueError:
             continue
-        if day.year == year and day <= cutoff and lo <= FROST_F:
+        if begin <= day < end:
             found = d
     return found
 
 
-def spring_frost_dates(dates: list[str], tmin: list[float | None], years: list[int]) -> list[str]:
-    """Last spring frost for each year that has one on record."""
-    return [d for y in years if (d := last_spring_frost(dates, tmin, y))]
+def spring_frost_dates(
+    dates: list[str], tmin: list[float | None], years: list[int],
+    start: tuple[int, int] | None = None,
+) -> list[str]:
+    """Last spring frost for each season that has one on record."""
+    start = start or season_start(dates, tmin)
+    if start is None:
+        return []
+    return [d for y in years if (d := last_spring_frost(dates, tmin, y, start))]
+
+
+def frost_free_seasons(
+    dates: list[str], tmin: list[float | None], years: list[int], start: tuple[int, int],
+) -> list[dict[str, Any]]:
+    """Each season's frost-free stretch: the last frost before its midsummer
+    and the first after it, either of them ``None`` when it did not come."""
+    return [
+        {
+            "midsummer": gdd.on_year(y, *start),
+            "last_spring": last_spring_frost(dates, tmin, y, start),
+            "first_fall": first_fall_frost(dates, tmin, y, start),
+        }
+        for y in years
+    ]
+
+
+def typical_around(anchor: date, days_from_midsummer: list[int]) -> dict[str, str] | None:
+    """Median, earliest and latest of one frost date, as days from each
+    season's midsummer, placed around ``anchor`` — so a southern spring
+    frost lands in the year before the autumn one, where it belongs."""
+    if not days_from_midsummer:
+        return None
+    ds = sorted(days_from_midsummer)
+    n = len(ds)
+    med = ds[n // 2] if n % 2 else (ds[n // 2 - 1] + ds[n // 2]) // 2
+    on = lambda k: (anchor + timedelta(days=k)).isoformat()
+    return {"median": on(med), "earliest": on(ds[0]), "latest": on(ds[-1])}
+
+
+def offsets(seasons: list[dict[str, Any]], key: str) -> list[int]:
+    """Days from each season's midsummer to its ``key`` frost, where it came."""
+    return [
+        (date.fromisoformat(s[key]) - s["midsummer"]).days for s in seasons if s.get(key)
+    ]

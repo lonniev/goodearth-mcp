@@ -1193,6 +1193,8 @@ export default function Crops({
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       {r.state === "will_not_fit"
                         ? <span className="rounded-full bg-clay/15 px-2 py-0.5 text-[11px] font-semibold text-clay">won't fit</span>
+                        : r.state === "year_round"
+                          ? <span className="text-ink-soft">any time</span>
                         : r.state === "narrow"
                           ? <span className="rounded-full bg-honey/15 px-2 py-0.5 text-[11px] font-semibold text-honey">{r.window_days}d — narrow</span>
                           : <span className="text-ink-soft">{r.window_days}d</span>}

@@ -61,22 +61,30 @@ async def region_planting_window(
 
     years = list(range(today.year - RECORD_SPAN_YEARS, today.year))
 
-    spring_hits = frost.spring_frost_dates(dates, tmin, years)
-    fall_hits = frost.frost_dates(dates, tmin, years)
-    fall_now = frost.summarize_frost_dates(fall_hits, today.year)
-    season = planting.plan_year(
-        date.fromisoformat(fall_now["median"]) if fall_now else None, today,
-    )
-    spring = frost.summarize_frost_dates(spring_hits, season)
-    fall = frost.summarize_frost_dates(fall_hits, season)
-    if not spring and not fall:
-        raise PlantingWindowError(
-            "No frost record could be built for this ground — the archive may be too short."
-        )
+    # The frost-free stretch sits round this ground's own midsummer — July in
+    # the north, January in the south — so a southern spring frost belongs
+    # to the season of the autumn after it, not to the calendar year.
+    start = frost.season_start(dates, tmin)
+    spring = fall = None
+    if start is None:
+        # Ground whose record never froze has no frost to plant around.
+        season = today.year
+    else:
+        seasons = frost.frost_free_seasons(dates, tmin, years, start)
+        spring_off = frost.offsets(seasons, "last_spring")
+        fall_off = frost.offsets(seasons, "first_fall")
+        season = planting.plan_season(frost.season_of(today, start), fall_off, today)
+        anchor = gdd.on_year(season, *start)
+        spring = frost.typical_around(anchor, spring_off)
+        fall = frost.typical_around(anchor, fall_off)
+        if not spring and not fall:
+            raise PlantingWindowError(
+                "No frost record could be built for this ground — the archive may be too short."
+            )
 
     last_frost = date.fromisoformat(spring["median"]) if spring else None
     first_frost = date.fromisoformat(fall["median"]) if fall else None
-    earliest_frost = date.fromisoformat(fall["earliest"]) if fall and fall.get("earliest") else None
+    earliest_frost = date.fromisoformat(fall["earliest"]) if fall else None
 
     # ── Soil warming dates, one per distinct threshold ───────────────────
     soil_dates: dict[float, date] = {}
@@ -117,6 +125,7 @@ async def region_planting_window(
             climates.get(c["base_temp_f"], {}),
             today,
             earliest_frost,
+            frost_free=start is None,
         )
         for c in parsed
     ]
@@ -135,6 +144,7 @@ async def region_planting_window(
             "first_fall_median": fall["median"] if fall else None,
             "first_fall_earliest": fall["earliest"] if fall else None,
             "seasons_on_record": len(years),
+            "frost_free": start is None,
         },
         "soil_warming": {str(k): v.isoformat() for k, v in soil_dates.items()},
         "crops": rows,

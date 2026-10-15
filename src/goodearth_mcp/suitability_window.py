@@ -9,7 +9,7 @@ it is different for a bench and a hollow on the same farm.
 from __future__ import annotations
 
 import statistics
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from goodearth_mcp import frost, gdd, record_cache, sources, suitability
@@ -31,45 +31,42 @@ def _season_budget(
 ) -> tuple[float | None, int | None]:
     """Mean heat accumulated inside the frost-free window, and its length.
 
-    Counting from Jan 1 would credit the block with heat that arrives before
-    anything can be planted into it. The frost-free window is the season a
-    grower actually has.
+    Counting from midwinter would credit the block with heat that arrives
+    before anything can be planted into it. The frost-free window is the
+    season a grower actually has.
     """
-    by_year: dict[int, tuple[list[str], list[float | None], list[float | None]]] = {}
-    for i, d in enumerate(dates):
-        y = int(d[:4])
-        b = by_year.setdefault(y, ([], [], []))
-        b[0].append(d)
-        b[1].append(tmax[i] if i < len(tmax) else None)
-        b[2].append(tmin[i] if i < len(tmin) else None)
+    by_day = {d: (tmax[i] if i < len(tmax) else None, tmin[i] if i < len(tmin) else None)
+              for i, d in enumerate(dates)}
+
+    # The window between the last frost before this ground's midsummer and
+    # the first after it — July in the north, January in the south. Ground
+    # that never froze has the whole year.
+    start = frost.season_start(dates, tmin)
+    windows: list[tuple[date, date]] = []
+    if start is None:
+        windows = [(date(y, 1, 1), date(y, 12, 31)) for y in years]
+    else:
+        for s in frost.frost_free_seasons(dates, tmin, years, start):
+            mid = s["midsummer"]
+            lo = (date.fromisoformat(s["last_spring"]) + timedelta(days=1)
+                  if s["last_spring"] else mid - timedelta(days=182))
+            hi = (date.fromisoformat(s["first_fall"]) - timedelta(days=1)
+                  if s["first_fall"] else mid + timedelta(days=182))
+            windows.append((lo, hi))
 
     budgets: list[float] = []
     lengths: list[int] = []
-    for y in years:
-        got = by_year.get(y)
-        if not got:
+    for lo, hi in windows:
+        days = [(lo + timedelta(days=i)).isoformat() for i in range((hi - lo).days + 1)]
+        if len(days) < 30 or days[-1] not in by_day:
+            # Too short to grow anything, or past the end of the record.
             continue
-        y_dates, y_max, y_min = got
-
-        # Last spring frost, then first fall frost — the window between.
-        spring_end = None
-        for i, (d, lo) in enumerate(zip(y_dates, y_min, strict=False)):
-            if lo is not None and lo <= frost.FROST_F and date.fromisoformat(d).month <= 6:
-                spring_end = i
-        fall_start = None
-        first = frost.first_fall_frost(y_dates, y_min, y)
-        if first:
-            fall_start = y_dates.index(first)
-
-        lo_i = (spring_end + 1) if spring_end is not None else 0
-        hi_i = fall_start if fall_start is not None else len(y_dates)
-        if hi_i - lo_i < 30:
-            continue
-
-        curve = gdd.accumulate(y_max[lo_i:hi_i], y_min[lo_i:hi_i], base_f)
+        highs = [by_day.get(d, (None, None))[0] for d in days]
+        lows = [by_day.get(d, (None, None))[1] for d in days]
+        curve = gdd.accumulate(highs, lows, base_f)
         if curve:
             budgets.append(curve[-1])
-            lengths.append(hi_i - lo_i)
+            lengths.append(len(days))
 
     if not budgets:
         return None, None

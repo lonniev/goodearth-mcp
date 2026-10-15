@@ -1,0 +1,3 @@
+- Spring frost, the planting window and crop suitability read each plot's frost-free stretch round its own midsummer — the last frost before it and the first after — in place of "spring ends Jun 30" and calendar years. South of the equator the planting window plans a September spring and a May autumn; the season it names is the year of its midsummer.
+- Ground whose record never froze plants all year: each crop reads "any time", out today, with no indoor start.
+- The roster's check for a frost reported inside the frost-free window works again: `frost_window` now returns the `last_spring` it reads.
