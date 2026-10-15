@@ -72,6 +72,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
   }, [region.id]);
   const [ranAt, setRanAt] = useState<Date | null>(null);
   const [frost, setFrost] = useState<FrostWindowResult | null>(null);
+  const frostTile = firstFrost(frost);
   const [frostAt, setFrostAt] = useState<Date | null>(null);
   const [soil, setSoil] = useState<SoilWindowResult | null>(null);
   const [soilAt, setSoilAt] = useState<Date | null>(null);
@@ -292,17 +293,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
               : "vs recent seasons"
           }
         />
-        <Pulse
-          emoji="❄️"
-          value={frost?.first_frost ? shortDate(frost.first_frost.median) : "—"}
-          tone="frost"
-          muted={!frost?.first_frost}
-          label={
-            frost?.first_frost
-              ? `median first · earliest ${shortDate(frost.first_frost.earliest)}`
-              : "median first frost"
-          }
-        />
+        <Pulse emoji="❄️" tone="frost" value={frostTile.value} label={frostTile.label} muted={frostTile.muted} />
         <Pulse
           emoji={frost?.worst_night && frost.worst_night.level !== "clear" ? "🥶" : "🌙"}
           value={frost?.worst_night ? u.showTemp(frost.worst_night.low_ground_f) : "—"}
@@ -360,7 +351,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
         </div>
       ) : data ? (
         <ChartFrame label="The season's heat" tour="ledger.chart">
-          <SeasonChart data={data} frostDayIndex={frostIndex(data, frost)}
+          <SeasonChart data={data} frostDayIndex={frostIndex(data, frostTile.iso)} frostTitle={frostTile.title}
             flags={showFlags ? flags : []} onFlag={setOpenFlag} showGround={showGround}
             overlay={overlay} bands={wetBands} focus={focus} />
         </ChartFrame>
@@ -507,12 +498,11 @@ function Pulse({ emoji, value, unit, label, tone, muted, gauge }: {
   );
 }
 
-/// Where the median first frost falls along the curve's own day axis, so the
+/// Where the first frost falls along the curve's own day axis, so the
 /// chart can draw the line in the same coordinate space as the data. Null when
 /// the date sits outside the plotted range — better no line than one clamped
 /// to an edge, which would read as a frost date that is not real.
-function frostIndex(curve: SeasonCurveResult, frost: FrostWindowResult | null): number | null {
-  const median = frost?.first_frost?.median;
+function frostIndex(curve: SeasonCurveResult, median: string | undefined): number | null {
   const dates = curve.curve?.dates;
   if (!median || !dates?.length) return null;
   const start = new Date(dates[0] + "T12:00:00").getTime();
@@ -612,3 +602,36 @@ const SUBS = "₀₁₂₃₄₅₆₇₈₉";
 const sub = (n: number) => String(Math.round(n)).split("").map((c) => SUBS[+c] ?? c).join("");
 const fmt = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+/// The first-frost tile and the chart's frost line, which mark the same day.
+/// Before the record's median it is the median; once this fall has frosted it
+/// is that night; past the median with none yet it is the median of the
+/// seasons that were still frost-free this late, since the typical season's
+/// date has stopped being an answer.
+function firstFrost(frost: FrostWindowResult | null | undefined): {
+  value: string; label: string; muted?: boolean; iso?: string; title?: string;
+} {
+  const rec = frost?.first_frost;
+  const now = frost?.this_season;
+  if (now?.first_frost) {
+    return {
+      value: shortDate(now.first_frost), iso: now.first_frost, title: "First frost this fall",
+      label: rec ? `first this fall · median ${shortDate(rec.median)}` : "first this fall",
+    };
+  }
+  const later = now?.given_none_yet;
+  if (rec && later && (frost?.days_to_median_first_frost ?? 0) < 0) {
+    return later.median
+      ? {
+        value: shortDate(later.median), iso: later.median,
+        title: `Median first frost of the ${later.seasons} seasons still frost-free this late`,
+        label: `none yet · ${later.seasons} of ${later.of} seasons went later`,
+      }
+      : { value: "none yet", label: `later than all ${later.of} seasons on record` };
+  }
+  if (!rec) return { value: "—", label: "median first frost", muted: true };
+  return {
+    value: shortDate(rec.median), iso: rec.median, title: "Median first frost",
+    label: `median first · earliest ${shortDate(rec.earliest)}`,
+  };
+}

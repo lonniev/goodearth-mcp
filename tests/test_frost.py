@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 import pytest
 
 from goodearth_mcp import frost
@@ -182,3 +184,59 @@ def test_even_count_median_falls_between_the_two_central_dates():
         ["2022-09-20", "2023-09-30", "2024-10-02", "2025-10-10"], reference_year=2026
     )
     assert "2026-09-30" <= s["median"] <= "2026-10-02"
+
+
+# ── This fall so far ─────────────────────────────────────────────────────────
+
+
+def _fall(lows: dict[str, float]) -> tuple[list[str], list[float | None]]:
+    days = sorted(lows)
+    return days, [lows[d] for d in days]
+
+
+RECORD = ["2016-09-19", "2017-10-02", "2018-10-08", "2019-10-13", "2020-10-13",
+          "2021-10-20", "2022-10-24", "2023-10-30", "2024-11-04", "2025-01-06"]
+
+
+def test_a_frost_this_fall_is_reported_as_it_came():
+    dates, lows = _fall({"2026-09-30": 40, "2026-10-01": 31, "2026-10-02": 29})
+    got = frost.season_so_far(dates, lows, RECORD, date(2026, 10, 14))
+    assert got == {"first_frost": "2026-10-01", "through": "2026-10-02"}
+
+
+def test_past_the_median_with_no_frost_the_later_seasons_answer():
+    dates, lows = _fall({"2026-10-12": 41, "2026-10-13": 38})
+    got = frost.season_so_far(dates, lows, RECORD, date(2026, 10, 14))
+    assert got["first_frost"] is None
+    later = got["given_none_yet"]
+    # Five of ten seasons were still frost-free on Oct 13, the January one last.
+    assert (later["seasons"], later["of"]) == (5, 10)
+    assert later["earliest"] == "2026-10-20"
+    assert later["latest"] == "2027-01-06"
+    assert later["median"] == "2026-10-30"
+
+
+def test_frost_free_past_every_season_on_record_says_so():
+    dates, lows = _fall({"2026-11-10": 40})
+    got = frost.season_so_far(dates, lows, RECORD[:9], date(2026, 11, 11))
+    assert got["given_none_yet"] == {"seasons": 0, "of": 9}
+
+
+def test_before_the_fall_search_begins_there_is_no_season_yet():
+    dates, lows = _fall({"2027-01-20": 40})
+    assert frost.season_so_far(dates, lows, RECORD, date(2027, 1, 21)) is None
+
+
+def test_tonight_is_not_counted_before_it_happens():
+    dates, lows = _fall({"2026-10-13": 40, "2026-10-14": 20})
+    got = frost.season_so_far(dates, lows, RECORD, date(2026, 10, 14))
+    assert got["first_frost"] is None and got["through"] == "2026-10-13"
+
+
+def test_nothing_observed_since_july_is_no_answer():
+    assert frost.season_so_far([], [], RECORD, date(2026, 10, 14)) is None
+    assert frost.season_so_far(["2026-07-01"], [30.0], RECORD, date(2026, 7, 10)) is None
+
+
+def test_a_january_frost_sorts_after_december():
+    assert frost.season_day(date(2027, 1, 6)) > frost.season_day(date(2026, 12, 20))

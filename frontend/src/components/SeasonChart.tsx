@@ -90,8 +90,10 @@ function wrapLabel(text: string, width = FLAG_CHARS, max = FLAG_LINES): string[]
 
 interface Props {
   data: SeasonCurveResult;
-  /// Median first frost as a day-index into the curve, when known (T2).
+  /// First frost as a day-index into the curve, when known (T2).
   frostDayIndex?: number | null;
+  /// What that day is, for the mark's tooltip.
+  frostTitle?: string;
   /// The grower's own model events, placed on the curve. Derived client-side
   /// from thresholds already on the page, so they cost nothing to show.
   flags?: LedgerFlag[];
@@ -127,7 +129,7 @@ function niceStep(span: number): number {
 }
 
 export default function SeasonChart({
-  data, frostDayIndex = null, flags = [], onFlag, showGround = true, overlay = null,
+  data, frostDayIndex = null, frostTitle = "Median first frost", flags = [], onFlag, showGround = true, overlay = null,
   bands = [], focus = null,
 }: Props) {
   const u = useUnits();
@@ -657,7 +659,7 @@ export default function SeasonChart({
           return (
             <g transform={`translate(${cx - s / 2} ${T}) scale(${s / 24})`}
               fill="var(--color-frost)">
-              <title>Median first frost</title>
+              <title>{frostTitle}</title>
               <path d="M22 11h-4.17l3.24-3.24-1.41-1.42L15 11h-2V9l4.66-4.66-1.42-1.41L13 6.17V2h-2v4.17L7.76 2.93 6.34 4.34 11 9v2H9L4.34 6.34 2.93 7.76 6.17 11H2v2h4.17l-3.24 3.24 1.41 1.42L9 13h2v2l-4.66 4.66 1.42 1.41L11 17.83V22h2v-4.17l3.24 3.24 1.42-1.41L13 15v-2h2l4.66 4.66 1.41-1.42L16.83 13H22z" />
             </g>
           );

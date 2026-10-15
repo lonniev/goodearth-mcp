@@ -224,6 +224,14 @@ export interface FrostWindowResult {
     note: string;
   } | null;
   days_to_median_first_frost: number | null;
+  /// This fall up to yesterday; null before the fall search begins.
+  this_season: {
+    first_frost: string | null;
+    through: string;
+    /// With no frost yet: when the record's seasons still frost-free by now
+    /// went on to frost. No dates when none of them was.
+    given_none_yet?: { median?: string; earliest?: string; latest?: string; seasons: number; of: number };
+  } | null;
   across_region: {
     coldest_ground_offset_f: number;
     elevation_range_m: number | null;
