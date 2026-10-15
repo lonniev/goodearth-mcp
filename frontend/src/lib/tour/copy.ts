@@ -77,7 +77,7 @@ export const TOURS: Record<Tour["page"], Tour> = {
     { target: "plots.import", title: "Import", guide: ["Add ground", "Import"],
       says: "Brings in a farm bundle another grower shared." },
     { target: "plots.groups", title: "Groups", guide: ["Read and switch", "Groups"],
-      says: "Folders of plots. Tap one to show, hide or work on all its plots at once." },
+      says: "Folders of plots. Tap one to open or close it; its ⋯ shows, hides or edits all its plots at once." },
     { target: "plots.chips", title: "The chips", guide: ["Read and switch", "The chips"],
       says: "One per plot. Tap one to work it and frame it; tap it again to hide it from the map or forget it." },
     { target: "plots.rename", title: "Rename", guide: ["Change", "The pencil"],

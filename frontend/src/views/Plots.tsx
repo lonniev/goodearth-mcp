@@ -23,9 +23,7 @@ import {
 import { blockSave } from "../lib/mcp";
 import { deleteRegion, EXAMPLE_ID, listRegions, type SavedRegion } from "../lib/regions";
 import { chipTap, hide, readHidden, show, stillHidden, writeHidden } from "../lib/hiddenPlots";
-import { narrowTo } from "../lib/plotGroups";
-import { readFocusGroup, writeFocusGroup } from "../lib/focusGroup";
-import PlotGroups from "../components/PlotGroups";
+import PlotFolders from "../components/PlotFolders";
 import { saveBlock } from "../lib/saveBlock";
 import { baseBounds } from "../lib/baseTemp";
 import PlotEditor from "../components/PlotEditor";
@@ -92,19 +90,6 @@ export default function Plots({
   const [asking, setAsking] = useState<string | null>(null);
   const setHidden = (ids: string[]) => setHiddenIds(writeHidden(ids));
   const hiddenNow = stillHidden(hiddenIds, regions.map((r) => r.id));
-  /// The group the page is narrowed to, on this device; "" is every plot.
-  /// A group whose last plot left it widens back to every plot.
-  const [groupPick, setGroupPick] = useState<string>(readFocusGroup);
-  const narrowed = narrowTo(regions, groupPick);
-  const focusGroup = narrowed.length ? groupPick : "";
-  const shown = focusGroup ? narrowed : regions;
-  function workOnGroup(g: string) {
-    setGroupPick(writeFocusGroup(g));
-    setAsking(null);
-    const members = narrowTo(regions, g);
-    if (g && members.length && !members.some((r) => r.id === active.id)) onPick(members[0]);
-  }
-
   /// Re-read the saved ground whenever something could have written it.
   ///
   /// Two moments catch every writer: the server's blocks landing (`synced`),
@@ -367,18 +352,17 @@ export default function Plots({
       {bundleMsg && <p className="-mt-2 mb-2.5 text-[12.5px] text-ink">{bundleMsg}</p>}
 
       {/* ── The ground already saved ───────────────────────────────────── */}
-      {/* One chip per plot, the map right under them: the page is the map.
-          A chip tapped is the plot worked; rename, share and forget act on
-          the plot being worked, at the row's end, not on every card. */}
-      <PlotGroups plots={regions} focus={focusGroup} onFocus={workOnGroup}
-        hidden={hiddenNow} onHidden={setHidden} synced={synced}
+      {/* One chip per plot, in folders for its groups, the map right under
+          them: the page is the map. A chip tapped is the plot worked; rename,
+          share and forget act on the plot being worked, at the top row's end,
+          not on every card. */}
+      <PlotFolders plots={regions} hidden={hiddenNow} onHidden={setHidden} synced={synced}
         onSaved={(saved) => {
           setRegions(listRegions());
           const mine = saved.find((r) => r.id === active.id);
           if (mine) onSaved(mine);
-        }} />
-      <div className="flex flex-wrap items-center gap-2" {...tour("plots.chips")}>
-        {shown.map((r) => {
+        }}
+        chip={(r: SavedRegion) => {
           const isActive = r.id === active.id;
           const isHidden = hiddenNow.includes(r.id);
           // First tap works the plot and frames it; a tap on the framed plot
@@ -414,34 +398,33 @@ export default function Plots({
               </span>
             </button>
           );
-        })}
-        {active.id !== EXAMPLE_ID && (
-          <div className="ml-auto flex gap-1.5">
-            {/* Not before the record has answered: the cache may not know
-                the plot's aliases, and saving what it does not know would
-                clear them. */}
-            {synced && editing !== active.id && (
-              <IconButton path={ICON.edit} label={`Rename ${active.name}`} tone="quiet" hideLabel tour="plots.rename"
-                onClick={() => setEditing(active.id)} />
-            )}
-            {/* The plot and this season's plantings, pests and wildlife,
-                as a file another patron can import. A second tap is asked
-                for only when the share sheet refused the first. */}
-            {synced && editing !== active.id && (
-              waiting?.id === active.id ? (
-                <IconButton path={ICON.share} label="Share ready" title={`Share ${active.name}`}
-                  onClick={() => void share(active)} />
-              ) : (
-                <IconButton path={ICON.share} label={`Share ${active.name}`} tone="quiet" hideLabel tour="plots.share"
-                  title="Share this plot as a farm bundle" disabled={packing === active.id}
-                  onClick={() => void share(active)} />
-              )
-            )}
-            <IconButton path={ICON.delete} label={`Forget ${active.name}`} tone="quiet" hideLabel tour="plots.forget"
-              onClick={() => { setConfirming(active); setErr(""); }} />
-          </div>
-        )}
-      </div>
+        }}
+        actions={active.id !== EXAMPLE_ID && (
+            <div className="ml-auto flex gap-1.5">
+              {/* Not before the record has answered: the cache may not know
+                  the plot's aliases, and saving what it does not know would
+                  clear them. */}
+              {synced && editing !== active.id && (
+                <IconButton path={ICON.edit} label={`Rename ${active.name}`} tone="quiet" hideLabel tour="plots.rename"
+                  onClick={() => setEditing(active.id)} />
+              )}
+              {/* The plot and this season's plantings, pests and wildlife,
+                  as a file another patron can import. A second tap is asked
+                  for only when the share sheet refused the first. */}
+              {synced && editing !== active.id && (
+                waiting?.id === active.id ? (
+                  <IconButton path={ICON.share} label="Share ready" title={`Share ${active.name}`}
+                    onClick={() => void share(active)} />
+                ) : (
+                  <IconButton path={ICON.share} label={`Share ${active.name}`} tone="quiet" hideLabel tour="plots.share"
+                    title="Share this plot as a farm bundle" disabled={packing === active.id}
+                    onClick={() => void share(active)} />
+                )
+              )}
+              <IconButton path={ICON.delete} label={`Forget ${active.name}`} tone="quiet" hideLabel tour="plots.forget"
+                onClick={() => { setConfirming(active); setErr(""); }} />
+            </div>
+        )} />
       {asking === active.id && (
         <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-rule bg-panel px-3.5 py-2">
           <span className="text-[13px]">{active.name}</span>
@@ -479,7 +462,7 @@ export default function Plots({
           map stays its own, further down, so a tap here never adds a corner. */}
       <div className="mt-2.5">
         {/* A hidden worked plot takes its Sun layer with it. */}
-        <PlotsMap plots={shown} activeId={active.id} onPick={onPick}
+        <PlotsMap plots={regions} activeId={active.id} onPick={onPick}
           sun={hiddenNow.includes(active.id) ? undefined : sunControl} focus={focus}
           hidden={hiddenNow} onFramed={setFramedId} />
       </div>

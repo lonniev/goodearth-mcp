@@ -81,9 +81,45 @@ export function hideGroup(hidden: readonly string[], plots: readonly SavedRegion
   return out;
 }
 
-/// The plots a page narrowed to `group` shows; every plot when it is "".
-export function narrowTo(plots: readonly SavedRegion[], group: string): SavedRegion[] {
-  return group ? membersOf(plots, group) : [...plots];
+/// The plots filed in `group` itself, and not only in a group inside it. A
+/// plot in several groups is filed in each of them.
+export function filedIn(plots: readonly SavedRegion[], group: string): SavedRegion[] {
+  const g = fold(cleanPath(group));
+  return plots.filter((p) => (p.groups ?? []).some((x) => fold(cleanPath(x)) === g));
+}
+
+/// The plots in no group at all.
+export function ungrouped(plots: readonly SavedRegion[]): SavedRegion[] {
+  return plots.filter((p) => !(p.groups ?? []).some((g) => cleanPath(g)));
+}
+
+// ── Open folders ─────────────────────────────────────────────────────────
+// Which groups are open on the Plots page, as their paths. A group inside a
+// closed one keeps its own open or closed state for when it is shown again.
+
+export function isOpen(open: readonly string[], group: string): boolean {
+  const g = fold(cleanPath(group));
+  return open.some((x) => fold(x) === g);
+}
+
+/// The open set with `group` opened or closed.
+export function toggleOpen(open: readonly string[], group: string): string[] {
+  const g = cleanPath(group);
+  return isOpen(open, g) ? open.filter((x) => fold(x) !== fold(g)) : [...open, g];
+}
+
+/// The open set with `group` and every group around it open, so it shows.
+export function reveal(open: readonly string[], group: string): string[] {
+  const out = [...open];
+  for (const a of ancestors(group)) if (!isOpen(out, a)) out.push(a);
+  return out;
+}
+
+/// The open set after `from` was renamed or moved to `to`.
+export function moveOpen(open: readonly string[], from: string, to: string): string[] {
+  const f = cleanPath(from);
+  const depth = parsePath(f).length;
+  return open.map((x) => isWithin(x, f) ? joinPath([...parsePath(to), ...parsePath(x).slice(depth)]) : x);
 }
 
 /// A plot's groups with `group` set on or off. Off removes the group and every

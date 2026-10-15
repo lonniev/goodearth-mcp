@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  allGroups, ancestors, childrenOf, cleanPath, hideGroup, isWithin, leaf, memberIds,
-  narrowTo, renameGroup, showGroup, withGroup,
+  allGroups, ancestors, childrenOf, cleanPath, filedIn, hideGroup, isOpen, isWithin, leaf, memberIds,
+  moveOpen, renameGroup, reveal, showGroup, toggleOpen, ungrouped, withGroup,
 } from "./plotGroups.ts";
 import type { SavedRegion } from "./regions.ts";
 
@@ -50,7 +50,29 @@ describe("groups of groups", () => {
   it("counts the plots in groups inside a group", () => {
     assert.deepEqual(memberIds(farm, "North Farm"), ["apples", "pears", "garden"]);
     assert.deepEqual(memberIds(farm, "North Farm / Orchard"), ["apples", "pears"]);
-    assert.deepEqual(narrowTo(farm, "").length, 4);
+  });
+});
+
+describe("folders", () => {
+  it("files a plot in each group it names, and nowhere above", () => {
+    assert.deepEqual(filedIn(farm, "North Farm / Orchard").map((p) => p.id), ["pears"]);
+    assert.deepEqual(filedIn(farm, "north farm"), []);
+    assert.deepEqual(filedIn(farm, "Market").map((p) => p.id), ["garden"]);
+    assert.deepEqual(filedIn(farm, "North Farm / Gardens").map((p) => p.id), ["garden"]);
+    assert.deepEqual(ungrouped(farm).map((p) => p.id), ["meadow"]);
+  });
+  it("opens and closes a folder", () => {
+    const open = toggleOpen([], "North Farm");
+    assert.ok(isOpen(open, "north farm"));
+    assert.deepEqual(toggleOpen(open, "North Farm"), []);
+  });
+  it("reveals a group by opening every folder around it", () => {
+    assert.deepEqual(reveal(["North Farm"], "North Farm / Orchard / Apples"),
+      ["North Farm", "North Farm / Orchard", "North Farm / Orchard / Apples"]);
+  });
+  it("keeps folders open when their group moves", () => {
+    assert.deepEqual(moveOpen(["North Farm / Orchard", "Market"], "North Farm", "South Farm"),
+      ["South Farm / Orchard", "Market"]);
   });
 });
 
