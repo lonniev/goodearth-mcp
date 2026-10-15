@@ -8,38 +8,40 @@ import pytest
 
 from goodearth_mcp import frost
 
+MIDSUMMER = (7, 15)  # a northern season's start
+
 # ── First-frost detection ────────────────────────────────────────────────
 
 
 def test_first_fall_frost_finds_the_first_freezing_night():
     dates = ["2025-08-01", "2025-09-20", "2025-09-25", "2025-10-02"]
     tmin = [55.0, 40.0, 31.0, 28.0]
-    assert frost.first_fall_frost(dates, tmin, 2025) == "2025-09-25"
+    assert frost.first_fall_frost(dates, tmin, 2025, MIDSUMMER) == "2025-09-25"
 
 
 def test_a_spring_freeze_is_not_a_first_fall_frost():
     """A cold night in May is a LATE spring frost — a different question."""
     dates = ["2025-05-12", "2025-10-04"]
     tmin = [30.0, 31.0]
-    assert frost.first_fall_frost(dates, tmin, 2025) == "2025-10-04"
+    assert frost.first_fall_frost(dates, tmin, 2025, MIDSUMMER) == "2025-10-04"
 
 
 def test_exactly_32_counts_as_frost():
-    assert frost.first_fall_frost(["2025-09-30"], [32.0], 2025) == "2025-09-30"
+    assert frost.first_fall_frost(["2025-09-30"], [32.0], 2025, MIDSUMMER) == "2025-09-30"
 
 
 def test_a_season_that_never_froze_returns_none():
-    assert frost.first_fall_frost(["2025-09-30"], [45.0], 2025) is None
+    assert frost.first_fall_frost(["2025-09-30"], [45.0], 2025, MIDSUMMER) is None
 
 
 def test_missing_nights_are_skipped_not_treated_as_warm():
     dates = ["2025-09-20", "2025-09-21"]
-    assert frost.first_fall_frost(dates, [None, 30.0], 2025) == "2025-09-21"
+    assert frost.first_fall_frost(dates, [None, 30.0], 2025, MIDSUMMER) == "2025-09-21"
 
 
 def test_other_years_are_ignored():
     dates = ["2024-09-10", "2025-10-05"]
-    assert frost.first_fall_frost(dates, [20.0, 30.0], 2025) == "2025-10-05"
+    assert frost.first_fall_frost(dates, [20.0, 30.0], 2025, MIDSUMMER) == "2025-10-05"
 
 
 # ── Summarising the record ───────────────────────────────────────────────
@@ -163,7 +165,7 @@ def test_frost_dates_collects_each_year_that_has_one():
 
 @pytest.mark.parametrize("bad", ["not-a-date", ""])
 def test_unparseable_dates_are_skipped(bad):
-    assert frost.first_fall_frost([bad, "2025-10-01"], [20.0, 30.0], 2025) == "2025-10-01"
+    assert frost.first_fall_frost([bad, "2025-10-01"], [20.0, 30.0], 2025, MIDSUMMER) == "2025-10-01"
 
 
 def test_leap_year_dates_do_not_drift_by_a_day():
@@ -200,13 +202,13 @@ RECORD = ["2016-09-19", "2017-10-02", "2018-10-08", "2019-10-13", "2020-10-13",
 
 def test_a_frost_this_fall_is_reported_as_it_came():
     dates, lows = _fall({"2026-09-30": 40, "2026-10-01": 31, "2026-10-02": 29})
-    got = frost.season_so_far(dates, lows, RECORD, date(2026, 10, 14))
+    got = frost.season_so_far(dates, lows, RECORD, date(2026, 10, 14), MIDSUMMER)
     assert got == {"first_frost": "2026-10-01", "through": "2026-10-02"}
 
 
 def test_past_the_median_with_no_frost_the_later_seasons_answer():
     dates, lows = _fall({"2026-10-12": 41, "2026-10-13": 38})
-    got = frost.season_so_far(dates, lows, RECORD, date(2026, 10, 14))
+    got = frost.season_so_far(dates, lows, RECORD, date(2026, 10, 14), MIDSUMMER)
     assert got["first_frost"] is None
     later = got["given_none_yet"]
     # Five of ten seasons were still frost-free on Oct 13, the January one last.
@@ -218,28 +220,28 @@ def test_past_the_median_with_no_frost_the_later_seasons_answer():
 
 def test_frost_free_past_every_season_on_record_says_so():
     dates, lows = _fall({"2026-11-10": 40})
-    got = frost.season_so_far(dates, lows, RECORD[:9], date(2026, 11, 11))
+    got = frost.season_so_far(dates, lows, RECORD[:9], date(2026, 11, 11), MIDSUMMER)
     assert got["given_none_yet"] == {"seasons": 0, "of": 9}
 
 
 def test_in_january_the_season_that_began_in_july_is_still_running():
     # The Gulf case: no frost since July, and every season on record frosted by now.
     dates, lows = _fall({"2027-01-20": 40})
-    got = frost.season_so_far(dates, lows, RECORD, date(2027, 1, 21))
+    got = frost.season_so_far(dates, lows, RECORD, date(2027, 1, 21), MIDSUMMER)
     assert got["first_frost"] is None
     assert got["given_none_yet"] == {"seasons": 0, "of": 10}
 
 
 def test_tonight_is_not_counted_before_it_happens():
     dates, lows = _fall({"2026-10-13": 40, "2026-10-14": 20})
-    got = frost.season_so_far(dates, lows, RECORD, date(2026, 10, 14))
+    got = frost.season_so_far(dates, lows, RECORD, date(2026, 10, 14), MIDSUMMER)
     assert got["first_frost"] is None and got["through"] == "2026-10-13"
 
 
 def test_nothing_observed_since_the_season_began_is_no_answer():
-    assert frost.season_so_far([], [], RECORD, date(2026, 10, 14)) is None
-    assert frost.season_so_far(["2026-07-01"], [30.0], RECORD, date(2026, 7, 20)) is None
+    assert frost.season_so_far([], [], RECORD, date(2026, 10, 14), MIDSUMMER) is None
+    assert frost.season_so_far(["2026-07-01"], [30.0], RECORD, date(2026, 7, 20), MIDSUMMER) is None
 
 
 def test_a_january_frost_sorts_after_december():
-    assert frost.season_day(date(2027, 1, 6)) > frost.season_day(date(2026, 12, 20))
+    assert frost.season_day(date(2027, 1, 6), MIDSUMMER) > frost.season_day(date(2026, 12, 20), MIDSUMMER)

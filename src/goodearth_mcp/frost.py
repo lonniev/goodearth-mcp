@@ -30,14 +30,9 @@ FROST_F = 32.0
 FROST_WATCH_F = 36.0
 HARD_FREEZE_F = 28.0
 
-# A frost date only means something in the back half of the season; a cold
-# snap in May is a late spring frost, a different question entirely.
-FALL_SEARCH_START = (7, 15)  # Jul 15
-
-
 def first_fall_frost(
     dates: list[str], tmin: list[float | None], year: int,
-    start: tuple[int, int] = FALL_SEARCH_START,
+    start: tuple[int, int],
 ) -> str | None:
     """The first night at or below freezing in the season that begins on
     ``start`` of ``year`` and runs a full year.
@@ -143,7 +138,7 @@ def season_of(day: date, start: tuple[int, int]) -> date:
     return begin if day >= begin else gdd.on_year(day.year - 1, *start)
 
 
-def season_day(day: date, start: tuple[int, int] = FALL_SEARCH_START) -> int:
+def season_day(day: date, start: tuple[int, int]) -> int:
     """Days since the season holding ``day`` began, so a January frost sorts
     after a December one."""
     return (day - season_of(day, start)).days
@@ -151,7 +146,7 @@ def season_day(day: date, start: tuple[int, int] = FALL_SEARCH_START) -> int:
 
 def season_so_far(
     dates: list[str], tmin: list[float | None], record_frosts: list[str], today: date,
-    start: tuple[int, int] = FALL_SEARCH_START,
+    start: tuple[int, int],
 ) -> dict[str, Any] | None:
     """This season up to yesterday: its first frost, or none yet and when the
     record's seasons that were still frost-free by now went on to frost.
@@ -257,7 +252,7 @@ def worst(nights: list[dict[str, Any]]) -> dict[str, Any] | None:
 
 def last_spring_frost(
     dates: list[str], tmin: list[float | None], year: int,
-    start: tuple[int, int] = FALL_SEARCH_START,
+    start: tuple[int, int],
 ) -> str | None:
     """The LAST night at or below freezing before the midsummer that falls on
     ``start`` of ``year`` — this ground's spring, on either side of the equator.

@@ -48,6 +48,18 @@ export interface WireGrid {
 
 export interface SunPath { june: number[][]; equinox: number[][]; december: number[][] }
 
+/// The three sun paths with their colours and labels, summer's warm and
+/// winter's cool. June is summer north of the equator and winter south of it,
+/// where December's path is the high one and carries the hours.
+export function pathsAt(lat: number): { key: keyof SunPath; colour: string; label: string; summer: boolean }[] {
+  const south = lat < 0;
+  return [
+    { key: "june", colour: south ? "#4A7394" : "#E09A3A", label: "Jun", summer: !south },
+    { key: "equinox", colour: "#8E6488", label: "Mar/Sep", summer: false },
+    { key: "december", colour: south ? "#E09A3A" : "#4A7394", label: "Dec", summer: south },
+  ];
+}
+
 export interface SunGrid {
   rows: number;
   cols: number;

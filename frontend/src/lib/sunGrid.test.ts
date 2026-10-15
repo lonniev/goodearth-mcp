@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { deflateSync } from "node:zlib";
 import {
-  bareSpan, cellAt, cellCentre, classOf, decodeGrid, kwhRamp, paint, ramp, summary,
+  bareSpan, cellAt, cellCentre, classOf, decodeGrid, kwhRamp, paint, pathsAt, ramp, summary,
   type WireField, type WireGrid, type WirePacked,
 } from "./sunGrid.ts";
 
@@ -107,4 +107,13 @@ test("the bare-trees chip reads the leaf-off months as a span across the new yea
   assert.equal(bareSpan([11, 12, 1, 2, 3], MONTHS), "Bare trees Nov–Mar");
   assert.equal(bareSpan([], MONTHS), null);
   assert.equal(bareSpan([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], MONTHS), "Bare trees all year");
+});
+
+test("the summer path is June in the north and December in the south", () => {
+  const north = pathsAt(44.1);
+  const south = pathsAt(-35.3);
+  assert.equal(north.find((p) => p.summer)?.key, "june");
+  assert.equal(south.find((p) => p.summer)?.key, "december");
+  // Summer's warm colour follows the summer path.
+  assert.equal(south.find((p) => p.key === "december")?.colour, north.find((p) => p.key === "june")?.colour);
 });

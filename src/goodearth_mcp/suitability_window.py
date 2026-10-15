@@ -148,7 +148,7 @@ async def region_suitability(
             "seasons_on_record": len(years),
             "note": (
                 "Heat accumulated inside the frost-free window, median across "
-                f"the last {len(years)} seasons. Counting from Jan 1 would credit "
+                f"the last {len(years)} seasons. Counting from midwinter would credit "
                 "this ground with heat that arrives before anything can be "
                 "planted into it."
             ),
