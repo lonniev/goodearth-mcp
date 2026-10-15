@@ -1,0 +1,1 @@
+- The first-frost record reads the 1 km Daymet feed again. Asking for it through yesterday had pushed it onto the coarse reanalysis, which put every past first frost weeks late; this fall is now read on its own.

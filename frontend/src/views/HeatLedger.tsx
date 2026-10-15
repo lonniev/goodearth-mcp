@@ -613,25 +613,16 @@ function firstFrost(frost: FrostWindowResult | null | undefined): {
 } {
   const rec = frost?.first_frost;
   const now = frost?.this_season;
+  const label = rec ? `ave is ${shortDate(rec.median)}` : "first frost";
   if (now?.first_frost) {
-    return {
-      value: shortDate(now.first_frost), iso: now.first_frost, title: "First frost this fall",
-      label: rec ? `first this fall · median ${shortDate(rec.median)}` : "first this fall",
-    };
+    return { value: shortDate(now.first_frost), iso: now.first_frost, title: "First frost this fall", label };
   }
+  if (!rec) return { value: "—", label, muted: true };
   const later = now?.given_none_yet;
-  if (rec && later && (frost?.days_to_median_first_frost ?? 0) < 0) {
+  if (later && (frost?.days_to_median_first_frost ?? 0) < 0) {
     return later.median
-      ? {
-        value: shortDate(later.median), iso: later.median,
-        title: `Median first frost of the ${later.seasons} seasons still frost-free this late`,
-        label: `none yet · ${later.seasons} of ${later.of} seasons went later`,
-      }
-      : { value: "none yet", label: `later than all ${later.of} seasons on record` };
+      ? { value: shortDate(later.median), iso: later.median, title: "Projected first frost", label }
+      : { value: "any night", label };
   }
-  if (!rec) return { value: "—", label: "median first frost", muted: true };
-  return {
-    value: shortDate(rec.median), iso: rec.median, title: "Median first frost",
-    label: `median first · earliest ${shortDate(rec.earliest)}`,
-  };
+  return { value: shortDate(rec.median), iso: rec.median, title: "Projected first frost", label };
 }

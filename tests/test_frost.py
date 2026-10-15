@@ -222,9 +222,12 @@ def test_frost_free_past_every_season_on_record_says_so():
     assert got["given_none_yet"] == {"seasons": 0, "of": 9}
 
 
-def test_before_the_fall_search_begins_there_is_no_season_yet():
+def test_in_january_the_season_that_began_in_july_is_still_running():
+    # The Gulf case: no frost since July, and every season on record frosted by now.
     dates, lows = _fall({"2027-01-20": 40})
-    assert frost.season_so_far(dates, lows, RECORD, date(2027, 1, 21)) is None
+    got = frost.season_so_far(dates, lows, RECORD, date(2027, 1, 21))
+    assert got["first_frost"] is None
+    assert got["given_none_yet"] == {"seasons": 0, "of": 10}
 
 
 def test_tonight_is_not_counted_before_it_happens():
@@ -233,9 +236,9 @@ def test_tonight_is_not_counted_before_it_happens():
     assert got["first_frost"] is None and got["through"] == "2026-10-13"
 
 
-def test_nothing_observed_since_july_is_no_answer():
+def test_nothing_observed_since_the_season_began_is_no_answer():
     assert frost.season_so_far([], [], RECORD, date(2026, 10, 14)) is None
-    assert frost.season_so_far(["2026-07-01"], [30.0], RECORD, date(2026, 7, 10)) is None
+    assert frost.season_so_far(["2026-07-01"], [30.0], RECORD, date(2026, 7, 20)) is None
 
 
 def test_a_january_frost_sorts_after_december():

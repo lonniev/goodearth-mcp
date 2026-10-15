@@ -58,10 +58,11 @@ export const ledger: Guide = {
       ["The pulse strip",
         <>Five figures: heat so far with its gauge; the spread across the
           block, in GDD and in days; how far ahead of or behind the recent
-          seasons, with the grid the band was read from; the first frost — the
-          median and the earliest on record, then this fall's own once it has
-          come, or, past the median with none yet, the median of the seasons
-          still frost-free that late; and the coldest ground in the coming week
+          seasons, with the grid the band was read from; the first frost — this
+          season's once it has come, otherwise when it is projected, with the
+          average beneath. A season begins in the stretch of the year this
+          ground has never frosted, mid-July in the north, so the figure turns
+          to the next frost on that day; and the coldest ground in the coming week
           against the plain forecast.</>],
       ["The chart",
         <>Drag or pinch to move along the season; the glasses on the left zoom

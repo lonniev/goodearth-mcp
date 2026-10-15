@@ -26,7 +26,7 @@ from datetime import UTC, date, datetime
 from typing import Any
 
 from goodearth_mcp import crops, gdd, ical, pests, record_cache, sources, wildlife
-from goodearth_mcp.frost import first_fall_frost, summarize_frost_dates
+from goodearth_mcp.frost import frost_dates, summarize_frost_dates
 from goodearth_mcp.region import Region
 
 RECORD_SPAN_YEARS = 10
@@ -230,8 +230,7 @@ async def build_feed(
         try:
             f_dates, _fx, f_tmin = sources.daily_series(record[0])
             years = list(range(sources.record_start_year(today.year, RECORD_SPAN_YEARS), today.year))
-            got = [d for y in years if (d := first_fall_frost(f_dates, f_tmin, y))]
-            frost_summary = summarize_frost_dates(got, today.year)
+            frost_summary = summarize_frost_dates(frost_dates(f_dates, f_tmin, years), today.year)
         except (sources.UpstreamError, IndexError, ValueError):
             frost_summary = None
 
