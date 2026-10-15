@@ -22,7 +22,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from goodearth_mcp import gdd
+from goodearth_mcp import frost, gdd
 
 # Open-Meteo's soil bands. 7-28 cm brackets the 4-inch depth growers speak in
 # (10 cm), so it is the default — but the band is reported rather than the
@@ -79,19 +79,31 @@ PERSIST_DAYS = 5
 # alone is not enough: a genuine five-day cool spell in June is a real dip, but
 # it is not the AUTUMN crossing, and reporting it as one would put garlic in the
 # ground in midsummer. Same reasoning as frost.FALL_SEARCH_START — searching
-# the whole calendar year finds the wrong season's answer.
-COOLING_SEARCH_FROM = (7, 1)   # autumn crossings: Jul 1 onward
-WARMING_SEARCH_FROM = (2, 1)   # spring crossings: Feb 1 onward…
-WARMING_SEARCH_TO = (7, 31)    # …and no later than Jul 31
+# the whole calendar year finds the wrong season's answer. Written for the
+# north; a southern block reads each six months on (`gdd.hemisphere`).
+COOLING_SEARCH = ((7, 1), (12, 31))  # autumn crossings: Jul 1 to the year's end
+WARMING_SEARCH = ((2, 1), (7, 31))   # spring crossings: Feb 1 to Jul 31
 
 
-def _in_season(iso: str, direction: str) -> bool:
-    """Whether a date falls in the half of the year this crossing belongs to."""
-    d = date.fromisoformat(iso)
-    md = (d.month, d.day)
-    if direction == "cooling":
-        return md >= COOLING_SEARCH_FROM
-    return WARMING_SEARCH_FROM <= md <= WARMING_SEARCH_TO
+def _in_season(iso: str, direction: str, lat: float) -> bool:
+    """Whether a date falls in the half of this ground's year the crossing
+    belongs to."""
+    first, last = COOLING_SEARCH if direction == "cooling" else WARMING_SEARCH
+    return gdd.within(date.fromisoformat(iso), gdd.hemisphere(first, lat), gdd.hemisphere(last, lat))
+
+
+def by_season(
+    dates: list[str], temps: list[float | None], lat: float,
+) -> dict[date, tuple[list[str], list[float | None]]]:
+    """A daily record cut into seasons, each keyed by its first day — the
+    midwinter `gdd.season_start` names, so a southern spring that runs from
+    August into January stays one season."""
+    out: dict[date, tuple[list[str], list[float | None]]] = {}
+    for d, t in zip(dates, temps, strict=False):
+        bucket = out.setdefault(gdd.season_start(date.fromisoformat(d), lat), ([], []))
+        bucket[0].append(d)
+        bucket[1].append(t)
+    return out
 
 
 def crossing(
@@ -99,8 +111,8 @@ def crossing(
     temps: list[float | None],
     threshold_f: float,
     direction: str,
+    lat: float | None,
     persist_days: int = PERSIST_DAYS,
-    seasonal: bool = True,
 ) -> str | None:
     """The first date the series crosses the threshold *and stays* across.
 
@@ -110,6 +122,9 @@ def crossing(
     which would tell a grower to plant garlic in the spring. (Observed: the
     2024 record crossed up through 60 °F on May 18 and dipped below again on
     May 30, and the naive rule reported May 30 as the cooling crossing.)
+
+    ``lat`` holds the search to the crossing's own half of that ground's year;
+    ``None`` searches every day given, for a forecast already inside one season.
     """
     def on_new_side(t: float) -> bool:
         return t <= threshold_f if direction == "cooling" else t >= threshold_f
@@ -123,7 +138,7 @@ def crossing(
             continue
         if not seen_other_side:
             continue
-        if seasonal and not _in_season(d, direction):
+        if lat is not None and not _in_season(d, direction, lat):
             continue
         available = min(persist_days, len(temps) - i)
         window = [x for x in temps[i : i + persist_days] if x is not None]
@@ -136,21 +151,19 @@ def crossing(
     return None
 
 
-def typical_crossing(iso_dates: list[str], reference_year: int) -> dict[str, Any] | None:
-    """Median, earliest and latest crossing date across seasons."""
-    # The same arithmetic as the frost dates, in one place: Feb 29 re-expressed
-    # in a common year raised here, and the soil summary silently came back
-    # empty for a spring crossing on that day.
-    got = gdd.typical_dates(iso_dates, reference_year)
-    if got is None:
-        return None
-    median, earliest, latest = got
-    return {
-        "median": median.isoformat(),
-        "earliest": earliest.isoformat(),
-        "latest": latest.isoformat(),
-        "years_on_record": len(iso_dates),
-    }
+def typical_crossing(iso_dates: list[str], lat: float, season: date) -> dict[str, Any] | None:
+    """Median, earliest and latest crossing date across seasons, placed in
+    the season that begins on ``season``.
+
+    Each crossing is counted in days from its own season's midwinter, so a
+    southern spring crossing in January stays after the October ones, and
+    lands in the year it belongs to.
+    """
+    got = frost.typical_around(season, [
+        gdd.season_offset(day, gdd.season_start(day, lat))
+        for day in map(date.fromisoformat, iso_dates)
+    ])
+    return {**got, "years_on_record": len(iso_dates)} if got else None
 
 
 def daily_means(hours: list[str], temps: list[float | None]) -> tuple[list[str], list[float | None]]:

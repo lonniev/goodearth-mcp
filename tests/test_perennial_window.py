@@ -163,3 +163,13 @@ def test_a_feed_that_fails_for_THIS_year_still_answers_from_the_deep_record(monk
     monkeypatch.setattr(record_cache, "daily_history", deep_only)
     [row] = run([APPLE])["trees"]
     assert row["hardiness"]["verdict"] == "hardy"
+
+
+def test_a_southern_block_counts_the_winter_just_gone():
+    """Canberra's chill runs May to mid-August. Read from its July season
+    start, this year's May and June were never seen, and the winter just
+    gone was dropped as a fragment."""
+    south = reg.parse_region({"lat": -35.28, "lon": 149.13, "radius_m": 100})
+    out = asyncio.run(perennial_window.region_tree_window(south, [APPLE], today=date(2026, 10, 15)))
+    assert out["chill"]["most_recent_winter"] == 2026
+    assert out["chill"]["window"] == "1 May – 15 Aug"

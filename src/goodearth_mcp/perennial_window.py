@@ -20,7 +20,7 @@ import asyncio
 from datetime import UTC, date, datetime
 from typing import Any
 
-from goodearth_mcp import chill, gdd, perennial, record_cache, sources
+from goodearth_mcp import chill, perennial, record_cache, sources
 from goodearth_mcp.region import Region
 
 #: Matched to `crop_status.RECORD_SPAN_YEARS` on purpose — a different span
@@ -90,7 +90,10 @@ async def region_tree_window(
         ),
         record_cache.daily_history(
             [region.centroid.lat], [region.centroid.lon],
-            gdd.season_start(today, region.centroid.lat).isoformat(), today.isoformat(),
+            # From New Year, where the record stops: a southern season begins
+            # in July, and read from there the May and June of this winter's
+            # chill were never seen.
+            date(today.year, 1, 1).isoformat(), today.isoformat(),
         ),
         return_exceptions=True,
     )
@@ -104,10 +107,11 @@ async def region_tree_window(
 
     # Only winters whose chill window has closed: one still under way would be
     # scored as a winter that fell short.
-    winters = [w for w in chill.banked(dates, tmax, tmin) if chill.finished(w, today)]
-    lows = perennial.winter_lows(dates, tmin)
+    lat = region.centroid.lat
+    winters = [w for w in chill.banked(dates, tmax, tmin, lat) if chill.finished(w, today, lat)]
+    lows = perennial.winter_lows(dates, tmin, lat)
 
-    rows = [perennial.assess(t, winters, lows) for t in parsed]
+    rows = [perennial.assess(t, winters, lows, lat) for t in parsed]
     for t, row in zip(parsed, rows, strict=True):
         if t.get("ref"):
             row["ref"] = t["ref"]
@@ -120,7 +124,7 @@ async def region_tree_window(
         "trees": rows,
         "skipped": skipped,
         "winters": winters,
-        "chill": chill.summarize(winters),
+        "chill": chill.summarize(winters, lat),
         "summary": _summary(rows),
         "note": (
             "Hardiness limits and chill requirements are the caller's own — "

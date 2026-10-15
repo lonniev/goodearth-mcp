@@ -32,7 +32,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any
 
-from goodearth_mcp import gdd
+from goodearth_mcp import frost, gdd
 
 # How far before the last frost a hardy crop can reasonably go out. Hardy means
 # it survives a light frost, not that it ignores winter.
@@ -126,12 +126,13 @@ def plan_season(midsummer: date, fall_offsets: list[int], today: date) -> int:
     the season gone by — "start onions indoors Feb 2", a February already
     past — and offered no successions at all. South of the equator the
     seasons straddle New Year, which is why this counts from midsummer and
-    not from the calendar.
+    not from the calendar. The same median the frost dates report: an upper
+    middle of ten seasons kept planning the season gone by for days after the
+    first frost it showed had passed.
     """
-    if fall_offsets:
-        median = sorted(fall_offsets)[len(fall_offsets) // 2]
-        if today > midsummer + timedelta(days=median):
-            return midsummer.year + 1
+    typical = frost.typical_around(midsummer, fall_offsets)
+    if typical and today > date.fromisoformat(typical["median"]):
+        return midsummer.year + 1
     return midsummer.year
 
 

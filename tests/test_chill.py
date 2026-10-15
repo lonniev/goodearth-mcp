@@ -13,6 +13,8 @@ import pytest
 
 from goodearth_mcp import chill
 
+NORTH = 44.5  # Vermont
+
 # ── One day, modelled as a sine ──────────────────────────────────────────
 
 
@@ -92,19 +94,19 @@ def test_november_belongs_to_the_winter_it_starts():
     """A December night and the February that follows are ONE winter. Grouping
     by calendar year would split every dormancy in half and report two short
     seasons where there was one whole one."""
-    assert chill.dormancy_ending(date(2025, 11, 15)) == 2026
-    assert chill.dormancy_ending(date(2025, 12, 31)) == 2026
-    assert chill.dormancy_ending(date(2026, 1, 15)) == 2026
-    assert chill.dormancy_ending(date(2026, 2, 10)) == 2026
+    assert chill.dormancy_ending(date(2025, 11, 15), NORTH) == 2026
+    assert chill.dormancy_ending(date(2025, 12, 31), NORTH) == 2026
+    assert chill.dormancy_ending(date(2026, 1, 15), NORTH) == 2026
+    assert chill.dormancy_ending(date(2026, 2, 10), NORTH) == 2026
 
 
 def test_the_window_excludes_the_shoulders():
-    assert chill.in_dormancy(date(2026, 1, 1))
-    assert chill.in_dormancy(date(2025, 11, 1))
-    assert chill.in_dormancy(date(2026, 2, 15))
-    assert not chill.in_dormancy(date(2026, 2, 16))
-    assert not chill.in_dormancy(date(2025, 10, 31))
-    assert not chill.in_dormancy(date(2025, 7, 1))
+    assert chill.in_dormancy(date(2026, 1, 1), NORTH)
+    assert chill.in_dormancy(date(2025, 11, 1), NORTH)
+    assert chill.in_dormancy(date(2026, 2, 15), NORTH)
+    assert not chill.in_dormancy(date(2026, 2, 16), NORTH)
+    assert not chill.in_dormancy(date(2025, 10, 31), NORTH)
+    assert not chill.in_dormancy(date(2025, 7, 1), NORTH)
 
 
 def _winter_record(
@@ -121,7 +123,7 @@ def _winter_record(
 
 def test_a_whole_winter_of_chilly_days_banks_every_hour_of_it():
     dates, hi, lo = _winter_record(2026, 44.0, 34.0)
-    [w] = chill.banked(dates, hi, lo)
+    [w] = chill.banked(dates, hi, lo, NORTH)
     assert w["winter"] == 2026
     assert w["days"] == len(dates)
     assert w["hours"] == pytest.approx(24.0 * len(dates))
@@ -131,7 +133,7 @@ def test_days_outside_the_window_are_not_counted():
     dates, hi, lo = _winter_record(2026, 44.0, 34.0)
     # A chilly October and a chilly March, either side of the window.
     extra = ["2025-10-15", "2026-03-01"]
-    [w] = chill.banked(dates + extra, hi + [44.0] * 2, lo + [34.0] * 2)
+    [w] = chill.banked(dates + extra, hi + [44.0] * 2, lo + [34.0] * 2, NORTH)
     assert w["days"] == len(dates)
 
 
@@ -142,7 +144,7 @@ def test_a_leap_year_february_is_grouped_by_DATE_not_by_offset():
     driven by what the dates say."""
     dates, hi, lo = _winter_record(2024, 40.0, 36.0)
     assert "2024-02-15" in dates
-    [w] = chill.banked(dates, hi, lo)
+    [w] = chill.banked(dates, hi, lo, NORTH)
     assert w["winter"] == 2024
     assert w["from"] == "2023-11-01"
     assert w["to"] == "2024-02-15"
@@ -152,14 +154,14 @@ def test_a_missing_day_banks_nothing_and_is_counted_as_a_gap():
     dates, hi, lo = _winter_record(2026, 44.0, 34.0)
     hi = list(hi)
     hi[5] = None
-    [w] = chill.banked(dates, hi, lo)
+    [w] = chill.banked(dates, hi, lo, NORTH)
     assert w["gaps"] == 1
     assert w["days"] == len(dates) - 1
 
 
 def test_an_unparseable_date_is_skipped_rather_than_fatal():
     dates, hi, lo = _winter_record(2026, 44.0, 34.0)
-    [w] = chill.banked([*dates, "not-a-date"], [*hi, 40.0], [*lo, 30.0])
+    [w] = chill.banked([*dates, "not-a-date"], [*hi, 40.0], [*lo, 30.0], NORTH)
     assert w["days"] == len(dates)
 
 
@@ -177,7 +179,7 @@ def _winters(*hours: float) -> list[dict]:
 def test_the_summary_reports_the_median_AND_the_lowest():
     """They support different decisions: the median is what to plant for, the
     lowest is what a marginal cultivar is actually tested by."""
-    s = chill.summarize(_winters(900.0, 1000.0, 1100.0, 700.0, 1200.0))
+    s = chill.summarize(_winters(900.0, 1000.0, 1100.0, 700.0, 1200.0), NORTH)
     assert s["median_hours"] == 1000.0
     assert s["lowest_hours"] == 700.0
     assert s["highest_hours"] == 1200.0
@@ -190,23 +192,23 @@ def test_a_partial_winter_is_not_counted_as_a_season():
     ws = _winters(1000.0, 1000.0)
     ws.append({"winter": 2022, "hours": 300.0, "days": 40, "gaps": 0,
                "from": "2021-11-01", "to": "2021-12-10"})
-    s = chill.summarize(ws)
+    s = chill.summarize(ws, NORTH)
     assert s["winters_on_record"] == 2
     assert s["lowest_hours"] == 1000.0
 
 
 def test_no_whole_winter_is_none_rather_than_a_flattering_zero():
-    assert chill.summarize([]) is None
+    assert chill.summarize([], NORTH) is None
     assert chill.summarize(
         [{"winter": 2022, "hours": 300.0, "days": 10, "gaps": 0,
-          "from": "x", "to": "y"}]
+          "from": "x", "to": "y"}], NORTH
     ) is None
 
 
 def test_the_summary_states_the_window_AND_the_model_it_used():
     """The figure means nothing without them — a wider window or a different
     model banks different hours against the same requirement."""
-    s = chill.summarize(_winters(1000.0))
+    s = chill.summarize(_winters(1000.0), NORTH)
     assert "Nov" in s["window"] and "Feb" in s["window"]
     assert s["model"] == "hours at or below 45 °F"
 

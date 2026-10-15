@@ -22,8 +22,11 @@ Pure domain logic. No billing, no npubs, no MCP.
 
 from __future__ import annotations
 
+import calendar
 from datetime import date, timedelta
 from typing import Any
+
+from goodearth_mcp import gdd
 
 #: A sap day: the night freezes and the day thaws. Both halves are required —
 #: a mild night or a day that stays frozen moves nothing.
@@ -35,12 +38,14 @@ SAP_DAY_MIN_F = 40.0
 #: pair in November is still not the start of a season. The window crosses the
 #: new year, and a winter is named by the year it ends in. It was Jan 15 to
 #: May 15 of the calendar year: a December run was never counted, and on Dec 20
-#: the section reported the spring before.
+#: the section reported the spring before. South of the equator the same
+#: winter falls six months on, 1 June to 15 November.
 SAP_SEARCH_FROM = (12, 1)
 SAP_SEARCH_TO = (5, 15)
 
 #: Before this, a quiet spell is a PAUSE — a hard January freeze — not the end
-#: of the run. From April a quiet fortnight is the buds breaking.
+#: of the run. From April (October in the south) a quiet fortnight is the buds
+#: breaking.
 SAP_QUIET_ENDS_FROM = (4, 1)
 
 #: The run is over when this many days pass with no cycle — in practice when
@@ -105,21 +110,24 @@ def spring_note(sp: dict[str, Any]) -> str:
     )
 
 
-def _in_sap_window(d: date) -> bool:
-    md = (d.month, d.day)
-    return md >= SAP_SEARCH_FROM or md <= SAP_SEARCH_TO
+def _window(lat: float) -> tuple[tuple[int, int], tuple[int, int]]:
+    return gdd.hemisphere(SAP_SEARCH_FROM, lat), gdd.hemisphere(SAP_SEARCH_TO, lat)
 
 
-def sap_winter(today: date) -> tuple[date, date]:
+def sap_winter(today: date, lat: float) -> tuple[date, date]:
     """The sap winter in question: the one under way, or the one just past."""
-    ends = today.year + 1 if (today.month, today.day) >= SAP_SEARCH_FROM else today.year
-    return date(ends - 1, *SAP_SEARCH_FROM), date(ends, *SAP_SEARCH_TO)
+    first, last = _window(lat)
+    start = gdd.on_year(today.year, *first)
+    if start > today:
+        start = gdd.on_year(today.year - 1, *first)
+    return start, gdd.on_year(start.year + (last < first), *last)
 
 
 def sap_days(
     dates: list[str],
     tmax: list[float | None],
     tmin: list[float | None],
+    lat: float,
 ) -> list[str]:
     """Every day this ground both froze and thawed, inside the sap window."""
     out: list[str] = []
@@ -128,7 +136,7 @@ def sap_days(
             d = date.fromisoformat(iso)
         except ValueError:
             continue
-        if not _in_sap_window(d):
+        if not gdd.within(d, *_window(lat)):
             continue
         hi = tmax[i] if i < len(tmax) else None
         lo = tmin[i] if i < len(tmin) else None
@@ -144,29 +152,31 @@ def sap_run(
     tmax: list[float | None],
     tmin: list[float | None],
     today: date,
+    lat: float,
 ) -> dict[str, Any] | None:
     """This winter's sap run: when it started, how many days it has had, and
     whether it is running, paused or over.
 
-    The winter runs Dec 1 to May 15 and is named by the year it ends in. Past
-    May 15 the answer is the winter just gone, stated as over, with the day the
+    The winter runs Dec 1 to May 15 (Jun 1 to Nov 15 in the south) and is
+    named by the years it spans. Past its end the answer is the winter just gone, stated as over, with the day the
     next window opens — a sugarmaker asking in August is told the run is over
     rather than shown last spring's arithmetic dressed as now. None when the
     record does not reach the winter at all.
     """
-    start, end = sap_winter(today)
+    start, end = sap_winter(today, lat)
     lo_iso, hi_iso = start.isoformat(), end.isoformat()
     idx = [i for i, iso in enumerate(dates) if lo_iso <= iso <= hi_iso]
     if not idx:
         return None
 
-    winter = f"{start.year}–{str(end.year)[2:]}"
-    window = f"{SAP_SEARCH_FROM[1]} Dec – {SAP_SEARCH_TO[1]} May"
+    winter = f"{start.year}–{str(end.year)[2:]}" if end.year > start.year else str(start.year)
+    window = " – ".join(f"{d} {calendar.month_abbr[m]}" for m, d in _window(lat))
     past = today > end
     days = sap_days(
         [dates[i] for i in idx],
         [tmax[i] if i < len(tmax) else None for i in idx],
         [tmin[i] if i < len(tmin) else None for i in idx],
+        lat,
     )
     if not days:
         # Inside the window with no cycle yet is a real answer; past it with
@@ -185,7 +195,7 @@ def sap_run(
 
     last = date.fromisoformat(days[-1])
     quiet = (today - last).days
-    buds = (today.month, today.day) >= SAP_QUIET_ENDS_FROM and today.month < SAP_SEARCH_FROM[0]
+    buds = gdd.within(today, gdd.hemisphere(SAP_QUIET_ENDS_FROM, lat), _window(lat)[1])
     if past or (quiet >= SAP_QUIET_DAYS and buds):
         state = "over"
     elif quiet >= SAP_QUIET_DAYS:
@@ -201,7 +211,7 @@ def sap_run(
         "days_since_last_cycle": quiet,
         "winter": winter,
         "window": window,
-        **({"next_window_opens": date(today.year, *SAP_SEARCH_FROM).isoformat()} if past else {}),
+        **({"next_window_opens": gdd.on_year(start.year + 1, *_window(lat)[0]).isoformat()} if past else {}),
         "note": (
             f"{len(days)} freeze-and-thaw day{'s' if len(days) != 1 else ''} "
             f"this winter ({winter}) from {days[0]}"

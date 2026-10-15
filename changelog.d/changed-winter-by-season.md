@@ -1,0 +1,3 @@
+- Chill, the coldest winter night, the maple sap run and the soil windows now follow each plot's own winter. South of the equator chill counts 1 May – 15 Aug, the sap run 1 Jun – 15 Nov, and spring soil from August, with each soil season kept whole across New Year.
+- The planting window turns to next season on the same median first frost it shows. With ten seasons on record it used to wait for the later of the two middle seasons.
+- Season dates no longer drift a day after a leap year's Feb 29.

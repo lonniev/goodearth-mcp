@@ -13,6 +13,8 @@ from typing import Any
 from goodearth_mcp import calibrate, frost, gdd, planting, record_cache, soil, wildlife
 from goodearth_mcp.region import parse_region
 
+NORTH = 44.5  # Vermont
+
 # ── Feb 29 ───────────────────────────────────────────────────────────────
 
 
@@ -29,7 +31,7 @@ def test_a_typical_frost_on_feb_29_no_longer_breaks_the_frost_summary():
 
 
 def test_nor_the_soil_summary():
-    assert soil.typical_crossing(SOUTHERN_SPRING, 2027)["median"] == "2027-02-28"
+    assert soil.typical_crossing(SOUTHERN_SPRING, NORTH, date(2027, 1, 1))["median"] == "2027-02-28"
 
 
 # ── A frost season that crosses the new year ─────────────────────────────
@@ -59,7 +61,7 @@ def test_a_soil_warming_that_once_slipped_into_july_stays_in_this_year():
     and the window came out −353 days — "will not fit" for a crop that fits."""
     hits = ["2017-06-14", "2018-06-20", "2019-06-25", "2020-06-11", "2021-06-18",
             "2022-06-22", "2023-06-16", "2024-06-19", "2025-07-02"]
-    s = soil.typical_crossing(hits, 2026)
+    s = soil.typical_crossing(hits, NORTH, date(2026, 1, 1))
     assert s["median"] == "2026-06-19"
     assert s["earliest"] == "2026-06-11" and s["latest"] == "2026-07-02"
 
@@ -67,7 +69,7 @@ def test_a_soil_warming_that_once_slipped_into_july_stays_in_this_year():
 def test_the_window_for_a_june_soil_date_is_no_longer_a_year_wrong():
     today = date(2026, 10, 9)
     soil_ready = date.fromisoformat(soil.typical_crossing(
-        ["2024-06-18", "2025-07-02", "2023-06-16"], 2026)["median"])
+        ["2024-06-18", "2025-07-02", "2023-06-16"], NORTH, date(2026, 1, 1))["median"])
     clim = {(date(2024, 1, 1) + timedelta(days=i)).strftime("%m-%d"): 14.0 for i in range(366)}
     ginger = planting.validate({"crop": "Ginger", "gdd_target": 1400, "base_temp": 55,
                                 "min_soil_f": 65})

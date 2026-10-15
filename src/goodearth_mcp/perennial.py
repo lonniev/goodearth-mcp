@@ -100,12 +100,13 @@ def _number(raw: Any, name: str, field: str) -> float | None:
         raise PerennialError(f"{name}: {field} must be a number") from exc
 
 
-def winter_lows(dates: list[str], tmin: list[float | None]) -> list[dict[str, Any]]:
+def winter_lows(dates: list[str], tmin: list[float | None], lat: float) -> list[dict[str, Any]]:
     """The coldest night of each winter on record.
 
     Grouped by winter, so an October or December night belongs to the winter
     it starts rather than the calendar year it falls in — the whole point
     being that a tree experiences one cold season, not two year-halves.
+    South of the equator winter is April to September, inside one year.
 
     Unlike chill, this is NOT restricted to the accumulation window: the
     coldest night of the year is often in late February or early March, past
@@ -119,8 +120,10 @@ def winter_lows(dates: list[str], tmin: list[float | None]) -> list[dict[str, An
         except ValueError:
             continue
         # Winter, broadly: everything but the growing season. A July night is
-        # not the answer to "how cold does it get here".
-        if 4 <= d.month <= 9:
+        # not the answer to "how cold does it get here" — in the north.
+        # Months are read six on south of the equator, where July is winter.
+        month = d.month if lat >= 0 else (d.month + 5) % 12 + 1
+        if 4 <= month <= 9:
             continue
         lo = tmin[i] if i < len(tmin) else None
         if lo is None:
@@ -130,7 +133,7 @@ def winter_lows(dates: list[str], tmin: list[float | None]) -> list[dict[str, An
         # winter on Nov 1 — right for chill, which only counts from then — and
         # so filed an October freeze under the winter that ended the spring
         # before.
-        w = d.year + 1 if d.month >= 10 else d.year
+        w = d.year + 1 if lat >= 0 and d.month >= 10 else d.year
         got = by_winter.get(w)
         if got is None or lo < got["low_f"]:
             by_winter[w] = {"winter": w, "low_f": round(lo, 1), "on": iso}
@@ -189,9 +192,10 @@ def _hardiness_note(
 def chill_delivery(
     winters: list[dict[str, Any]],
     needed_hours: float | None,
+    lat: float,
 ) -> dict[str, Any]:
     """How often this ground banked the hours the cultivar asks for."""
-    summary = chill.summarize(winters)
+    summary = chill.summarize(winters, lat)
     if summary is None:
         return {"verdict": "unknown",
                 "note": "No whole winter on record to count chill across."}
@@ -228,12 +232,13 @@ def assess(
     tree: dict[str, Any],
     winters: list[dict[str, Any]],
     lows: list[dict[str, Any]],
+    lat: float,
 ) -> dict[str, Any]:
     """One tree against this ground's winters."""
     return {
         **{k: tree[k] for k in ("tree", "emoji", "category")},
         "hardiness": hardiness(lows, tree["hardy_to_f"]),
-        "chill": chill_delivery(winters, tree["chill_hours"]),
+        "chill": chill_delivery(winters, tree["chill_hours"], lat),
     }
 
 

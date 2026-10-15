@@ -53,7 +53,7 @@ async def region_tree_year(
         # read from Jan 1 alone, a December run was never seen.
         record_cache.daily_history(
             [region.centroid.lat], [region.centroid.lon],
-            min(gdd.season_start(today, region.centroid.lat), tree_year.sap_winter(today)[0]).isoformat(),
+            min(gdd.season_start(today, region.centroid.lat), tree_year.sap_winter(today, region.centroid.lat)[0]).isoformat(),
             today.isoformat(),
         ),
         catalog.species_phenophases(list(labelled), today),
@@ -73,7 +73,7 @@ async def region_tree_year(
     elif tapped:
         try:
             dates, tmax, tmin = sources.daily_series(record[0])
-            sap = tree_year.sap_run(dates, tmax, tmin, today)
+            sap = tree_year.sap_run(dates, tmax, tmin, today, region.centroid.lat)
         except (sources.UpstreamError, IndexError, ValueError) as exc:
             sap_error = f"The season record is unreadable: {exc}"
 
