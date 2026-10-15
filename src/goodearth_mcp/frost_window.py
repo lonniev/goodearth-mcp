@@ -83,10 +83,14 @@ async def region_frost_window(
     # in Vermont and on the Gulf Coast, mid-January south of the equator.
     history: dict[str, Any] | None = None
     so_far: dict[str, Any] | None = None
+    frost_free = False
     if not isinstance(record, BaseException) and record:
         try:
             dates, _tmax, tmin = sources.daily_series(record[0])
             start = frost.season_start(dates, tmin)
+            # Ground whose record never froze — Hawaii's lowlands, most of
+            # Florida — has no first frost to project, and says so.
+            frost_free = start is None and any(t is not None for t in tmin)
             if start is not None:
                 begin = frost.season_of(today, start)
                 years = list(range(sources.record_start_year(today.year, RECORD_SPAN_YEARS), begin.year))
@@ -151,6 +155,7 @@ async def region_frost_window(
         "first_frost": history,
         "days_to_median_first_frost": days_to_median,
         "this_season": so_far,
+        "frost_free": frost_free,
         "across_region": {
             "coldest_ground_offset_f": round(drainage_f, 1),
             "elevation_range_m": elevation_range_m,

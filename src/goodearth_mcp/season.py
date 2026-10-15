@@ -66,7 +66,7 @@ async def region_season_curve(
     """Season-to-date GDD across ``region``, with band, forecast and projection."""
     base = _validate_base(base_f)
     today = today or datetime.now(UTC).date()
-    start = gdd.season_start(today)
+    start = gdd.season_start(today, region.centroid.lat)
 
     elevs, elev_note = await _elevations(region)
 
@@ -91,8 +91,10 @@ async def region_season_curve(
     normals_task = record_cache.normals_history(
         region.centroid.lat,
         region.centroid.lon,
-        start.replace(year=today.year - NORMALS_SPAN_YEARS).isoformat(),
-        start.replace(year=today.year - 1).replace(month=12, day=31).isoformat(),
+        start.replace(year=start.year - NORMALS_SPAN_YEARS).isoformat(),
+        # Through last December, the span Daymet covers; a southern season
+        # still running then is left out of the band.
+        date(today.year - 1, 12, 31).isoformat(),
     )
 
     history, forecast, normals_raw = await asyncio.gather(
@@ -162,7 +164,7 @@ async def region_season_curve(
         try:
             n_dates, n_max, n_min = sources.daily_series(normals_records[0])
             normals_curves = gdd.yearly_curves(
-                n_dates, n_max, n_min, today, NORMALS_SPAN_YEARS, base
+                n_dates, n_max, n_min, start, NORMALS_SPAN_YEARS, base
             )
             # The same whole seasons, read day by day for the rest of the year.
             normals_clim = gdd.climatology(n_dates, n_max, n_min, base)
@@ -203,7 +205,7 @@ async def region_season_curve(
     typical_block: dict[str, Any] | None = None
     if normals_clim:
         days: list[date] = []
-        day, end = today + timedelta(days=1), date(today.year, 12, 31)
+        day, end = today + timedelta(days=1), gdd.season_end(start)
         while day <= end:
             days.append(day)
             day += timedelta(days=1)

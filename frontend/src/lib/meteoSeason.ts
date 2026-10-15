@@ -6,6 +6,9 @@
 // astronomical dates wander with the solstice and would put a chart's boundary
 // on the 20th of a month for no reason a farm cares about.
 //
+// South of the equator the quarters are the same months under the other
+// names: December–February is summer there.
+//
 // The span the chart calls "Season" is this quarter, not the whole recorded
 // curve. A grower asking for the season in September means autumn, not January
 // through December.
@@ -35,7 +38,7 @@ function iso(y: number, m: number, d: number): string {
 /// January, and January belongs with the PREVIOUS year's December. A lookup
 /// keyed on month alone gets the name right and the year wrong, which puts the
 /// window a full twelve months from where the reader is standing.
-export function seasonBounds(date: string): {
+export function seasonBounds(date: string, lat = 45): {
   name: SeasonName; start: string; end: string;
 } | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(date ?? "");
@@ -52,7 +55,7 @@ export function seasonBounds(date: string): {
   const endYear = startMonth === 12 ? startYear + 1 : startYear;
 
   return {
-    name: NAMES[q],
+    name: NAMES[lat < 0 ? (q + 2) % 4 : q],
     start: iso(startYear, startMonth, 1),
     end: iso(endYear, endMonth, lastDay(endYear, endMonth)),
   };

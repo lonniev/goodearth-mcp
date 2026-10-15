@@ -21,6 +21,8 @@ export interface SpanContext {
   origin: string;
   domLo: number;
   domHi: number;
+  /// The plot's latitude, which decides the quarter's name.
+  lat?: number;
 }
 
 /// `"full"` means the whole domain; otherwise a day count and the index it is
@@ -35,7 +37,7 @@ export function spanTarget(key: string, ctx: SpanContext): SpanTarget {
     // The meteorological quarter today falls in, centred on the QUARTER
     // rather than on today. A season has its own middle; sliding it to sit
     // under the reader would show half of it and half of the next one.
-    const b = seasonBounds(dateFor(ctx.today, ctx.origin) ?? "");
+    const b = seasonBounds(dateFor(ctx.today, ctx.origin) ?? "", ctx.lat);
     if (!b) return "full";
     const lo = dayNumber(b.start, ctx.origin);
     const hi = dayNumber(b.end, ctx.origin);

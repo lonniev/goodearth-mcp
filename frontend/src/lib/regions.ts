@@ -103,6 +103,14 @@ export const EXAMPLE_ID = "example-champlain";
 
 /// A worked example so a first-time grower sees a real answer before drawing
 /// anything. Champlain Valley — the ground the tool was developed against.
+/// The latitude a plot's seasons are read at: a pin's own, or a drawn
+/// shape's middle.
+export function latOf(r: Region): number {
+  if ("lat" in r) return r.lat;
+  const ring = r.coordinates[0] ?? [];
+  return ring.length ? ring.reduce((t, c) => t + c[1], 0) / ring.length : 0;
+}
+
 export const EXAMPLE_REGION: SavedRegion = {
   id: EXAMPLE_ID,
   name: "Champlain Valley",

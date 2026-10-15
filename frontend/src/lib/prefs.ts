@@ -53,9 +53,10 @@ export const DEFAULTS: Prefs = {
   bees: true, units: "F", theme: "follow", chartOrder: [], array: { w: 24, l: 12 }, sellCents: null,
 };
 
-/// The season to actually paint, resolving "follow" against today.
-export function themeOf(p: Prefs, now?: Date): Season {
-  return p.theme === "follow" ? seasonOf(now) : p.theme;
+/// The season to actually paint, resolving "follow" against today on the
+/// plot being worked, at latitude `lat`.
+export function themeOf(p: Prefs, lat: number, now?: Date): Season {
+  return p.theme === "follow" ? seasonOf(now, lat) : p.theme;
 }
 
 export function readPrefs(): Prefs {

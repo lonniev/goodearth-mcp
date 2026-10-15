@@ -59,16 +59,16 @@ describe("the season the page wears", () => {
   it("follows the calendar by default", async () => {
     const { DEFAULTS, themeOf } = await import("./prefs.ts");
     assert.equal(DEFAULTS.theme, "follow");
-    assert.equal(themeOf(DEFAULTS, new Date("2026-04-15")), "spring");
-    assert.equal(themeOf(DEFAULTS, new Date("2026-07-15")), "summer");
-    assert.equal(themeOf(DEFAULTS, new Date("2026-10-15")), "autumn");
-    assert.equal(themeOf(DEFAULTS, new Date("2026-01-15")), "winter");
+    assert.equal(themeOf(DEFAULTS, 44, new Date("2026-04-15")), "spring");
+    assert.equal(themeOf(DEFAULTS, 44, new Date("2026-07-15")), "summer");
+    assert.equal(themeOf(DEFAULTS, 44, new Date("2026-10-15")), "autumn");
+    assert.equal(themeOf(DEFAULTS, 44, new Date("2026-01-15")), "winter");
   });
 
   it("stays put when a season is chosen outright", async () => {
     const { DEFAULTS, themeOf } = await import("./prefs.ts");
     const winter = { ...DEFAULTS, theme: "winter" as const };
-    assert.equal(themeOf(winter, new Date("2026-07-15")), "winter");
+    assert.equal(themeOf(winter, 44, new Date("2026-07-15")), "winter");
   });
 
   it("is remembered per device, beside the other viewing choices", async () => {

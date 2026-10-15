@@ -91,3 +91,22 @@ def test_a_gulf_january_frost_belongs_to_the_season_that_began_the_summer_before
     days, lows = _season(lambda d: 30.0 if d[5:10] == "01-10" else 50.0)
     start = frost.season_start(days, lows)
     assert frost.frost_dates(days, lows, [2020], start) == ["2021-01-10"]
+
+
+async def test_ground_that_never_froze_says_so(monkeypatch, spans):
+    async def warm(lats, lons, start, end, today=None):
+        days = _days(start, end)
+        return [{"daily": {"time": days, "temperature_2m_max": [80.0] * len(days),
+                           "temperature_2m_min": [62.0] * len(days)}}]
+
+    async def forecast(lat, lon, nights):
+        return {}
+
+    monkeypatch.setattr(record_cache, "daily_history", warm)
+    monkeypatch.setattr(sources, "fetch_frost_forecast", forecast)
+    monkeypatch.setattr(sources, "frost_series", lambda _f: [
+        {"date": "2026-10-15", "low_f": 64.0, "wind_mph": 5.0, "cloud_pct": 40.0,
+         "dew_point_f": 55.0, "high_f": 80.0}])
+    out = await frost_window.region_frost_window(parse_region(PIN), today=date(2026, 10, 15))
+    assert out["frost_free"] is True
+    assert out["first_frost"] is None

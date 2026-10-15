@@ -48,7 +48,7 @@ def feed_rows(kind: str, rows: list[dict[str, Any]], season_start: date) -> list
 
     Plantings and pests: those dated in this season or later, and those with
     no date at all. A planting set out last June has its heat counted from
-    this season's Jan 1 if it is let through — last summer's zinnias would
+    this season's start if it is let through — last summer's zinnias would
     reappear as this July's target date. That is a phantom, and a feed that
     publishes phantoms is worse than one that is quiet.
     """

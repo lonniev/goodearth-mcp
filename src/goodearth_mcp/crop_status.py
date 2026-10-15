@@ -108,7 +108,7 @@ async def region_crop_ledger(
     # than per planting.
     bases = sorted({p["base_temp_f"] or base_temp_f for p in parsed})
 
-    start = gdd.season_start(today)
+    start = gdd.season_start(today, region.centroid.lat)
     cells_lat = [region.centroid.lat]
     cells_lon = [region.centroid.lon]
 

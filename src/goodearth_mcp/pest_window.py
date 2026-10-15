@@ -55,7 +55,7 @@ async def region_pest_window(
         except pests.PestError as exc_:
             skipped.append({"name": str((row or {}).get("pest") or "?"), "reason": str(exc_)})
 
-    start = gdd.season_start(today)
+    start = gdd.season_start(today, region.centroid.lat)
     try:
         history = await record_cache.daily_history(
             [region.centroid.lat], [region.centroid.lon],

@@ -45,14 +45,14 @@ def _decade(start: date, end: date) -> tuple[list[str], list[float], list[float]
 def test_each_season_in_the_band_runs_to_its_own_year_end():
     """Not to today's day of it, which is where it used to stop."""
     dates, hi, lo = _decade(date(2024, 1, 1), date(2025, 12, 31))
-    curves = gdd.yearly_curves(dates, hi, lo, date(2026, 9, 20), 2, 50.0)
+    curves = gdd.yearly_curves(dates, hi, lo, date(2026, 1, 1), 2, 50.0)
     assert len(curves) == 2
     assert all(len(c) in (365, 366) for c in curves), [len(c) for c in curves]
 
 
 def test_the_band_covers_the_whole_year():
     dates, hi, lo = _decade(date(2024, 1, 1), date(2025, 12, 31))
-    band = gdd.band(gdd.yearly_curves(dates, hi, lo, date(2026, 9, 20), 2, 50.0))
+    band = gdd.band(gdd.yearly_curves(dates, hi, lo, date(2026, 1, 1), 2, 50.0))
     assert band is not None
     assert len(band) >= 365
 
@@ -61,9 +61,17 @@ def test_the_band_still_rises_all_the_way_to_december():
     """A cumulative curve that flattened after September would mean the
     extension had read empty days rather than real ones."""
     dates, hi, lo = _decade(date(2024, 1, 1), date(2025, 12, 31))
-    band = gdd.band(gdd.yearly_curves(dates, hi, lo, date(2026, 9, 20), 2, 50.0))
+    band = gdd.band(gdd.yearly_curves(dates, hi, lo, date(2026, 1, 1), 2, 50.0))
     assert band is not None
     assert band[-1]["mean"] > band[262]["mean"] > band[180]["mean"]
+
+
+def test_a_southern_band_runs_july_to_june_and_skips_a_season_still_open():
+    dates, hi, lo = _decade(date(2023, 7, 1), date(2025, 12, 31))
+    curves = gdd.yearly_curves(dates, hi, lo, date(2026, 7, 1), 3, 50.0)
+    # 2025-26 is not over by the record's end; 2024-25 and 2023-24 are whole.
+    assert len(curves) == 2
+    assert all(len(c) in (365, 366) for c in curves)
 
 
 def test_a_season_the_archive_does_not_reach_is_still_left_out():
@@ -74,7 +82,7 @@ def test_a_season_the_archive_does_not_reach_is_still_left_out():
     made mostly of gaps.
     """
     dates, hi, lo = _decade(date(2025, 1, 1), date(2025, 12, 31))
-    curves = gdd.yearly_curves(dates, hi, lo, date(2026, 9, 20), 3, 50.0)
+    curves = gdd.yearly_curves(dates, hi, lo, date(2026, 1, 1), 3, 50.0)
     assert len(curves) == 1
 
 
