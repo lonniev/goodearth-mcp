@@ -96,6 +96,50 @@ def summarize_frost_dates(iso_dates: list[str], reference_year: int) -> dict[str
     }
 
 
+def season_day(day: date) -> int:
+    """Days since the fall search began for the season ``day`` falls in, so a
+    January frost sorts after a December one."""
+    year = day.year if (day.month, day.day) >= FALL_SEARCH_START else day.year - 1
+    return (day - date(year, *FALL_SEARCH_START)).days
+
+
+def season_so_far(
+    dates: list[str], tmin: list[float | None], record_frosts: list[str], today: date,
+) -> dict[str, Any] | None:
+    """This fall up to yesterday: its first frost, or none yet and when the
+    record's seasons that were still frost-free by now went on to frost.
+
+    The record's median is a date in a typical season. Once it has passed
+    with no frost, it is no longer when frost is expected; the seasons that
+    also went frost-free this long are the record that still applies.
+    ``None`` before the fall search begins, or with nothing observed since.
+    """
+    start = date(today.year, *FALL_SEARCH_START).isoformat()
+    seen = [
+        (d, lo) for d, lo in zip(dates, tmin, strict=False)
+        if lo is not None and start <= d < today.isoformat()
+    ]
+    if not seen:
+        return None
+    seen.sort()
+    through = seen[-1][0]
+    first = next((d for d, lo in seen if lo <= FROST_F), None)
+    out: dict[str, Any] = {"first_frost": first, "through": through}
+    if first is None:
+        now = season_day(date.fromisoformat(through))
+        later = [d for d in record_frosts if season_day(date.fromisoformat(d)) > now]
+        got = gdd.typical_dates(later, today.year)
+        out["given_none_yet"] = {
+            **(
+                {"median": got[0].isoformat(), "earliest": got[1].isoformat(), "latest": got[2].isoformat()}
+                if got else {}
+            ),
+            "seasons": len(later),
+            "of": len(record_frosts),
+        }
+    return out
+
+
 def radiative_risk(wind_mph: float | None, cloud_pct: float | None) -> tuple[float, str]:
     """How much colder than forecast a low spot may run tonight, and why.
 

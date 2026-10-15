@@ -14,7 +14,7 @@ reports the coldest ground explicitly, and says which night and why.
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from goodearth_mcp import frost, gdd, record_cache, sources
@@ -47,7 +47,8 @@ async def region_frost_window(
         [region.centroid.lat],
         [region.centroid.lon],
         date(sources.record_start_year(today.year, RECORD_SPAN_YEARS), 1, 1).isoformat(),
-        date(today.year - 1, 12, 31).isoformat(),
+        # Through yesterday: the record's seasons, and this fall so far.
+        (today - timedelta(days=1)).isoformat(),
     )
     forecast_task = sources.fetch_frost_forecast(
         region.centroid.lat, region.centroid.lon, FORECAST_NIGHTS
@@ -57,13 +58,16 @@ async def region_frost_window(
 
     # ── Climatology ──────────────────────────────────────────────────────
     history: dict[str, Any] | None = None
+    so_far: dict[str, Any] | None = None
     if not isinstance(record, BaseException) and record:
         try:
             dates, _tmax, tmin = sources.daily_series(record[0])
             years = list(range(sources.record_start_year(today.year, RECORD_SPAN_YEARS), today.year))
-            history = frost.summarize_frost_dates(
-                frost.frost_dates(dates, tmin, years), today.year
-            )
+            # Each past season's search ends by June, so this fall's nights
+            # stay out of the record.
+            record_frosts = frost.frost_dates(dates, tmin, years)
+            history = frost.summarize_frost_dates(record_frosts, today.year)
+            so_far = frost.season_so_far(dates, tmin, record_frosts, today)
         except (sources.UpstreamError, IndexError, ValueError):
             history = None
 
@@ -119,6 +123,7 @@ async def region_frost_window(
         "region": region.describe(),
         "first_frost": history,
         "days_to_median_first_frost": days_to_median,
+        "this_season": so_far,
         "across_region": {
             "coldest_ground_offset_f": round(drainage_f, 1),
             "elevation_range_m": elevation_range_m,

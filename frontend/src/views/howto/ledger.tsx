@@ -58,12 +58,14 @@ export const ledger: Guide = {
       ["The pulse strip",
         <>Five figures: heat so far with its gauge; the spread across the
           block, in GDD and in days; how far ahead of or behind the recent
-          seasons, with the grid the band was read from; the median first frost
-          and the earliest on record; and the coldest ground in the coming week
+          seasons, with the grid the band was read from; the first frost — the
+          median and the earliest on record, then this fall's own once it has
+          come, or, past the median with none yet, the median of the seasons
+          still frost-free that late; and the coldest ground in the coming week
           against the plain forecast.</>],
       ["The chart",
         <>Drag or pinch to move along the season; the glasses on the left zoom
-          the heat axis. The frost line stands at the median first frost. A
+          the heat axis. The frost line stands on the first-frost figure's day. A
           wash across the date axis is a wet period a disease model found, past
           or forecast. The button in the corner takes the chart to the whole
           screen; Escape brings it back.</>],
