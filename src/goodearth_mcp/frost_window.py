@@ -28,6 +28,10 @@ class FrostError(ValueError):
     """A caller's request cannot be answered as asked."""
 
 
+async def _nothing() -> list[dict[str, Any]]:
+    return []
+
+
 async def region_frost_window(
     region: Region,
     today: date | None = None,
@@ -47,14 +51,30 @@ async def region_frost_window(
         [region.centroid.lat],
         [region.centroid.lon],
         date(sources.record_start_year(today.year, RECORD_SPAN_YEARS), 1, 1).isoformat(),
-        # Through yesterday: the record's seasons, and this fall so far.
-        (today - timedelta(days=1)).isoformat(),
+        # Through last December, the span Daymet covers. Reaching into this
+        # year pushed the whole record onto the coarse reanalysis, whose
+        # smoothed night lows dated every first frost weeks late.
+        date(today.year - 1, 12, 31).isoformat(),
     )
     forecast_task = sources.fetch_frost_forecast(
         region.centroid.lat, region.centroid.lon, FORECAST_NIGHTS
     )
+    # This fall so far, read on its own and only once the fall has begun.
+    fall_start = date(today.year, *frost.FALL_SEARCH_START)
+    season_task = (
+        record_cache.daily_history(
+            [region.centroid.lat],
+            [region.centroid.lon],
+            fall_start.isoformat(),
+            (today - timedelta(days=1)).isoformat(),
+        )
+        if today > fall_start
+        else _nothing()
+    )
 
-    record, forecast = await asyncio.gather(record_task, forecast_task, return_exceptions=True)
+    record, forecast, season = await asyncio.gather(
+        record_task, forecast_task, season_task, return_exceptions=True
+    )
 
     # ── Climatology ──────────────────────────────────────────────────────
     history: dict[str, Any] | None = None
@@ -63,13 +83,13 @@ async def region_frost_window(
         try:
             dates, _tmax, tmin = sources.daily_series(record[0])
             years = list(range(sources.record_start_year(today.year, RECORD_SPAN_YEARS), today.year))
-            # Each past season's search ends by June, so this fall's nights
-            # stay out of the record.
             record_frosts = frost.frost_dates(dates, tmin, years)
             history = frost.summarize_frost_dates(record_frosts, today.year)
-            so_far = frost.season_so_far(dates, tmin, record_frosts, today)
+            if not isinstance(season, BaseException) and season:
+                s_dates, _s_tmax, s_tmin = sources.daily_series(season[0])
+                so_far = frost.season_so_far(s_dates, s_tmin, record_frosts, today)
         except (sources.UpstreamError, IndexError, ValueError):
-            history = None
+            history, so_far = None, None
 
     # ── Terrain spread ───────────────────────────────────────────────────
     # How much colder the coldest ground runs than the region's mean on a
