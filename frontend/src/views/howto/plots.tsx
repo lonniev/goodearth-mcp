@@ -79,15 +79,17 @@ export const plots: Guide = {
     ]},
     { emoji: "👀", heading: "Read and switch", steps: [
       ["Groups",
-        <>A row of folder chips above the plots, one per group, with how many
-          plots are in it. Tap one for Show, Hide, Work on, Edit plots and
-          Rename. Show and Hide act on every plot in the group at once. Work on
-          narrows the chips and the map to the group and steps into the groups
-          inside it; the trail above them, starting at All, steps back out. A
-          slash puts a group inside another, North Farm / Orchard, and a plot in
-          the Orchard is in the North Farm too. + Group starts a new one, and a
-          plot's pencil sets its groups as well. Accepting a bed layout puts the
-          new beds in a group named for their plot.</>],
+        <>A folder for each group, with how many plots are in it. Tap a
+          folder to open it: the groups inside it and the plots filed in it
+          show beneath; tap again to close it. A plot in several groups sits in
+          each of their folders, and plots in no group sit below the folders.
+          The ⋯ beside a folder holds Show, Hide, + Group, Edit plots and
+          Rename. Show and Hide act on every plot in the group at once; + Group
+          starts a group inside it. A slash puts a group inside another, North
+          Farm / Orchard, and a plot in the Orchard is in the North Farm too.
+          + Group above the folders starts a new one, and a plot's pencil sets
+          its groups as well. Accepting a bed layout puts the new beds in a
+          group named for their plot.</>],
       ["The chips",
         <>One per plot, with its area. Tap one to work it: the top bar's name
           changes and every page answers for that ground from then on. The
