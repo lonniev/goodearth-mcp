@@ -13,7 +13,7 @@ import asyncio
 from datetime import UTC, date, datetime
 from typing import Any
 
-from goodearth_mcp import record_cache, soil, sources
+from goodearth_mcp import gdd, record_cache, soil, sources
 from goodearth_mcp.region import Region
 
 RECORD_SPAN_YEARS = 8
@@ -34,6 +34,7 @@ async def region_soil_window(
     threshold, dirn, band_key = soil.validate(threshold_f, direction, band)
     today = today or datetime.now(UTC).date()
     spec = soil.BANDS[band_key]
+    lat = region.centroid.lat
 
     forecast_task = sources.fetch_soil_forecast(
         region.centroid.lat, region.centroid.lon, spec["hourly"], 16
@@ -57,7 +58,7 @@ async def region_soil_window(
             current_f = next((m for m in means if m is not None), None)
             # A two-week forecast sits inside one season already, so the
             # seasonal gate would suppress a real crossing here.
-            crossing = soil.crossing(days, means, threshold, dirn, seasonal=False)
+            crossing = soil.crossing(days, means, threshold, dirn, None)
             near = {
                 "days": [{"date": d, "soil_f": m} for d, m in zip(days, means, strict=False)],
                 "crossing_date": crossing,
@@ -76,18 +77,11 @@ async def region_soil_window(
     if not isinstance(history, BaseException):
         try:
             h_dates, h_temps = sources.daily_field(history, spec["archive"])
-            by_year: dict[int, tuple[list[str], list[float | None]]] = {}
-            for d, t in zip(h_dates, h_temps, strict=False):
-                y = int(d[:4])
-                bucket = by_year.setdefault(y, ([], []))
-                bucket[0].append(d)
-                bucket[1].append(t)
-            crossings = []
-            for y in sorted(by_year):
-                c = soil.crossing(by_year[y][0], by_year[y][1], threshold, dirn)
-                if c:
-                    crossings.append(c)
-            typical = soil.typical_crossing(crossings, today.year)
+            crossings = [
+                c for days_, temps_ in soil.by_season(h_dates, h_temps, lat).values()
+                if (c := soil.crossing(days_, temps_, threshold, dirn, lat))
+            ]
+            typical = soil.typical_crossing(crossings, lat, gdd.season_start(today, lat))
         except (sources.UpstreamError, ValueError):
             typical = None
 

@@ -35,6 +35,7 @@ async def region_planting_window(
     parsed = [planting.validate(c) for c in crops_in]
     soil_wanted = sorted({c["min_soil_f"] for c in parsed if c["min_soil_f"] is not None})
 
+    lat = region.centroid.lat
     span_from = date(today.year - RECORD_SPAN_YEARS, 1, 1).isoformat()
     span_to = date(today.year - 1, 12, 31).isoformat()
 
@@ -92,18 +93,15 @@ async def region_planting_window(
         try:
             band = soil.BANDS[soil.DEFAULT_BAND]
             s_dates, s_temps = sources.daily_field(soil_rec, band["archive"])
-            by_year: dict[int, tuple[list[str], list[float | None]]] = {}
-            for d, t in zip(s_dates, s_temps, strict=False):
-                b = by_year.setdefault(int(d[:4]), ([], []))
-                b[0].append(d)
-                b[1].append(t)
+            soil_seasons = soil.by_season(s_dates, s_temps, lat).values()
+            # The spring that leads into the planned season's midsummer.
+            spring_of = gdd.season_start(gdd.on_year(season, *start) if start else today, lat)
             for threshold in soil_wanted:
-                hits = []
-                for y in sorted(by_year):
-                    c = soil.crossing(by_year[y][0], by_year[y][1], threshold, "warming")
-                    if c:
-                        hits.append(c)
-                got = soil.typical_crossing(hits, season)
+                hits = [
+                    c for days_, temps_ in soil_seasons
+                    if (c := soil.crossing(days_, temps_, threshold, "warming", lat))
+                ]
+                got = soil.typical_crossing(hits, lat, spring_of)
                 if got:
                     soil_dates[threshold] = date.fromisoformat(got["median"])
         except (sources.UpstreamError, ValueError):

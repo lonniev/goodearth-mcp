@@ -12,6 +12,8 @@ import pytest
 
 from goodearth_mcp import perennial
 
+NORTH = 44.5  # Vermont
+
 
 def tree(**kw):
     base = {"tree": "Honeycrisp apple", "chill_hours": 800, "hardy_to_f": -30}
@@ -74,7 +76,7 @@ def test_a_name_arrives_under_any_of_the_three_keys():
 def test_the_coldest_night_is_found_per_winter_across_the_year_boundary():
     dates = ["2025-12-20", "2026-01-10", "2026-02-05", "2026-12-15"]
     tmin = [-5.0, -22.0, -8.0, -12.0]
-    lows = perennial.winter_lows(dates, tmin)
+    lows = perennial.winter_lows(dates, tmin, NORTH)
     assert [w["winter"] for w in lows] == [2026, 2027]
     assert lows[0]["low_f"] == -22.0
     assert lows[0]["on"] == "2026-01-10"
@@ -83,18 +85,18 @@ def test_the_coldest_night_is_found_per_winter_across_the_year_boundary():
 def test_march_counts_toward_hardiness_though_it_does_not_count_toward_chill():
     """The coldest night of the year is often past the chill window, and it
     kills a tree just the same."""
-    lows = perennial.winter_lows(["2026-02-01", "2026-03-05"], [-10.0, -25.0])
+    lows = perennial.winter_lows(["2026-02-01", "2026-03-05"], [-10.0, -25.0], NORTH)
     assert lows[0]["low_f"] == -25.0
 
 
 def test_a_summer_night_is_not_the_answer_to_how_cold_it_gets_here():
-    lows = perennial.winter_lows(["2026-01-05", "2026-07-04"], [-10.0, 48.0])
+    lows = perennial.winter_lows(["2026-01-05", "2026-07-04"], [-10.0, 48.0], NORTH)
     assert len(lows) == 1
     assert lows[0]["low_f"] == -10.0
 
 
 def test_a_missing_low_is_skipped_rather_than_read_as_zero():
-    lows = perennial.winter_lows(["2026-01-05", "2026-01-06"], [None, -3.0])
+    lows = perennial.winter_lows(["2026-01-05", "2026-01-06"], [None, -3.0], NORTH)
     assert lows[0]["low_f"] == -3.0
 
 
@@ -154,30 +156,30 @@ def _winters(*hours: float) -> list[dict]:
 
 
 def test_chill_met_every_winter_is_reliable():
-    c = perennial.chill_delivery(_winters(1200.0, 1300.0, 1100.0), 800.0)
+    c = perennial.chill_delivery(_winters(1200.0, 1300.0, 1100.0), 800.0, NORTH)
     assert c["verdict"] == "reliable"
     assert c["winters_meeting"] == 3
 
 
 def test_chill_met_in_half_the_winters_is_marginal_not_met():
-    c = perennial.chill_delivery(_winters(700.0, 900.0, 950.0, 600.0), 850.0)
+    c = perennial.chill_delivery(_winters(700.0, 900.0, 950.0, 600.0), 850.0, NORTH)
     assert c["winters_meeting"] == 2
     assert c["verdict"] == "marginal"
 
 
 def test_chill_almost_never_met_is_short():
-    c = perennial.chill_delivery(_winters(300.0, 350.0, 900.0, 200.0), 800.0)
+    c = perennial.chill_delivery(_winters(300.0, 350.0, 900.0, 200.0), 800.0, NORTH)
     assert c["verdict"] == "short"
 
 
 def test_the_note_gives_the_median_AND_the_lowest_not_just_the_count():
-    c = perennial.chill_delivery(_winters(900.0, 1000.0, 1100.0), 800.0)
+    c = perennial.chill_delivery(_winters(900.0, 1000.0, 1100.0), 800.0, NORTH)
     assert "median" in c["note"]
     assert "lowest" in c["note"]
 
 
 def test_no_requirement_is_unrated_and_still_reports_what_the_ground_banked():
-    c = perennial.chill_delivery(_winters(900.0, 1100.0), None)
+    c = perennial.chill_delivery(_winters(900.0, 1100.0), None, NORTH)
     assert c["verdict"] == "unrated"
     assert c["median_hours"] == 1000.0
 
@@ -187,7 +189,7 @@ def test_no_requirement_is_unrated_and_still_reports_what_the_ground_banked():
 
 def test_assess_answers_both_questions_for_one_tree():
     a = perennial.assess(
-        perennial.validate_tree(tree()), _winters(1200.0, 1100.0), _lows(-20.0, -22.0)
+        perennial.validate_tree(tree()), _winters(1200.0, 1100.0), _lows(-20.0, -22.0), NORTH
     )
     assert a["tree"] == "Honeycrisp apple"
     assert a["hardiness"]["verdict"] == "hardy"
@@ -200,9 +202,9 @@ def test_a_tree_that_will_not_live_here_sorts_above_one_that_will_not_fruit():
     winters, lows = _winters(300.0, 320.0), _lows(-20.0, -22.0)
     rows = [
         perennial.assess(perennial.validate_tree(
-            {"tree": "Low chill", "chill_hours": 900, "hardy_to_f": -40}), winters, lows),
+            {"tree": "Low chill", "chill_hours": 900, "hardy_to_f": -40}), winters, lows, NORTH),
         perennial.assess(perennial.validate_tree(
-            {"tree": "Too cold", "chill_hours": 100, "hardy_to_f": 20}), winters, lows),
+            {"tree": "Too cold", "chill_hours": 100, "hardy_to_f": 20}), winters, lows, NORTH),
     ]
     rows.sort(key=perennial.sort_key)
     assert [r["tree"] for r in rows] == ["Too cold", "Low chill"]
@@ -211,9 +213,9 @@ def test_a_tree_that_will_not_live_here_sorts_above_one_that_will_not_fruit():
 def test_an_unrated_tree_sorts_below_a_judged_one_rather_than_at_the_top():
     winters, lows = _winters(1200.0), _lows(-20.0)
     rows = [
-        perennial.assess(perennial.validate_tree({"tree": "Unrated"}), winters, lows),
+        perennial.assess(perennial.validate_tree({"tree": "Unrated"}), winters, lows, NORTH),
         perennial.assess(perennial.validate_tree(
-            {"tree": "Judged", "hardy_to_f": 20}), winters, lows),
+            {"tree": "Judged", "hardy_to_f": 20}), winters, lows, NORTH),
     ]
     rows.sort(key=perennial.sort_key)
     assert [r["tree"] for r in rows] == ["Judged", "Unrated"]

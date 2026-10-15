@@ -20,6 +20,7 @@ Nothing here knows about billing, npubs, or MCP.
 
 from __future__ import annotations
 
+import calendar
 from datetime import date, timedelta
 
 # Standard environmental lapse rate: temperature falls ~6.5 °C per km of
@@ -194,6 +195,45 @@ def typical_dates(iso_dates: list[str], reference_year: int) -> tuple[date, date
         lo, hi = on(keys[n // 2 - 1]), on(keys[n // 2])
         median = lo + timedelta(days=(hi - lo).days // 2)
     return median, on(keys[0]), on(keys[-1])
+
+
+#: Two common years, so a day counted from a season's start means the same
+#: calendar day in every season — Feb 29 and the day after it are not a day
+#: apart in one season and two in the next.
+_COMMON = 2001
+
+
+def season_offset(day: date, start: date) -> int:
+    """Days from ``start`` to ``day``, on a calendar without Feb 29."""
+    first = on_year(_COMMON, start.month, start.day)
+    return (on_year(_COMMON + day.year - start.year, day.month, day.day) - first).days
+
+
+def from_season_offset(start: date, days: int) -> date:
+    """The day ``days`` on from ``start``, the inverse of `season_offset`."""
+    got = on_year(_COMMON, start.month, start.day) + timedelta(days=days)
+    return on_year(start.year + got.year - _COMMON, got.month, got.day)
+
+
+def hemisphere(month_day: tuple[int, int], lat: float) -> tuple[int, int]:
+    """A northern calendar day as the same point of the year on ground at
+    ``lat``: itself north of the equator, six months on south of it.
+
+    The windows a grower's year is read in — chill from November, the sap run
+    from December, spring soil from February — are written for the north. A
+    southern block reads each half a year on: chill from May, sap from June.
+    """
+    if lat >= 0:
+        return month_day
+    m = (month_day[0] + 5) % 12 + 1
+    return m, min(month_day[1], calendar.monthrange(2001, m)[1])
+
+
+def within(day: date, first: tuple[int, int], last: tuple[int, int]) -> bool:
+    """Whether ``day`` falls from ``first`` to ``last`` inclusive, a window
+    that may run across the new year."""
+    md = (day.month, day.day)
+    return first <= md <= last if first <= last else md >= first or md <= last
 
 
 def season_start(today: date, lat: float) -> date:

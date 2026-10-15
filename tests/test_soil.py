@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 import pytest
 
 from goodearth_mcp import soil
+
+NORTH = 44.5  # Vermont
 
 # ── Validation ───────────────────────────────────────────────────────────
 
@@ -56,13 +60,13 @@ def test_cooling_crossing_needs_to_have_been_warm_first():
     """A season that starts cold has not 'cooled through' anything."""
     d = days(10)
     t = [40.0] * 10
-    assert soil.crossing(d, t, 60.0, "cooling", seasonal=False) is None
+    assert soil.crossing(d, t, 60.0, "cooling", None) is None
 
 
 def test_cooling_crossing_is_found_once_it_sticks():
     d = days(12)
     t = [70.0] * 5 + [55.0] * 7
-    assert soil.crossing(d, t, 60.0, "cooling", seasonal=False) == d[5]
+    assert soil.crossing(d, t, 60.0, "cooling", None) == d[5]
 
 
 def test_a_one_day_dip_is_not_a_seasonal_crossing():
@@ -74,45 +78,45 @@ def test_a_one_day_dip_is_not_a_seasonal_crossing():
     """
     d = days(20)
     t = [70.0] * 5 + [55.0] + [70.0] * 14   # single-day dip
-    assert soil.crossing(d, t, 60.0, "cooling", seasonal=False) is None
+    assert soil.crossing(d, t, 60.0, "cooling", None) is None
 
 
 def test_a_dip_shorter_than_the_persistence_window_is_ignored():
     d = days(20)
     t = [70.0] * 5 + [55.0] * 3 + [70.0] * 12
-    assert soil.crossing(d, t, 60.0, "cooling", seasonal=False) is None
+    assert soil.crossing(d, t, 60.0, "cooling", None) is None
 
 
 def test_warming_crossing_is_the_mirror():
     d = days(12)
     t = [40.0] * 5 + [65.0] * 7
-    assert soil.crossing(d, t, 60.0, "warming", seasonal=False) == d[5]
+    assert soil.crossing(d, t, 60.0, "warming", None) == d[5]
 
 
 def test_a_late_crossing_near_the_end_of_the_record_still_counts():
     """Don't require a full window past the end of the data."""
     d = days(8)
     t = [70.0] * 5 + [55.0] * 3
-    assert soil.crossing(d, t, 60.0, "cooling", seasonal=False) == d[5]
+    assert soil.crossing(d, t, 60.0, "cooling", None) == d[5]
 
 
 def test_gaps_do_not_break_the_run():
     d = days(12)
     t = [70.0] * 5 + [55.0, None, 55.0, 55.0, 55.0, 55.0, 55.0]
-    assert soil.crossing(d, t, 60.0, "cooling", seasonal=False) == d[5]
+    assert soil.crossing(d, t, 60.0, "cooling", None) == d[5]
 
 
 def test_exactly_at_the_threshold_counts_as_crossed_when_cooling():
     d = days(12)
     t = [70.0] * 5 + [60.0] * 7
-    assert soil.crossing(d, t, 60.0, "cooling", seasonal=False) == d[5]
+    assert soil.crossing(d, t, 60.0, "cooling", None) == d[5]
 
 
 # ── Typical crossing ─────────────────────────────────────────────────────
 
 
 def test_typical_reports_median_earliest_latest():
-    got = soil.typical_crossing(["2022-10-01", "2023-10-10", "2024-10-06"], 2026)
+    got = soil.typical_crossing(["2022-10-01", "2023-10-10", "2024-10-06"], NORTH, date(2026, 1, 1))
     assert got["median"] == "2026-10-06"
     assert got["earliest"] == "2026-10-01"
     assert got["latest"] == "2026-10-10"
@@ -120,11 +124,11 @@ def test_typical_reports_median_earliest_latest():
 
 
 def test_typical_of_nothing_is_none():
-    assert soil.typical_crossing([], 2026) is None
+    assert soil.typical_crossing([], NORTH, date(2026, 1, 1)) is None
 
 
 def test_leap_year_dates_do_not_drift():
-    assert soil.typical_crossing(["2024-10-06"], 2026)["median"] == "2026-10-06"
+    assert soil.typical_crossing(["2024-10-06"], NORTH, date(2026, 1, 1))["median"] == "2026-10-06"
 
 
 # ── Hourly to daily ──────────────────────────────────────────────────────
@@ -155,24 +159,24 @@ def test_a_june_cool_spell_is_not_the_autumn_crossing():
     """
     d = days(200, "2026-04-01")           # Apr through Oct
     t = [70.0] * 60 + [55.0] * 8 + [72.0] * 60 + [50.0] * 72
-    assert soil.crossing(d, t, 60.0, "cooling") == d[128]   # the autumn one
+    assert soil.crossing(d, t, 60.0, "cooling", NORTH) == d[128]   # the autumn one
 
 
 def test_the_autumn_crossing_is_found_from_july_onward():
     d = days(120, "2026-07-01")
     t = [70.0] * 40 + [52.0] * 80
-    assert soil.crossing(d, t, 60.0, "cooling") == d[40]
+    assert soil.crossing(d, t, 60.0, "cooling", NORTH) == d[40]
 
 
 def test_a_spring_warming_after_july_is_ignored():
     """An August warm spell is not the spring crossing."""
     d = days(60, "2026-08-01")
     t = [40.0] * 10 + [70.0] * 50
-    assert soil.crossing(d, t, 50.0, "warming") is None
+    assert soil.crossing(d, t, 50.0, "warming", NORTH) is None
 
 
 def test_seasonal_can_be_switched_off_for_a_forecast_window():
     d = days(12, "2026-06-01")
     t = [70.0] * 5 + [55.0] * 7
-    assert soil.crossing(d, t, 60.0, "cooling", seasonal=False) == d[5]
-    assert soil.crossing(d, t, 60.0, "cooling") is None
+    assert soil.crossing(d, t, 60.0, "cooling", None) == d[5]
+    assert soil.crossing(d, t, 60.0, "cooling", NORTH) is None

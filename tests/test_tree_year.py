@@ -12,6 +12,8 @@ from datetime import date, timedelta
 
 from goodearth_mcp import tree_year
 
+NORTH = 44.5  # Vermont
+
 PANTON = {
     "first_leaf": 101.33333587646484,
     "first_bloom": 139.0,
@@ -98,24 +100,24 @@ def series(pairs: list[tuple[str, float, float]]):
 
 def test_a_day_that_freezes_and_thaws_is_a_sap_day():
     d, hi, lo = series([("2026-03-05", 45.0, 24.0)])
-    assert tree_year.sap_days(d, hi, lo) == ["2026-03-05"]
+    assert tree_year.sap_days(d, hi, lo, NORTH) == ["2026-03-05"]
 
 
 def test_a_night_that_does_not_freeze_is_not():
     """Both halves are required. Sap moves on the pressure a freeze builds;
     a mild night moves nothing however warm the afternoon."""
     d, hi, lo = series([("2026-03-05", 55.0, 36.0)])
-    assert tree_year.sap_days(d, hi, lo) == []
+    assert tree_year.sap_days(d, hi, lo, NORTH) == []
 
 
 def test_a_day_that_never_thaws_is_not():
     d, hi, lo = series([("2026-02-05", 28.0, 5.0)])
-    assert tree_year.sap_days(d, hi, lo) == []
+    assert tree_year.sap_days(d, hi, lo, NORTH) == []
 
 
 def test_a_freeze_and_thaw_in_november_is_not_the_start_of_a_season():
     d, hi, lo = series([("2026-11-05", 48.0, 25.0)])
-    assert tree_year.sap_days(d, hi, lo) == []
+    assert tree_year.sap_days(d, hi, lo, NORTH) == []
 
 
 def _run(days: list[str], today: date):
@@ -132,7 +134,7 @@ def _run(days: list[str], today: date):
 def test_a_run_in_progress_reports_when_it_started_and_how_many_days():
     today = date(2026, 3, 20)
     d, hi, lo = _run(["2026-03-08", "2026-03-12", "2026-03-18"], today)
-    r = tree_year.sap_run(d, hi, lo, today)
+    r = tree_year.sap_run(d, hi, lo, today, NORTH)
     assert r["state"] == "running"
     assert r["started_on"] == "2026-03-08"
     assert r["cycles"] == 3
@@ -142,7 +144,7 @@ def test_a_run_in_progress_reports_when_it_started_and_how_many_days():
 def test_a_run_gone_quiet_for_a_fortnight_is_over():
     today = date(2026, 4, 5)
     d, hi, lo = _run(["2026-03-08", "2026-03-12"], today)
-    assert tree_year.sap_run(d, hi, lo, today)["state"] == "over"
+    assert tree_year.sap_run(d, hi, lo, today, NORTH)["state"] == "over"
 
 
 def test_asking_in_august_does_not_dress_last_spring_as_now():
@@ -150,20 +152,20 @@ def test_asking_in_august_does_not_dress_last_spring_as_now():
     reporting "running" then would send someone to hang buckets."""
     today = date(2026, 8, 20)
     d, hi, lo = _run(["2026-03-08", "2026-03-12"], today)
-    assert tree_year.sap_run(d, hi, lo, today)["state"] == "over"
+    assert tree_year.sap_run(d, hi, lo, today, NORTH)["state"] == "over"
 
 
 def test_before_the_window_is_not_started_rather_than_none():
     """"Nothing yet" and "this ground did not run" are different claims."""
     today = date(2026, 1, 5)
     d, hi, lo = _run([], today)
-    assert tree_year.sap_run(d, hi, lo, today)["state"] == "not_started"
+    assert tree_year.sap_run(d, hi, lo, today, NORTH)["state"] == "not_started"
 
 
 def test_past_the_window_with_no_cycle_says_none_recorded():
     today = date(2026, 6, 1)
     d, hi, lo = _run([], today)
-    assert tree_year.sap_run(d, hi, lo, today)["state"] == "none_recorded"
+    assert tree_year.sap_run(d, hi, lo, today, NORTH)["state"] == "none_recorded"
 
 
 def test_last_years_run_is_not_this_year_s():
@@ -173,18 +175,18 @@ def test_last_years_run_is_not_this_year_s():
     d = ["2025-03-09", *d]
     hi = [45.0, *hi]
     lo = [24.0, *lo]
-    assert tree_year.sap_run(d, hi, lo, today)["cycles"] == 1
+    assert tree_year.sap_run(d, hi, lo, today, NORTH)["cycles"] == 1
 
 
 def test_a_year_the_record_does_not_cover_is_none_not_a_zero_run():
     d, hi, lo = _run(["2026-03-08"], date(2026, 3, 20))
-    assert tree_year.sap_run(d, hi, lo, date(2030, 3, 20)) is None
+    assert tree_year.sap_run(d, hi, lo, date(2030, 3, 20), NORTH) is None
 
 
 def test_a_missing_reading_is_skipped_rather_than_read_as_freezing():
     d, hi, lo = series([("2026-03-05", 45.0, 24.0), ("2026-03-06", 45.0, 24.0)])
     lo = [None, 24.0]
-    assert tree_year.sap_days(d, hi, lo) == ["2026-03-06"]
+    assert tree_year.sap_days(d, hi, lo, NORTH) == ["2026-03-06"]
 
 
 # ── Who has anything to tap ──────────────────────────────────────────────

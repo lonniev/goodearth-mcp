@@ -23,10 +23,13 @@ Pure domain logic. No billing, no npubs, no MCP.
 
 from __future__ import annotations
 
+import calendar
 import math
 import statistics
 from datetime import date
 from typing import Any
+
+from goodearth_mcp import gdd
 
 #: Hours at or below 45 °F, with NO lower bound — the Weinberger model, which
 #: is the one the figures on nursery tags were derived from.
@@ -40,7 +43,8 @@ from typing import Any
 CHILL_HIGH_F = 45.0
 
 #: 1 November to 15 February — the window the published chill-hour figures were
-#: derived against.
+#: derived against. South of the equator the same winter, six months on: 1 May
+#: to 15 August.
 #:
 #: This is narrower than the dormant period actually is, and that is the point.
 #: Accumulating over a wider window would bank more hours against a requirement
@@ -94,31 +98,37 @@ def daily_chill(
     return max(hours, 0.0)
 
 
-def in_dormancy(d: date) -> bool:
+def dormancy(lat: float) -> tuple[tuple[int, int], tuple[int, int]]:
+    """The first and last day of the accumulation window on ground at ``lat``."""
+    return gdd.hemisphere(DORMANCY_START, lat), gdd.hemisphere(DORMANCY_END, lat)
+
+
+def in_dormancy(d: date, lat: float) -> bool:
     """Whether a date falls inside the accumulation window.
 
-    The window crosses the year boundary, so this is a month/day test rather
-    than a range — November and December belong to the winter that ENDS the
-    following February.
+    The northern window crosses the year boundary, so this is a month/day test
+    rather than a range — November and December belong to the winter that ENDS
+    the following February.
     """
-    md = (d.month, d.day)
-    return md >= DORMANCY_START or md <= DORMANCY_END
+    return gdd.within(d, *dormancy(lat))
 
 
-def dormancy_ending(d: date) -> int:
+def dormancy_ending(d: date, lat: float) -> int:
     """Which winter a date belongs to, named by the year the winter ends in.
 
     November 2025 and February 2026 are the same winter; calling it "2026"
     matches how a grower says it and keeps the two halves together when the
-    record is grouped.
+    record is grouped. A southern winter lies inside one year and takes its name.
     """
-    return d.year + 1 if (d.month, d.day) >= DORMANCY_START else d.year
+    start, end = dormancy(lat)
+    return d.year + 1 if start > end and (d.month, d.day) >= start else d.year
 
 
 def banked(
     dates: list[str],
     tmax: list[float | None],
     tmin: list[float | None],
+    lat: float,
 ) -> list[dict[str, Any]]:
     """Chill hours per winter across a daily record.
 
@@ -139,15 +149,15 @@ def banked(
             d = date.fromisoformat(iso)
         except ValueError:
             continue
-        if not in_dormancy(d):
+        if not in_dormancy(d, lat):
             continue
 
         hi = tmax[i] if i < len(tmax) else None
         lo = tmin[i] if i < len(tmin) else None
 
         w = by_winter.setdefault(
-            dormancy_ending(d),
-            {"winter": dormancy_ending(d), "hours": 0.0, "days": 0, "gaps": 0,
+            dormancy_ending(d, lat),
+            {"winter": dormancy_ending(d, lat), "hours": 0.0, "days": 0, "gaps": 0,
              "from": iso, "to": iso},
         )
         w["to"] = max(w["to"], iso)
@@ -172,18 +182,19 @@ def banked(
 MIN_WINTER_DAYS = 70
 
 
-def finished(winter: dict[str, Any], today: date) -> bool:
-    """Whether a winter's chill window has closed — Feb 15 of the year it ends in.
+def finished(winter: dict[str, Any], today: date, lat: float) -> bool:
+    """Whether a winter's chill window has closed — Feb 15 of the year it ends
+    in, or Aug 15 south of the equator.
 
     A winter still under way has banked only part of its hours. From early
     January it had enough days on record to pass as whole, and was scored as a
     winter that fell short: counted against the requirement, and pulling the
     median and the lowest down with it.
     """
-    return date(winter["winter"], *DORMANCY_END) <= today
+    return date(winter["winter"], *dormancy(lat)[1]) <= today
 
 
-def summarize(winters: list[dict[str, Any]]) -> dict[str, Any] | None:
+def summarize(winters: list[dict[str, Any]], lat: float) -> dict[str, Any] | None:
     """The record's chill, as a grower would plan against it.
 
     Median rather than mean, and the LOWEST winter alongside it, because those
@@ -203,7 +214,7 @@ def summarize(winters: list[dict[str, Any]]) -> dict[str, Any] | None:
         "most_recent_hours": round(whole[-1]["hours"], 1),
         "most_recent_winter": whole[-1]["winter"],
         "winters_on_record": len(whole),
-        "window": f"{DORMANCY_START[1]} Nov – {DORMANCY_END[1]} Feb",
+        "window": " – ".join(f"{d} {calendar.month_abbr[m]}" for m, d in dormancy(lat)),
         "model": f"hours at or below {CHILL_HIGH_F:g} °F",
     }
 

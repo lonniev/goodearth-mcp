@@ -315,12 +315,12 @@ def typical_around(anchor: date, days_from_midsummer: list[int]) -> dict[str, st
     ds = sorted(days_from_midsummer)
     n = len(ds)
     med = ds[n // 2] if n % 2 else (ds[n // 2 - 1] + ds[n // 2]) // 2
-    on = lambda k: (anchor + timedelta(days=k)).isoformat()
+    on = lambda k: gdd.from_season_offset(anchor, k).isoformat()
     return {"median": on(med), "earliest": on(ds[0]), "latest": on(ds[-1])}
 
 
 def offsets(seasons: list[dict[str, Any]], key: str) -> list[int]:
     """Days from each season's midsummer to its ``key`` frost, where it came."""
     return [
-        (date.fromisoformat(s[key]) - s["midsummer"]).days for s in seasons if s.get(key)
+        gdd.season_offset(date.fromisoformat(s[key]), s["midsummer"]) for s in seasons if s.get(key)
     ]
