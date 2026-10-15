@@ -670,10 +670,11 @@ export interface SapRun {
   last_cycle_on?: string;
   cycles: number;
   days_since_last_cycle?: number;
-  /// The sap winter, Dec 1 to May 15, named by the years it spans ("2026–27").
+  /// The sap winter, Dec 1 to May 15 (Jun 1 to Nov 15 south of the equator),
+  /// named by the years it spans ("2026–27", or "2026" in the south).
   winter?: string;
   window?: string;
-  /// Past May 15: the day the next winter's window opens.
+  /// Past the window's end: the day the next winter's window opens.
   next_window_opens?: string;
   note: string;
 }

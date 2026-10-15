@@ -19,7 +19,7 @@ import { roughly, usd } from "../lib/money";
 import { readPrefs, writePrefs } from "../lib/prefs";
 import { readingTime } from "../lib/readingTime";
 import {
-  accessOf, BINS, cellCentre, CLASS_COLOUR, classOf, hoursOf, leastLightMonth, type LightClass, type SunGrid,
+  accessOf, BINS, cellCentre, pathsAt, CLASS_COLOUR, classOf, hoursOf, leastLightMonth, type LightClass, type SunGrid,
 } from "../lib/sunGrid";
 import Provenance from "./Provenance";
 import { Glyph, ICON } from "./ui";
@@ -30,9 +30,7 @@ const CLASS_CHIP: Record<LightClass, string> = {
 };
 const HILLS = "#A9773F";
 const TREES = "#66731F";
-const PATHS: [keyof NonNullable<SunlightResult["sun_paths"]>, string, string][] = [
-  ["june", "#E09A3A", "Jun"], ["equinox", "#8E6488", "Mar/Sep"], ["december", "#4A7394", "Dec"],
-];
+
 const FULL_MONTH = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 export default function SunSpotCard({ grid, result, cell, month, fullLeaf, onCost, array, onArray }: {
@@ -86,7 +84,7 @@ export default function SunSpotCard({ grid, result, cell, month, fullLeaf, onCos
         <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10.5px] text-ink-soft">
           <Key colour={HILLS}>Hills</Key>
           <Key colour={TREES} faint>Trees</Key>
-          {PATHS.map(([, c, label]) => <Key key={label} colour={c}>{label}</Key>)}
+          {pathsAt(cellCentre(grid, cell).lat).map(({ colour, label }) => <Key key={label} colour={colour}>{label}</Key>)}
           <span>dashed = sun hidden</span>
         </div>
       </div>
@@ -170,10 +168,13 @@ export function SkyDome({ grid, cell, paths, fullLeaf, leafOn }: {
   grid: SunGrid; cell: number; paths?: SunlightResult["sun_paths"]; fullLeaf: boolean; leafOn: boolean;
 }) {
   const [, zone] = useTimezone();
-  // The hour on the grower's clock for a UTC minute on June 21, so the dots
-  // read "6h … 18h" where the day actually is.
+  const paths3 = pathsAt(cellCentre(grid, cell).lat);
+  // The hours are marked on the summer path, the long day.
+  const summer = paths3.find((p) => p.summer)!.key;
+  // The hour on the grower's clock for a UTC minute on that solstice, so the
+  // dots read "6h … 18h" where the day actually is.
   const localHour = (minutes: number): number => {
-    const at = new Date(Date.UTC(new Date().getUTCFullYear(), 5, 21, 0, Math.round(minutes)));
+    const at = new Date(Date.UTC(new Date().getUTCFullYear(), summer === "june" ? 5 : 11, 21, 0, Math.round(minutes)));
     const h = new Intl.DateTimeFormat("en-US", { hour: "numeric", hourCycle: "h23", timeZone: zone }).formatToParts(at)
       .find((p) => p.type === "hour")?.value;
     return Number(h ?? 0);
@@ -191,7 +192,7 @@ export function SkyDome({ grid, cell, paths, fullLeaf, leafOn }: {
   };
   const lines: { d: string; colour: string; dashed: boolean }[] = [];
   const dots: [number, number, string][] = [];
-  for (const [key, colour] of PATHS) {
+  for (const { key, colour } of paths3) {
     const path = paths?.[key] ?? [];
     let seg: string[] = [];
     let vis: boolean | null = null;
@@ -209,7 +210,7 @@ export function SkyDome({ grid, cell, paths, fullLeaf, leafOn }: {
       const p = `${x.toFixed(1)},${y.toFixed(1)}`;
       if (vis === null) vis = v;
       if (v !== vis) { seg.push(p); flush(); seg = [p]; vis = v; } else seg.push(p);
-      if (key === "june") {
+      if (key === summer) {
         const h = localHour(minutes);
         if (h % 3 === 0 && h >= 6 && h <= 18) dots.push([x, y, `${h}h`]);
       }

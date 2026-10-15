@@ -13,6 +13,8 @@ from typing import Any
 from goodearth_mcp import calibrate, frost, gdd, planting, record_cache, soil, wildlife
 from goodearth_mcp.region import parse_region
 
+MIDSUMMER = (7, 15)  # a northern season's start
+
 NORTH = 44.5  # Vermont
 
 # ── Feb 29 ───────────────────────────────────────────────────────────────
@@ -40,7 +42,7 @@ def test_nor_the_soil_summary():
 def test_a_january_first_frost_is_found():
     days = [date(2022, 7, 1) + timedelta(days=i) for i in range(250)]
     tmin = [20.0 if d == date(2023, 1, 12) else 40.0 for d in days]
-    assert frost.first_fall_frost([d.isoformat() for d in days], tmin, 2022) == "2023-01-12"
+    assert frost.first_fall_frost([d.isoformat() for d in days], tmin, 2022, MIDSUMMER) == "2023-01-12"
 
 
 def test_a_season_crossing_the_new_year_is_ordered_by_the_season():

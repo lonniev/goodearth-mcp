@@ -78,7 +78,7 @@ PERSIST_DAYS = 5
 # A crossing only means something inside its own half of the year. Persistence
 # alone is not enough: a genuine five-day cool spell in June is a real dip, but
 # it is not the AUTUMN crossing, and reporting it as one would put garlic in the
-# ground in midsummer. Same reasoning as frost.FALL_SEARCH_START — searching
+# ground in midsummer. Same reasoning as frost.season_start — searching
 # the whole calendar year finds the wrong season's answer. Written for the
 # north; a southern block reads each six months on (`gdd.hemisphere`).
 COOLING_SEARCH = ((7, 1), (12, 31))  # autumn crossings: Jul 1 to the year's end
