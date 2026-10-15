@@ -227,6 +227,8 @@ export interface FrostWindowResult {
     season_starts?: string;
   } | null;
   days_to_median_first_frost: number | null;
+  /// True when this ground's record never froze: there is no first frost.
+  frost_free?: boolean;
   /// This season up to yesterday; null when nothing has been observed yet.
   this_season: {
     first_frost: string | null;

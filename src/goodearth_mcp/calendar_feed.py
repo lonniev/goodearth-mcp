@@ -121,7 +121,7 @@ async def build_feed(
     """Compute every dated thing this block knows about, as one calendar."""
     today = today or datetime.now(UTC).date()
     stamp = datetime.now(UTC)
-    start = gdd.season_start(today)
+    start = gdd.season_start(today, region.centroid.lat)
 
     parsed_todos = validate_todos(todos)
 

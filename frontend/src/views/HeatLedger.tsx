@@ -603,19 +603,24 @@ const sub = (n: number) => String(Math.round(n)).split("").map((c) => SUBS[+c] ?
 const fmt = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
-/// The first-frost tile and the chart's frost line, which mark the same day.
-/// Before the record's median it is the median; once this fall has frosted it
-/// is that night; past the median with none yet it is the median of the
-/// seasons that were still frost-free this late, since the typical season's
-/// date has stopped being an answer.
+/// The first-frost tile and the chart's frost line, which mark the same day:
+/// the projection, with the record's average beneath it. This season's frost
+/// once it has come; else the first frost night in the forecast; else, past
+/// the average, the median of the seasons still frost-free this late; else the
+/// average itself.
 function firstFrost(frost: FrostWindowResult | null | undefined): {
   value: string; label: string; muted?: boolean; iso?: string; title?: string;
 } {
+  if (frost?.frost_free) return { value: "none", label: "no frost on record", muted: true };
   const rec = frost?.first_frost;
   const now = frost?.this_season;
   const label = rec ? `ave is ${shortDate(rec.median)}` : "first frost";
   if (now?.first_frost) {
-    return { value: shortDate(now.first_frost), iso: now.first_frost, title: "First frost this fall", label };
+    return { value: shortDate(now.first_frost), iso: now.first_frost, title: "First frost this season", label };
+  }
+  const coming = frost?.nights?.find((n) => n.level === "frost_likely" || n.level === "hard_freeze");
+  if (coming) {
+    return { value: shortDate(coming.date), iso: coming.date, title: "Frost in the forecast", label };
   }
   if (!rec) return { value: "—", label, muted: true };
   const later = now?.given_none_yet;

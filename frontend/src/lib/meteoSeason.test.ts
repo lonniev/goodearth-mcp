@@ -50,3 +50,11 @@ describe("the meteorological season a date sits in", () => {
     assert.equal(seasonBounds("2026-13-01"), null);
   });
 });
+
+describe("south of the equator", () => {
+  it("keeps the quarters and turns the names round", () => {
+    assert.equal(seasonBounds("2026-01-15", -35)?.name, "Summer");
+    assert.equal(seasonBounds("2026-10-15", -35)?.name, "Spring");
+    assert.equal(seasonBounds("2026-10-15", 44)?.name, "Fall");
+  });
+});

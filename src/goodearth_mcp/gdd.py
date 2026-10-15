@@ -196,17 +196,33 @@ def typical_dates(iso_dates: list[str], reference_year: int) -> tuple[date, date
     return median, on(keys[0]), on(keys[-1])
 
 
-def season_start(today: date) -> date:
-    """January 1 of the season in progress.
+def season_start(today: date, lat: float) -> date:
+    """First day of the growing season in progress on ground at ``lat``.
 
-    Good Earth counts from the calendar year rather than a last-frost date
+    Midwinter, so a season's heat is counted whole: January 1 north of the
+    equator, July 1 south of it. A January start south of the equator cut its
+    September-to-April season in half and reset the heat at midsummer.
+
+    Good Earth counts from a fixed midwinter rather than a last-frost date
     because last frost is itself one of the things the grower is asking
     about; deriving the clock from the answer would be circular.
     """
-    return date(today.year, 1, 1)
+    month = 1 if lat >= 0 else 7
+    start = date(today.year, month, 1)
+    return start if today >= start else date(today.year - 1, month, 1)
 
 
-def normals_years(today: date, span: int = 10) -> list[tuple[str, str]]:
+def season_end(start: date) -> date:
+    """The last day of the season that began on ``start``."""
+    return date(start.year + 1, start.month, start.day) - timedelta(days=1)
+
+
+def named_season(season: int, lat: float) -> date:
+    """The first day of season ``season``: the one that begins in that year."""
+    return date(season, 1 if lat >= 0 else 7, 1)
+
+
+def normals_years(today: date, lat: float, span: int = 10) -> list[tuple[str, str]]:
     """Date ranges for the same season window across the previous ``span`` years.
 
     Used to build the band a current season is judged against. Ten years,
@@ -214,19 +230,11 @@ def normals_years(today: date, span: int = 10) -> list[tuple[str, str]]:
     to answer while the grower is still looking at it. The window is
     immutable once past, so these are the responses worth caching hardest.
     """
-    start = season_start(today)
+    start = season_start(today, lat)
     ranges: list[tuple[str, str]] = []
     for back in range(1, span + 1):
-        y = today.year - back
-        try:
-            s = start.replace(year=y)
-            e = today.replace(year=y)
-        except ValueError:
-            # Feb 29 in a non-leap year — step back a day rather than skip
-            # the whole year, which would silently thin the band.
-            e = today.replace(year=y, day=today.day - 1)
-            s = start.replace(year=y)
-        ranges.append((s.isoformat(), e.isoformat()))
+        s = start.replace(year=start.year - back)
+        ranges.append((s.isoformat(), on_year(today.year - back, today.month, today.day).isoformat()))
     return ranges
 
 
@@ -282,7 +290,7 @@ def yearly_curves(
     dates: list[str],
     tmax: list[float | None],
     tmin: list[float | None],
-    today: date,
+    start: date,
     span: int,
     base_f: float,
 ) -> list[list[float]]:
@@ -305,11 +313,15 @@ def yearly_curves(
         if hi is not None and lo is not None:
             by_date[d] = (hi, lo)
 
+    # A season the record does not reach the end of is left out: its curve
+    # would be short, and the band is cut to its shortest curve.
+    last = max(by_date) if by_date else ""
     curves: list[list[float]] = []
     for back in range(1, span + 1):
-        year = today.year - back
-        day = date(year, 1, 1)
-        end = date(year, 12, 31)
+        day = start.replace(year=start.year - back)
+        end = season_end(day)
+        if end.isoformat() > last:
+            continue
 
         highs: list[float | None] = []
         lows: list[float | None] = []

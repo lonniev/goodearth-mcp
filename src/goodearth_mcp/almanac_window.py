@@ -61,7 +61,7 @@ async def region_almanac(
 ) -> dict[str, Any]:
     """The sky's record for this ground: normal, actual, and what is coming."""
     today = today or datetime.now(UTC).date()
-    start = gdd.season_start(today)
+    start = gdd.season_start(today, region.centroid.lat)
 
     actual_task = record_cache.almanac_history(
         region.centroid.lat, region.centroid.lon,

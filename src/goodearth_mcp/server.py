@@ -41,6 +41,7 @@ from goodearth_mcp import (
     calendar_feed,
     catalog,
     feed_store,
+    gdd,
     record_cache,
     roster,
     season,
@@ -931,7 +932,7 @@ async def pest_threshold(
                 "1. Your own thresholds, from an extension bulletin: "
                 '{"pest": "Aster leafhopper", "base_temp": 50, "biofix": "2026-05-01", '
                 '"stages": [{"stage": "second flight", "gdd": 1850}]}. '
-                "biofix is optional; without it the count runs from Jan 1.\n"
+                "biofix is optional; without it the count runs from the season's start: Jan 1, or Jul 1 south of the equator.\n"
                 '2. A published model, cited rather than restated: '
                 '{"pest": "Japanese beetle", "model": "usa-npn"} — the dates come '
                 "from USA-NPN for your ground, and re-resolve each season instead "
@@ -1884,7 +1885,7 @@ async def calendar_dataset(
         # that would come back as phantoms — see seasons.feed_rows.
         rows = await _all_rows(npub, block_id, kind, season)
         if season is None:
-            rows = seasons.feed_rows(kind, rows, date(today.year, 1, 1))
+            rows = seasons.feed_rows(kind, rows, gdd.season_start(today, parsed.centroid.lat))
         return [
             {k: v for k, v in row.items() if k not in ("item_id", "kind", "retired", "source")}
             for row in rows
@@ -1901,9 +1902,9 @@ async def calendar_dataset(
         while True:
             tasks = await task_store.listing(
                 npub, block_id, timeframe="season",
-                # A named season is that year; unnamed, the rolling season
+                # A named season is the one beginning that year; unnamed, the rolling season
                 # around today, so next January's tasks publish in November.
-                season_start=date(season, 1, 1) if season is not None else None,
+                season_start=gdd.named_season(season, parsed.centroid.lat) if season is not None else None,
                 page=page_no, page_size=task_store.MAX_PAGE_SIZE,
             )
             todos.extend(tasks.get("rows") or [])

@@ -76,20 +76,30 @@ def test_hollow_accumulates_differently_from_bench():
 # ── Season helpers ───────────────────────────────────────────────────────
 
 
-def test_season_start_is_jan_1():
-    assert gdd.season_start(date(2026, 8, 30)) == date(2026, 1, 1)
+def test_the_season_starts_at_midwinter_on_either_side_of_the_equator():
+    assert gdd.season_start(date(2026, 8, 30), 44.1) == date(2026, 1, 1)
+    # South of the equator: July 1, and in March the season began last July.
+    assert gdd.season_start(date(2026, 8, 30), -35.3) == date(2026, 7, 1)
+    assert gdd.season_start(date(2026, 3, 10), -35.3) == date(2025, 7, 1)
+    assert gdd.season_end(date(2025, 7, 1)) == date(2026, 6, 30)
+    assert gdd.named_season(2026, -35.3) == date(2026, 7, 1)
 
 
 def test_normals_years_walks_back_the_requested_span():
-    rs = gdd.normals_years(date(2026, 8, 30), span=10)
+    rs = gdd.normals_years(date(2026, 8, 30), 44.1, span=10)
     assert len(rs) == 10
     assert rs[0] == ("2025-01-01", "2025-08-30")
     assert rs[-1] == ("2016-01-01", "2016-08-30")
 
 
+def test_southern_normals_cross_the_new_year():
+    rs = gdd.normals_years(date(2026, 3, 10), -35.3, span=2)
+    assert rs == [("2024-07-01", "2025-03-10"), ("2023-07-01", "2024-03-10")]
+
+
 def test_normals_years_survives_leap_day():
     """Feb 29 in a non-leap year must thin the window by a day, not drop the year."""
-    rs = gdd.normals_years(date(2024, 2, 29), span=3)
+    rs = gdd.normals_years(date(2024, 2, 29), 44.1, span=3)
     assert len(rs) == 3
     assert all(s < e for s, e in rs)
 

@@ -53,7 +53,7 @@ async def region_tree_year(
         # read from Jan 1 alone, a December run was never seen.
         record_cache.daily_history(
             [region.centroid.lat], [region.centroid.lon],
-            min(gdd.season_start(today), tree_year.sap_winter(today)[0]).isoformat(),
+            min(gdd.season_start(today, region.centroid.lat), tree_year.sap_winter(today)[0]).isoformat(),
             today.isoformat(),
         ),
         catalog.species_phenophases(list(labelled), today),

@@ -8,9 +8,11 @@ import { tour } from "../lib/tour/targets";
 import { showTemp, type Unit } from "../lib/units";
 
 export default function Preferences({
-  prefs, onChange,
+  prefs, lat, onChange,
 }: {
   prefs: Prefs;
+  /// Where the plot being worked lies: "Follow" names its season.
+  lat: number;
   onChange: (p: Prefs) => void;
 }) {
   // The account page's own tour: the package's panels, then these switches.
@@ -37,7 +39,7 @@ export default function Preferences({
                   : "border-rule text-ink-soft active:bg-band"
               }`}
             >
-              {s === "follow" ? `Follow · ${seasonOf()}` : s}
+              {s === "follow" ? `Follow · ${seasonOf(new Date(), lat)}` : s}
             </button>
           ))}
         </div>

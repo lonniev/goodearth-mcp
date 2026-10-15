@@ -48,7 +48,7 @@ import {
 } from "@tollbooth-dpyc/web";
 import { blockList, type BlockRow, type FrostWindowResult } from "./lib/mcp";
 import {
-  EXAMPLE_REGION, getActiveRegionId, hydrate, listRegions, setActiveRegionId,
+  EXAMPLE_REGION, getActiveRegionId, hydrate, latOf, listRegions, setActiveRegionId,
   type SavedRegion,
 } from "./lib/regions";
 import { migrateToBlocks } from "./lib/migrateBlocks";
@@ -156,10 +156,10 @@ export default function App() {
   // blush above an Autumn page.
   useEffect(() => {
     const root = document.documentElement;
-    root.dataset.theme = themeOf(prefs);
+    root.dataset.theme = themeOf(prefs, latOf(region.region));
     const paper = getComputedStyle(root).getPropertyValue("--color-paper").trim();
     if (paper) document.querySelector('meta[name="theme-color"]')?.setAttribute("content", paper);
-  }, [prefs]);
+  }, [prefs, region]);
   useEffect(() => onRouteChange(setView, signedIn ? DEFAULT_VIEW : GUEST_VIEW), [signedIn]);
 
   // A paid call can bounce for an expired proof from anywhere; the gate
@@ -433,7 +433,7 @@ export default function App() {
             build={false}
             after={
               <div className="grid gap-3 lg:break-before-column">
-                <Preferences prefs={prefs} onChange={(p) => setPrefs(writePrefs(p))} />
+                <Preferences prefs={prefs} lat={latOf(region.region)} onChange={(p) => setPrefs(writePrefs(p))} />
                 {/* Publishing is a once-per-region setup step, so it sits with
                     the other settings rather than at the top of the working page. */}
                 <CalendarFeed region={region} />

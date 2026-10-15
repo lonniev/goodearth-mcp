@@ -315,10 +315,11 @@ export default function SeasonChart({
     setSpan(key);
     const t = spanTarget(key, {
       today: view.last, origin: view.origin, domLo: view.domLo, domHi: view.domHi,
+      lat: data.region?.centroid.lat,
     });
     if (t === "full") { reset(); return; }
     showSpan(t.days, view.domHi - view.domLo + 1, t.anchor);
-  }, [view, showSpan, reset]);
+  }, [view, showSpan, reset, data.region]);
 
   /// The opening view: a fortnight with today in the middle of it.
   ///
@@ -378,7 +379,7 @@ export default function SeasonChart({
   const todayGdd = mean[last];
   /// The meteorological quarter the curve's last recorded day falls in — the
   /// name on the Season button, and the window it opens.
-  const thisSeason = seasonBounds(dateFor(last, origin) ?? "");
+  const thisSeason = seasonBounds(dateFor(last, origin) ?? "", data.region?.centroid.lat);
 
   return (
     <div ref={shell} className={`overflow-x-auto rounded-md border border-rule bg-panel ${

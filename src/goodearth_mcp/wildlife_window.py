@@ -80,7 +80,7 @@ async def region_wildlife(
     record: Any = None
 
     if needs_heat or needs_light or needs_weather:
-        start = gdd.season_start(today)
+        start = gdd.season_start(today, region.centroid.lat)
         try:
             record = await record_cache.almanac_history(
                 region.centroid.lat, region.centroid.lon,

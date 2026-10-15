@@ -79,8 +79,9 @@ async def region_disease_window(
                     if isinstance(row, dict) else "?"
                 skipped.append({"name": name, "reason": str(exc_)})
 
-    start = gdd.season_start(today) if season is None else date(int(season), 1, 1)
-    end = today if season is None or int(season) >= today.year else date(int(season), 12, 31)
+    lat = region.centroid.lat
+    start = gdd.season_start(today, lat) if season is None else gdd.named_season(int(season), lat)
+    end = min(today, gdd.season_end(start))
     if start > end:
         raise DiseaseWindowError(f"{season} has not started yet on this ground")
 

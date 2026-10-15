@@ -90,7 +90,7 @@ async def region_tree_window(
         ),
         record_cache.daily_history(
             [region.centroid.lat], [region.centroid.lon],
-            gdd.season_start(today).isoformat(), today.isoformat(),
+            gdd.season_start(today, region.centroid.lat).isoformat(), today.isoformat(),
         ),
         return_exceptions=True,
     )
