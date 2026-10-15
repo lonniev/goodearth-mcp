@@ -87,16 +87,28 @@ def test_a_frost_season_that_truly_crosses_the_new_year_still_does():
 
 
 def test_after_the_first_frost_the_planting_window_plans_next_spring():
-    fall = date(2026, 10, 16)
-    assert planting.plan_year(fall, date(2026, 11, 15)) == 2027
-    assert planting.plan_year(fall, date(2026, 9, 14)) == 2026
-    assert planting.plan_year(None, date(2026, 11, 15)) == 2026
+    mid = date(2026, 7, 15)
+    fall = [93, 91, 92]  # mid-October, as days from midsummer
+    assert planting.plan_season(mid, fall, date(2026, 11, 15)) == 2027
+    assert planting.plan_season(mid, fall, date(2026, 9, 14)) == 2026
+    assert planting.plan_season(mid, [], date(2026, 11, 15)) == 2026
+
+
+def test_south_of_the_equator_the_season_is_named_by_its_january_midsummer():
+    mid = date(2026, 1, 15)
+    fall = [120, 125, 130]  # mid-May
+    assert planting.plan_season(mid, fall, date(2026, 3, 10)) == 2026
+    assert planting.plan_season(mid, fall, date(2026, 10, 15)) == 2027
+    # Its spring frost comes in the calendar year before its autumn one.
+    spring = frost.typical_around(date(2027, 1, 15), [-95, -100, -90])
+    autumn = frost.typical_around(date(2027, 1, 15), fall)
+    assert spring["median"].startswith("2026-10") and autumn["median"].startswith("2027-05")
 
 
 def test_planned_for_next_year_the_dates_are_ahead_not_behind():
     """On Nov 15 the onion's dates are next year's, and successions return."""
     today = date(2026, 11, 15)
-    season = planting.plan_year(date(2026, 10, 16), today)
+    season = planting.plan_season(date(2026, 7, 15), [93], today)
     spring = frost.summarize_frost_dates(["2023-04-29", "2024-04-25", "2025-04-27"], season)
     fall = frost.summarize_frost_dates(["2023-10-18", "2024-10-14", "2025-10-16"], season)
     clim = {(date(2024, 1, 1) + timedelta(days=i)).strftime("%m-%d"): 12.0 for i in range(366)}
@@ -179,3 +191,21 @@ async def test_sunlight_reports_are_counted_here_and_judged_by_the_sunlight_tool
     )
     assert out["success"] and out["observations_used"] == 0 and out["skipped"] == []
     assert out["sunlight_reports"]["count"] == 1 and "goodearth_sunlight" in out["sunlight_reports"]["read_by"]
+
+
+def test_on_ground_that_never_froze_a_crop_sows_any_time():
+    tomato = planting.validate({"crop": "Tomato", "gdd_target": 1300, "base_temp": 50,
+                                "start_indoors_weeks": 6})
+    today = date(2026, 10, 15)
+    r = planting.assess(tomato, None, None, None, {}, today, frost_free=True)
+    assert r["state"] == "year_round" and r["sow_now"]
+    assert r["earliest_out"] == today.isoformat() and r["start_seed_indoors"] is None
+
+
+def test_a_southern_spring_frost_is_the_last_before_its_january_midsummer():
+    days = [date(2024, 7, 1) + timedelta(days=i) for i in range(560)]
+    lows = [28.0 if d in (date(2024, 9, 20), date(2025, 5, 10)) else 50.0 for d in days]
+    iso = [d.isoformat() for d in days]
+    start = (1, 15)
+    assert frost.last_spring_frost(iso, lows, 2025, start) == "2024-09-20"
+    assert frost.first_fall_frost(iso, lows, 2025, start) == "2025-05-10"

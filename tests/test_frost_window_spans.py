@@ -55,6 +55,8 @@ async def test_the_record_ends_last_december_and_this_season_is_its_own_read(spa
     assert out["first_frost"]["median"] == "2026-10-01"
     assert out["first_frost"]["season_starts"] == "2026-07-16"
     assert out["this_season"]["first_frost"] is None
+    # The roster reads the spring end of the frost-free stretch from here.
+    assert out["last_spring"]["median"] == "2026-04-30"
 
 
 async def test_until_the_season_turns_the_frost_that_came_is_the_answer(spans):

@@ -1091,7 +1091,7 @@ export interface PlantingRow {
   latest_out: string | null;
   days_to_finish: number | null;
   window_days: number | null;
-  state: "open" | "narrow" | "will_not_fit" | "unknown";
+  state: "open" | "narrow" | "will_not_fit" | "unknown" | "year_round";
   sow_now: boolean;
   note: string;
   /// Present only when the crop was sent with `succession_days`.

@@ -118,17 +118,21 @@ def validate(c: Any) -> dict[str, Any]:
     }
 
 
-def plan_year(first_fall_median: date | None, today: date) -> int:
-    """The season to plan for.
+def plan_season(midsummer: date, fall_offsets: list[int], today: date) -> int:
+    """The season to plan for, named by the year of its midsummer.
 
-    Once this year's first fall frost has typically come, what a grower plans
-    next is the coming spring. In November the window answered with the
-    season gone by — "start onions indoors Feb 2", a February already past —
-    and offered no successions at all.
+    The season round the latest midsummer, until its first frost has
+    typically come; then the next one. In November the window answered with
+    the season gone by — "start onions indoors Feb 2", a February already
+    past — and offered no successions at all. South of the equator the
+    seasons straddle New Year, which is why this counts from midsummer and
+    not from the calendar.
     """
-    if first_fall_median and today > first_fall_median:
-        return today.year + 1
-    return today.year
+    if fall_offsets:
+        median = sorted(fall_offsets)[len(fall_offsets) // 2]
+        if today > midsummer + timedelta(days=median):
+            return midsummer.year + 1
+    return midsummer.year
 
 
 def earliest_out(
@@ -258,20 +262,30 @@ def assess(
     clim: gdd.Climate,
     today: date,
     earliest_frost: date | None = None,
+    frost_free: bool = False,
 ) -> dict[str, Any]:
-    """The three dates for one crop, with the reasoning attached."""
+    """The three dates for one crop, with the reasoning attached.
+
+    On ``frost_free`` ground — a record that never froze — there is no frost
+    to sow around: the crop goes out any day the soil allows, all year.
+    """
     out_on, why = earliest_out(crop, last_frost, soil_ready)
+    if frost_free and out_on is None:
+        out_on, why = today, "no frost on record — any day of the year"
     last_on, days_needed = latest_out(crop, first_frost, clim)
 
     start_indoors = None
-    if out_on and crop["start_indoors_weeks"]:
+    # Seed is started indoors to beat the frost; with none, it goes straight out.
+    if out_on and crop["start_indoors_weeks"] and not frost_free:
         start_indoors = out_on - timedelta(days=round(crop["start_indoors_weeks"] * 7))
 
     window_days = None
     if out_on and last_on:
         window_days = (last_on - out_on).days
 
-    if window_days is None:
+    if frost_free:
+        state = "year_round"
+    elif window_days is None:
         # A frost record, a table of this ground's heat, and still no last
         # sowing: not even a whole year of heat here reaches the target. That
         # is an answer — it will not fit — not a gap in the record.
@@ -305,7 +319,8 @@ def assess(
         "days_to_finish": days_needed,
         "window_days": window_days,
         "state": state,
-        "sow_now": bool(out_on and last_on and out_on <= today <= last_on),
+        "sow_now": bool(out_on and (last_on or frost_free) and out_on <= today
+                        and (frost_free or today <= last_on)),
         "note": _note(state, window_days, crop, start_indoors, today),
         **extra,
     }
@@ -320,6 +335,8 @@ def _note(
             f"The window closes before it opens here — {crop['crop']} needs more "
             "season than this ground gives outdoors."
         )
+    if state == "year_round":
+        return "No frost on record here: it sows any time of year."
     if state == "narrow":
         return f"Only about {window} days of sowing window. Miss it and the crop misses frost."
     if state == "open":
@@ -334,5 +351,5 @@ def _note(
 
 def sort_key(row: dict[str, Any]) -> tuple[int, str]:
     """Soonest actionable first — what to do next is the useful ordering."""
-    rank = {"open": 0, "narrow": 1, "will_not_fit": 2, "unknown": 3}
+    rank = {"year_round": 0, "open": 0, "narrow": 1, "will_not_fit": 2, "unknown": 3}
     return (rank.get(row["state"], 9), row.get("earliest_out") or "9999")

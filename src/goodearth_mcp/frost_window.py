@@ -84,6 +84,7 @@ async def region_frost_window(
     history: dict[str, Any] | None = None
     so_far: dict[str, Any] | None = None
     frost_free = False
+    last_spring: dict[str, str] | None = None
     if not isinstance(record, BaseException) and record:
         try:
             dates, _tmax, tmin = sources.daily_series(record[0])
@@ -98,9 +99,14 @@ async def region_frost_window(
                 history = frost.summarize_frost_dates(record_frosts, begin.year)
                 if history is not None:
                     history["season_starts"] = begin.isoformat()
+                # The spring end of this season's frost-free stretch, which
+                # the roster checks a reported frost against.
+                last_spring = frost.typical_around(
+                    begin, frost.offsets(frost.frost_free_seasons(dates, tmin, years, start), "last_spring")
+                )
                 so_far = await _season_so_far(region, begin, today, record_frosts, start)
         except (sources.UpstreamError, IndexError, ValueError):
-            history, so_far = None, None
+            history, so_far, last_spring = None, None, None
 
     # ── Terrain spread ───────────────────────────────────────────────────
     # How much colder the coldest ground runs than the region's mean on a
@@ -153,6 +159,7 @@ async def region_frost_window(
         "as_of": today.isoformat(),
         "region": region.describe(),
         "first_frost": history,
+        "last_spring": last_spring,
         "days_to_median_first_frost": days_to_median,
         "this_season": so_far,
         "frost_free": frost_free,
