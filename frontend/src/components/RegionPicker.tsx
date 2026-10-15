@@ -4,6 +4,9 @@
 import { saveBlock } from "../lib/saveBlock";
 import { useUnits } from "./Units";
 import { useEffect, useRef, useState } from "react";
+import FolderTree from "./FolderTree";
+import { matching, revealPlot, ungrouped } from "../lib/plotGroups";
+import { readOpenGroups, writeOpenGroups } from "../lib/openGroups";
 import {
   deleteRegion, EXAMPLE_ID, listRegions, parsePastedGeoJSON, pinRegion,
   type SavedRegion,
@@ -33,6 +36,14 @@ export default function RegionPicker({
   /// (which is what `pickRegion` and the server sync both do) and the dropdown
   /// being opened (which is the only time the list is read).
   useEffect(() => { setRegions(listRegions()); }, [active.id, open]);
+  /// The folders open here are the ones open on My Plots, with every folder
+  /// holding the plot being worked opened too, so it is in sight.
+  const [folders, setFolders] = useState<string[]>([]);
+  const [query, setQuery] = useState("");
+  useEffect(() => {
+    if (open) setFolders(revealPlot(readOpenGroups(), active));
+    else setQuery("");
+  }, [open, active]);
   const [err, setErr] = useState("");
   const box = useRef<HTMLDivElement>(null);
 
@@ -73,6 +84,42 @@ export default function RegionPicker({
       ? `${active.areaHa ? active.areaHa.toFixed(1) + " ha · " : ""}${active.sampleCount} samples`
       : "not measured yet";
 
+  /// One plot to pick, with its groups when it is listed outside its folders.
+  function row(r: SavedRegion, withGroups: boolean) {
+    return (
+      <div className="flex items-center">
+        <button
+          role="option"
+          aria-selected={r.id === active.id}
+          onClick={() => { onPick(r); setOpen(false); }}
+          className={`min-h-11 flex-1 truncate rounded px-2 text-left text-[13px] active:bg-band ${
+            r.id === active.id ? "font-semibold" : ""
+          }`}
+        >
+          {r.name}
+          {r.id === EXAMPLE_ID && (
+            <span className="ml-2 rounded-full bg-band px-1.5 py-0.5 text-[10px] font-semibold text-ink-soft">
+              example
+            </span>
+          )}
+          <span className="data ml-2 text-[10px] text-ink-soft">
+            {withGroups && r.groups?.length ? r.groups.join(" · ")
+              : "lat" in r.region ? `pin ${r.region.radius_m} m` : "polygon"}
+          </span>
+        </button>
+        {r.id !== EXAMPLE_ID && (
+          <button
+            onClick={() => setRegions(deleteRegion(r.id))}
+            aria-label={`Forget ${r.name}`}
+            className="flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-clay"
+          >
+            ×
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="relative" ref={box}>
       <button
@@ -91,39 +138,23 @@ export default function RegionPicker({
       {open && (
         <div className="absolute left-0 top-full z-[1100] mt-1.5 w-[min(22rem,calc(100vw-2rem))] rounded-md border border-rule bg-panel p-2 shadow-lg">
           <div className="eyebrow px-2 pb-1">Your ground</div>
-          <ul role="listbox" className="max-h-64 overflow-auto overscroll-contain">
-            {regions.map((r) => (
-              <li key={r.id} className="flex items-center">
-                <button
-                  role="option"
-                  aria-selected={r.id === active.id}
-                  onClick={() => { onPick(r); setOpen(false); }}
-                  className={`min-h-11 flex-1 truncate rounded px-2 text-left text-[13px] active:bg-band ${
-                    r.id === active.id ? "font-semibold" : ""
-                  }`}
-                >
-                  {r.name}
-                  {r.id === EXAMPLE_ID && (
-                    <span className="ml-2 rounded-full bg-band px-1.5 py-0.5 text-[10px] font-semibold text-ink-soft">
-                      example
-                    </span>
-                  )}
-                  <span className="data ml-2 text-[10px] text-ink-soft">
-                    {"lat" in r.region ? `pin ${r.region.radius_m} m` : "polygon"}
-                  </span>
-                </button>
-                {r.id !== EXAMPLE_ID && (
-                  <button
-                    onClick={() => setRegions(deleteRegion(r.id))}
-                    aria-label={`Forget ${r.name}`}
-                    className="flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-clay"
-                  >
-                    ×
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
+          {regions.length > 7 && (
+            <input value={query} onChange={(e) => setQuery(e.target.value)} type="search"
+              placeholder="Find a plot or group" aria-label="Find a plot or group"
+              className="mb-1 min-h-11 w-full rounded border border-rule bg-white px-2 text-[16px] text-ink focus:border-honey focus:outline-none" />
+          )}
+          <div role="listbox" className="max-h-80 overflow-auto overscroll-contain">
+            {query.trim() ? (
+              <ul>{matching(regions, query).map((r) => <li key={r.id}>{row(r, true)}</li>)}</ul>
+            ) : (
+              <>
+                <FolderTree plots={regions.filter((r) => r.id !== EXAMPLE_ID)} stacked
+                  open={folders} onOpen={(next) => setFolders(writeOpenGroups(next))}
+                  plot={(r) => row(r, false)} />
+                <ul>{ungrouped(regions).map((r) => <li key={r.id}>{row(r, false)}</li>)}</ul>
+              </>
+            )}
+          </div>
 
           <div className="mt-2 flex gap-2 border-t border-rule pt-2">
             <button onClick={() => { setAdding("pin"); setErr(""); }}

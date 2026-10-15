@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  allGroups, ancestors, childrenOf, cleanPath, filedIn, hideGroup, isOpen, isWithin, leaf, memberIds,
-  moveOpen, renameGroup, reveal, showGroup, toggleOpen, ungrouped, withGroup,
+  allGroups, ancestors, childrenOf, cleanPath, filedIn, hideGroup, isOpen, isWithin, leaf, matching, memberIds,
+  moveOpen, renameGroup, reveal, revealPlot, showGroup, toggleOpen, ungrouped, withGroup,
 } from "./plotGroups.ts";
 import type { SavedRegion } from "./regions.ts";
 
@@ -69,6 +69,14 @@ describe("folders", () => {
   it("reveals a group by opening every folder around it", () => {
     assert.deepEqual(reveal(["North Farm"], "North Farm / Orchard / Apples"),
       ["North Farm", "North Farm / Orchard", "North Farm / Orchard / Apples"]);
+  });
+  it("opens every folder a plot is filed in", () => {
+    assert.deepEqual(revealPlot([], farm[2]), ["North Farm", "North Farm / Gardens", "Market"]);
+  });
+  it("finds plots by name, other name or group", () => {
+    assert.deepEqual(matching(farm, "orch").map((p) => p.id), ["apples", "pears"]);
+    assert.deepEqual(matching(farm, " MEAD ").map((p) => p.id), ["meadow"]);
+    assert.equal(matching(farm, "").length, 4);
   });
   it("keeps folders open when their group moves", () => {
     assert.deepEqual(moveOpen(["North Farm / Orchard", "Market"], "North Farm", "South Farm"),
