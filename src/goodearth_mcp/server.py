@@ -1673,9 +1673,9 @@ async def tree_suitability(
     that survives nine winters in ten is a different proposition from one that
     survives five, and any single word hides the difference.
 
-    Chill is counted as hours in the 32-45 °F band between 1 November and
-    15 February — the window the published chill-hour figures were derived
-    against. A wider window would bank more hours against a requirement
+    Chill is counted as hours at or below 45 °F between 1 November and
+    15 February (1 May to 15 August south of the equator) — the model and
+    window the published chill-hour figures were derived against. A wider window would bank more hours against a requirement
     calibrated to a narrower one and report a tree comfortable where it is not.
 
     The requirements are yours. Hardiness limits and chill hours are cultivar

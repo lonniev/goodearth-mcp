@@ -1,0 +1,1 @@
+- The tree suitability tool's description now states the chill model it actually uses: hours at or below 45 °F, from 1 Nov to 15 Feb in the north and from 1 May to 15 Aug in the south.
