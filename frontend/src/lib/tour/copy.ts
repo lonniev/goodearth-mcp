@@ -254,6 +254,8 @@ export const TOURS: Record<Tour["page"], Tour> = {
   account: accountTour("account", [
     { target: "account.summary", title: "Your balance",
       says: "Your Patron's tranche of api_sats. MCP tool fees are paid from it, per call, and each answer shows what it drew." },
+    { target: "account.topup", title: "Top up",
+      says: "Pick an amount for a Lightning invoice. Pay it from any wallet and the balance updates on its own." },
     { target: "account.tutorial", title: "Live tutorial",
       says: "This tour, on every page. Turn it off here or from any popover; turn it on to see it all again." },
     { target: "account.season", title: "Season",
