@@ -412,6 +412,7 @@ export default function App() {
             heading="Account"
             before={
               <AccountSummary balanceSats={balance} spentToday={spent}
+                onToppedUp={() => void refreshBalance()}
                 onSignOut={() => { logOut(); setSignedIn(false); }} />
             }
             usage={{ figures: USAGE_FIGURES, classNames: USAGE, renderRow: (t) => <UsageRow tool={t} /> }}

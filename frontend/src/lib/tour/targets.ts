@@ -41,7 +41,7 @@ export const TARGETS = [
   // Almanac.
   "almanac.today", "almanac.radar", "almanac.fortnight", "almanac.chiclets",
   // Account.
-  "account.summary", "account.tutorial", "account.season", "account.degrees", "account.bees", "account.forget",
+  "account.summary", "account.topup", "account.tutorial", "account.season", "account.degrees", "account.bees", "account.forget",
 ] as const;
 
 export type Target = (typeof TARGETS)[number];
