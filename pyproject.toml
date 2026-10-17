@@ -20,7 +20,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "shapely==2.2.0",
     "tifffile>=2024.8.30",
-    "tollbooth-dpyc[nostr]==0.100.0",
+    "tollbooth-dpyc[nostr]==0.101.1",
     "zstandard>=0.22; python_version < '3.14'",
 ]
 

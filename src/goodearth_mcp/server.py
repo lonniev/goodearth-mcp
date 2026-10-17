@@ -561,6 +561,9 @@ runtime = OperatorRuntime(
     ),
     service_name="Good Earth",
     credential_validator=validate_btcpay_creds,
+    # Connections authenticate as holders: each npub proven through one stays
+    # with it, so tool calls pass only the npub.
+    holder_auth_url="https://goodearth-mcp.fastmcp.app",
 )
 
 tool = register_standard_tools(
