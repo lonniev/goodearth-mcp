@@ -11,6 +11,7 @@ configureTollbooth({
   slug: "goodearth",
   appName: "Good Earth",
   mcpUrl: import.meta.env.VITE_MCP_URL as string,
+  operatorUrl: "https://goodearth-mcp.fastmcp.app",
   // Good Earth's own tools log a summary from lib/mcp.ts instead — their
   // answers carry the farm's location (see lib/debugSummary.ts).
   // check_price and check_balance are routine — one per card, and again
