@@ -48,6 +48,9 @@ export async function onRequestGet(context) {
       headers: {
         "content-type": "application/json",
         accept: "application/json, text/event-stream",
+        // The MCP refuses a request with no bearer; this feed is an anonymous
+        // caller, and the calendar token is its whole credential.
+        authorization: "Bearer anonymous",
       },
       body: JSON.stringify({
         jsonrpc: "2.0",
