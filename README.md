@@ -34,7 +34,8 @@ tag, so there is no key to keep. A test holds the committed `version` to
 1. Ask the grower for their **Nostr npub** — never their nsec.
 2. `goodearth_request_npub_proof(patron_npub=…)` sends them a DM. They reply
    from their Nostr client; then call `goodearth_receive_npub_proof(patron_npub=…,
-   dpop_token=…)` **once**, and pass `npub` + `dpop_token` on every paid call.
+   nonce=…)` **once** with the nonce the request returned. The connection then
+   holds the npub: pass only `npub` on every paid call.
 3. `goodearth_check_balance`; top up with `goodearth_purchase_credits` (a
    Lightning invoice the grower pays) and `goodearth_check_payment`.
 4. `goodearth_block_list` — their saved ground, or a worked example to start from.
