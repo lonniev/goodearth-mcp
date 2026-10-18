@@ -57,7 +57,7 @@ goodearth_sunlight(
     panel_azimuth_deg: float | None = None,  # default: 180 in the north, 0 in the south
     point: str | None = None,         # "lat,lon" inside the block → the spot card
     detail: "summary" | "grid" = "summary",
-    npub, dpop_token,
+    npub,
 ) -> dict
 ```
 

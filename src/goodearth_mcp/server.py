@@ -21,7 +21,7 @@ from pydantic import Field
 from shapely.geometry import Point, Polygon
 from tollbooth.credential_templates import CredentialTemplate, FieldSpec
 from tollbooth.credential_validators import validate_btcpay_creds
-from tollbooth.params import DpopToken, PatronNpub
+from tollbooth.params import PatronNpub
 from tollbooth.runtime import OperatorRuntime, register_standard_tools
 from tollbooth.tool_identity import (
     DELETES,
@@ -150,8 +150,9 @@ mcp = FastMCP(
         "1. Ask the grower for their Nostr npub (npub1…). Never ask for an nsec.\n"
         "2. goodearth_request_npub_proof(patron_npub=…) sends them a Nostr DM. "
         "Tell them to reply to it from their Nostr client, then call "
-        "goodearth_receive_npub_proof(patron_npub=…, dpop_token=…) once. Pass "
-        "npub and dpop_token on every paid call after that.\n"
+        "goodearth_receive_npub_proof(patron_npub=…, nonce=…) once with the "
+        "nonce the request returned. Your connection then holds the npub: pass "
+        "only npub on every paid call after that.\n"
         "3. goodearth_check_balance. If it is empty, goodearth_purchase_credits "
         "returns a Lightning invoice for the grower to pay, and "
         "goodearth_check_payment confirms it.\n"
@@ -752,7 +753,6 @@ async def gdd_season_curve(
         ),
     ] = 50.0,
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Growing degree day accumulation across a region, season to date.
 
@@ -790,7 +790,6 @@ async def gdd_season_curve(
 async def frost_window(
     block: Annotated[str, BLOCK_FIELD],
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """When frost normally arrives on this ground, and whether it is coming this week.
 
@@ -845,7 +844,6 @@ async def crop_gdd_status(
         Field(description="Default base temperature in °F for plantings that do not set their own."),
     ] = 50.0,
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Where every planting on a block stands, and whether it finishes before frost.
 
@@ -894,7 +892,6 @@ async def soil_temp_projection(
         Field(description="'planting' for 7-28 cm (~3-11 in, the default) or 'shallow' for 0-7 cm."),
     ] = "planting",
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """When the soil on this ground crosses a planting threshold.
 
@@ -947,7 +944,6 @@ async def pest_threshold(
         ),
     ],
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Where a pest model's degree-day stages stand on this ground.
 
@@ -1003,7 +999,6 @@ async def calibration(
         Field(description="Base temperature in °F the stage targets are counted at."),
     ] = 50.0,
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Turn a block's own field reports into a correction on the model.
 
@@ -1061,7 +1056,6 @@ async def calibration(
 async def almanac(
     block: Annotated[str, BLOCK_FIELD],
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """The sky's own record for this ground — normal, actual, and what is coming.
 
@@ -1096,7 +1090,6 @@ async def almanac(
 @runtime.paid_tool(PLAN_THE_SEASON_UUID)
 async def plan_the_season(
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """The season-planning interview, as a workflow to follow.
 
@@ -1140,7 +1133,6 @@ async def review_roster(
         Field(description="Which season's roster to audit. Defaults to this one."),
     ] = None,
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Audit a roster against what this ground's record actually knows.
 
@@ -1232,7 +1224,6 @@ async def task_save(
     ] = True,
     done: Annotated[bool, Field(description="True records the task as already done.")] = False,
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Create or update one task.
 
@@ -1278,7 +1269,6 @@ async def task_list(
         str, Field(description="Optional YYYY-MM-DD, so 'season' means the grower's season."),
     ] = "",
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """One page of a region's tasks, ordered and filtered by the database.
 
@@ -1314,7 +1304,6 @@ async def task_list(
 async def task_delete(
     task_id: Annotated[str, Field(description="The task's id.")],
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Remove one task.
 
@@ -1338,7 +1327,6 @@ async def task_set_done(
     task_id: Annotated[str, Field(description="The task's id.")],
     done: Annotated[bool, Field(description="True to tick it off.")] = True,
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Mark one task done, or put it back.
 
@@ -1359,7 +1347,6 @@ async def task_set_done(
 async def pest_catalog(
     block: Annotated[str, BLOCK_FIELD],
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Which pest stages are modelled for this ground this season.
 
@@ -1420,7 +1407,6 @@ async def nearby_species(
         ),
     ] = False,
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Search what is actually recorded near this ground, a page at a time.
 
@@ -1483,7 +1469,6 @@ async def wildlife_catalog(
         ),
     ] = False,
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Which animals are actually recorded around this ground.
 
@@ -1560,7 +1545,6 @@ async def wildlife_calendar(
         ),
     ],
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """When the other creatures working your season arrive.
 
@@ -1608,7 +1592,6 @@ async def crop_suitability(
         ),
     ],
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Which crops finish on this ground, and with how much room to spare.
 
@@ -1658,7 +1641,6 @@ async def tree_suitability(
         ),
     ],
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Whether a tree survives and gets its chill on this ground.
 
@@ -1706,7 +1688,6 @@ async def tree_suitability(
 async def tree_year(
     block: Annotated[str, BLOCK_FIELD],
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """When spring reached this ground, and what the sap did.
 
@@ -1762,7 +1743,6 @@ async def companions(
         Field(description="'synergy' — biological companions by cited family rules; 'design' — visually complementary plants from the flower colour, height and bloom months you recorded."),
     ] = "synergy",
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Companions for one planting on this block, of one of two kinds.
 
@@ -1846,7 +1826,6 @@ async def calendar_dataset(
         Field(description="Which season to publish. Defaults to this one."),
     ] = None,
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Compute this block's dated season as a dataset, and store it for publishing.
 
@@ -2053,7 +2032,6 @@ async def calendar_fetch(
 @runtime.paid_tool(CALENDAR_LIST_UUID)
 async def calendar_list(
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """The calendar feeds you have published, and how often each is polled."""
     try:
@@ -2076,7 +2054,6 @@ async def calendar_list(
 async def calendar_revoke(
     token: Annotated[str, Field(description="The feed token to stop publishing.")],
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Stop publishing a feed. Subscribers stop receiving updates. Free."""
     try:
@@ -2113,7 +2090,6 @@ async def planting_window(
         ),
     ],
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """When to start seed, when to put it out, and the last day it still finishes.
 
@@ -2172,7 +2148,6 @@ async def forget_my_ground(
         ),
     ] = "",
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Delete every block you have here, and everything recorded on them.
 
@@ -2258,7 +2233,6 @@ async def block_save(
         )),
     ] = None,
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Save a plot of land, so every other tool can work it by name.
 
@@ -2389,7 +2363,6 @@ async def block_list(
         Field(description="Only the ground in this group, or in a group inside it, e.g. 'North Farm'."),
     ] = "",
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """The ground you have saved, with its bounds.
 
@@ -2473,7 +2446,6 @@ async def block_item_save(
         )),
     ] = None,
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Record what you grow, watch for, saw, or hold seed for on a plot.
 
@@ -2565,7 +2537,6 @@ async def block_item_list(
     page: Annotated[int, Field(description="Zero-based page number.")] = 0,
     page_size: Annotated[int, Field(description="Rows per page, up to 200.")] = 50,
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """What you grow, watch for, or saw on a plot — a page at a time.
 
@@ -2623,7 +2594,6 @@ async def disease_risk(
         Field(description="A past season year to count instead of this one. Omit for the season to date."),
     ] = None,
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Hours of leaf wetness on this ground, and what the disease models make of them.
 
@@ -2674,7 +2644,6 @@ async def disease_risk(
 async def drying_window(
     block: Annotated[str, BLOCK_FIELD],
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """When the dew burns off this ground, the dry days ahead, and the next rain.
 
@@ -2755,7 +2724,6 @@ async def block_transform(
         float, Field(description="Rows: shorter fragments are dropped, 1–200 m.", ge=1, le=200),
     ] = 10.0,
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """Propose bed layouts inside a plot. Writes nothing.
 
@@ -2866,7 +2834,6 @@ async def sunlight(
         Field(description='"summary" (default) or "grid": every cell\'s numbers, packed for a map overlay.', pattern="^(summary|grid)$"),
     ] = "summary",
     npub: PatronNpub = "",
-    dpop_token: DpopToken = "",
 ) -> dict[str, Any]:
     """How many hours of direct sun each part of this ground gets, month by month — and what a panel would make.
 
