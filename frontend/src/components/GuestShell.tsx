@@ -25,6 +25,7 @@ const LABEL: Record<string, string> = {
   glossary: "Words",
   about: "About",
   references: "Sources",
+  prices: "Prices",
 };
 
 export default function GuestShell({ view, onView, onSignIn, children }: {

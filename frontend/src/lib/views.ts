@@ -13,7 +13,7 @@ export const VIEW_KEYS = [
   // "My Plots" is where ground is both chosen and drawn. It replaces the pair
   // `favorites` and `map`, which asked one question from two pages.
   "plots", "ledger", "almanac", "crops", "pests", "wildlife", "todo",
-  "reports", "references", "about", "account",
+  "reports", "references", "prices", "about", "account",
   // The front door and what it opens onto. Reachable without an npub.
   "welcome", "plant", "pest", "tree", "animal", "disease", "glossary",
   // One guide per working page — the (?) in the top bar. Spelled out rather
@@ -42,6 +42,9 @@ export const PUBLIC_VIEWS = [
   // barrier before the farming is.
   "welcome", "plant", "pest", "tree", "animal", "disease", "about", "references",
   "glossary",
+  // `prices` passes it: one unpaid `get_pricing_model` call, no patron named.
+  // A stranger deciding whether to buy credits most needs to know the fares.
+  "prices",
   // The page guides pass it too: static, no patron named, no sats spent. A
   // stranger deciding whether to sign in can read how My Plots is used
   // before they have any plots.

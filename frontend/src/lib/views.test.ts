@@ -25,7 +25,7 @@ describe("the public set", () => {
       "about", "animal", "disease", "glossary",
       "how-almanac", "how-crops", "how-ledger", "how-pests", "how-plots",
       "how-reports", "how-todo", "how-wildlife",
-      "pest", "plant", "references", "tree", "welcome",
+      "pest", "plant", "prices", "references", "tree", "welcome",
     ]);
   });
 
