@@ -1,1 +1,0 @@
-- The EIA key's registration page is named where the key is asked for: the operator field, the onboarding instructions and the Sources entry.

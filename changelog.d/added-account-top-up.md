@@ -1,1 +1,0 @@
-- Top up from the Account page: pick 1,000, 5,000 or 20,000 sats, pay the Lightning invoice, and the balance updates on its own once it settles.

@@ -1,1 +1,0 @@
-- The first-frost tile shows the projected date with "ave is" and the record's typical date beneath it.

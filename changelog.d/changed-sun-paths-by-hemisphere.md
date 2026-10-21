@@ -1,1 +1,0 @@
-- The sun-path dome colours each plot's summer path warm and marks the hours on it: December's path south of the equator, June's in the north.
