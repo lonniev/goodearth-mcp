@@ -25,6 +25,23 @@
       content="Good Earth — climate timing for cottage gardens and small farms. Draw your plot; get frost dates, growing degree days, soil temperature, planting windows and disease weather worked out for that ground, with the spread across it."
     />
     <title>Good Earth</title>
+    <!--
+      The plain-text introduction in #root is for readers that never run
+      JavaScript - a crawler, an AI assistant's fetcher. A browser that does
+      run it hides that text before first paint, so it never flashes on a
+      reload, and a phone's app-switcher snapshot of a reloading page shows
+      the paper colour instead of a wall of words: this season's, as the app
+      last remembered it, so a reload does not blink from one colour to
+      another. The bundle's own body background takes over once it loads.
+    -->
+    <script>
+      document.documentElement.classList.add("js");
+      try {
+        var paper = localStorage.getItem("goodearth:paper:v1");
+        if (paper) document.documentElement.style.setProperty("--boot-paper", paper);
+      } catch (e) {}
+    </script>
+    <style>.js #static-intro{display:none}body{background:var(--boot-paper,#F8EDF1)}</style>
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Good Earth" />
     <meta property="og:title" content="Good Earth" />
@@ -82,15 +99,14 @@
     <div id="root">
       <!--
         What a reader without JavaScript sees: a search crawler, an AI
-        assistant's fetcher, a slow phone before the app loads. The app's
-        createRoot replaces all of it on mount, so a grower never sees it
-        twice.
+        assistant's fetcher. A JavaScript browser never paints it (see the
+        head); the app's createRoot replaces it on mount.
 
         It used to be empty. An AI assistant asked about Good Earth found "a
         page that returns no content" on a domain full of payment words, and
         told a gardener to avoid it. This says what the thing is.
       -->
-      <main style="max-width:48rem;margin:0 auto;padding:24px 16px;font-family:system-ui,sans-serif;color:#2C2034;background:#F8EDF1;line-height:1.55">
+      <main id="static-intro" style="max-width:48rem;margin:0 auto;padding:24px 16px;font-family:system-ui,sans-serif;color:#2C2034;background:#F8EDF1;line-height:1.55">
         <h1>Good Earth — climate timing for cottage gardens and small farms</h1>
         <p>
           Draw your plot on a map. Good Earth works out the weather on that
