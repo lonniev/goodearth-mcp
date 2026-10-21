@@ -1,1 +1,0 @@
-- The "Plan the season" prompt carries its title and a description: advise and assist a landowner in gathering information within Good Earth for their Plots.

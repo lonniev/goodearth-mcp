@@ -1,1 +1,0 @@
-- Field Reports: the iNaturalist handle chooser no longer opens on its own over a remembered handle; it suggests matches only once you type.

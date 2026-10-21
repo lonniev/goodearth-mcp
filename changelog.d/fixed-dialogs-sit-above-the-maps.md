@@ -1,1 +1,0 @@
-- The "Forget this plot?", "Import?" and "Open a large bundle?" dialogs, and a chart opened full screen, sit above the maps; they were drawn beneath the plot imagery.

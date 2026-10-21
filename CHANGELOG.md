@@ -7,6 +7,402 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Changes not yet released live in `changelog.d/`, one file per change — see the README there for why, and `scripts/changelog.py` for what folds them in at release time.
 
+## [0.4.0] — 2026-10-21
+
+### Added
+
+- Sunlight, first cut: `goodearth_sunlight(block, month)` answers how many
+  hours of direct sun each part of a block gets, month by month. The block is
+  rasterised at 2–20 m (about 2,500 cells) and from every cell 72 rays find
+  the highest ground to 20 km (Copernicus GLO-30, the earth's curve taken off)
+  and the highest tree within 250 m (the Meta/WRI 1 m canopy map, global);
+  the sun's path on the 15th of each month (NOAA's solar position) is then
+  counted in ten-minute steps wherever it clears that line. Per month: the
+  share of the block in full sun (6 h+), part shade (3–6 h) and full shade
+  (under 3 h) — the nursery-label definitions — the median hours with p10 and
+  p90, and the sunniest and shadiest spots. Bare deciduous crowns pass half
+  the beam (evergreens none, from the Copernicus land-cover map); a month is
+  in leaf when the block's own ten-year normals reach 50 °F. The horizon is
+  cast once per outline and remembered in the weather cache; the first call
+  on a block takes some seconds, later ones under one. `sources` carries the
+  month the canopy imagery was taken. Measurements and classes only, never
+  what to plant. Grid, solar yield, the Sun map layer and the spot card
+  follow in later cuts.
+- Sunlight, second cut: `solar` in the same answer — what a fixed panel
+  array would make on each part of the block. A typical year is averaged
+  from ten years of the ERA5 archive's hourly radiation (remembered per
+  0.1° cell), put on the panel with the isotropic sky model at the given
+  tilt and facing (defaults: toward the equator, tilted at the latitude up
+  to 40°), with each cell's horizon deciding when the beam arrives and how
+  much sky the diffuse light has; a performance ratio of 0.80 gives AC per
+  kW installed. Reports open-sky and shaded kWh/kWp per year (median, p10,
+  p90), solar access — shaded ÷ open-sky, the shade-report figure — the
+  monthly open-sky yield and the best place for panels. A screening estimate,
+  said so in the answer. Cross-checked by hand against PVGIS 5.2 with the
+  same horizon (`scripts/sunlight_pvgis_check.py`): within 1 % in Vermont
+  and Germany, 6 % in Canberra, against the brief's 10 %.
+- Sunlight, third cut: the map. `goodearth_sunlight(detail="grid")` packs
+  every cell — hours by month in and out of leaf, kWh/kWp, solar access, and
+  each cell's own horizon — so a map can drape the block and answer a tap
+  without another call; `point="lat,lon"` is one spot's card for an agent.
+  On the Plots page a ☀️ **Sun** pill over the map lays the block's light
+  over it (honey for full sun, indigo for full shade), with a month slider,
+  a leaf chip (🍂 bare trees Nov–Apr / 🌳 full leaf all year) and a switch
+  to the solar view where ◆ marks the best place for panels. A tap inside
+  the block opens that spot's card beside the map: its class, hours today,
+  a sky dome with the ground and tree horizons and the sun's path in June,
+  at the equinox and in December, the twelve months as bars, the panel
+  figure, the month with least light, and the sources. Below the map, the
+  block in one reading: its shares in sun and shade this month, the share in
+  full sun by month, and the best place for panels with a **Show it** that
+  goes there. The grid is held in the page cache like every other answer.
+- Sunlight, fourth cut: field reports correct it. An observation of kind
+  `sunlight` — *this spot was in sun (or shade) from 09:00 to 14:00 on the
+  14th of June* — is a measurement of the sky line: between those clock
+  times the sun crossed known azimuths at known heights, so the horizon
+  there is below them (sun) or above them (shade). `goodearth_sunlight`
+  reads the block's reports on every call and, where three agree on a spot,
+  its hours and its light, moves that spot's horizon: a sun report lowers
+  the ground and tree lines to just under the sun, a shade report raises the
+  tree line to just over it — the tree cut or planted since the canopy
+  imagery, which is itself never changed. The median report sets the bound,
+  the reports apply to the cells within a phone's fix of the spot, and the
+  answer's `calibration` accounts for every report and what it moved. Clock
+  times are read in the block's own zone (fetched once from the forecast
+  feed and remembered; Daymet names none). A malformed report is refused at
+  the write with its shape named; `goodearth_calibration` counts sunlight
+  reports and points at the tool that reads them.
+- A GeoTIFF range reader (`rasters.py`) with no GDAL: the canopy tiles are
+  not cloud-optimised (one row per strip), but adjacent strips merge into a
+  single range request, so a 500 m window is one 7.6 MB read. Adds `numpy`,
+  `tifffile` and (below Python 3.14) `zstandard`.
+- Companions, from the Flora ledger. One more glyph on a planting opens a row
+  with two kinds of answer. **Synergy** reads the planting's family and genus
+  from iNaturalist and applies published companion-planting rules — nitrogen
+  fixers beside heavy feeders, open flowers that feed the wasps that take
+  aphids, alliums that mask a carrot from its fly, walnut and fennel that
+  poison the ground beside them, the same family sharing its pests — and
+  every row names its mechanism or its tradition and a citation. **Design** is
+  arithmetic over three new optional planting fields — flower colour on an
+  eight-hue wheel, height in inches, bloom months — complementary, analogous,
+  foil; layered or side by side; blooming together or not. Candidates are this
+  plot, then what the grower has grown elsewhere or retired, then a few
+  labelled examples; a planting with no species chosen is reported unplaced,
+  never guessed into a family. A tap sends a companion to the planting form to
+  be confirmed. New tool `goodearth_companions(block, plant, kind)`.
+  A refusal — no species chosen, no colour recorded — costs nothing.
+- Coupons on the Account page: the shared `CouponsPanel` from @tollbooth-dpyc/web,
+  in Good Earth's dress. A grower redeems an operator's code once and the
+  discount applies on its own to later paid calls. The page had opted out.
+
+- Fungi are named on the plant page. Its species box searches plants and
+  fungi together, so a shiitake log goes on the ledger like any planting, and
+  Community Observations there offers the neighbourhood's fungi beside its
+  plants. The Fungi chip has left Fauna: one home, not two.
+- A planting records **the day its seed went in**, beside the day it was set
+  out. "When to sow" already predicted that pair; now the grower can record
+  against it. The sowing shows on the heat chart as a dated mark — a calendar
+  fact, kept apart from the heat the chart counts.
+- A packet may name the planting it was sown from, or not: cloves, crowns and
+  nursery starts have a day they went in and no packet at all.
+
+- A guided tour: on a new device, and for anyone who turns "Live tutorial" on in their profile, each page walks itself through the first time it opens — small popovers in turn, each pointing at a control and saying what it is for, through every field on My Plots, Flora, Pests, Fauna, Field Reports and Tasks, the Dashboard, the Almanac, the account page, the welcome page and signing in. Any popover can stop the tutorial; a guide's compass replays its own page. Built on driver.js.
+
+- Top up from the Account page: pick 1,000, 5,000 or 20,000 sats, pay the Lightning invoice, and the balance updates on its own once it settles.
+
+- Sun → tap a spot and an array sits on it: drag its corner or type its metres, and "Panels here" says what it costs to put up, the kWh it makes a day and what those sell for. The prices are read live — DOE's PV cost benchmark and EIA's retail price for the block's state, which needs the operator's free EIA key (`eia_api_key`, optional, by Secure Courier) — never kept in the app; `goodearth_sunlight` carries them as `kw_prices`, and References names both feeds.
+
+- A (?) in the top bar of every working page — My Plots, Dashboard, Almanac,
+  Flora, Pests, Fauna, Tasks, Field Reports — opens a guide to it: the biology
+  or phenomenon the page is about, every control grouped by what it adds,
+  reads, changes or removes, and how the same work is done from an agent such
+  as Claude.ai with a worked example and the tools it calls. The Guides page
+  indexes all eight, and they are free to read before signing in.
+
+- On My Plots, a plot chip's first tap works the plot and frames it on the map; a tap on the framed plot's chip asks Hide or Forget. A hidden plot leaves the map and keeps its chip, dimmed with its eye struck through, and a tap on that chip brings it back. Hiding is per device and changes nothing in the record; every tap on the map itself keeps its meaning.
+
+- Plots can be grouped, and groups can sit inside groups (`North Farm / Orchard`). A group chip on My Plots shows, hides or works on every plot in it at once. `block_save` takes `groups`, and `block_list` takes a `group` to list one group with everything inside it. Accepting a bed layout puts the new beds in a group named for their plot.
+
+- The plots map gains a tag button under the Sun button that shows or hides the plots' names, so the ground under them is clear. The choice is remembered on this device.
+
+- A Prices page (`#/prices`), open to visitors: every tool with what it is
+  for and its live fare, and how long a top-up lasts. It is the fleet's
+  `PriceSheet` in the almanac's type, with the fares in honey. It needs
+  `@tollbooth-dpyc/web` 2.2.0.
+
+- `goodearth_block_transform` proposes bed layouts inside a plot and writes nothing: `organic` (garden rooms of irregular beds on a power diagram, paths kept at the width asked for after the edges are softened) or `commercial_rows` (parallel beds on a bearing, headlands clear). Each variant carries metrics, warnings, an SVG preview and `accept.blocks`, the one list `goodearth_block_save` takes to keep it, retiring any layout already inside the plot under `v1 ` names. Block rows gain `area_m2`.
+
+- `goodearth_block_save` takes a `blocks` list: a whole layout in one call, every block checked before any is saved, one problem refusing the lot. A save now makes two trips to the record whatever the number of blocks, where it made four per block.
+
+- A share button beside the (?) in the top bar shows what the page on screen controls as one table — plots, readings, outlook, plantings, pests, watches, tasks, reports, and the References and the words, signed in or not — with braces to copy it as JSON and two pages to copy it as text. The Almanac's paper-plane outlook summary is this sheet now.
+
+### Changed
+
+- My Plots: a plot's chip stacks its area under its name instead of beside
+  it, so the row of chips is as narrow as the names; the chip's height is
+  unchanged. The Sun strip's Garden light / Solar panels toggle is two
+  glyphs, a sprout and a bolt. The Almanac's rail icon is a cloud raining,
+  since a sun now means the Sun layer and the screen's own brightness.
+
+- Maps: enlarging the map left the plots drawn on blank ground. The map's
+  size now lives on the frame round it, never on the element Leaflet owns —
+  React rewrote that element's classes and wiped `leaflet-container`, under
+  which Leaflet's CSS keeps a tile its size; without it every tile shrank
+  to nothing.
+
+- Maps: the button under the zoom control enlarges the map to the whole
+  screen and shrinks it back (Escape too) — the frame grows, not the zoom.
+  On the Almanac the radar's player rides inside the enlarged frame. The
+  active plot's chip still frames its plot on the map.
+
+- Maps: the frame button moves to the top-left under the zoom control, on
+  the plots map and the radar map alike — one place for a map's controls.
+  The Sun layer's switch is a glyph, a sun half in shade, not a word. The
+  active plot's chip carries a small eye: a tap on it frames the plot.
+
+- Almanac: the weather radar is here now, under a 🌧️ button in the heading
+  — a map of the country round the block with RainViewer's last two hours
+  and the minutes ahead, played or scrubbed from a strip under the map.
+  It lived on the drawing map, which *Add a plot* folded away; the Almanac
+  is where the weather is read. Opened once, it stays open on this device.
+
+- Sun layer: the controls — garden light or solar panels, the month, the
+  leaf, the key — are a strip under the map across its width, not a panel
+  over it that hid a third of the ground it coloured. The map keeps only the
+  Sun switch and the frame button.
+- My Plots: the map opens on the whole farm, and a plot inside it needed a
+  pinch to be seen. A frame button on the map frames the active plot;
+  pressed again it frames the farm; tapping the active plot's chip frames
+  the plot too.
+
+- Sun layer: the spot card is a row of three cards under the map — the sky
+  from here, direct sun month by month, panels here — in the block summary's
+  grid, instead of a side column that made the row as tall as the dome and
+  left the map floating over empty paper. The map keeps its whole width, and
+  nothing shows for the spot until one is tapped.
+
+- My Plots: *Add a plot* is shown on request. The finder, the name form and
+  the drawing map took half the page from the plots already saved; they now
+  open from **+ Add a plot** beside Import, fold away on Save (the new plot
+  is the active chip) or on the close button, and open at once for a grower
+  who has no ground of their own yet.
+
+- My Plots, compact above the map: the saved plots are one row of chips
+  (tap one to work it; rename, share and forget act on the plot being
+  worked, at the row's end), the map follows at once, and the plot's numbers
+  — shape, corners, area, samples, base, other names — are the line under
+  it. Search, *Use my location* and the Trace / Pin switch move down to
+  *Add a plot*, the drawing map they serve. On an iPad the map began halfway
+  down the screen; now it begins under the chips. The Sun panel waits with
+  the quotes scroller, like every other call in flight.
+
+- Sun layer: the grid never drew. The panel said *Casting the sky…* for
+  minutes after the answer arrived because the hook that reads it depended
+  on its own loading flag — setting the flag re-ran the effect, the cleanup
+  marked the read dead, and the answer was thrown away when it came. The
+  read now depends only on the plot and the Sun switch, and the latest read
+  started is the one that counts. The horizons inflate with fflate in plain
+  JS rather than the browser's stream API. And the spot card's column
+  appears only once there is a grid — tapping Sun no longer shrinks the map
+  to make room for nothing.
+
+- Crops is Flora on the rail, on the Dashboard's tile and in the harvest hint.
+  The page holds more than commercial crops. Item kinds, tool names and URLs
+  keep their identifiers.
+- The Account page is the shared `AccountPage` from @tollbooth-dpyc/web 1.5.0.
+  The balance card leads, then the Nostr profile, session key and usage on the
+  left; Viewing, the calendar feed and Forget me stay on the right, Forget me
+  last. Usage now sits below the profile, the package's one order.
+- The form for tracking a creature sits above the Wildlife table, where Plants
+  and Pests keep theirs, instead of below it — past the table, its pager, and
+  the empty state telling a grower to go and find a creature. It has lost its
+  "Track something" heading too: on all three pages the bordered card is the
+  form, and its first field names itself.
+- The Wildlife year reads like the other two tables: one heading carrying its
+  own reading time, a filter beside the search — **due within** so many days,
+  **already happened**, **on the roster with no date** — and the summary
+  sentence gone. All three pages now share one filter control.
+
+- The pests page reads like the Plant ledger: one heading carrying its own
+  reading time, a filter beside the search — **due within** so many days,
+  **crossed this season**, **watched with no model** — and the "Nothing
+  crossed or due…" sentence gone, since it was a fact about a list the list
+  already shows. One filter component serves both tables.
+- A pest chosen from iNaturalist can be tapped to read its card, the same card
+  the nearby list opens.
+- "Due on this ground" is **When they appear here** — half of what it lists has
+  already happened this season, so nothing about it is upcoming.
+- The Plant ledger is filtered rather than described. "Median first frost
+  Oct 12. 2 on this page will not make it." is gone — the Dashboard carries
+  frost — and in its place a filter beside the search: **ready before frost**,
+  **has seed**, **projected within** so many days, **heat left under** so much.
+  The heading took the row back and carries its own reading time, as
+  "Plant ledger (at 8:28 PM)".
+- While a filter is on the ledger reads the whole block rather than a page of
+  it, so the count is of your ground and not of the first twenty rows.
+- Undo is one mark in the top row rather than a full row under the header on
+  four pages. Tap it for what you have removed from this ground, newest first;
+  tap one to put it back; tap outside and it is a small mark again. It offers
+  every kind, not just the page you happen to be on — so a task deleted before
+  you walked to Crops can still come back — and whatever page is open re-reads
+  when it does.
+- A pest is named from iNaturalist rather than typed and hoped for, so a row
+  carries the creature's taxon and every later lookup has something to key on.
+  It searches **animals**, not insects — this list already held a chipmunk and
+  a slug — and a name the catalogue has not heard of still stands.
+- The pest form fits one row less: captions on one line, boxes one height, a
+  narrower base field, and the add button at the end of the fields instead of
+  on a row of its own. It shows a bug rather than the word "Pest".
+- "Modelled stages" is **Due on this ground**.
+- Recording a cut is as tidy as recording seed: every caption above its
+  control, every box one height, and the two buttons together at the top
+  right. The date wore no caption at all while "How much" wore one, which is
+  why nothing in that row lined up.
+- A plant with seed on the shelf shows a full green seed, and one without shows
+  an empty outline, so the ledger says which rows hold a packet without opening
+  each one in turn — and says it by shape rather than by two inks that are hard
+  to tell apart at the size they are drawn.
+- Recording a cut is marked with a pair of secateurs rather than office
+  scissors. Plain scissors on a row of actions read as "delete this", and
+  taking a cut of a plant is the opposite of removing it. Credited on the
+  References page, where the rest of this app's sources are.
+- The seed row is one tidy form. Every field goes through one component, so
+  the captions sit on one line and the boxes are one height — a date input, a
+  select and a text box do not agree on a height by themselves, which is what
+  made it look home-made. Its four controls — add a lot, remove one, cancel,
+  save — are together at the top right of the form rather than scattered
+  through it, and the plant is not named again inside its own row.
+- The seed row asks for a packet the way a packet reads. Each field is as wide
+  as what goes in it — a three-digit day count and a four-digit year no longer
+  take a quarter of the row each; germination is a percent spinner; how much
+  you hold is **one** field, "500 seeds", rather than a count and a unit asked
+  for separately. "Tested on" is **Germination tested**, which says what was
+  tested; "From" is **Supplier** and "Lot" is **Supplier's lot**; "On hand" is
+  **Inventory count**. Variety offers back the varieties of that plant you have
+  already named.
+- The seed and the cut are Material Design glyphs in the page's own ink,
+  where they were a chestnut and a pair of scissors in Apple's colours. The
+  sowing date and the seed list no longer run into each other.
+- A plant's seed is stated on the plant's own row. "Seeds on hand" was a
+  section of its own, with a dropdown re-picking a plant the ledger already had
+  on screen, and a saved packet whose only gesture was a jump back to the form
+  to add a second row for a plant that was already there. Open a plant on the
+  **Plant ledger** — the Crop ledger, renamed — and its sowing date and its
+  packet are there.
+- Every plant on the page is called a plant.
+- The Dashboard and the Almanac are read together, so each now starts the
+  other's reading in the background while the grower is on the first one. Flip
+  across and the page is already there. A page revisited within a few minutes
+  is served from what was already asked for rather than asked again — so a
+  grower who moves between the two several times pays one fare each instead of
+  one per visit. A reader who opens only one of the two pays for a reading of
+  the other they never look at.
+- The heat chart gives its top corner back to the season. "MEDIAN FIRST FROST"
+  ran nearly a fifth of the chart's width in words; it is now one ice-crystal
+  mark sitting on the line it names. And today's dot no longer spells out
+  "today" — the dot says that, and a tick on the date axis says it again, so
+  all that is written is the figure a reader cannot get from the picture.
+- The historical range now runs to the right-hand edge of every chart instead
+  of stopping at today. A normal range is history, and history has a figure
+  for November as readily as for September — so the forecast and the
+  projection, the part a grower is actually asking about, finally have
+  something behind them to be read against. Nothing else about the band
+  changes: same ten seasons, same min/mean/max, same fill.
+
+- Community Observations on Flora, Pests and Fauna is folded: the heading carries an arrow and one line under it, and the arrow opens the picker list. The nearby read is made when it opens.
+
+- The Companions button on a planting is two figures side by side, not a handshake that read as a twig at that size. The Plants guide gives Companions a section of its own, naming the button by its glyph and the two kinds it offers.
+
+- The first-frost tile shows the projected date with "ave is" and the record's typical date beneath it.
+
+- A plot's frost season begins on a day read from its own record — the middle of the stretch of the year it has never frosted — in place of Jul 15 everywhere. The first-frost figure turns to the next season on that day; a Gulf Coast January frost stays in the season it belongs to, and ground south of the equator gets seasons that fit it. `frost_window` reports the day as `first_frost.season_starts`.
+
+- Connections authenticate as holders (tollbooth-dpyc 0.101.1 holder bearer): connecting from Claude.ai is an Authorization Code flow with no login page, each npub proven through a connection stays with it, and tool calls pass only `npub`. The web app reaches the MCP through the shared proxy (web 1.8.2) as an anonymous caller and proves itself as before; the subscribable calendar feed sends `Bearer anonymous`.
+
+- Every Good Earth tool carries a title and its behaviour (what it reads, saves, replaces or deletes, and which ones reach the weather and species feeds); `npub` and `dpop_token` use the fleet's shared descriptions; the server reports its own version, website and icons.
+
+- Pins tollbooth-dpyc 0.102.0: a request signed with an npub's own key (NIP-98) acts as that npub with no grant.
+
+- Pins tollbooth-dpyc 0.102.1: a request signed with an npub's own key (NIP-98) acts as that npub with no grant.
+
+- The "Plan the season" prompt carries its title and a description: advise and assist a landowner in gathering information within Good Earth for their Plots.
+
+- My Plots shows groups as folders: a folder opens to the groups inside it and the plots filed in it, and closed hides them. A plot in several groups sits in each of their folders; plots in no group sit below. Each folder's ⋯ holds Show, Hide, a new group inside it, Edit plots and Rename. Which folders are open is kept per device. Work on and its trail are gone; the map shows every plot that is not hidden.
+
+- The README matches the code: tools take a saved `block`, the tools table lists every shipped tool, the data-sources table names every feed (and the optional `eia_api_key`), and it says where a grower's blocks are stored and what is encrypted.
+
+- Dependencies refreshed to current releases (mcp/fastmcp 1.29.1/3.4.7 → 2.3.0/4.1.0; frontend minor/patch). No service stays on old transitive versions.
+
+- Tools take only `npub`; the connection proves it (a request signed with the npub's key, or an OAuth connection that holds it after the DM). The `dpop_token` argument is gone, and the Courier phrase is `nonce`. Pins tollbooth-dpyc 0.103.0.
+
+- Seasons follow the plot being worked. A season's heat is counted from midwinter on its own side of the equator — Jan 1 in the north, Jul 1 in the south — in the season curve and its band, the crop ledger, pests, disease, wildlife, the almanac, perennials, the tree year, the calendar feed and named seasons. The theme's season and the chart's Season span follow the active plot too: October is autumn in Maine, spring in Canberra, and inside the tropics the theme keeps summer.
+- The first-frost tile takes the first frost night in the forecast when one is coming, and says "none · no frost on record" for ground that has never frozen; `frost_window` reports that as `frost_free`.
+
+- Spring frost, the planting window and crop suitability read each plot's frost-free stretch round its own midsummer — the last frost before it and the first after — in place of "spring ends Jun 30" and calendar years. South of the equator the planting window plans a September spring and a May autumn; the season it names is the year of its midsummer.
+- Ground whose record never froze plants all year: each crop reads "any time", out today, with no indoor start.
+- The roster's check for a frost reported inside the frost-free window works again: `frost_window` now returns the `last_spring` it reads.
+
+- The sun-path dome colours each plot's summer path warm and marks the hours on it: December's path south of the equator, June's in the north.
+
+- "Panels here" prices the array by its own yield, the mean under the rectangle, so the figure, the kW and the day's kWh agree; the day's dollars are net of the benchmark's upkeep, and the small print says the payback. The "An array on a spot" model on References states where the figure stops being honest: above the net-metering tier, and what it leaves out.
+
+- The two ground maps' enlarge button is in the top right corner, where the charts' is, rather than under the zoom control on the left. On My Plots the Sun and shade toggle sits beneath it.
+
+- The Flora tour says what iNaturalist fills in on a pick, walks the seed, cut and companions buttons on a row, and says how a planting reaches the Dashboard's heat curve. The account tour dwells on the sats, what each tool drew, and the Nostr persona.
+
+- The plot picker in the top bar lists plots in their group folders, with the folders holding the plot being worked opened. Past seven plots it has a find box that matches a plot's name, other names or groups, and lists each match with its groups. My Plots and the picker draw the same folders and share which are open.
+
+- The guided tour's mechanics come from `@tollbooth-dpyc/web` 1.8.0, and it is offered: a page that sits quiet for ten seconds asks "Would you like a tour of this page?" and runs on Yes. The sign-in and account tours are the package's, and the gate's buttons are found by name.
+
+- The web app moves to @tollbooth-dpyc/web 1.9.0: a tab that holds the signed-in key signs each request, and DM sign-in connects to the operator as a holder (one quick redirect, no login page) — no proof rides in tool arguments.
+
+- Chill, the coldest winter night, the maple sap run and the soil windows now follow each plot's own winter. South of the equator chill counts 1 May – 15 Aug, the sap run 1 Jun – 15 Nov, and spring soil from August, with each soil season kept whole across New Year.
+- The planting window turns to next season on the same median first frost it shows. With ten seasons on record it used to wait for the later of the two middle seasons.
+- Season dates no longer drift a day after a leap year's Feb 29.
+
+### Fixed
+
+- Naming an animal on Fauna searches iNaturalist for animals. The box used to
+  narrow only what is recorded near the block, fungi included, so "chicken"
+  offered chicken of the woods and chicken fat mushroom and no chicken. What
+  is near and what is on the record still lead the list; a name of the
+  grower's own can be added under any list, not only an empty one.
+- A creature with no photograph to hand is marked with a paw print, not a
+  seedling, and one already on the record shows the same photograph in the
+  form that it does in the table.
+- The pest editor no longer prints "adult undefined" into a box a grower can
+  save, and no longer deletes a stage it could not parse. Opening the editor
+  on such a pest and pressing the tick used to remove stages nobody had
+  touched.
+
+- The "Forget this plot?", "Import?" and "Open a large bundle?" dialogs, and a chart opened full screen, sit above the maps; they were drawn beneath the plot imagery.
+
+- The first-frost figure no longer names a day already past. `frost_window` now reads this fall up to yesterday and returns `this_season`: its first frost once it has come, or, with none yet, `given_none_yet` — when the record's seasons that were still frost-free by now went on to frost. The Dashboard's tile and the chart's frost line show this fall's frost, or that later median once the record's median has passed.
+
+- The first-frost record reads the 1 km Daymet feed again. Asking for it through yesterday had pushed it onto the coarse reanalysis, which put every past first frost weeks late; this fall is now read on its own.
+
+- Field Reports: the iNaturalist handle chooser no longer opens on its own over a remembered handle; it suggests matches only once you type.
+
+- The plot picker's list opened under the map on My Plots and the Almanac:
+  Leaflet's panes sit at z-index 400 and its controls at 1000, and the list
+  was at 20. It now stands above both.
+
+- Planting window: a soil-warming date that fell in late June most seasons and
+  early July once was sent into next year — "dates on both sides of July" was
+  read as a season crossing New Year — while the frost dates stayed in this
+  one, and the window came out a year wrong (−353 days, "will not fit" for a
+  crop that fits; ginger on 2026-10-09). Whether an event's dates cross New
+  Year is now read from the widest empty stretch between them: if that stretch
+  is the one over New Year, nothing crosses. A January frost after an October
+  one still lands in the following year.
+
+- The GDD chart's full-screen control is now the same bordered button the two
+  maps carry, in both its states, instead of a bare glyph in the corner.
+
+- The EIA key's registration page is named where the key is asked for: the operator field, the onboarding instructions and the Sources entry.
+
+- The tree suitability tool's description now states the chill model it actually uses: hours at or below 45 °F, from 1 Nov to 15 Feb in the north and from 1 May to 15 Aug in the south.
+
 ## [0.3.0] - 2026-09-18
 
 ### Added

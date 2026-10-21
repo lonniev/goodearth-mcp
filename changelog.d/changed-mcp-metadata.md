@@ -1,1 +1,0 @@
-- Every Good Earth tool carries a title and its behaviour (what it reads, saves, replaces or deletes, and which ones reach the weather and species feeds); `npub` and `dpop_token` use the fleet's shared descriptions; the server reports its own version, website and icons.

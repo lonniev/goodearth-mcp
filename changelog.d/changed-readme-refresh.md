@@ -1,1 +1,0 @@
-- The README matches the code: tools take a saved `block`, the tools table lists every shipped tool, the data-sources table names every feed (and the optional `eia_api_key`), and it says where a grower's blocks are stored and what is encrypted.

@@ -1,1 +1,0 @@
-- On My Plots, a plot chip's first tap works the plot and frames it on the map; a tap on the framed plot's chip asks Hide or Forget. A hidden plot leaves the map and keeps its chip, dimmed with its eye struck through, and a tap on that chip brings it back. Hiding is per device and changes nothing in the record; every tap on the map itself keeps its meaning.
