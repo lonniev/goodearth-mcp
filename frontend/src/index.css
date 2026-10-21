@@ -3,6 +3,7 @@
 @import "@tollbooth-dpyc/web/tour.css";
 @import "tailwindcss";
 @import "@tollbooth-dpyc/web/theme.css";
+@import "@tollbooth-dpyc/web/price-sheet.css";
 @source "../node_modules/@tollbooth-dpyc/web/dist";
 
 /* Design tokens from frontend/design/heat-ledger-mock.html — the almanac
@@ -216,3 +217,21 @@
    title takes the display face the rest of the page's headings wear. */
 .driver-popover.tb-tour { font-family: var(--font-body); }
 .tb-tour .driver-popover-title { font-family: var(--font-display); letter-spacing: -0.01em; }
+
+/* The price sheet in the almanac's type, with the fares in honey: sats
+   accumulate as honey does, so the rings and the rungs are gold, not plum. */
+.tb-ps {
+  --tb-ps-display-font: var(--font-display);
+  --tb-ps-data-font: var(--font-data);
+  --tb-ps-wash: color-mix(in srgb, var(--color-honey) 14%, var(--tb-surface));
+  /* Cards on the panel, not the band: a page of band-filled cards reads as a
+     wall of one colour. */
+  --tb-ps-card: var(--color-panel);
+}
+.tb-ps-eyebrow { color: var(--color-growth); }
+.tb-ps-ring circle {
+  stroke: var(--color-honey);
+  fill: color-mix(in srgb, var(--color-honey) 12%, transparent);
+}
+.tb-ps-band::before { border-color: var(--color-honey); }
+.tb-ps-fare-n { font-weight: 600; }

@@ -75,6 +75,9 @@ export const RAIL: RailItem[] = [
     icon: I(<><path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2" /><path d="M9 20h6M12 4v16" /></>) },
   { key: "references", label: "References", ready: true,
     icon: I(<><path d="M4 5a2 2 0 0 1 2-2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" /><path d="M15 3v5h5M8 13h8M8 17h5" /></>) },
+  // A price tag: every tool's fare and how long a top-up lasts.
+  { key: "prices", label: "Prices", ready: true,
+    icon: I(<><path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z" /><circle cx="7.5" cy="7.5" r="1.5" /></>) },
   { key: "about", label: "About", ready: true,
     icon: I(<><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></>) },
 ];

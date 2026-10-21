@@ -39,6 +39,7 @@ import FieldReports from "./views/FieldReports";
 import Almanac from "./views/Almanac";
 import Wildlife from "./views/Wildlife";
 import References from "./views/References";
+import Prices from "./views/Prices";
 import About from "./views/About";
 import TodoView from "./views/Todo";
 import Plots from "./views/Plots";
@@ -310,6 +311,7 @@ export default function App() {
         {view === "glossary" && <Glossary />}
         {view === "about" && <About />}
         {view === "references" && <References />}
+        {view === "prices" && <Prices />}
         {/* How each page is used — free, so a stranger can read what they
             would be signing in for. Spelled out per key, as the public views
             are above, because the test that keeps a guide from 404ing for one
@@ -382,6 +384,7 @@ export default function App() {
         )}
         {view === "todo" && <TodoView region={region} onCost={onCost} onView={setView} />}
         {view === "references" && <References />}
+        {view === "prices" && <Prices />}
         {view === "about" && <About />}
         {/* Free reading, and not only for strangers — a grower who wants to
             know what a biofix is should not have to sign out to find out. */}
