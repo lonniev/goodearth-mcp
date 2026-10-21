@@ -59,6 +59,9 @@ import { forgetAll } from "./lib/pageCache";
 import { TourProvider, useTour } from "@tollbooth-dpyc/web/react";
 import { TOURS } from "./lib/tour/copy";
 
+/** Read by index.html before the app runs; keep the two in step. */
+const PAPER_KEY = "goodearth:paper:v1";
+
 /** The site's own words above the sign-in card. */
 const WELCOME = "Natural phenomena for your acreage. Frost, heat, rain and daylight, read for the ground you actually farm, season by season.";
 
@@ -154,12 +157,15 @@ export default function App() {
   // rather than in a provider because the guest shell and the app shell both
   // need it and neither is the other's parent.
   // The browser chrome follows too: a static theme-color would paint Summer's
-  // blush above an Autumn page.
+  // blush above an Autumn page. The paper is also remembered, so the next
+  // load paints this season's colour before the app runs (see index.html).
   useEffect(() => {
     const root = document.documentElement;
     root.dataset.theme = themeOf(prefs, latOf(region.region));
     const paper = getComputedStyle(root).getPropertyValue("--color-paper").trim();
-    if (paper) document.querySelector('meta[name="theme-color"]')?.setAttribute("content", paper);
+    if (!paper) return;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", paper);
+    try { localStorage.setItem(PAPER_KEY, paper); } catch { /* private mode: next load starts on the default */ }
   }, [prefs, region]);
   useEffect(() => onRouteChange(setView, signedIn ? DEFAULT_VIEW : GUEST_VIEW), [signedIn]);
 
