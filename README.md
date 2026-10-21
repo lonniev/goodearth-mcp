@@ -49,10 +49,17 @@ tools. `goodearth_check_price` previews a fare. The server's own
 **A farm is not a point.** A bench and a hollow on the same acreage do not
 share a frost date, and every free weather calculator answers for a pin.
 
-Good Earth answers for *ground*. Every tool accepts a GeoJSON polygon or a
-`{lat, lon, radius_m}` pin, samples the terrain inside it, and returns an
-aggregate **plus the spread across it**. That spread is the product: it tells
-a grower whether one planting date serves the whole block.
+Good Earth answers for *ground*. A grower saves a plot once as a **block** —
+a GeoJSON polygon or a `{lat, lon, radius_m}` pin, with a name — using
+`goodearth_block_save`. Every other tool then takes that `block` by its id,
+its name, an alias, or any part of its name that only one block has. Each tool
+samples the terrain inside the block and returns an aggregate **plus the
+spread across it**. That spread is the product: it tells a grower whether one
+planting date serves the whole block.
+
+Blocks may overlap or nest: a bed inside a field is its own block. What a
+grower grows, watches for and has seen is recorded per block with
+`goodearth_block_item_save`, so the season tools need no lists passed in.
 
 ```
       YOU (operator, human in the loop)
@@ -86,13 +93,14 @@ a grower whether one planting date serves the whole block.
 This is the design decision the whole product rests on, so it is stated
 plainly rather than buried.
 
-The free gridded temperature feeds resolve about **9 km**. Two sample points
-on one farm land in the same cell and return byte-identical numbers —
+The free gridded temperature feeds resolve about **2 km** at best (archived
+high-resolution model runs) and **9 km** for the ERA5 reanalysis. Two sample
+points on one farm can land in the same cell and return byte-identical numbers —
 reporting that as "the range across your region" would be a lie dressed as
 data. Terrain, however, resolves at **90 m**, and terrain is what varies
 within a farm.
 
-So Good Earth reads the *regional signal* from the coarse feed and derives
+So Good Earth reads the *regional signal* from the gridded feeds and derives
 *within-region variation* from elevation:
 
 | Effect | Applies to | Why |
@@ -105,16 +113,43 @@ grower is never sold precision the data does not contain.
 
 ## Tools
 
-| Tool | Phase | Answers |
-|---|---|---|
-| `goodearth_gdd_season_curve` | **T1 — shipped** | Heat accumulation across a region, vs the last 10 seasons |
-| `goodearth_region_climate_bundle` | T2 | Heat + water + light in one priced call |
-| `goodearth_frost_window` | T2 | First-frost dates and near-term risk, with drainage spread |
-| `goodearth_dli_curve`, `goodearth_water_balance` | T3 | Light and water lenses |
-| `goodearth_soil_temp_projection`, `goodearth_crop_gdd_status`, `goodearth_finish_before_frost` | T4 | Per-planting timing |
-| `goodearth_pest_threshold` | T5 | Model GDD vs accumulated; crossing dates |
-| `goodearth_calibration` | T6 | Per-region bias correction from patron field reports |
-| `goodearth_companions` | shipped | Companions for one planting — synergy by cited family rules (iNaturalist taxonomy), or design from the grower's own flower colour, height and bloom |
+Every tool below takes a saved `block` unless noted.
+
+| Tool | Answers |
+|---|---|
+| **Ground** | |
+| `goodearth_block_save` | Save a plot (polygon or pin) with a name and aliases; many beds in one call |
+| `goodearth_block_list` | The saved blocks and their bounds — or a worked example when none are saved yet |
+| `goodearth_block_transform` | Propose bed layouts inside a plot; writes nothing |
+| `goodearth_block_item_save`, `goodearth_block_item_list` | What is grown, watched for, seen, or held as seed on a block |
+| `goodearth_forget_my_ground` | Delete every block and everything recorded on it (free) |
+| **Season** | |
+| `goodearth_gdd_season_curve` | Heat accumulation season to date, against the last ten seasons |
+| `goodearth_frost_window` | When frost normally arrives on this ground, and whether it is coming this week |
+| `goodearth_soil_temp_projection` | When the soil crosses a planting threshold |
+| `goodearth_planting_window` | When to start seed, when to set it out, and the last day it still finishes |
+| `goodearth_crop_gdd_status` | Where each planting stands, and whether it finishes before frost |
+| `goodearth_crop_suitability` | Which crops finish on this ground, and with how much room to spare |
+| `goodearth_almanac` | The sky's record for this ground — normal, actual, and what is coming |
+| `goodearth_drying_window` | When the dew burns off, the dry days ahead, and the next rain |
+| `goodearth_sunlight` | Hours of direct sun across the block, month by month, and what a solar panel would make |
+| **Pests, disease and wildlife** | |
+| `goodearth_pest_catalog`, `goodearth_pest_threshold` | Which pest stages are modelled here, and where their degree-day stages stand |
+| `goodearth_disease_risk` | Hours of leaf wetness, and what the disease models make of them |
+| `goodearth_nearby_species` | What is recorded near this ground, a page at a time |
+| `goodearth_wildlife_catalog`, `goodearth_wildlife_calendar` | Which animals are recorded around this ground, and when they arrive |
+| **Trees and companions** | |
+| `goodearth_tree_suitability` | Whether a tree survives and gets its chill on this ground |
+| `goodearth_tree_year` | When spring reached this ground, and what the sap did |
+| `goodearth_companions` | Companions for one planting — synergy by cited family rules (iNaturalist taxonomy), or a design from the grower's own flower colour, height and bloom |
+| **Planning** | |
+| `goodearth_plan_the_season` | The season-planning interview, as a workflow to follow (takes no block) |
+| `goodearth_review_roster` | Audit a roster against what this ground's record knows |
+| `goodearth_calibration` | Turn a block's own field reports into a correction on the model |
+| `goodearth_task_save`, `goodearth_task_list`, `goodearth_task_set_done`, `goodearth_task_delete` | The farm's task list |
+| **Calendar feeds** | |
+| `goodearth_calendar_dataset` | Compute a block's dated season and store it for publishing as a calendar feed |
+| `goodearth_calendar_fetch`, `goodearth_calendar_list`, `goodearth_calendar_revoke` | Read, list, and stop publishing feeds (free) |
 
 Standard DPYC tools (`check_balance`, `purchase_credits`, Secure Courier,
 Oracle, pricing, constraints) come from the wheel via
@@ -122,14 +157,20 @@ Oracle, pricing, constraints) come from the wheel via
 
 ## Data sources
 
-All free, all public, no API key.
+All public. Every one is free, and only the EIA feed needs a key: an optional
+`eia_api_key` the operator delivers by Secure Courier, so the Sun page can
+quote what a kWh sells for in the block's state.
 
 | Source | Role | Native resolution |
 |---|---|---|
-| Open-Meteo archive (ERA5) | Observed daily max/min | ~9 km |
-| Open-Meteo forecast | 7-day extension | ~11 km |
+| Open-Meteo archived model runs | Observed daily max/min, running season | ~2 km |
+| Open-Meteo archive (ERA5) | Fallback daily record; hourly radiation for sunlight | ~9 km |
+| Daymet v4 (NASA ORNL) | Deep daily history for the normals, North America | 1 km |
+| Open-Meteo forecast | 7-day extension | ~2–11 km by model |
 | Open-Meteo elevation (SRTM) | Terrain downscaling | ~90 m |
-| iNaturalist taxa | Family and genus of a planting, for Companions | — |
+| Copernicus GLO-30 DEM, Meta/WRI canopy height, CGLS land cover | Terrain, trees and shade for sunlight | 30 m, 1 m, 100 m |
+| iNaturalist, GBIF, USA National Phenology Network | Species recorded nearby; family and genus for Companions; phenology | — |
+| EIA retail electricity prices, DOE PV cost benchmarks, Nominatim | What a kWh sells for and a kW costs, by state | — |
 
 A whole-region season read costs **three** upstream requests regardless of
 sample count: sample points are folded onto the archive's own grid so a
@@ -142,8 +183,8 @@ request sliced locally rather than ten separate calls.
    single env var the server needs (`TOLLBOOTH_NOSTR_OPERATOR_NSEC`).
 2. **Sponsor Authority** — register; it provisions your Neon database.
 3. **Secure Courier** — deliver `btcpay_host`, `btcpay_api_key`,
-   `btcpay_store_id` via `goodearth_request_credential_channel`. Never as
-   env vars, never in code.
+   `btcpay_store_id` (and, optionally, `eia_api_key`) via
+   `goodearth_request_credential_channel`. Never as env vars, never in code.
 4. **Set prices in Pricing Studio** — new tools start unpriced and nobody
    can call an unpriced tool.
 5. **Deploy on Horizon** — `fastmcp.json` is already wired.
@@ -156,11 +197,16 @@ thing a flat paywall can never give you.
 ## The SPA
 
 `frontend/` carries the Good Earth app (the taxsort-mcp pattern — one repo,
-React app inside). Sign-in, the proof envelope, and the Nostr profile panel
-are the fleet's existing modules, borrowed rather than rewritten. Patron
-state lives on Nostr as NIP-44-encrypted NIP-78 events under the
-`goodearth/*` namespace — no accounts, and the farm's data never lives on
-the operator's server.
+React app inside). Sign-in and the Nostr profile panel come from the fleet's
+shared `@tollbooth-dpyc/web` package. There are no accounts: a grower is an
+npub.
+
+A grower's blocks, what is recorded on them, tasks and published calendar
+feeds are stored in the operator's Neon database under their npub. A block's
+name, aliases and boundary are encrypted with the SDK's vault cipher; the items
+recorded on a block (crop names, species, field reports) are stored in the
+clear so they can be sorted and searched. `goodearth_forget_my_ground` deletes
+all of it; the grower's balance and purchase history stay with the patron.
 
 ## Develop
 
