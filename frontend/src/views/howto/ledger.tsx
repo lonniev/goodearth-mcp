@@ -61,14 +61,18 @@ export const ledger: Guide = {
           Tap it for the Almanac&rsquo;s full reading. It rides on the drying
           read, so it costs nothing extra.</>],
       ["The pulse strip",
-        <>Five figures: heat so far with its gauge; the spread across the
-          block, in GDD and in days; how far ahead of or behind the recent
-          seasons, with the grid the band was read from; the first frost — this
-          season's once it has come, otherwise when it is projected, with the
-          average beneath. A season begins in the stretch of the year this
-          ground has never frosted, mid-July in the north, so the figure turns
-          to the next frost on that day; and the coldest ground in the coming week
-          against the plain forecast.</>],
+        <>Five figures, each with a picture of where it falls. Heat so far,
+          on a strip from the coolest past season to the warmest, with a tick
+          at normal. The spread across the block, in GDD and in days, between
+          its coolest and warmest sample. How far ahead of or behind the recent
+          seasons, as a bar out from normal — full length is as far as any
+          season on record. The first frost — this season&rsquo;s once it has
+          come, otherwise when it is projected — on the record&rsquo;s earliest
+          to latest, with a tick at the median. A season begins in the stretch
+          of the year this ground has never frosted, mid-July in the north, so
+          the figure turns to the next frost on that day. And the coldest ground
+          in the coming week, on a thermometer shaded through hard freeze,
+          frost and watch.</>],
       ["The chart",
         <>Drag or pinch to move along the season; the glasses on the left zoom
           the heat axis. The frost line stands on the first-frost figure's day. A

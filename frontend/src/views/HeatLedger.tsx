@@ -15,6 +15,7 @@ import SoilCard from "../components/SoilCard";
 import DiseaseCard from "../components/DiseaseCard";
 import { bands } from "../lib/diseaseBands";
 import { dryingLine } from "../lib/dryingLine";
+import PulseTile, { type Gauge } from "../components/PulseTile";
 import { stormWords } from "../lib/storm";
 import Term from "../components/Term";
 import Provenance from "../components/Provenance";
@@ -271,7 +272,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
 
       {/* ── Pulse strip ───────────────────────────────────────────────── */}
       <div className="mb-4 grid grid-cols-2 border-t-2 border-b border-t-ink border-b-rule sm:grid-cols-3 lg:grid-cols-5" {...tour("ledger.pulse")}>
-        <Pulse
+        <PulseTile
           emoji="🌡️"
           value={g ? Math.round(g.mean).toLocaleString() : busy ? "…" : "—"}
           unit={data ? `GDD${sub(data.base_temp_f)}` : ""}
@@ -279,7 +280,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
                       : "total this season"}
           gauge={heatGauge(data)}
         />
-        <Pulse
+        <PulseTile
           emoji="⛰️"
           value={g ? Math.round(g.spread).toLocaleString() : busy ? "…" : "—"}
           unit={g ? "GDD" : ""}
@@ -295,22 +296,26 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
           }
           gauge={spreadGauge(g)}
         />
-        <Pulse
+        <PulseTile
           emoji={ahead == null ? "📊" : ahead >= 0 ? "📈" : "📉"}
           value={ahead == null ? "—" : `${ahead >= 0 ? "+" : ""}${Math.round(ahead)}`}
+          unit={ahead == null ? "" : "GDD"}
           tone={ahead == null ? undefined : ahead >= 0 ? "growth" : "frost"}
+          gauge={aheadGauge(data)}
           label={
             data?.normals
               ? `${ahead == null ? "vs" : ahead >= 0 ? "ahead of" : "behind"} ${data.normals.span_years} seasons${bandScale(data)}`
               : "vs recent seasons"
           }
         />
-        <Pulse emoji="❄️" tone="frost" value={frostTile.value} label={frostTile.label} muted={frostTile.muted} />
-        <Pulse
+        <PulseTile emoji="❄️" tone="frost" value={frostTile.value} label={frostTile.label}
+          muted={frostTile.muted} title={frostTile.title} gauge={frostGauge(frost, frostTile.iso)} />
+        <PulseTile
           emoji={frost?.worst_night && frost.worst_night.level !== "clear" ? "🥶" : "🌙"}
           value={frost?.worst_night ? u.showTemp(frost.worst_night.low_ground_f) : "—"}
           tone="frost"
           muted={!frost?.worst_night}
+          gauge={coldGauge(frost, u.showTemp, u.temp)}
           label={
             frost?.worst_night
               ? `coldest ground ${shortDate(frost.worst_night.date)} · forecast ${u.showTemp(frost.worst_night.forecast_low_f)}`
@@ -477,39 +482,6 @@ function TrendLabel({ emoji, label, children }: {
   );
 }
 
-function Pulse({ emoji, value, unit, label, tone, muted, gauge }: {
-  emoji: string;
-  value: string; unit?: string; label: string;
-  tone?: "growth" | "frost"; muted?: boolean;
-  /// Where this season sits inside the normal range, 0..1. The figure alone
-  /// says how much heat; the gauge says whether that is a lot.
-  gauge?: { pos: number; lo: string; hi: string } | null;
-}) {
-  const color = tone === "growth" ? "text-growth" : tone === "frost" ? "text-frost" : "";
-  const bar = tone === "frost" ? "bg-frost" : "bg-growth";
-  return (
-    <div className={`border-l border-rule px-3 pt-3 pb-3.5 text-center first:border-l-0 ${muted ? "opacity-45" : ""}`}>
-      <div className="mb-0.5 text-[15px] leading-none">{emoji}</div>
-      <div className={`figure text-[clamp(20px,2.4vw,28px)] leading-tight ${color}`}>
-        {value}
-        {unit && <small className="ml-1 text-[0.55em] font-normal text-ink-soft">{unit}</small>}
-      </div>
-      <div className="mt-0.5 text-[11.5px] leading-snug text-ink-soft">{label}</div>
-      {gauge && (
-        <div className="mt-2">
-          <div className="relative h-[5px] rounded-full bg-band">
-            <span className={`absolute top-1/2 h-[11px] w-[3px] -translate-y-1/2 rounded-full ${bar}`}
-              style={{ left: `calc(${Math.min(Math.max(gauge.pos, 0), 1) * 100}% - 1.5px)` }} />
-          </div>
-          <div className="data mt-0.5 flex justify-between text-[9.5px] text-ink-soft">
-            <span>{gauge.lo}</span><span>{gauge.hi}</span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 /// Where the first frost falls along the curve's own day axis, so the
 /// chart can draw the line in the same coordinate space as the data. Null when
 /// the date sits outside the plotted range — better no line than one clamped
@@ -542,14 +514,16 @@ function bandScale(data: SeasonCurveResult | null): string {
 
 /// Where this season sits inside the ten-season range, as a 0..1 position.
 /// The number says how much heat; this says whether that is a lot.
-function heatGauge(data: SeasonCurveResult | null) {
+function heatGauge(data: SeasonCurveResult | null): Gauge | null {
   const t = data?.normals?.today;
   const mean = data?.accumulated_gdd?.mean;
   if (!t || mean == null || t.max <= t.min) return null;
   return {
+    kind: "range",
+    ticks: [{ pos: (t.mean - t.min) / (t.max - t.min), label: "normal" }],
     pos: (mean - t.min) / (t.max - t.min),
-    lo: `coolest ${Math.round(t.min).toLocaleString()}`,
-    hi: `${Math.round(t.max).toLocaleString()} warmest`,
+    lo: <><Wide>coolest </Wide>{Math.round(t.min).toLocaleString()}</>,
+    hi: <>{Math.round(t.max).toLocaleString()}<Wide> warmest</Wide></>,
   };
 }
 
@@ -557,12 +531,81 @@ function heatGauge(data: SeasonCurveResult | null) {
 /// between the coolest hollow and the warmest bench. Null when every sample
 /// reads alike — a gauge with both ends at one value would draw a picture of
 /// variation that is not there.
-function spreadGauge(g?: { min: number; mean: number; max: number; spread: number } | null) {
+function spreadGauge(g?: { min: number; mean: number; max: number; spread: number } | null): Gauge | null {
   if (!g || g.spread <= 0 || g.max <= g.min) return null;
   return {
+    kind: "range",
     pos: (g.mean - g.min) / (g.max - g.min),
     lo: `🥶 ${Math.round(g.min).toLocaleString()}`,
     hi: `${Math.round(g.max).toLocaleString()} ☀️`,
+  };
+}
+
+/// Words a gauge end can lose on a phone, where only its number fits.
+function Wide({ children }: { children: ReactNode }) {
+  return <span className="hidden sm:inline">{children}</span>;
+}
+
+/// Ahead or behind, as a bar out from normal. Full length is the edge of the
+/// normal range for today — so a full bar means "as far ahead as any season
+/// on record", and the length is not a scale anybody made up.
+function aheadGauge(data: SeasonCurveResult | null): Gauge | null {
+  const t = data?.normals?.today;
+  const ahead = data?.normals?.ahead_of_normal_gdd;
+  if (!t || ahead == null) return null;
+  const reach = ahead >= 0 ? t.max - t.mean : t.mean - t.min;
+  if (reach <= 0) return null;
+  return { kind: "diverge", value: ahead / reach, lo: "behind", hi: "ahead" };
+}
+
+const dayMs = (iso: string) => new Date(iso + "T12:00:00").getTime();
+
+/// The frost date against the record: earliest to latest first frost, a tick
+/// at the median, the marker at the date the tile shows.
+function frostGauge(frost: FrostWindowResult | null | undefined, iso?: string): Gauge | null {
+  const rec = frost?.first_frost;
+  if (!rec || !iso) return null;
+  const lo = dayMs(rec.earliest), hi = dayMs(rec.latest);
+  if (hi <= lo) return null;
+  const at = (d: string) => (dayMs(d) - lo) / (hi - lo);
+  return {
+    kind: "range", pos: at(iso),
+    ticks: [{ pos: at(rec.median), label: `median ${shortDate(rec.median)}` }],
+    lo: <><Wide>earliest </Wide>{shortDate(rec.earliest)}</>,
+    hi: <>{shortDate(rec.latest)}<Wide> latest</Wide></>,
+  };
+}
+
+/// The coldest ground's low on a thermometer strip with the frost thresholds
+/// marked. The strip runs a little past hard freeze and watch on either side,
+/// so a reading at a threshold is not drawn at the very end.
+function coldGauge(
+  frost: FrostWindowResult | null | undefined, show: (f: number) => string,
+  temp: (f: number) => number,
+): Gauge | null {
+  // The marks are bare degrees ("28°"): three of them share a strip a phone
+  // draws 150px wide, and the figure beside the icon already names the scale.
+  const deg = (f: number) => `${Math.round(temp(f))}°`;
+  const n = frost?.worst_night;
+  const th = frost?.thresholds_f;
+  if (!n || !th) return null;
+  const lo = th.hard_freeze - 6, hi = th.watch + 6;
+  const at = (f: number) => (f - lo) / (hi - lo);
+  // Shaded deepest where it is coldest: hard freeze, frost, watch, then clear.
+  const zone = (from: number, to: number, className: string) =>
+    ({ from: at(from), to: at(to), className });
+  return {
+    kind: "range", pos: at(n.low_ground_f),
+    zones: [
+      zone(lo, th.hard_freeze, "bg-frost/45"),
+      zone(th.hard_freeze, th.frost, "bg-frost/28"),
+      zone(th.frost, th.watch, "bg-frost/14"),
+    ],
+    ticks: [
+      { pos: at(th.hard_freeze), label: `hard freeze ${show(th.hard_freeze)}`, mark: deg(th.hard_freeze) },
+      { pos: at(th.frost), label: `frost ${show(th.frost)}`, mark: deg(th.frost) },
+      { pos: at(th.watch), label: `frost watch ${show(th.watch)}`, mark: deg(th.watch) },
+    ],
   };
 }
 
