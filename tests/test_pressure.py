@@ -12,7 +12,7 @@ from goodearth_mcp.block_store import EXAMPLE_BLOCK
 from goodearth_mcp.region import parse_region
 
 # Naive on purpose: the feed stamps hours on the block's own clock, with no zone.
-START = datetime(2026, 10, 20, 0, 0)  # noqa: DTZ001
+START = datetime(2026, 10, 20, 0, 0)
 
 
 def hours(values: list[float | None], start: datetime = START) -> tuple[list[str], list[float | None]]:
