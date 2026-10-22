@@ -436,6 +436,9 @@ export interface DiseaseVerdict {
   recent: boolean;
   recent_window_days: number;
   season_count: number;
+  /// Every qualifying period of the season, oldest first, as dates. Absent
+  /// from answers cached before it was added.
+  season_periods?: { from: string; to: string; forecast: boolean }[];
   last_period: { from?: string; to?: string; start?: string; end?: string; days?: number } | null;
   /// `front_due`: a falling barometer's window crosses this projected period.
   next_period: {

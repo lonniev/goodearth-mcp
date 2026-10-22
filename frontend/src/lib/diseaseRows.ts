@@ -126,3 +126,57 @@ export function cropWatch(data: DiseaseRiskResult | null, crop: string): CropWat
     .filter((w): w is CropWatch => !!w)
     .sort((a, b) => a.date.localeCompare(b.date));
 }
+
+/// The span every row's season strip shares, as ISO dates: the season's first
+/// day, today, and the last day anything is known about — the forecast's end,
+/// or a projected period reaching past it.
+export interface StripAxis { from: string; today: string; to: string }
+
+const dayOf = (iso: string) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 86_400_000;
+
+export function stripAxis(data: DiseaseRiskResult): StripAxis | null {
+  const from = data.season_from?.slice(0, 10);
+  const today = data.as_of?.slice(0, 10);
+  if (!from || !today) return null;
+  const ends = [today, (data.wetness.last ?? "").slice(0, 10),
+    ...data.diseases.flatMap((v) => (v.season_periods ?? []).map((p) => p.to))].filter(Boolean);
+  const to = ends.reduce((a, b) => (b > a ? b : a));
+  return dayOf(to) > dayOf(from) ? { from, today, to } : null;
+}
+
+/// Where a date sits along the strip, 0 at the season's first day and 1 at the
+/// axis's last. A date outside is held to the ends rather than dropped.
+export function along(axis: StripAxis, iso: string): number {
+  const span = dayOf(axis.to) - dayOf(axis.from) + 1;
+  return Math.min(1, Math.max(0, (dayOf(iso) - dayOf(axis.from)) / span));
+}
+
+export interface StripMark { left: number; width: number; forecast: boolean; from: string; to: string }
+
+/// One model's season as marks on the strip. Each covers its days inclusive,
+/// so a one-day period still has a width. Null when the answer predates the
+/// field — an empty strip would claim a season with nothing in it.
+export function stripMarks(v: DiseaseVerdict, axis: StripAxis): StripMark[] | null {
+  if (!v.season_periods) return null;
+  const span = dayOf(axis.to) - dayOf(axis.from) + 1;
+  return v.season_periods.map((p) => {
+    const left = along(axis, p.from);
+    const right = Math.min(1, (dayOf(p.to) - dayOf(axis.from) + 1) / span);
+    return { left, width: Math.max(0, right - left), forecast: p.forecast, from: p.from, to: p.to };
+  });
+}
+
+/// The first of each month inside the axis, for faint gridlines and the
+/// month initials over the strips.
+export function stripMonths(axis: StripAxis): { at: number; label: string }[] {
+  const out: { at: number; label: string }[] = [];
+  let y = +axis.from.slice(0, 4), m = +axis.from.slice(5, 7);
+  for (;;) {
+    m += 1; if (m > 12) { m = 1; y += 1; }
+    const iso = `${y}-${String(m).padStart(2, "0")}-01`;
+    if (iso > axis.to) break;
+    out.push({ at: along(axis, iso),
+      label: new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", timeZone: "UTC" }) });
+  }
+  return out;
+}

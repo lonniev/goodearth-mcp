@@ -2,7 +2,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { began, cropWatch, estimatesInfo, order, relevant, rowDate, toneOf, TONE_WORD } from "./diseaseRows.ts";
+import { along, began, cropWatch, estimatesInfo, order, relevant, rowDate, stripAxis, stripMarks, stripMonths, toneOf, TONE_WORD } from "./diseaseRows.ts";
 import type { DiseaseRiskResult, DiseaseVerdict } from "./mcp.ts";
 
 function model(over: Partial<DiseaseVerdict> = {}): DiseaseVerdict {
@@ -206,5 +206,44 @@ describe("the date a row hands on", () => {
   it("survives being parsed the way the ledger parses it", () => {
     const got = new Date(began({ start: "2026-09-13T04:00" }) + "T12:00:00");
     assert.equal(Number.isNaN(got.getTime()), false, "the ledger would print Invalid Date");
+  });
+});
+
+describe("the season strip", () => {
+  const answer = (diseases: DiseaseVerdict[], last = "2026-10-30T23:00") => ({
+    diseases, season_from: "2026-04-01", as_of: "2026-10-22",
+    wetness: { last },
+  } as unknown as DiseaseRiskResult);
+
+  it("runs from the season's first day to the last day anything is known", () => {
+    const v = model({ season_periods: [{ from: "2026-11-02", to: "2026-11-03", forecast: true }] });
+    assert.deepEqual(stripAxis(answer([v])), { from: "2026-04-01", today: "2026-10-22", to: "2026-11-03" });
+    assert.equal(stripAxis(answer([]))?.to, "2026-10-30");
+  });
+
+  it("gives a one-day period a width, and keeps record apart from forecast", () => {
+    const axis = { from: "2026-04-01", today: "2026-04-05", to: "2026-04-10" };
+    const v = model({ season_periods: [
+      { from: "2026-04-01", to: "2026-04-01", forecast: false },
+      { from: "2026-04-06", to: "2026-04-10", forecast: true },
+    ] });
+    const [a, b] = stripMarks(v, axis)!;
+    assert.deepEqual([a.left, a.width, a.forecast], [0, 0.1, false]);
+    assert.deepEqual([b.left, b.width, b.forecast], [0.5, 0.5, true]);
+  });
+
+  it("draws nothing for an answer cached before the season was sent", () => {
+    assert.equal(stripMarks(model(), { from: "2026-04-01", today: "2026-04-05", to: "2026-04-10" }), null);
+  });
+
+  it("holds a date outside the season to its ends", () => {
+    const axis = { from: "2026-04-01", today: "2026-04-05", to: "2026-04-10" };
+    assert.equal(along(axis, "2026-03-01"), 0);
+    assert.equal(along(axis, "2026-05-01"), 1);
+  });
+
+  it("marks each month that begins inside the season", () => {
+    const ms = stripMonths({ from: "2026-04-01", today: "2026-06-15", to: "2026-06-30" });
+    assert.deepEqual(ms.map((m) => m.label), ["May", "Jun"]);
   });
 });
