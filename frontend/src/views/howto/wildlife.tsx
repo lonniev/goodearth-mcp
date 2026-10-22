@@ -66,7 +66,7 @@ export const wildlife: Guide = {
           them all — they go on the roster named and undated; the clock and its
           figure are yours to set. The arrow by the heading opens it.</>],
     ]},
-    { emoji: "👀", heading: "Read the year", steps: [
+    { emoji: "🐾", heading: "Read the Fauna ledger", steps: [
       ["Watch for these",
         <>What is due with its window — "in 6 days", give or take — and what
           has just been and gone with nothing recorded against it. The window

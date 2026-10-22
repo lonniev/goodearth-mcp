@@ -315,8 +315,8 @@ export default function Wildlife({
           filter and the search sit together on the right, and the summary
           sentence is gone — it was a fact about a list the list shows. */}
       <div className="mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <Section emoji="📅" first tour="wildlife.list"
-          title={`The year${ranAt
+        <Section emoji="🐾" first tour="wildlife.list"
+          title={`Fauna ledger${ranAt
             ? ` (at ${clockTime(ranAt, zone)})`
             : ""}`}>
           {models.length > 0 && (

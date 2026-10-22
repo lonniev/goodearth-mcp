@@ -91,7 +91,7 @@ describe("the three pages now read alike", () => {
 
   it("each heading carries its own reading time, once", () => {
     for (const [n, h] of [["Crops", "Plants ledger"], ["Pests", "Pests ledger"],
-                          ["Wildlife", "The year"]] as const) {
+                          ["Wildlife", "Fauna ledger"]] as const) {
       assert.match(view(n), new RegExp(`${h.replace(/[^\w\s]/g, ".")}\\$\\{ranAt`), n);
       assert.match(view(n), /hideTime/, n);
     }
@@ -130,7 +130,7 @@ describe("the three pages are laid out alike", () => {
     };
     assert.ok(where(view("Crops"), /<form key=\{formKey\} id="new-planting"/, /title=\{`Plants ledger/));
     assert.ok(where(view("Pests"), /<form id="new-pest"/, /Pests ledger\$\{ranAt/));
-    assert.ok(where(view("Wildlife"), /<EventComposer/, /title=\{`The year/));
+    assert.ok(where(view("Wildlife"), /<EventComposer/, /title=\{`Fauna ledger/));
   });
 
   it("no page puts a heading over its add form", () => {
