@@ -46,6 +46,9 @@ export const wildlife: Guide = {
           recorded near here, then a search for anything else. The ⟳ mark means
           USA-NPN publishes a life cycle for it, and its habits are offered as
           labels once it is chosen.</>],
+      ["Track it",
+        <>The 🐾 button opens a panel over the page with the rest: friend,
+          foe or watch, the clock, its figures, and the dates they fall on.</>],
       ["The clock",
         <>Chips for the five: <b>days from</b>, <b>your record</b>,
           <b> daylight</b>, <b>heat</b>, <b>conditions</b>. Each says in a line
@@ -63,7 +66,7 @@ export const wildlife: Guide = {
           them all — they go on the roster named and undated; the clock and its
           figure are yours to set. The arrow by the heading opens it.</>],
     ]},
-    { emoji: "👀", heading: "Read the year", steps: [
+    { emoji: "🐾", heading: "Read the Fauna ledger", steps: [
       ["Watch for these",
         <>What is due with its window — "in 6 days", give or take — and what
           has just been and gone with nothing recorded against it. The window

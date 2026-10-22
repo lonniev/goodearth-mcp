@@ -1,0 +1,2 @@
+- Fauna's add form is one row like Pests and Flora — Species, What it does, and a round 🐾 button. The button opens a panel with friend/foe/watch, the clock, its figures, the dates they fall on, and Record. "Start another" on a due row opens the panel already filled in.
+- The Fauna table heading reads 🐾 Fauna ledger (was "📅 The year"), alongside 🌱 Plants ledger and 🐛 Pests ledger.
