@@ -457,6 +457,10 @@ def _began(period: dict[str, Any]) -> str:
     return str(period.get("from") or period.get("start") or "")
 
 
+def _ended(period: dict[str, Any]) -> str:
+    return str(period.get("to") or period.get("end") or "")
+
+
 def timeline(
     qualifying: list[dict[str, Any]], forecast_from: str | None, today: str | None,
 ) -> dict[str, Any]:
@@ -482,6 +486,14 @@ def timeline(
 
     return {
         "season_count": len(dated),
+        # Every qualifying period as two dates, oldest first, so a page can draw
+        # the season as a strip without knowing which key each model keeps its
+        # periods under (Mills keeps every wet run, Hutton only the hits).
+        "season_periods": [
+            {"from": _began(p)[:10], "to": (_ended(p) or _began(p))[:10],
+             "forecast": bool(cut) and _began(p)[:10] >= cut}
+            for p in dated
+        ],
         "last_period": last,
         "next_period": nxt,
         "recent": recent,

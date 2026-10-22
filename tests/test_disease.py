@@ -371,6 +371,25 @@ def test_nothing_at_all_is_an_answer_and_says_so():
     assert (when["last_period"], when["next_period"]) == (None, None)
 
 
+def test_the_season_comes_back_as_dated_spans_for_a_strip():
+    """Oldest first, record and forecast told apart, one day wide when no end."""
+    when = disease.timeline(
+        [period("2026-09-14", "2026-09-15"), period("2026-06-01"),
+         {"start": "2026-07-04T03:00", "end": "2026-07-05T11:00"}],
+        CUT, "2026-09-11",
+    )
+    assert when["season_periods"] == [
+        {"from": "2026-06-01", "to": "2026-06-01", "forecast": False},
+        {"from": "2026-07-04", "to": "2026-07-05", "forecast": False},
+        {"from": "2026-09-14", "to": "2026-09-15", "forecast": True},
+    ]
+
+
+def test_with_no_forecast_nothing_is_marked_ahead():
+    when = disease.timeline([period("2026-09-14")], None, "2026-09-11")
+    assert [p["forecast"] for p in when["season_periods"]] == [False]
+
+
 def test_assess_leads_with_what_is_true_today():
     hours = day("2026-06-14", 9) + day("2026-06-15", 9)
     out = disease.assess(

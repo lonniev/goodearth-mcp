@@ -1,0 +1,1 @@
+- Each disease row on the Dashboard now draws its whole season as a strip: every qualifying period where it fell, the forecast's in clay, today as a tick, and the season's count beside it, under one row of month names. The disease answer carries `season_periods` for it.
