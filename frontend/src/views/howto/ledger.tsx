@@ -113,9 +113,11 @@ export const ledger: Guide = {
           60 °F, the garlic question — from the near forecast and from when it
           normally happens here.</>],
       ["🌾 Drying",
-        <>One line: when the dew is off this morning and tomorrow, the first
-          run of dry days ahead, the next hour of rain, and 🌀 on the first
-          day a falling barometer crosses.</>],
+        <>A line — when the dew is off this morning and tomorrow, the first
+          run of dry days ahead, the next hour of rain — over a card for each
+          of the next ten days: its sky, a bar for its drying power, its rain
+          or dew-off hour. The dry run is shaded as one stretch with ★ on its
+          strongest day, and 🌀 marks a day a falling barometer crosses.</>],
       ["🍄 Diseases",
         <>Five published models against the crops on your ledger, each
           reading <b>forecast</b>, <b>recent</b> or <b>clear</b>. Wetness is

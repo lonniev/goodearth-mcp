@@ -230,7 +230,9 @@ export const GLOSSARY: Entry[] = [
   {
     key: "drying", term: "Dry by, dry days", group: "sky",
     aka: ["dew off", "dry day", "drying", "mowing", "harvest", "hay"],
-    said: "The Dashboard's line about drying. \"Dry by 9 am\" is the first hour "
+    said: "The Dashboard's drying panel: a line, and a card per day with a "
+      + "bar for drying power (FAO-56 reference evapotranspiration, how hard the "
+      + "air pulls water out of anything wet). \"Dry by 9 am\" is the first hour "
       + "this ground's leaves are estimated to stay dry for two hours running "
       + "after a wet night — the dew burning off. A dry day is a forecast day "
       + "with no hour of rain. Both come from the same modelled hours as leaf "
