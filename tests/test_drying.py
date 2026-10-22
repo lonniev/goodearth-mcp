@@ -135,3 +135,48 @@ def test_conditions_never_a_verdict_on_the_crop():
     for word in ("ready to cut", "cure"):
         assert word in text  # named only to say it is NOT this service's to judge
     assert "grower's call" in text
+
+
+def test_a_dry_day_under_a_falling_barometer_is_marked(monkeypatch):
+    record = {
+        "utc_offset_seconds": -4 * 3600,
+        "hourly": block(day("2026-09-14"), day("2026-09-15"), day("2026-09-16")),
+    }
+
+    async def forecast(lat, lon, days, hourly=""):
+        return record
+
+    # Steady to noon on the 15th, then 1.3 hPa an hour for four hours.
+    times = [f"2026-09-{d}T{h:02d}:00" for d in (12, 13, 14, 15, 16) for h in range(24)]
+    vals, p = [], 1016.0
+    for t in times:
+        if "2026-09-15T12:00" <= t < "2026-09-15T16:00":
+            p -= 1.3
+        vals.append(round(p, 1))
+
+    async def barometer(lat, lon):
+        return {"utc_offset_seconds": -4 * 3600, "hourly": {"time": times, "pressure_msl": vals}}
+
+    monkeypatch.setattr(sources, "fetch_wetness_forecast", forecast)
+    monkeypatch.setattr(sources, "fetch_pressure_hourly", barometer)
+    region = parse_region(EXAMPLE_BLOCK["geometry"])
+    out = asyncio.run(drying_window.region_drying_window(
+        region, now=datetime(2026, 9, 14, 11, 30, tzinfo=UTC)))
+
+    assert out["storm"]["level"] == "storm likely"
+    marked = {d["date"]: d["front_due"] for d in out["days"]}
+    assert marked == {"2026-09-14": False, "2026-09-15": True, "2026-09-16": False}
+
+
+def test_a_silent_barometer_marks_nothing(monkeypatch):
+    record = {"utc_offset_seconds": 0, "hourly": block(day("2026-09-14"))}
+
+    async def forecast(lat, lon, days, hourly=""):
+        return record
+
+    monkeypatch.setattr(sources, "fetch_wetness_forecast", forecast)
+    region = parse_region(EXAMPLE_BLOCK["geometry"])
+    out = asyncio.run(drying_window.region_drying_window(
+        region, now=datetime(2026, 9, 14, 8, 0, tzinfo=UTC)))
+    assert out["storm"] is None
+    assert not any(d["front_due"] for d in out["days"])

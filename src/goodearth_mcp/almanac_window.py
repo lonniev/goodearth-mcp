@@ -13,7 +13,7 @@ import asyncio
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
-from goodearth_mcp import almanac, gdd, record_cache, sources
+from goodearth_mcp import almanac, gdd, pressure_window, record_cache, sources
 from goodearth_mcp.region import Region
 
 NORMALS_SPAN_YEARS = 10
@@ -35,6 +35,10 @@ MEASURES = {
     # because anything dried. It sits beside the dew point deliberately —
     # the dew point is the absolute figure and this is what the leaf feels.
     "humidity":   {"field": "relative_humidity_2m_mean", "unit": "%", "accumulate": False},
+    # Sea-level pressure, the day's mean. The season line shows the lows that
+    # crossed this ground; the storm signal reads the hourly series, because a
+    # daily mean smooths away the three-hour fall that matters.
+    "pressure":   {"field": "pressure_msl_mean",    "unit": "hPa",  "accumulate": False},
 }
 SECONDS_FIELDS = {"sunshine_duration", "daylight_duration"}
 
@@ -76,9 +80,11 @@ async def region_almanac(
         region.centroid.lat, region.centroid.lon, FORECAST_DAYS
     )
 
-    actual, normals, forecast = await asyncio.gather(
-        actual_task, normals_task, forecast_task, return_exceptions=True
+    actual, normals, forecast, storm_read = await asyncio.gather(
+        actual_task, normals_task, forecast_task, pressure_window.region_storm(region),
+        return_exceptions=True,
     )
+    storm = pressure_window.settle(storm_read)
 
     if isinstance(actual, BaseException):
         raise AlmanacError(f"could not read this season's record: {actual}")
@@ -202,6 +208,7 @@ async def region_almanac(
             "low_f": _num((f_block.get("temperature_2m_min") or [None])[0]),
             "dew_point_f": _num((f_block.get("dew_point_2m_mean") or [None])[0]),
             "humidity_pct": _num((f_block.get("relative_humidity_2m_mean") or [None])[0]),
+            "pressure_hpa": _num((f_block.get("pressure_msl_mean") or [None])[0]),
             "precip_chance_pct": _num((f_block.get("precipitation_probability_max") or [None])[0]),
             "sunrise": (f_block.get("sunrise") or [None])[0],
             "sunset": (f_block.get("sunset") or [None])[0],
@@ -232,6 +239,7 @@ async def region_almanac(
             "low_f": at("temperature_2m_min", i),
             "dew_point_f": at("dew_point_2m_mean", i),
             "humidity_pct": at("relative_humidity_2m_mean", i),
+            "pressure_hpa": at("pressure_msl_mean", i),
             "precip_in": at("precipitation_sum", i),
             "precip_chance_pct": at("precipitation_probability_max", i),
             "sunshine_hours": almanac.hours(at("sunshine_duration", i)),
@@ -251,6 +259,9 @@ async def region_almanac(
         "measures": measures,
         "conditions": conditions,
         "upcoming": upcoming,
+        # The barometer now, its three-hour tendency, and the storm it implies
+        # over the next three days. Absent when the hourly feed did not answer.
+        "pressure": storm,
         "sun": {
             "daylight_change_min_per_day": daylight_trend,
             "note": (
@@ -271,6 +282,7 @@ async def region_almanac(
             {**sources.feed_of(actual), "role": "season actuals and normals"},
             {"name": "Open-Meteo forecast", "role": "14-day outlook, sun times",
              "resolution_m": sources.FORECAST_RESOLUTION_M},
+            *([pressure_window.SOURCE] if storm else []),
             {"name": "computed", "role": "moon phase, day-length trend", "resolution_m": 0},
         ],
     }

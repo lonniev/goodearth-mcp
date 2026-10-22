@@ -15,7 +15,7 @@ export const TARGETS = [
   // Where do you farm?
   "firstrun.here", "firstrun.draw",
   // The Dashboard.
-  "ledger.chips", "ledger.pulse", "ledger.ground", "ledger.events", "ledger.weather",
+  "ledger.chips", "ledger.storm", "ledger.pulse", "ledger.ground", "ledger.events", "ledger.weather",
   "ledger.chart", "ledger.trends", "ledger.doors",
   // My Plots.
   "plots.add", "plots.import", "plots.groups", "plots.chips", "plots.rename", "plots.share", "plots.forget",
@@ -39,7 +39,7 @@ export const TARGETS = [
   "todo.title", "todo.due", "todo.reminder", "todo.times", "todo.note", "todo.add", "todo.gear",
   "todo.frames", "todo.search", "todo.list",
   // Almanac.
-  "almanac.today", "almanac.radar", "almanac.fortnight", "almanac.chiclets",
+  "almanac.today", "almanac.storm", "almanac.radar", "almanac.fortnight", "almanac.chiclets",
   // Account.
   "account.summary", "account.topup", "account.tutorial", "account.season", "account.degrees", "account.bees", "account.forget",
 ] as const;

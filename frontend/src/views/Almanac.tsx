@@ -17,7 +17,10 @@ import { readingTime } from "../lib/readingTime";
 import { trendLift } from "../lib/trend";
 import { QuoteScroller } from "@tollbooth-dpyc/web/react";
 import { AGRARIAN_QUOTES, AGRARIAN_SOURCE, quoteStyles } from "../lib/quotes";
-import { type AlmanacResult, type MeasureKey } from "../lib/mcp";
+import { type AlmanacResult, type MeasureKey, type StormSignal } from "../lib/mcp";
+import Term from "../components/Term";
+import { stormLevel, stormWhen } from "../lib/storm";
+import { clock } from "../lib/dryingLine";
 import { loadAlmanac } from "../lib/pageLoads";
 import type { SavedRegion } from "../lib/regions";
 import { dropIndex, mergeOrder, moveItem } from "../lib/reorder";
@@ -40,6 +43,9 @@ const SERIES: { key: MeasureKey; label: string; emoji: string; color?: string }[
   // decides whether a leaf stays wet — and the same water reads 90% at dawn
   // and 50% by noon because the air warmed, not because anything dried.
   { key: "humidity",  label: "Humidity",    emoji: "💦", color: "var(--color-frost)" },
+  // The day's mean sea-level pressure. The storm signal reads the HOURLY
+  // series server-side — a daily mean smooths away the three-hour fall.
+  { key: "pressure",  label: "Pressure",    emoji: "⏲️" },
 ];
 
 const time = (iso: string | null) => (iso ? iso.slice(11, 16) : "—");
@@ -160,19 +166,33 @@ export default function Almanac({
         <div className="mb-4 rounded-md border border-clay/30 bg-clay/10 p-3 text-[13px] text-clay">{error}</div>
       )}
 
+      {/* ── The barometer's warning ────────────────────────────────────── */}
+      {data?.pressure && data.pressure.level !== "none" && (
+        <StormBanner storm={data.pressure} />
+      )}
+
       {/* ── Today ──────────────────────────────────────────────────────── */}
       {c && (
         <div className="mb-4 rounded-md border border-rule bg-panel px-4 py-3.5" {...tour("almanac.today")}>
-          {/* Eight readings, eight equal cells, one anatomy each. Today's sky
+          {/* Nine readings, nine equal cells, one anatomy each. Today's sky
               is a reading like the rest, so it takes the same cell rather than
               a wider one — the eye compares them across a single axis. */}
-          <div className="grid grid-cols-2 gap-y-4 sm:grid-cols-4 lg:grid-cols-8">
+          <div className="grid grid-cols-2 gap-y-4 sm:grid-cols-3 lg:grid-cols-9">
             <Stat emoji={c.sky.emoji} label={c.sky.label}
               value={`${c.high_f != null ? Math.round(u.temp(c.high_f)) : "—"}° / ${c.low_f != null ? Math.round(u.temp(c.low_f)) : "—"}°`} />
             <Stat emoji="💧" label="dew point" value={c.dew_point_f != null ? u.showTemp(c.dew_point_f) : "—"} />
             <Stat emoji={c.wind.emoji} label="wind"
               value={c.wind.speed_mph != null ? `${Math.round(c.wind.speed_mph)} mph` : "—"}
               sub={c.wind.from ? `${c.wind.arrow ?? ""} from ${c.wind.from}` : undefined} />
+            {/* The barometer: the hourly reading now, and which way it is
+                going. The arrow is the tendency, which is the half that
+                forecasts; the figure alone is a dull number. */}
+            <Stat emoji="⏲️" label="pressure"
+              value={data?.pressure ? u.showPressure(data.pressure.now_hpa)
+                : c.pressure_hpa != null ? u.showPressure(c.pressure_hpa) : "—"}
+              sub={data?.pressure?.tendency
+                ? `${ARROW[data.pressure.tendency.direction]} ${data.pressure.tendency.words}`
+                : undefined} />
             <Stat emoji="🌧️" label="chance of rain"
               value={c.precip_chance_pct != null ? `${Math.round(c.precip_chance_pct)}%` : "—"} />
             <Stat emoji="🌅" label="sun"
@@ -213,6 +233,8 @@ export default function Almanac({
           {(() => {
             const lift = trendLift(data.upcoming.map((d) =>
               d.high_f != null && d.low_f != null ? (d.high_f + d.low_f) / 2 : null), TREND_PX);
+            const baro = u.pressure;
+            const decimals = u.unit === "F" ? 2 : 0;
             return data.upcoming.map((u, i) => (
             <div key={u.date} style={{ transform: `translateY(${-lift[i]}px)` }}
               className="flex flex-col items-center gap-0.5 rounded-md border border-rule bg-panel px-1 py-2.5">
@@ -236,6 +258,14 @@ export default function Almanac({
               <span className="data text-[10.5px] text-ink-soft"
                 title="Average relative humidity">
                 {u.humidity_pct != null ? `💦${Math.round(u.humidity_pct)}%` : "\u00A0"}
+              </span>
+              {/* The day's mean pressure, with which way it moved from the day
+                  before. Always drawn, for the same reason as the rain row. */}
+              <span className="data text-[10.5px] text-ink-soft"
+                title="Average sea-level pressure, and its change from the day before">
+                {u.pressure_hpa != null
+                  ? `${dayArrow(u.pressure_hpa, data.upcoming[i - 1]?.pressure_hpa)}${baro(u.pressure_hpa).toFixed(decimals)}`
+                  : "\u00A0"}
               </span>
               <span className="data text-[10.5px] text-ink-soft">{u.wind.emoji}{u.wind.from ?? ""}</span>
             </div>
@@ -302,6 +332,49 @@ const TREND_PX = 10;
 
 /// Whether the radar map is open, kept on this device beside the chart order.
 const RADAR_KEY = "goodearth.almanac.radar";
+
+const ARROW: Record<"rising" | "falling" | "steady", string> = {
+  rising: "↗", falling: "↘", steady: "→",
+};
+
+/// A day-to-day move worth an arrow. A daily MEAN moves a hectopascal or two
+/// on an ordinary day; under that it is drawn level so the strip does not
+/// flicker.
+function dayArrow(today: number, before: number | null | undefined): string {
+  if (before == null) return "";
+  const d = today - before;
+  return Math.abs(d) < 2 ? "→" : d > 0 ? "↗" : "↘";
+}
+
+/// The barometer's warning, when it has one. Said as a reading — how far, how
+/// fast, by when — and never as advice: what to do before a storm is the
+/// grower's call.
+function StormBanner({ storm }: { storm: StormSignal }) {
+  const u = useUnits();
+  const severe = storm.level === "severe";
+  const w = storm.worst;
+  const ahead = stormWhen(storm);
+  const when = !w ? "" : ahead === "now" ? "now" : `by ${ahead} ${clock(w.at)}`;
+  return (
+    <div className={`mb-4 rounded-md border border-rule border-l-4 bg-panel px-4 py-3 ${
+      severe ? "border-l-clay" : "border-l-honey"}`} {...tour("almanac.storm")}>
+      <span className="eyebrow flex items-center gap-1.5">
+        🌀 {stormLevel(storm)}
+        <Term of="pressure_tendency" />
+      </span>
+      {w && (
+        <p className="mt-1 text-[13px]">
+          Pressure falls {u.showPressure(w.fall_3h_hpa, u.unit === "F" ? 2 : 1)} in three hours {when}
+          {w.change_24h_hpa != null && w.change_24h_hpa < 0
+            && `, ${u.showPressure(-w.change_24h_hpa, u.unit === "F" ? 2 : 1)} over the day`}.
+        </p>
+      )}
+      <p className="data mt-1 text-[10.5px] text-ink-soft">
+        From the forecast&rsquo;s hourly pressure, {storm.horizon_h} hours ahead.
+      </p>
+    </div>
+  );
+}
 
 function Stat({ emoji, label, value, sub }: {
   emoji: string; label: string; value: string; sub?: string;

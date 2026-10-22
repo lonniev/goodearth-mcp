@@ -47,3 +47,11 @@ def test_only_the_duration_fields_are_read_as_seconds():
     and report 0.02 % humidity."""
     assert SECONDS_FIELDS <= requested()
     assert MEASURES["humidity"]["field"] not in SECONDS_FIELDS
+
+
+def test_pressure_is_offered_asked_for_and_not_accumulated():
+    """A running total of hPa is not a quantity of anything."""
+    assert MEASURES["pressure"]["field"] == "pressure_msl_mean"
+    assert MEASURES["pressure"]["unit"] == "hPa"
+    assert MEASURES["pressure"]["accumulate"] is False
+    assert "pressure_msl_mean" in requested()

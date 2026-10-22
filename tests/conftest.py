@@ -61,3 +61,20 @@ def _no_network(monkeypatch):
     monkeypatch.setattr(socket.socket, "connect", refuse)
     monkeypatch.setattr(socket, "create_connection", refuse_create)
     yield
+
+
+@pytest.fixture(autouse=True)
+def _no_barometer(monkeypatch):
+    """Every weather tool reads the barometer beside its own call.
+
+    A test about frost or drying stubs the feed it is about and should not have
+    to know the barometer exists, so by default the barometer does not answer —
+    which each tool already treats as a smaller answer, never a failed one. A
+    test about pressure sets its own `fetch_pressure_hourly`.
+    """
+    from goodearth_mcp import sources
+
+    async def silent(*_a, **_k):
+        raise sources.UpstreamError("no barometer in tests")
+
+    monkeypatch.setattr(sources, "fetch_pressure_hourly", silent)

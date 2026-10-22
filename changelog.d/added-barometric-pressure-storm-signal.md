@@ -1,0 +1,4 @@
+- Barometric pressure on the Almanac: a season chart with its normal band, today's reading with its three-hour tendency in the Met Office's words (steady, falling slowly, falling quickly…), and a pressure row on each fortnight card. Shown in inHg beside °F, hPa beside °C.
+- A storm signal from the barometer: unsettled, storm likely or severe, read from how fast hourly pressure falls over the next three days (3-hour falls of 1.6 / 3.6 / 6 hPa, plus a latitude-scaled "bomb" test). The Almanac shows a 🌀 banner, and the Dashboard shows a 🌀 chip that costs no extra read.
+- The drying line marks 🌀 on the first dry day a front crosses, and a disease model's projected period gets 🌀 when a front is due across it. The disease models themselves are unchanged.
+- `goodearth_almanac`, `goodearth_drying_window` and `goodearth_disease_risk` return a `storm` block (the almanac's is named `pressure`).

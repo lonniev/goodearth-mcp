@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { degreeDays, showDD, showTemp, temp, toF, type Unit } from "./units.ts";
+import { degreeDays, pressure, showDD, showPressure, showTemp, temp, toF, type Unit } from "./units.ts";
 
 test("Fahrenheit is the wire, so it passes through untouched", () => {
   assert.equal(temp(50, "F"), 50);
@@ -42,4 +42,10 @@ test("the suffix says which scale, and never wraps away from its number", () => 
   assert.equal(showTemp(50, "C"), "10 °C");
   assert.equal(showDD(1850, "F"), "1,850 GDD");
   assert.ok(showDD(1850, "C").endsWith("GDD°C"));
+});
+
+test("pressure reads inHg beside °F and hPa beside °C", () => {
+  assert.equal(showPressure(1013.25, "F"), "29.92 inHg");
+  assert.equal(showPressure(1013.25, "C"), "1013 hPa");
+  assert.equal(pressure(1013.25, "C"), 1013.25);
 });

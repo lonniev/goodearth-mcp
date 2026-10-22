@@ -56,6 +56,26 @@ export function showTemp(f: number, unit: Unit, digits = 0): string {
   return `${temp(f, unit).toFixed(digits)}${tempUnit(unit)}`;
 }
 
+/// Sea-level pressure. The wire is hPa — Open-Meteo reports it so whatever the
+/// temperature unit — and a reader who takes °F reads a barometer in inches of
+/// mercury, so the °F setting shows inHg and the °C setting keeps hPa.
+export const HPA_PER_INHG = 33.8639;
+
+export function pressure(hpa: number, unit: Unit): number {
+  return unit === "C" ? hpa : hpa / HPA_PER_INHG;
+}
+
+export function pressureUnit(unit: Unit): string {
+  return unit === "C" ? " hPa" : " inHg";
+}
+
+/// A pressure or a CHANGE in it, with its suffix: whole hPa or hundredths of
+/// an inch, the precision each kind of barometer is read to.
+export function showPressure(hpa: number, unit: Unit, digits?: number): string {
+  const d = digits ?? (unit === "C" ? 0 : 2);
+  return `${pressure(hpa, unit).toFixed(d)}${pressureUnit(unit)}`;
+}
+
 /// A rounded accumulation with its suffix, thousands separated.
 export function showDD(gddF: number, unit: Unit, digits = 0): string {
   const v = degreeDays(gddF, unit);

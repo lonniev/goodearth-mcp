@@ -57,7 +57,14 @@ function rainPart(r: DryingWindowResult): string {
   return r.next_rain ? `rain ${whenDay(r.next_rain.at.slice(0, 10), r)}` : "no rain in the forecast";
 }
 
+/// The first day ahead a falling barometer crosses — the dry day likeliest to
+/// be cut short. Nothing when the barometer did not answer or sees no fall.
+function frontPart(r: DryingWindowResult): string | null {
+  const day = r.days.find((d) => d.front_due && d.date >= r.today.date);
+  return day ? `🌀 front ${whenDay(day.date, r)}` : null;
+}
+
 export function dryingLine(r: DryingWindowResult): string {
-  const line = [dewPart(r), runPart(r), rainPart(r)].filter(Boolean).join(" · ");
+  const line = [dewPart(r), runPart(r), rainPart(r), frontPart(r)].filter(Boolean).join(" · ");
   return line.charAt(0).toUpperCase() + line.slice(1);
 }

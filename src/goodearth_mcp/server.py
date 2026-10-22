@@ -1060,8 +1060,8 @@ async def almanac(
     """The sky's own record for this ground — normal, actual, and what is coming.
 
     Degree days say what the season is doing to the plants. This says what the
-    season is doing: temperature, dew point, rain, wind, sunshine and day
-    length, each against what is normal here, what has actually happened, and
+    season is doing: temperature, dew point, rain, wind, sunshine, day length
+    and sea-level pressure, each against what is normal here, what has actually happened, and
     the fortnight ahead. Plus the sun and moon, which are astronomy and so are
     computed exactly rather than forecast.
 
@@ -1069,7 +1069,12 @@ async def almanac(
     disease weather whatever the degree-day total says, and a dry August is an
     irrigation decision that heat accumulation cannot make for you.
 
-    One call covers every measure — three upstream requests regardless.
+    `pressure` is the barometer: the hourly reading now, its three-hour
+    tendency in the Met Office's words (steady, falling slowly, falling
+    quickly…), and a storm level — none, unsettled, storm likely or severe —
+    read from how fast it falls over the next three days.
+
+    One call covers every measure — four upstream requests regardless.
 
     Args:
         block: The ground to answer for — its id, its name, or an alias.
@@ -2601,6 +2606,10 @@ async def disease_risk(
     infection period each model found, which of its criteria were met and which
     were not, and the wet stretch the forecast implies next.
 
+    `storm` carries the barometer's storm signal (as in `almanac`). A
+    projected period the falling barometer's window crosses is marked
+    `front_due`; the models themselves have no pressure term and are unchanged.
+
     Degree days are the wrong clock for a fungus. What decides an infection is
     how long the leaf stayed wet and how warm it was while it did, which is why
     a dry August that accumulated heat all month grows no botrytis. A season
@@ -2653,7 +2662,11 @@ async def drying_window(
     the first run of forecast days with no rain, the next hour of rain, and per
     day the rain, wet hours, reference evapotranspiration (FAO-56 ET0) and peak
     vapour-pressure deficit — how hard the air is pulling water out of anything
-    wet. Ten days ahead, from one forecast call.
+    wet. Ten days ahead.
+
+    `storm` carries the barometer's storm signal (as in `almanac`), and a day
+    the falling barometer's window crosses is marked `front_due`: the dry day
+    likeliest to be cut short.
 
     Not wet is not drying: a still, overcast, humid day wets nothing and dries
     little, which is why ET0 travels with every day. Wetness is ESTIMATED from

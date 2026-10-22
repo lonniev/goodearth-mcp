@@ -303,3 +303,34 @@ async def test_a_period_from_the_forecast_says_that_it_is_one(ground):
     )
     assert events and events[0]["forecast"] is True
     assert "from the forecast" in events[0]["detail"]
+
+
+# ── The barometer ────────────────────────────────────────────────────────
+
+
+async def test_a_front_marks_projected_periods_and_leaves_the_models_alone(ground, monkeypatch):
+    """A storm window over the forecast marks the periods it crosses — and only
+    projected ones, because a period in the record already happened."""
+    ground["forecast"] = hourly([(f"2026-09-{d}", 20, 64.0) for d in (12, 13, 14, 15)])
+    before = await disease_window.region_disease_window(REGION, None, today=TODAY)
+
+    async def storm(region, now=None):
+        return {"level": "storm likely",
+                "window": {"from": "2026-09-12T00:00", "to": "2026-09-15T23:00"}}
+
+    monkeypatch.setattr(disease_window.pressure_window, "region_storm", storm)
+    after = await disease_window.region_disease_window(REGION, None, today=TODAY)
+
+    assert after["storm"]["level"] == "storm likely"
+    cut = after["wetness"]["forecast_from"]
+    marked = [p for d in after["diseases"] for p in (d.get("periods") or [])
+              if p.get("front_due")]
+    assert marked, "no projected period was marked under the front"
+    assert all(str(p.get("from") or p.get("start")) >= cut for p in marked)
+    # The verdicts are the models', and the barometer changes none of them.
+    assert [d["at_risk"] for d in after["diseases"]] == [d["at_risk"] for d in before["diseases"]]
+
+
+async def test_a_silent_barometer_leaves_the_answer_whole(ground):
+    out = await disease_window.region_disease_window(REGION, None, today=TODAY)
+    assert out["success"] is True and out["storm"] is None

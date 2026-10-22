@@ -33,7 +33,7 @@ import asyncio
 import logging
 import random
 import time
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -95,7 +95,7 @@ _DAILY_ALMANAC_FORECAST = (
     "temperature_2m_max,temperature_2m_min,dew_point_2m_mean,precipitation_sum,"
     "rain_sum,snowfall_sum,sunrise,sunset,daylight_duration,sunshine_duration,"
     "wind_speed_10m_max,wind_direction_10m_dominant,weather_code,"
-    "precipitation_probability_max,relative_humidity_2m_mean"
+    "precipitation_probability_max,relative_humidity_2m_mean,pressure_msl_mean"
 )
 _DAILY_ALMANAC_HISTORY = _DAILY_ALMANAC_FORECAST
 
@@ -623,6 +623,48 @@ async def fetch_wetness_forecast(
     if not results:
         raise UpstreamError("wetness forecast returned no locations")
     return _stamp(results[0], "Open-Meteo forecast", FORECAST_RESOLUTION_M)
+
+
+#: How far back and ahead the barometer is read. Two days back so a 24-hour
+#: change exists for every hour from now on; three ahead because a forecast's
+#: pressure tendency loses its skill beyond that.
+PRESSURE_PAST_DAYS = 2
+PRESSURE_FORECAST_DAYS = 4
+
+
+async def fetch_pressure_hourly(lat: float, lon: float) -> dict[str, Any]:
+    """Hourly sea-level pressure (hPa) around now, for the storm signal.
+
+    Its own small request rather than a field on the wetness forecast, so the
+    wetness record's cache fingerprint is untouched and every tool that reads
+    the barometer reads the same hours.
+    """
+    payload = await _get(
+        _FORECAST,
+        {
+            "latitude": lat,
+            "longitude": lon,
+            "hourly": "pressure_msl",
+            "past_days": PRESSURE_PAST_DAYS,
+            "forecast_days": PRESSURE_FORECAST_DAYS,
+            "timezone": "auto",
+        },
+    )
+    results = _as_list(payload)
+    if not results:
+        raise UpstreamError("pressure forecast returned no locations")
+    return _stamp(results[0], "Open-Meteo forecast", FORECAST_RESOLUTION_M)
+
+
+def local_now(record: dict[str, Any], now: datetime) -> str:
+    """This hour on the block's own clock, in the feed's timestamp form.
+
+    The feed answers in local time (`timezone=auto`); the server runs in UTC.
+    Comparing a UTC "now" with local hours puts the next rain five hours off.
+    """
+    offset = record.get("utc_offset_seconds")
+    shift = timedelta(seconds=offset if isinstance(offset, (int, float)) else 0)
+    return (now.astimezone(UTC) + shift).strftime("%Y-%m-%dT%H:00")
 
 
 def hourly_block(record: dict[str, Any]) -> dict[str, Any]:

@@ -21,7 +21,7 @@ import asyncio
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
-from goodearth_mcp import disease, gdd, record_cache, sources, wetness
+from goodearth_mcp import disease, gdd, pressure, pressure_window, record_cache, sources, wetness
 from goodearth_mcp.region import Region
 
 #: How far ahead the hourly forecast is asked for. The model runs out at 16.
@@ -95,10 +95,12 @@ async def region_disease_window(
         tasks.append(sources.fetch_wetness_forecast(
             region.centroid.lat, region.centroid.lon, FORECAST_DAYS,
         ))
+        tasks.append(pressure_window.region_storm(region))
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
     history = results[0]
     forecast = results[1] if len(results) > 1 else None
+    storm = pressure_window.settle(results[2]) if len(results) > 2 else None
 
     if isinstance(history, BaseException):
         raise DiseaseWindowError(
@@ -139,6 +141,22 @@ async def region_disease_window(
             **disease.assess(m, combined, forecast_from=cut, today=today.isoformat()),
         })
 
+    # The models are not changed by the barometer — none of them has a
+    # pressure term, and inventing one would be pathology nobody published. What
+    # is said is a fact about the weather: a PROJECTED period that a falling
+    # barometer's window crosses is the one whose wet hours are likeliest to
+    # come, and perhaps sooner or heavier than the forecast has them.
+    window = storm["window"] if storm else None
+    if window and cut:
+        for a in assessments:
+            for per in [a.get("next_period"), *(a.get("periods") or [])]:
+                if not isinstance(per, dict):
+                    continue
+                began = str(per.get("from") or per.get("start") or "")
+                if began >= cut:
+                    per["front_due"] = pressure.overlaps(
+                        window, began, str(per.get("to") or per.get("end") or "") or None)
+
     at_risk = [a for a in assessments if a.get("at_risk")]
 
     return {
@@ -173,10 +191,12 @@ async def region_disease_window(
             f"{len(assessments)} model{'s' if len(assessments) != 1 else ''}."
         ),
         "note": disease.NOTE,
+        "storm": storm,
         "sources": [
             {**sources.feed_of([history]), "role": "hourly humidity, temperature and rain"},
             *([{"name": "Open-Meteo forecast", "role": "the hours ahead",
                 "resolution_m": sources.FORECAST_RESOLUTION_M}] if ahead_hours else []),
+            *([pressure_window.SOURCE] if storm else []),
             {"name": "computed", "role": "leaf wetness estimated from humidity — never measured",
              "resolution_m": 0},
         ],
