@@ -16,6 +16,7 @@ import DiseaseCard from "../components/DiseaseCard";
 import { bands } from "../lib/diseaseBands";
 import { dryingLine } from "../lib/dryingLine";
 import PulseTile, { type Gauge } from "../components/PulseTile";
+import DryingStrip from "../components/DryingStrip";
 import { stormWords } from "../lib/storm";
 import Term from "../components/Term";
 import Provenance from "../components/Provenance";
@@ -403,17 +404,21 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
         </>
       )}
 
-      {/* Drying, as one line and never as chart bands: wet and dry washes on
+      {/* Drying: the line as the caption, the days as a strip of cards. Its
+          own panel, never bands on the season chart — wet and dry washes on
           one chart would be two stories at once. */}
-      {dryLine && (
+      {dryLine && drying && (
         <>
           <TrendLabel emoji="🌾" label="Drying">
             <Provenance tool="goodearth_drying_window" at={dryingAt} onCost={onCost} from={readingTime(drying)} />
           </TrendLabel>
-          <p className="mb-3 flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-md border border-rule bg-panel px-4 py-2.5 text-[13.5px]">
-            <span>{dryLine}</span>
-            <Term of="drying" />
-          </p>
+          <div className="mb-3 rounded-md border border-rule bg-panel px-3 pt-2.5 pb-3">
+            <p className="mb-2.5 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[12.5px] text-ink-soft">
+              <span>{dryLine}</span>
+              <Term of="drying" />
+            </p>
+            <DryingStrip data={drying} />
+          </div>
         </>
       )}
 
