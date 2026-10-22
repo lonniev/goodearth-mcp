@@ -93,7 +93,7 @@ export default function Pests({
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<PestFilter>(NO_PEST_FILTER);
   /// A filter has to see the whole block, not a page of it — the same reason
-  /// the Plant ledger widens while one is on.
+  /// the Plants ledger widens while one is on.
   const narrowed = pestFilterOn(filter);
   const [editing, setEditing] = useState("");
   const [draft, setDraft] = useState<SavedPest | null>(null);
@@ -356,14 +356,14 @@ export default function Pests({
         {formErr && <p className="mt-2 text-[12px] text-clay">{formErr}</p>}
       </form>
 
-      {/* One row where there were three, and the same row the Plant ledger
+      {/* One row where there were three, and the same row the Plants ledger
           has: the heading carries its own reading time, the filter and the
           search sit together on the right, and the summary sentence is gone.
           "Nothing crossed or due in the next 10 days" is a fact about the
           list the list already shows. */}
       <div className="mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <Section emoji="👀" first tour="pests.list"
-          title={`What you're watching${ranAt
+        <Section emoji="🐛" first tour="pests.list"
+          title={`Pests ledger${ranAt
             ? ` (at ${clockTime(ranAt, zone)})`
             : ""}`}>
           {models.length > 0 && (

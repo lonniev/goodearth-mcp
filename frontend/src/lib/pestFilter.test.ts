@@ -104,7 +104,7 @@ describe("the page it sits on", () => {
   });
 
   it("puts the reading time in the heading, once", () => {
-    assert.match(view(), /What you're watching\$\{ranAt/);
+    assert.match(view(), /Pests ledger\$\{ranAt/);
     assert.match(view(), /<Provenance tool="goodearth_pest_threshold"[\s\S]{0,120}hideTime/);
   });
 

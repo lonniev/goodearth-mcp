@@ -90,7 +90,7 @@ describe("the three pages now read alike", () => {
   const view = (n: string) => readFileSync(new URL(`../views/${n}.tsx`, import.meta.url), "utf8");
 
   it("each heading carries its own reading time, once", () => {
-    for (const [n, h] of [["Crops", "Plant ledger"], ["Pests", "What you're watching"],
+    for (const [n, h] of [["Crops", "Plants ledger"], ["Pests", "Pests ledger"],
                           ["Wildlife", "The year"]] as const) {
       assert.match(view(n), new RegExp(`${h.replace(/[^\w\s]/g, ".")}\\$\\{ranAt`), n);
       assert.match(view(n), /hideTime/, n);
@@ -128,8 +128,8 @@ describe("the three pages are laid out alike", () => {
       assert.ok(f > -1 && t > -1, "both markers present");
       return f < t;
     };
-    assert.ok(where(view("Crops"), /<form key=\{formKey\} id="new-planting"/, /title=\{`Plant ledger/));
-    assert.ok(where(view("Pests"), /<form id="new-pest"/, /What you're watching\$\{ranAt/));
+    assert.ok(where(view("Crops"), /<form key=\{formKey\} id="new-planting"/, /title=\{`Plants ledger/));
+    assert.ok(where(view("Pests"), /<form id="new-pest"/, /Pests ledger\$\{ranAt/));
     assert.ok(where(view("Wildlife"), /<EventComposer/, /title=\{`The year/));
   });
 

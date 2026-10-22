@@ -1,6 +1,6 @@
 // Narrowing the watch list to the rows a question is about.
 //
-// The same shape as the Plant ledger's filter, deliberately: a grower moving
+// The same shape as the Plants ledger's filter, deliberately: a grower moving
 // between the two pages should not have to learn a second control. What
 // differs is the questions, because a pest is read on different terms than a
 // planting — what is due soon, what has already been through a stage this

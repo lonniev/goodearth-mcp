@@ -50,7 +50,7 @@ import { draftFromLot, lotLine, lotsFor, seedCodec, type SeedLot } from "../lib/
 import { useSubmit } from "../lib/useSubmit";
 import { withId } from "../lib/submit";
 import type { SavedRegion } from "../lib/regions";
-import { Empty, ErrorBox, FIELD, Glyph, ICON, IconButton, Pill,
+import { Empty, ErrorBox, Field, FIELD, Glyph, ICON, IconButton, PageTitle, Pill,
   Section, TABLE_FILTER } from "../components/ui";
 import { useTour } from "@tollbooth-dpyc/web/react";
 import { tour } from "../lib/tour/targets";
@@ -709,21 +709,26 @@ export default function Crops({
 
   return (
     <>
+      <PageTitle>Flora</PageTitle>
+
       {error && (
         <ErrorBox>{error}</ErrorBox>
       )}
 
       {/* ── Add a planting ─────────────────────────────────────────────── */}
       <form key={formKey} id="new-planting" onSubmit={add} className="mb-4 rounded-md border border-rule bg-panel p-4">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {/* A div, never a label element. The picker's suggestions are buttons,
-              and a tap inside a label can be handed to the label's input
-              instead — on the iPad the grower tapped "sugar maple", the
-              caret went back into the box, and nothing was chosen. */}
+        {/* The Pests form's shape: every caption on one line, every box one
+            height, each as wide as what goes in it, and the act at the end of
+            the flow. It was a four-column grid whose boxes stretched to fill
+            their cells, so the page read as a different app from Pests. */}
+        <div className="flex flex-wrap items-start gap-x-3 gap-y-2.5">
           {/* "Species", as on Fauna. It said "Plant" until the box learned to
-              find fungi, and a shiitake under that word reads as a mistake. */}
-          <div className="block text-[11px] text-ink-soft sm:col-span-2" {...tour("crops.species")}>
-            Species
+              find fungi, and a shiitake under that word reads as a mistake.
+              No htmlFor: the picker's suggestions are buttons, and a tap
+              inside a label can be handed to the label's input instead — on
+              the iPad the grower tapped "sugar maple", the caret went back
+              into the box, and nothing was chosen. */}
+          <Field label="Species" width="min-w-[15rem] flex-1" tour="crops.species">
             <SpeciesPicker
               kingdom={FLORA}
               value={picked && {
@@ -735,60 +740,57 @@ export default function Crops({
               onPick={(h) => { setPicked(h); setSeed(""); }}
               onClear={() => setPicked(null)}
               placeholder="sugar maple, zinnia, shiitake…" />
-          </div>
-          <label className="block text-[11px] text-ink-soft">
-            Your name for it <span className="opacity-60">(optional)</span>
-            <input name="label" placeholder="succession 4, north lot" {...tour("crops.label")} className={FIELD}
+          </Field>
+          <Field label="Your name for it" htmlFor="pl-label" width="min-w-[12rem] flex-1" tour="crops.label">
+            <input id="pl-label" name="label" placeholder="succession 4, north lot" className={FIELD}
               defaultValue={repeating?.label ?? ""} />
-          </label>
-          <label className="block text-[11px] text-ink-soft">
-            <Term label="GDD target" of="gdd_target">
-              Leave it blank for a tree, or for anything you are not pacing.
-            </Term>{" "}
-            <span className="opacity-60">(optional)</span>
-            <input name="target" inputMode="numeric" placeholder="780" {...tour("crops.target")} className={FIELD}
+          </Field>
+          <Field label="GDD target" htmlFor="pl-target" width="w-[7rem]" tour="crops.target"
+            hint={
+              <Term of="gdd_target">
+                Leave it blank for a tree, or for anything you are not pacing.
+              </Term>
+            }>
+            <input id="pl-target" name="target" inputMode="numeric" placeholder="780" className={FIELD}
               defaultValue={repeating?.gddTargetF != null
                 ? String(Math.round(u.degreeDays(repeating.gddTargetF))) : ""} />
-          </label>
-          <label className="block text-[11px] text-ink-soft">
-            Planted <span className="opacity-60">(set out or sown)</span>
-            <input name="setout" type="date" {...tour("crops.setout")} className={FIELD} />
-          </label>
-          {/* The explanation used to be a sixty-word paragraph under the
-              form. It is a definition, not a control, so it moved behind the
-              word it defines — the page shows the field and says what it is
-              only when asked. */}
-          <label className="block text-[11px] text-ink-soft">
-            <Term label={`Base${u.tempUnit}`} of="base_temp">
-              Blank takes {region.name}&rsquo;s {u.showTemp(region.baseTempF)}.
-            </Term>{" "}
-            <span className="opacity-60">(optional)</span>
-            {/* A number field bounded to what the service accepts, in the
-                reader's scale. `submit` checks it again: a number field still
-                lets a thumb type 780 into it. */}
-            <input name="base" type="number" {...tour("crops.base")} inputMode="decimal" step="1"
+          </Field>
+          <Field label="Planted" htmlFor="pl-setout" width="w-[10rem]" tour="crops.setout">
+            <input id="pl-setout" name="setout" type="date" className={FIELD} />
+          </Field>
+          {/* A number field bounded to what the service accepts, in the
+              reader's scale. `submit` checks it again: a number field still
+              lets a thumb type 780 into it. */}
+          <Field label={`Base${u.tempUnit}`} htmlFor="pl-base" width="w-[7rem]" tour="crops.base"
+            hint={
+              <Term of="base_temp">
+                Blank takes {region.name}&rsquo;s {u.showTemp(region.baseTempF)}.
+              </Term>
+            }>
+            <input id="pl-base" name="base" type="number" inputMode="decimal" step="1"
               defaultValue={repeating?.baseTempF != null
                 ? String(Math.round(u.temp(repeating.baseTempF))) : ""}
               min={baseBounds(u).min} max={baseBounds(u).max}
               placeholder={String(Math.round(u.temp(region.baseTempF)))}
               className={FIELD} />
-          </label>
+          </Field>
           {/* How it looks — for Design companions. All three are the grower's
               own facts and all three are optional; a planting without them is
               simply not paired by colour. A native select, so a phone shows its
               own picker; the caption is a label FOR it, never around it. */}
-          <div className="grid grid-cols-[auto_1fr_auto] items-end gap-x-3 gap-y-1 text-[11px] text-ink-soft sm:col-span-2">
-            <label htmlFor="pl-color" className="col-start-1">Flower <span className="opacity-60">(optional)</span></label>
-            <label htmlFor="pl-height" className="col-start-2">Height, in</label>
-            <label htmlFor="pl-bloom-from" className="col-start-3">Blooms</label>
-            <select id="pl-color" name="color" {...tour("crops.flower")} defaultValue="" className={`${FIELD} col-start-1 w-auto pr-8`}>
+          <Field label="Flower" htmlFor="pl-color" width="w-auto" tour="crops.flower">
+            <select id="pl-color" name="color" defaultValue="" className={`${FIELD} w-auto pr-8`}>
               <option value="">—</option>
               {HUES.map((h) => <option key={h} value={h}>{HUE_GLYPH[h]} {h}</option>)}
             </select>
-            <input id="pl-height" name="height" type="number" {...tour("crops.height")} inputMode="decimal" step="1" min={1} max={600}
-              placeholder="30" className={`${FIELD} col-start-2`} />
-            <span className="col-start-3 flex items-center gap-1">
-              <select id="pl-bloom-from" name="bloom_from" defaultValue="" aria-label="Blooms from" {...tour("crops.blooms")} className={`${FIELD} w-auto pr-7`}>
+          </Field>
+          <Field label="Height, in" htmlFor="pl-height" width="w-[6rem]" tour="crops.height">
+            <input id="pl-height" name="height" type="number" inputMode="decimal" step="1" min={1} max={600}
+              placeholder="30" className={FIELD} />
+          </Field>
+          <Field label="Blooms" htmlFor="pl-bloom-from" width="w-auto" tour="crops.blooms">
+            <span className="flex items-center gap-1">
+              <select id="pl-bloom-from" name="bloom_from" defaultValue="" aria-label="Blooms from" className={`${FIELD} w-auto pr-7`}>
                 <option value="">—</option>
                 {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
               </select>
@@ -797,8 +799,8 @@ export default function Crops({
                 {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
               </select>
             </span>
-          </div>
-          <div className="flex flex-wrap items-end gap-4 text-[12px] sm:col-span-2">
+          </Field>
+          <span className="flex flex-wrap items-center gap-x-4 pt-3.5 text-[12px]">
             <label className="flex min-h-11 items-center gap-2">
               <input type="checkbox" name="hardy" className="size-4" {...tour("crops.hardy")}
                 defaultChecked={!!repeating?.frostHardy} />
@@ -809,15 +811,11 @@ export default function Crops({
                 defaultChecked={!!repeating?.taps} />
               Sap Producer
             </label>
-            {/* The act, AFTER the fields it acts on — a tester read the page
-              * top to bottom and reached the button before the boxes — but at
-              * the end of the last row rather than on a row of its own, so the
-              * ledger below gets that height back. */}
-            <div className="ml-auto">
-              <IconButton path={ICON.add} label="Planting" form="new-planting" tour="crops.add"
-                title="Add a planting" disabled={submit.busy} />
-            </div>
-          </div>
+          </span>
+          <span className="ml-auto pt-3.5">
+            <IconButton path={ICON.seed} label="Planting" hideLabel form="new-planting" tour="crops.add"
+              title="Add a planting" disabled={submit.busy} />
+          </span>
         </div>
         {formErr && <p className="mt-2 text-[12px] text-clay">{formErr}</p>}
         {added && !formErr && <p className="mt-2 text-[12px] text-growth">{added}</p>}
@@ -828,8 +826,8 @@ export default function Crops({
           is gone — the Dashboard carries frost, and the questions that
           sentence was answering are the filter's now. */}
       <div className="mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <Section emoji="📒" first tour="crops.ledgerhead"
-          title={`Plant ledger${ranAt
+        <Section emoji="🌱" first tour="crops.ledgerhead"
+          title={`Plants ledger${ranAt
             ? ` (at ${clockTime(ranAt, zone)})`
             : ""}`}>
           {plantings.length > 0 && (
