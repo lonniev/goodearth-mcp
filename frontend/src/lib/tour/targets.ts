@@ -30,7 +30,7 @@ export const TARGETS = [
   "pests.species", "pests.base", "pests.biofix", "pests.stages", "pests.add",
   "pests.active", "pests.filter", "pests.list", "pests.catalog", "pests.community",
   // Fauna.
-  "wildlife.species", "wildlife.role", "wildlife.clock", "wildlife.label", "wildlife.figures",
+  "wildlife.species", "wildlife.open", "wildlife.role", "wildlife.clock", "wildlife.label", "wildlife.figures",
   "wildlife.record", "wildlife.due", "wildlife.list", "wildlife.community",
   // Field Reports.
   "reports.tags", "reports.custom", "reports.on", "reports.crop", "reports.setout", "reports.target",

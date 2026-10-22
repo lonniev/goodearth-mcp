@@ -170,7 +170,9 @@ export const TOURS: Record<Tour["page"], Tour> = {
   wildlife: { page: "wildlife", steps: [
     { target: "wildlife.species", title: "Species", guide: ["Track something", "The creature"],
       says: "Type a creature's name: your own record, what is seen nearby, or add it as yours." },
-    { target: "wildlife.role", title: "Friend, foe or watch", guide: ["Track something", "The creature"],
+    { target: "wildlife.open", title: "Track it", guide: ["Track something", "Track it"],
+      says: "Opens the panel for the clock, its figures and the dates they fall on." },
+    { target: "wildlife.role", title: "Friend, foe or watch", before: "open-track", guide: ["Track something", "The creature"],
       says: "How you hold it: a friend to help, a foe to guard against, or something to watch." },
     { target: "wildlife.clock", title: "The clock", guide: ["Track something", "The clock"],
       says: "What times the event: days from a day you saw, your record, daylight, heat, or conditions." },

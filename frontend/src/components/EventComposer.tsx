@@ -31,7 +31,7 @@ import Provenance from "./Provenance";
 import { useSubmit } from "../lib/useSubmit";
 import { useUnits } from "./Units";
 import {
-  ErrorBox, FIELD, ICON, IconButton, LifecycleMark, MonthDay, Note, Pill,
+  ErrorBox, Field, FIELD, ICON, IconButton, LifecycleMark, MonthDay, Note, Pill,
   SpeciesMark, Stepper, TrashGlyph,
 } from "./ui";
 import { tour } from "../lib/tour/targets";
@@ -62,7 +62,7 @@ const day = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
 export default function EventComposer({
-  region, recorded, photos, onSave, onCost, seed, onSeedTaken,
+  region, recorded, photos, onSave, onCost, seed, onSeedTaken, composing, onComposing,
 }: {
   region: SavedRegion;
   recorded: SavedWildlife[];
@@ -78,6 +78,10 @@ export default function EventComposer({
   /// filled in, so the grower's only remaining decision is the day.
   seed?: (CycleDraft & { supersedes?: string[] }) | null;
   onSeedTaken?: () => void;
+  /// Whether the panel with the clock and its figures is open. The page holds
+  /// it, so the guided tour can open it before pointing inside.
+  composing: boolean;
+  onComposing: (open: boolean) => void;
 }) {
   const u = useUnits();
   const [error, setError] = useState("");
@@ -191,8 +195,19 @@ export default function EventComposer({
     setStartOn(seed.startOn);
     setSteps(seed.steps);
     setSupersedes(seed.supersedes ?? []);
+    onComposing(true);
     onSeedTaken?.();
-  }, [seed, onSeedTaken]);
+  }, [seed, onSeedTaken, onComposing]);
+
+  // Escape closes, and focus moves in — a modal a keyboard cannot leave is a trap.
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!composing) return;
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") onComposing(false); };
+    document.addEventListener("keydown", key);
+    box.current?.focus();
+    return () => document.removeEventListener("keydown", key);
+  }, [composing, onComposing]);
 
   /// The count this grower used last for this animal. Not a fact about hens —
   /// a fact about THEIR hens, which is the only kind kept here.
@@ -324,347 +339,378 @@ export default function EventComposer({
     <>
       {error && <ErrorBox>{error}</ErrorBox>}
 
-      {/* No heading over it. Plants and Pests open with the bordered card
-          itself, and the first field says "Species" — a heading saying
-          "Track something" above a box asking for one is the page reading
-          itself aloud. */}
+      {/* The Pests card's shape: one row, every caption on one line, and the
+          act at the end. The species and what it does are all a glance needs;
+          the clock, its figures and the dates they fall on open in a panel
+          over the page, because they were a screen of their own stacked
+          above the year. */}
       <div id="track-something" className="mb-4 rounded-md border border-rule bg-panel p-4">
-        {/* ── What is being tracked ──────────────────────────────────── */}
-        {/* What is SEARCHED for here is animals. Fungi are named on Flora;
-            a row already on this record shows whatever it is. */}
-        <label className="block text-[11px] text-ink-soft" {...tour("wildlife.species")}>
-          Species
-          <input
-            value={animal ? animal.name : q}
-            onFocus={() => { setOpen(true); void askCatalog(); }}
-            onChange={(e) => { setAnimal(null); setQ(e.target.value); setOpen(true); }}
-            placeholder="hen, ewe, robin…"
-            className={FIELD} />
-        </label>
-
-        {open && !animal && (
-          <div className="mt-1 max-h-64 overflow-y-auto rounded-md border border-rule bg-paper">
-            {catBusy && <p className="px-3 py-2 text-[12px] text-ink-soft">Reading what is recorded here…</p>}
-            {shown.map((p) => (
-              <button key={p.name} type="button"
-                onClick={() => { setAnimal(p); setSupersedes([]); setOpen(false); setQ(""); }}
-                className="flex w-full items-center gap-2.5 border-b border-rule px-2.5 py-2 text-left last:border-b-0 active:bg-band">
-                <SpeciesMark emoji={p.emoji} photo={p.photo ?? photos?.get(p.name)} />
-                <span className="min-w-0 flex-1 leading-tight">
-                  <b className="block truncate text-[13px]">{p.name}</b>
-                  {p.scientificName && (
-                    <i className="block truncate text-[11px] text-ink-soft">{p.scientificName}</i>
-                  )}
-                  {/* Why a red-tailed hawk answers "chicken": the name that
-                      matched, when it is not one already on the row. */}
-                  {p.matched
-                    && !`${p.name} ${p.scientificName ?? ""}`.toLowerCase()
-                      .includes(p.matched.toLowerCase()) && (
-                    <span className="data block truncate text-[10.5px] text-ink-soft">
-                      matched “{p.matched}”
-                    </span>
-                  )}
-                </span>
-                <span className="data shrink-0 text-right text-[10.5px] text-ink-soft">
-                  {/* Something the grower already tracks has no sighting
-                      count of its own — nobody submits observations of a
-                      laying flock — and "0 nearby" about it would be
-                      arithmetic dressed up as a fact. It used to read "yours",
-                      which named the owner and not the reason. */}
-                  {/* An animal the search found has no count either: how many
-                      the world has recorded is not how many are near here. */}
-                  {p.yours
-                    ? <span className="text-growth">on your record</span>
-                    : p.observations != null && p.observations.toLocaleString()}
-                  {p.hasHabits && <span className="block"><LifecycleMark /></span>}
-                </span>
-              </button>
-            ))}
-            {finding && !shown.length && (
-              <p className="px-3 py-2 text-[12px] text-ink-soft">Looking…</p>
-            )}
-            {findError && (
-              <p className="px-3 py-2 text-[12px] text-clay">
-                iNaturalist could not be searched just now ({findError}) — these
-                are only the animals recorded near here.
-              </p>
-            )}
-            {!catBusy && !finding && !listed(shown, q) && (
-              <button type="button"
-                onClick={() => { setAnimal({ name: q.trim() }); setOpen(false); }}
-                className="w-full px-3 py-2.5 text-left text-[13px]">
-                {/* The escape hatch, and it stays open under a full list. A
-                    search of everything finds something for nearly any word,
-                    and a grower whose flock is "Layers" must not have to pick
-                    somebody else's bird to get past it. */}
-                {!shown.length && "Nothing listed. "}Add <b>{q.trim()}</b> as your own.
-              </button>
-            )}
-            {!catBusy && !finding && !shown.length && !q.trim() && (
-              <p className="px-3 py-2 text-[12px] text-ink-soft">
-                Type a name to search for an animal.
-              </p>
-            )}
-          </div>
-        )}
-
-        {animal && (
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5" {...tour("wildlife.role")}>
-            {(["friend", "foe", "watch"] as const).map((r) => (
-              <Pill key={r} active={role === r} onClick={() => setRole(role === r ? "" : r)}>
-                {r}
-              </Pill>
-            ))}
-            <button type="button" onClick={reset}
-              className="ml-auto min-h-11 text-[12px] text-ink-soft underline">
-              start over
-            </button>
-          </div>
-        )}
-
-        {/* ── The clock ──────────────────────────────────────────────── */}
-        <div className="mt-3 flex flex-wrap gap-1.5" {...tour("wildlife.clock")}>
-          {CLOCKS.map((c) => (
-            <Pill key={c.key} active={driver === c.key}
-              onClick={() => {
-                setDriver(c.key); setSupersedes([]);
-                if (c.key === "interval" && !steps.length) setSteps([{ label: "", days: 1 }]);
-              }}>
-              {c.label}
-            </Pill>
-          ))}
-        </div>
-        <p className="mt-1.5 text-[12px] text-ink-soft">{HELP[driver]}</p>
-
-        {/* ── What it does ───────────────────────────────────────────── */}
-        <datalist id="goodearth-labels">
-          {[...new Set([...habits, ...mine])].map((h) => <option key={h} value={h} />)}
-        </datalist>
-        <label className="mt-3 block text-[11px] text-ink-soft" {...tour("wildlife.label")}>
-          {driver === "interval" ? "What you saw" : "What it does"}
-          <input value={label} list="goodearth-labels"
-            onChange={(e) => setLabel(e.target.value)}
-            placeholder={driver === "interval" ? "laying on eggs" : "first arrival"}
-            className={FIELD} />
-        </label>
-        {(habits.length > 0 || mine.length > 0) && (
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {[...new Set([...habits, ...mine])].slice(0, 12).map((h) => (
-              <button key={h} type="button" onClick={() => setLabel(h)}
-                className="min-h-11 rounded-full border border-rule bg-paper px-3.5 text-[12px] active:border-ink">
-                {h}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* ── The clock's own question ───────────────────────────────── */}
-        <div className="mt-3 grid gap-3 sm:grid-cols-2" {...tour("wildlife.figures")}>
-          {driver === "interval" && (
-            <>
-              <label className="block text-[11px] text-ink-soft">
-                The day it happened
-                <input type="date" value={startOn} max={today()}
-                  onChange={(e) => setStartOn(e.target.value)} className={FIELD} />
-              </label>
-              <div className="sm:col-span-2">
-                <span className="eyebrow">And then, counting from that day</span>
-                {steps.map((s, i) => (
-                  <div key={i} className="mt-1.5 grid gap-2 sm:grid-cols-[1fr_auto]">
-                    <label className="block text-[11px] text-ink-soft">
-                      What follows
-                      <input value={s.label} placeholder="eggs hatch" className={FIELD}
-                        list="goodearth-labels"
-                        onChange={(e) => setSteps(steps.map((x, j) =>
-                          j === i ? { ...x, label: e.target.value } : x))} />
-                    </label>
-                    {/* The count and the way to be rid of it, on one line. On a
-                        phone this row stacks, and a lone × under the stepper
-                        read as a stray character rather than as this
-                        milestone's control. */}
-                    <div className="flex items-end gap-1">
-                      <div className="w-36 shrink-0">
-                        <Stepper label="Days" value={s.days} min={1} max={1000}
-                          onChange={(n) => setSteps(steps.map((x, j) =>
-                            j === i ? { ...x, days: typeof n === "number" ? n : 0 } : x))} />
-                      </div>
-                      <button type="button" aria-label={`Remove ${s.label || "milestone"}`}
-                        onClick={() => setSteps(steps.filter((_, j) => j !== i))}
-                        className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-ink-soft active:text-clay"><TrashGlyph /></button>
-                    </div>
-                  </div>
-                ))}
-                <div className="mt-1.5">
-                  <Pill onClick={() => setSteps([...steps,
-                    // The count they used last for this animal, when there is
-                    // one. Never a shipped figure: a hen is 21 days and a
-                    // muscovy is 35, and both move with the breed.
-                    { label: "", days: remembered ?? 1 }])}>
-                    + a milestone{remembered ? ` (${remembered} days, as you had it)` : ""}
-                  </Pill>
-                </div>
-              </div>
-            </>
-          )}
-
-          {driver === "calendar" && (
-            <MonthDay label="Typically on" value={typicalOn} onChange={setTypicalOn} />
-          )}
-
-          {driver === "daylight" && (
-            <>
-              <label className="block text-[11px] text-ink-soft sm:col-span-2">
-                Day length — {typeof hours === "number" ? hours.toFixed(1) : "—"} h
-                <input type="range" min={daylight ? Math.floor(daylight.low * 10) / 10 : 8}
-                  max={daylight ? Math.ceil(daylight.high * 10) / 10 : 16}
-                  step={0.1} value={hours === "" ? 12 : hours}
-                  onChange={(e) => setHours(Number(e.target.value))}
-                  className="mt-1.5 w-full accent-honey" />
-                <span className="data mt-0.5 block text-[10.5px] text-ink-soft">
-                  {daylight
-                    ? `${region.name} runs ${daylight.low.toFixed(1)}–${daylight.high.toFixed(1)} h this season`
-                    : "reading this block's day length…"}
-                </span>
-              </label>
-              <div className="flex flex-wrap gap-1.5">
-                <Pill active={rising} onClick={() => setRising(true)}>days lengthening</Pill>
-                <Pill active={!rising} onClick={() => setRising(false)}>days shortening</Pill>
-              </div>
-            </>
-          )}
-
-          {driver === "heat" && (
-            <>
-              <Stepper label={u.ddUnit.trim()} value={gdd} min={1} max={20000} step={25}
-                onChange={setGdd} />
-              <Stepper label={`Base${u.tempUnit}`} value={base} min={Math.round(u.temp(20))}
-                max={Math.round(u.temp(80))} onChange={setBase} />
-              <p className="data text-[11px] text-ink-soft sm:col-span-2">
-                {curve?.accumulated_gdd
-                  ? `${region.name} has ${Math.round(u.degreeDays(curve.accumulated_gdd.mean)).toLocaleString()} `
-                    + `${u.ddUnit.trim()} on the season so far.`
-                  : "reading this block's season so far…"}
-              </p>
-            </>
-          )}
-
-          {driver === "condition" && (
-            <>
-              <MonthDay label="Not before" value={after} onChange={setAfter} />
-              <Stepper label={`Night at or above${u.tempUnit}`} value={minNight}
-                min={Math.round(u.temp(20))} max={Math.round(u.temp(80))}
-                onChange={setMinNight} />
-              <Stepper label={`Day at or above${u.tempUnit}`} value={minDay}
-                min={Math.round(u.temp(20))} max={Math.round(u.temp(80))}
-                onChange={setMinDay} />
-              <div className="flex items-end">
-                <Pill active={wet} onClick={() => setWet(!wet)}>and it rained</Pill>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* ── What the service makes of it ───────────────────────────── */}
-        {/*
-          * No panel, and no reserved space for one.
-          *
-          * This was a bordered box with a "BEFORE YOU SAVE" eyebrow, and what
-          * it usually held was "Which animal?" — a warning frame around the
-          * observation that a form you have not filled in is not filled in. Of
-          * course it is not. A disabled button already says so.
-          *
-          * The DATES are the part worth showing, and they only exist once the
-          * draft is valid, so they render then and take no room before.
-          */}
-        {ready && (previewBusy || (preview && !stale)) && (
-          <div className="mt-3 text-[13px]">
-            {previewBusy ? (
-              <p className="text-[12.5px] text-ink-soft">Working out the dates…</p>
-            ) : (
-              <ul className="space-y-1">
-                {preview!.events.map((e) => {
-                  const when = e.reached_on ?? e.projected_date;
-                  return (
-                    <li key={e.ref ?? e.event}>
-                      <b>{e.event}</b>{" — "}
-                      {when ? day(when) : "not this season"}
-                      {e.window && (
-                        <span className="data text-[11px] text-ink-soft">
-                          {" "}({day(e.window.from)}–{day(e.window.to)})
+          <datalist id="goodearth-labels">
+            {[...new Set([...habits, ...mine])].map((h) => <option key={h} value={h} />)}
+          </datalist>
+        <div className="flex flex-wrap items-start gap-x-3 gap-y-2.5">
+          {/* What is SEARCHED for here is animals. Fungi are named on Flora;
+              a row already on this record shows whatever it is. */}
+          <Field label="Species" htmlFor="wl-species" width="min-w-[15rem] flex-1" tour="wildlife.species">
+            <input id="wl-species"
+              value={animal ? animal.name : q}
+              onFocus={() => { setOpen(true); void askCatalog(); }}
+              onChange={(e) => { setAnimal(null); setQ(e.target.value); setOpen(true); }}
+              placeholder="hen, ewe, robin…"
+              className={FIELD} />
+            {open && !animal && (
+              <div className="mt-1 max-h-64 overflow-y-auto rounded-md border border-rule bg-paper">
+                {catBusy && <p className="px-3 py-2 text-[12px] text-ink-soft">Reading what is recorded here…</p>}
+                {shown.map((p) => (
+                  <button key={p.name} type="button"
+                    onClick={() => { setAnimal(p); setSupersedes([]); setOpen(false); setQ(""); }}
+                    className="flex w-full items-center gap-2.5 border-b border-rule px-2.5 py-2 text-left last:border-b-0 active:bg-band">
+                    <SpeciesMark emoji={p.emoji} photo={p.photo ?? photos?.get(p.name)} />
+                    <span className="min-w-0 flex-1 leading-tight">
+                      <b className="block truncate text-[13px]">{p.name}</b>
+                      {p.scientificName && (
+                        <i className="block truncate text-[11px] text-ink-soft">{p.scientificName}</i>
+                      )}
+                      {/* Why a red-tailed hawk answers "chicken": the name that
+                          matched, when it is not one already on the row. */}
+                      {p.matched
+                        && !`${p.name} ${p.scientificName ?? ""}`.toLowerCase()
+                          .includes(p.matched.toLowerCase()) && (
+                        <span className="data block truncate text-[10.5px] text-ink-soft">
+                          matched “{p.matched}”
                         </span>
                       )}
-                      {e.days_away != null && (
-                        <span className="data text-[11px] text-ink-soft"> · in {e.days_away} days</span>
-                      )}
-                    </li>
-                  );
-                })}
-                {preview!.events.length === 0 && (
-                  <li className="text-[12.5px] text-ink-soft">
-                    Nothing to date from this yet — it is recorded all the same.
-                  </li>
+                    </span>
+                    <span className="data shrink-0 text-right text-[10.5px] text-ink-soft">
+                      {/* Something the grower already tracks has no sighting
+                          count of its own — nobody submits observations of a
+                          laying flock — and "0 nearby" about it would be
+                          arithmetic dressed up as a fact. It used to read "yours",
+                          which named the owner and not the reason. */}
+                      {/* An animal the search found has no count either: how many
+                          the world has recorded is not how many are near here. */}
+                      {p.yours
+                        ? <span className="text-growth">on your record</span>
+                        : p.observations != null && p.observations.toLocaleString()}
+                      {p.hasHabits && <span className="block"><LifecycleMark /></span>}
+                    </span>
+                  </button>
+                ))}
+                {finding && !shown.length && (
+                  <p className="px-3 py-2 text-[12px] text-ink-soft">Looking…</p>
                 )}
-              </ul>
+                {findError && (
+                  <p className="px-3 py-2 text-[12px] text-clay">
+                    iNaturalist could not be searched just now ({findError}) — these
+                    are only the animals recorded near here.
+                  </p>
+                )}
+                {!catBusy && !finding && !listed(shown, q) && (
+                  <button type="button"
+                    onClick={() => { setAnimal({ name: q.trim() }); setOpen(false); }}
+                    className="w-full px-3 py-2.5 text-left text-[13px]">
+                    {/* The escape hatch, and it stays open under a full list. A
+                        search of everything finds something for nearly any word,
+                        and a grower whose flock is "Layers" must not have to pick
+                        somebody else's bird to get past it. */}
+                    {!shown.length && "Nothing listed. "}Add <b>{q.trim()}</b> as your own.
+                  </button>
+                )}
+                {!catBusy && !finding && !shown.length && !q.trim() && (
+                  <p className="px-3 py-2 text-[12px] text-ink-soft">
+                    Type a name to search for an animal.
+                  </p>
+                )}
+              </div>
             )}
-            {previewAt && !stale && (
-              <>
-                <p className="data mt-1 text-[10.5px] text-ink-soft">
-                  Good Earth worked these out on your ground, not this browser.
-                </p>
-                {/* The preview is a paid read like any other, so it says so and
-                    says what it cost. A figure that appears for free invites the
-                    grower to lean on it without knowing they are spending. */}
-                <Provenance tool="goodearth_wildlife_calendar" at={previewAt} onCost={onCost} />
-              </>
-            )}
-          </div>
-        )}
-
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          {/* `+ Record`, like every other editor on the site. "Record 2 events"
-              counted the rows in a sentence on the button; the count is beside
-              it, where a count belongs. */}
-          <IconButton path={ICON.add} label="Record" tour="wildlife.record"
-            disabled={!ready || submit.busy}
-            onClick={() => {
-              if (typeof rows === "string") { setError(rows); return; }
-              setError("");
-              // One write for the whole cycle: one fare, and no chance of a
-              // hatch date saved against a start that is not there.
-              submit.run(async () => { await onSave(rows, supersedes); reset(); });
-            }} />
-          {/* The reason it is disabled — except the one that is already on
-              screen. An empty first field does not need a sentence asking for
-              it; the field is right there, blank, and the button is grey. The
-              messages worth showing are the ones a glance does not answer: a
-              count that will not parse, a day that is not a day. */}
-          {!ready && !obvious && (
-            <span className="text-[12px] text-ink-soft">{rows as string}</span>
-          )}
-          {supersedes.length > 0 && (
-            <span className="data text-[11px] text-ink-soft">
-              The previous {supersedes.length}-row cycle is kept as history and
-              comes off the calendar.
-            </span>
-          )}
-          {ready && (
-            <span className="data text-[11px] text-ink-soft">
-              {(rows as SavedWildlife[]).length} row
-              {(rows as SavedWildlife[]).length === 1 ? "" : "s"}, one write
-            </span>
-          )}
+          </Field>
+          <Field label={driver === "interval" ? "What you saw" : "What it does"} htmlFor="wl-label"
+            width="min-w-[12rem] flex-1" tour="wildlife.label">
+            <input id="wl-label" value={label} list="goodearth-labels"
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder={driver === "interval" ? "laying on eggs" : "first arrival"}
+              className={FIELD} />
+          </Field>
+          <span className="pt-3.5">
+            <IconButton path={ICON.paw} label="Track" hideLabel tour="wildlife.open"
+              title="Track it: the clock and its figures" onClick={() => onComposing(true)} />
+          </span>
         </div>
       </div>
 
-      {/* Said without a worked example. Twenty-one days and a clutch is one
-          animal's case, and this form takes ewes, does, sows and queen bees on
-          the same clock. */}
-      <Note>
-        The counts are yours. Good Earth adds the days you give it to the day
-        you saw and says when the window opens. How long a thing takes belongs
-        to your animals and your breed, and your own records beat any average
-        this service could ship.
-      </Note>
+      {composing && (
+        <div
+          className="fixed inset-0 z-[900] flex items-end justify-center bg-ink/40 p-0 sm:items-center sm:p-6"
+          onClick={() => onComposing(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Track it"
+        >
+          <div
+            ref={box}
+            tabIndex={-1}
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[88vh] w-full max-w-2xl overflow-auto rounded-t-xl border border-rule bg-panel p-5 shadow-xl outline-none sm:rounded-xl"
+          >
+            <div className="flex items-start gap-3">
+              {animal && <SpeciesMark emoji={animal.emoji} photo={animal.photo ?? photos?.get(animal.name)} />}
+              <h2 className="figure min-w-0 flex-1 text-[20px] font-semibold leading-tight">
+                {animal?.name || "Which animal?"}
+                {label.trim() && <span className="text-ink-soft"> · {label.trim()}</span>}
+              </h2>
+              <button type="button" onClick={() => onComposing(false)} aria-label="Close"
+                className="-mt-1 -mr-1 flex h-11 w-11 shrink-0 items-center justify-center rounded text-[20px] text-ink-soft active:bg-band">
+                ×
+              </button>
+            </div>
+            {animal && (
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5" {...tour("wildlife.role")}>
+                {(["friend", "foe", "watch"] as const).map((r) => (
+                  <Pill key={r} active={role === r} onClick={() => setRole(role === r ? "" : r)}>
+                    {r}
+                  </Pill>
+                ))}
+                <button type="button" onClick={reset}
+                  className="ml-auto min-h-11 text-[12px] text-ink-soft underline">
+                  start over
+                </button>
+              </div>
+            )}
+
+            {(habits.length > 0 || mine.length > 0) && (
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {[...new Set([...habits, ...mine])].slice(0, 12).map((h) => (
+                  <button key={h} type="button" onClick={() => setLabel(h)}
+                    className="min-h-11 rounded-full border border-rule bg-paper px-3.5 text-[12px] active:border-ink">
+                    {h}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* ── The clock ──────────────────────────────────────────────── */}
+            <div className="mt-3 flex flex-wrap gap-1.5" {...tour("wildlife.clock")}>
+              {CLOCKS.map((c) => (
+                <Pill key={c.key} active={driver === c.key}
+                  onClick={() => {
+                    setDriver(c.key); setSupersedes([]);
+                    if (c.key === "interval" && !steps.length) setSteps([{ label: "", days: 1 }]);
+                  }}>
+                  {c.label}
+                </Pill>
+              ))}
+            </div>
+            <p className="mt-1.5 text-[12px] text-ink-soft">{HELP[driver]}</p>
+
+            {/* ── The clock's own question ───────────────────────────────── */}
+            <div className="mt-3 grid gap-3 sm:grid-cols-2" {...tour("wildlife.figures")}>
+              {driver === "interval" && (
+                <>
+                  <label className="block text-[11px] text-ink-soft">
+                    The day it happened
+                    <input type="date" value={startOn} max={today()}
+                      onChange={(e) => setStartOn(e.target.value)} className={FIELD} />
+                  </label>
+                  <div className="sm:col-span-2">
+                    <span className="eyebrow">And then, counting from that day</span>
+                    {steps.map((s, i) => (
+                      <div key={i} className="mt-1.5 grid gap-2 sm:grid-cols-[1fr_auto]">
+                        <label className="block text-[11px] text-ink-soft">
+                          What follows
+                          <input value={s.label} placeholder="eggs hatch" className={FIELD}
+                            list="goodearth-labels"
+                            onChange={(e) => setSteps(steps.map((x, j) =>
+                              j === i ? { ...x, label: e.target.value } : x))} />
+                        </label>
+                        {/* The count and the way to be rid of it, on one line. On a
+                            phone this row stacks, and a lone × under the stepper
+                            read as a stray character rather than as this
+                            milestone's control. */}
+                        <div className="flex items-end gap-1">
+                          <div className="w-36 shrink-0">
+                            <Stepper label="Days" value={s.days} min={1} max={1000}
+                              onChange={(n) => setSteps(steps.map((x, j) =>
+                                j === i ? { ...x, days: typeof n === "number" ? n : 0 } : x))} />
+                          </div>
+                          <button type="button" aria-label={`Remove ${s.label || "milestone"}`}
+                            onClick={() => setSteps(steps.filter((_, j) => j !== i))}
+                            className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-ink-soft active:text-clay"><TrashGlyph /></button>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="mt-1.5">
+                      <Pill onClick={() => setSteps([...steps,
+                        // The count they used last for this animal, when there is
+                        // one. Never a shipped figure: a hen is 21 days and a
+                        // muscovy is 35, and both move with the breed.
+                        { label: "", days: remembered ?? 1 }])}>
+                        + a milestone{remembered ? ` (${remembered} days, as you had it)` : ""}
+                      </Pill>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {driver === "calendar" && (
+                <MonthDay label="Typically on" value={typicalOn} onChange={setTypicalOn} />
+              )}
+
+              {driver === "daylight" && (
+                <>
+                  <label className="block text-[11px] text-ink-soft sm:col-span-2">
+                    Day length — {typeof hours === "number" ? hours.toFixed(1) : "—"} h
+                    <input type="range" min={daylight ? Math.floor(daylight.low * 10) / 10 : 8}
+                      max={daylight ? Math.ceil(daylight.high * 10) / 10 : 16}
+                      step={0.1} value={hours === "" ? 12 : hours}
+                      onChange={(e) => setHours(Number(e.target.value))}
+                      className="mt-1.5 w-full accent-honey" />
+                    <span className="data mt-0.5 block text-[10.5px] text-ink-soft">
+                      {daylight
+                        ? `${region.name} runs ${daylight.low.toFixed(1)}–${daylight.high.toFixed(1)} h this season`
+                        : "reading this block's day length…"}
+                    </span>
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    <Pill active={rising} onClick={() => setRising(true)}>days lengthening</Pill>
+                    <Pill active={!rising} onClick={() => setRising(false)}>days shortening</Pill>
+                  </div>
+                </>
+              )}
+
+              {driver === "heat" && (
+                <>
+                  <Stepper label={u.ddUnit.trim()} value={gdd} min={1} max={20000} step={25}
+                    onChange={setGdd} />
+                  <Stepper label={`Base${u.tempUnit}`} value={base} min={Math.round(u.temp(20))}
+                    max={Math.round(u.temp(80))} onChange={setBase} />
+                  <p className="data text-[11px] text-ink-soft sm:col-span-2">
+                    {curve?.accumulated_gdd
+                      ? `${region.name} has ${Math.round(u.degreeDays(curve.accumulated_gdd.mean)).toLocaleString()} `
+                        + `${u.ddUnit.trim()} on the season so far.`
+                      : "reading this block's season so far…"}
+                  </p>
+                </>
+              )}
+
+              {driver === "condition" && (
+                <>
+                  <MonthDay label="Not before" value={after} onChange={setAfter} />
+                  <Stepper label={`Night at or above${u.tempUnit}`} value={minNight}
+                    min={Math.round(u.temp(20))} max={Math.round(u.temp(80))}
+                    onChange={setMinNight} />
+                  <Stepper label={`Day at or above${u.tempUnit}`} value={minDay}
+                    min={Math.round(u.temp(20))} max={Math.round(u.temp(80))}
+                    onChange={setMinDay} />
+                  <div className="flex items-end">
+                    <Pill active={wet} onClick={() => setWet(!wet)}>and it rained</Pill>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* ── What the service makes of it ───────────────────────────── */}
+            {/*
+              * No panel, and no reserved space for one.
+              *
+              * This was a bordered box with a "BEFORE YOU SAVE" eyebrow, and what
+              * it usually held was "Which animal?" — a warning frame around the
+              * observation that a form you have not filled in is not filled in. Of
+              * course it is not. A disabled button already says so.
+              *
+              * The DATES are the part worth showing, and they only exist once the
+              * draft is valid, so they render then and take no room before.
+              */}
+            {ready && (previewBusy || (preview && !stale)) && (
+              <div className="mt-3 text-[13px]">
+                {previewBusy ? (
+                  <p className="text-[12.5px] text-ink-soft">Working out the dates…</p>
+                ) : (
+                  <ul className="space-y-1">
+                    {preview!.events.map((e) => {
+                      const when = e.reached_on ?? e.projected_date;
+                      return (
+                        <li key={e.ref ?? e.event}>
+                          <b>{e.event}</b>{" — "}
+                          {when ? day(when) : "not this season"}
+                          {e.window && (
+                            <span className="data text-[11px] text-ink-soft">
+                              {" "}({day(e.window.from)}–{day(e.window.to)})
+                            </span>
+                          )}
+                          {e.days_away != null && (
+                            <span className="data text-[11px] text-ink-soft"> · in {e.days_away} days</span>
+                          )}
+                        </li>
+                      );
+                    })}
+                    {preview!.events.length === 0 && (
+                      <li className="text-[12.5px] text-ink-soft">
+                        Nothing to date from this yet — it is recorded all the same.
+                      </li>
+                    )}
+                  </ul>
+                )}
+                {previewAt && !stale && (
+                  <>
+                    <p className="data mt-1 text-[10.5px] text-ink-soft">
+                      Good Earth worked these out on your ground, not this browser.
+                    </p>
+                    {/* The preview is a paid read like any other, so it says so and
+                        says what it cost. A figure that appears for free invites the
+                        grower to lean on it without knowing they are spending. */}
+                    <Provenance tool="goodearth_wildlife_calendar" at={previewAt} onCost={onCost} />
+                  </>
+                )}
+              </div>
+            )}
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {/* `+ Record`, like every other editor on the site. "Record 2 events"
+                  counted the rows in a sentence on the button; the count is beside
+                  it, where a count belongs. */}
+              <IconButton path={ICON.add} label="Record" tour="wildlife.record"
+                disabled={!ready || submit.busy}
+                onClick={() => {
+                  if (typeof rows === "string") { setError(rows); return; }
+                  setError("");
+                  // One write for the whole cycle: one fare, and no chance of a
+                  // hatch date saved against a start that is not there.
+                  submit.run(async () => { await onSave(rows, supersedes); reset(); onComposing(false); });
+                }} />
+              {/* The reason it is disabled — except the one that is already on
+                  screen. An empty first field does not need a sentence asking for
+                  it; the field is right there, blank, and the button is grey. The
+                  messages worth showing are the ones a glance does not answer: a
+                  count that will not parse, a day that is not a day. */}
+              {!ready && !obvious && (
+                <span className="text-[12px] text-ink-soft">{rows as string}</span>
+              )}
+              {supersedes.length > 0 && (
+                <span className="data text-[11px] text-ink-soft">
+                  The previous {supersedes.length}-row cycle is kept as history and
+                  comes off the calendar.
+                </span>
+              )}
+              {ready && (
+                <span className="data text-[11px] text-ink-soft">
+                  {(rows as SavedWildlife[]).length} row
+                  {(rows as SavedWildlife[]).length === 1 ? "" : "s"}, one write
+                </span>
+              )}
+            </div>
+
+          {/* Said without a worked example. Twenty-one days and a clutch is one
+              animal's case, and this form takes ewes, does, sows and queen bees on
+              the same clock. */}
+          <Note>
+            The counts are yours. Good Earth adds the days you give it to the day
+            you saw and says when the window opens. How long a thing takes belongs
+            to your animals and your breed, and your own records beat any average
+            this service could ship.
+          </Note>
+          </div>
+        </div>
+      )}
     </>
   );
 }

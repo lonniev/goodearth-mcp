@@ -105,7 +105,10 @@ export default function Wildlife({
   const [data, setData] = useState<WildlifeResult | null>(null);
   /// The watches with when each falls, for the share button in the top bar.
   useShare(useMemo(() => wildlifeSheet(region, models, data, total), [region, models, data, total]));
-  useTour("wildlife");
+  // The clock and its figures sit in a panel; the tour opens it before
+  // pointing inside.
+  const [composing, setComposing] = useState(false);
+  useTour("wildlife", { actions: { "open-track": () => setComposing(true) } });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [ranAt, setRanAt] = useState<Date | null>(null);
@@ -294,7 +297,9 @@ export default function Wildlife({
         onSave={saveComposed}
         onCost={onCost}
         seed={seed}
-        onSeedTaken={() => setSeed(null)} />
+        onSeedTaken={() => setSeed(null)}
+        composing={composing}
+        onComposing={setComposing} />
 
       <DueSoon
         due={due}

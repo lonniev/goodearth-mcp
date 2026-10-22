@@ -46,6 +46,9 @@ export const wildlife: Guide = {
           recorded near here, then a search for anything else. The ⟳ mark means
           USA-NPN publishes a life cycle for it, and its habits are offered as
           labels once it is chosen.</>],
+      ["Track it",
+        <>The 🐾 button opens a panel over the page with the rest: friend,
+          foe or watch, the clock, its figures, and the dates they fall on.</>],
       ["The clock",
         <>Chips for the five: <b>days from</b>, <b>your record</b>,
           <b> daylight</b>, <b>heat</b>, <b>conditions</b>. Each says in a line
