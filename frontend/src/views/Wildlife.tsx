@@ -83,7 +83,7 @@ export default function Wildlife({
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<WildlifeFilter>(NO_WILDLIFE_FILTER);
   /// A filter has to see the whole block, not a page of it — the same reason
-  /// the Plant ledger and the watch list widen while one is on.
+  /// the Plants ledger and the watch list widen while one is on.
   const narrowed = wildFilterOn(filter);
   const [editing, setEditing] = useState("");
   const [draft, setDraft] = useState<SavedWildlife | null>(null);
@@ -305,7 +305,7 @@ export default function Wildlife({
         onRepeat={startAnother}
         onObserved={markSeen} />
 
-      {/* One row where there were three, the same row the Plant ledger and
+      {/* One row where there were three, the same row the Plants ledger and
           the watch list have: the heading carries its own reading time, the
           filter and the search sit together on the right, and the summary
           sentence is gone — it was a fact about a list the list shows. */}

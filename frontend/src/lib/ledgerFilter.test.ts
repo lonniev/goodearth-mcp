@@ -156,7 +156,7 @@ describe("what the page does with it", () => {
   });
 
   it("puts the reading time in the heading, once", () => {
-    assert.match(view(), /Plant ledger\$\{ranAt/);
+    assert.match(view(), /Plants ledger\$\{ranAt/);
     assert.match(view(), /<Provenance tool="goodearth_crop_gdd_status"[\s\S]{0,120}hideTime/);
   });
 });
