@@ -55,6 +55,11 @@ export const ledger: Guide = {
         <>The two dials you set — the base and the season's start — and the
           sampling across your ground. <b>sources ↗</b> opens the page that
           names every feed.</>],
+      ["🌀 Storm signal",
+        <>A chip beside them when the barometer is forecast to fall fast in
+          the next three days — unsettled, storm likely or severe, and the day.
+          Tap it for the Almanac&rsquo;s full reading. It rides on the drying
+          read, so it costs nothing extra.</>],
       ["The pulse strip",
         <>Five figures: heat so far with its gauge; the spread across the
           block, in GDD and in days; how far ahead of or behind the recent
@@ -105,12 +110,14 @@ export const ledger: Guide = {
           normally happens here.</>],
       ["🌾 Drying",
         <>One line: when the dew is off this morning and tomorrow, the first
-          run of dry days ahead, and the next hour of rain.</>],
+          run of dry days ahead, the next hour of rain, and 🌀 on the first
+          day a falling barometer crosses.</>],
       ["🍄 Diseases",
         <>Five published models against the crops on your ledger, each
           reading <b>forecast</b>, <b>recent</b> or <b>clear</b>. Wetness is
           estimated from modelled humidity and rain, never measured, and every
-          answer says so.</>],
+          answer says so. 🌀 on a row means a front is due across the period
+          it projects; the model itself is unchanged.</>],
       ["More Views",
         <>Doors to the pages that answer the questions this one raises.</>],
     ]},

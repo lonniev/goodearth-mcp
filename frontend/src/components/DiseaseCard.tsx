@@ -116,6 +116,16 @@ function Row({ v, open, onOpen, plantings }: {
         </span>
         <span className="figure text-[13.5px] font-semibold">{v.disease}</span>
         <span className="data text-[11px] text-ink-soft">{v.about.name}</span>
+        {/* A falling barometer's window crosses the period this model
+            projects. The model is unchanged — it has no pressure term — but
+            these are the wet hours likeliest to come, perhaps sooner or
+            heavier than forecast. */}
+        {v.next_period?.front_due && (
+          <span className="text-[13px]"
+            title="A front is due: the barometer falls fast across this projected period, so its wet hours are the likeliest to come — perhaps sooner or heavier than forecast. The model itself is unchanged.">
+            🌀
+          </span>
+        )}
         <span className="ml-auto data text-[12px]">
           {(() => {
             const r = rowDate(v);

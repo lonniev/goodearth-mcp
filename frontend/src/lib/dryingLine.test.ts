@@ -49,3 +49,17 @@ describe("the Dashboard's drying line", () => {
     assert.deepEqual(["00", "09", "12", "13"].map(clock), ["12 am", "9 am", "12 pm", "1 pm"]);
   });
 });
+
+describe("a falling barometer on the drying line", () => {
+  const day = (date: string, front_due: boolean) => ({
+    date, dry: true, rain_mm: 0, rain_hours: 0, wet_hours: 0, et0_mm: 2, vpd_max_kpa: 1, front_due,
+  });
+  it("names the first day a front crosses", () => {
+    const r = base({ days: [day("2026-09-15", false), day("2026-09-17", true), day("2026-09-18", true)] });
+    assert.equal(dryingLine(r), "Dry by 9 am · 3 dry days today–Thu · rain Fri · 🌀 front Thu");
+  });
+  it("adds nothing when no day is under a front", () => {
+    assert.equal(dryingLine(base({ days: [day("2026-09-15", false)] })),
+      "Dry by 9 am · 3 dry days today–Thu · rain Fri");
+  });
+});

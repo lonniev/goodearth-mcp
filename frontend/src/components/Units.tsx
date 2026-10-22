@@ -11,7 +11,8 @@
 import { createContext, useContext } from "react";
 import type { Unit } from "../lib/units";
 import {
-  ddToF, ddUnit, degreeDays, showDD, showTemp, temp, tempUnit, toF,
+  ddToF, ddUnit, degreeDays, pressure, pressureUnit, showDD, showPressure, showTemp, temp,
+  tempUnit, toF,
 } from "../lib/units";
 
 const UnitCtx = createContext<Unit>("F");
@@ -43,5 +44,10 @@ export function useUnits() {
     ddToF: (value: number) => ddToF(value, unit),
     tempUnit: tempUnit(unit),
     ddUnit: ddUnit(unit),
+    /// Sea-level pressure for the screen: inHg beside °F, hPa beside °C.
+    showPressure: (hpa: number, digits?: number) => showPressure(hpa, unit, digits),
+    /// A bare converted pressure, for a chart axis that labels itself.
+    pressure: (hpa: number) => pressure(hpa, unit),
+    pressureUnit: pressureUnit(unit),
   };
 }

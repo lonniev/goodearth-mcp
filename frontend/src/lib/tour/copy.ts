@@ -35,6 +35,8 @@ export const TOURS: Record<Tour["page"], Tour> = {
       says: "Trace the field, or drop a pin with a radius, on My Plots." },
     { target: "ledger.chips", title: "The chips", guide: ["Read the season", "The chips by the title"],
       says: "The base, the start of the season and the samples this answer is made from." },
+    { target: "ledger.storm", title: "Storm signal", guide: ["Read the season", "🌀 Storm signal"],
+      says: "Shows when the barometer is forecast to fall fast. Tap it for the Almanac's full reading." },
     { target: "ledger.pulse", title: "The pulse", guide: ["Read the season", "The pulse strip"],
       says: "Where the season stands today: heat, frost, soil, drying and disease at a glance." },
     { target: "ledger.chart", title: "The season's heat", guide: ["Read the season", "The chart"],
@@ -241,7 +243,9 @@ export const TOURS: Record<Tour["page"], Tour> = {
 
   almanac: { page: "almanac", steps: [
     { target: "almanac.today", title: "Today", guide: ["Read", "Today"],
-      says: "The sky, the wind, the dew point, the rain, sunrise and sunset and the moon, for this plot today." },
+      says: "The sky, the wind, the dew point, the pressure, the rain, sunrise and sunset and the moon, for this plot today." },
+    { target: "almanac.storm", title: "Storm signal", guide: ["Read", "🌀 Storm signal"],
+      says: "Shows when the barometer is forecast to fall fast in the next three days: how far, how fast, and by when." },
     { target: "almanac.radar", title: "Rain on the radar", guide: ["Read", "🌧️ in the title row"],
       says: "Shows the rain radar over the plot, playing the last hour." },
     { target: "almanac.fortnight", title: "The fortnight", guide: ["Read", "The fortnight"],

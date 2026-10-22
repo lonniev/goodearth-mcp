@@ -117,3 +117,22 @@ def test_the_fingerprint_is_in_the_cache_subject(monkeypatch):
     monkeypatch.setattr(sources, "fetch_almanac_history", fetched)
     asyncio.run(record_cache.almanac_history(44.45, -73.26, "2016-01-01", "2025-12-31"))
     assert seen and seen[0].endswith(record_cache._field_fingerprint())
+
+
+def test_the_almanac_carries_the_barometer_and_answers_without_it(_feeds, monkeypatch):
+    """Pressure is a measure like the rest, and the storm block rides beside it.
+    A barometer that does not answer leaves every other measure standing."""
+    out = asyncio.run(region_almanac(REGION, today=TODAY))
+    assert out["success"] is True
+    assert out["pressure"] is None
+    assert "pressure" in out["measures"]
+    assert out["conditions"]["pressure_hpa"] == 50.0
+    assert all("pressure_hpa" in d for d in out["upcoming"])
+
+    async def reading(region, now=None):
+        return {"level": "unsettled", "now_hpa": 1012.4, "window": None}
+
+    monkeypatch.setattr(almanac_window.pressure_window, "region_storm", reading)
+    out = asyncio.run(region_almanac(REGION, today=TODAY))
+    assert out["pressure"]["level"] == "unsettled"
+    assert any("sea-level pressure" in s["role"] for s in out["sources"])

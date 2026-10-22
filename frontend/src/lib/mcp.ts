@@ -437,7 +437,10 @@ export interface DiseaseVerdict {
   recent_window_days: number;
   season_count: number;
   last_period: { from?: string; to?: string; start?: string; end?: string; days?: number } | null;
-  next_period: { from?: string; to?: string; start?: string; end?: string; days?: number } | null;
+  /// `front_due`: a falling barometer's window crosses this projected period.
+  next_period: {
+    from?: string; to?: string; start?: string; end?: string; days?: number; front_due?: boolean;
+  } | null;
   /// One sentence about today, computed server-side so every caller says the
   /// same thing about the same weather.
   now: string;
@@ -446,6 +449,29 @@ export interface DiseaseVerdict {
   at_decision_point?: boolean;
   severity_total?: number;
   ref?: string;
+}
+
+/// The barometer and the storm it implies — the same block on the almanac, the
+/// drying line and the disease answer. Pressures are hPa on the wire.
+export interface StormSignal {
+  now_hpa: number;
+  /// This hour on the block's own clock.
+  at: string;
+  tendency: {
+    change_3h_hpa: number;
+    direction: "rising" | "falling" | "steady";
+    rate: "" | "slowly" | "quickly" | "very rapidly";
+    /// "falling quickly" — the Met Office's words for the three-hour change.
+    words: string;
+  } | null;
+  change_24h_hpa: number | null;
+  level: "none" | "unsettled" | "storm likely" | "severe";
+  worst: { at: string; fall_3h_hpa: number; change_24h_hpa: number | null } | null;
+  /// The hours the barometer is falling fast, block-local, when there are any.
+  window: { from: string; to: string } | null;
+  reason: string;
+  horizon_h: number;
+  note: string;
 }
 
 export interface DiseaseRiskResult {
@@ -471,6 +497,8 @@ export interface DiseaseRiskResult {
   skipped: { name: string; reason: string }[];
   summary: string;
   note: string;
+  /// Null when the barometer did not answer.
+  storm?: StormSignal | null;
   sources: { name: string; role: string; resolution_m: number; as_of?: string }[];
 }
 
@@ -489,6 +517,8 @@ export interface DryDay {
   wet_hours: number;
   et0_mm: number | null;
   vpd_max_kpa: number | null;
+  /// A falling barometer's window crosses this day: the dry day likeliest cut short.
+  front_due?: boolean;
 }
 
 export interface DryingWindowResult {
@@ -504,6 +534,8 @@ export interface DryingWindowResult {
   next_rain: { at: string; mm: number } | null;
   days: DryDay[];
   note: string;
+  /// Null when the barometer did not answer.
+  storm?: StormSignal | null;
   sources: { name: string; role: string; resolution_m: number; as_of?: string }[];
 }
 
@@ -850,7 +882,7 @@ export interface Measure {
 
 export type MeasureKey =
   | "temp_max" | "temp_min" | "dew_point" | "precip" | "sunshine" | "daylight"
-  | "wind_max" | "humidity";
+  | "wind_max" | "humidity" | "pressure";
 
 export interface AlmanacResult {
   success: boolean;
@@ -865,6 +897,7 @@ export interface AlmanacResult {
     date: string; sky: Sky; wind: Wind;
     high_f: number | null; low_f: number | null; dew_point_f: number | null;
     humidity_pct: number | null;
+    pressure_hpa?: number | null;
     precip_chance_pct: number | null;
     sunrise: string | null; sunset: string | null;
     daylight_hours: number | null; sunshine_hours: number | null;
@@ -874,6 +907,7 @@ export interface AlmanacResult {
     date: string; sky: Sky; wind: Wind;
     high_f: number | null; low_f: number | null; dew_point_f: number | null;
     humidity_pct: number | null;
+    pressure_hpa?: number | null;
     precip_in: number | null; precip_chance_pct: number | null;
     sunshine_hours: number | null;
   }[];
@@ -883,6 +917,8 @@ export interface AlmanacResult {
     age_days: number; next_full: string | null; note: string;
   };
   normals_span_years: number;
+  /// The barometer now and the storm it implies. Null when it did not answer.
+  pressure?: StormSignal | null;
 }
 
 /// Temperature, dew point, rain, wind, sun and moon — normal, actual, forecast.

@@ -50,10 +50,17 @@ export const almanac: Guide = {
   using: [
     { emoji: "👀", heading: "Read", steps: [
       ["Today",
-        <>Eight readings in eight equal cells: the sky with its high and low,
-          dew point, wind with its direction, chance of rain, sunrise to sunset
+        <>Nine readings in nine equal cells: the sky with its high and low,
+          dew point, wind with its direction, the barometer with which way it
+          is moving, chance of rain, sunrise to sunset
           with the hours of daylight, hours of sunshine as a share of them, how
           much the day length is changing, and the moon.</>],
+      ["🌀 Storm signal",
+        <>Shown above Today only when the barometer is forecast to fall fast
+          in the next three days. Unsettled is a fall of 1.6 hPa (0.05 inHg)
+          in three hours, storm likely 3.6 hPa (0.11 inHg), severe more than
+          6 hPa or a day-long fall deep enough to be a &lsquo;bomb&rsquo;. It
+          says how far, how fast and by when; the ⓘ explains the bands.</>],
       ["🌧️ in the title row",
         <>Shows or hides the rain on the radar, now, over your ground. The map
           plays the last hour; the button in its top right corner enlarges it.
@@ -65,7 +72,8 @@ export const almanac: Guide = {
           opening it asks for nothing.</>],
       ["The fortnight",
         <>Fourteen cards, one per day: sky, high and low, chance of rain,
-          humidity and wind. Each card rides a few pixels higher on a warmer
+          humidity, pressure with an arrow for its move from the day before,
+          and wind. Each card rides a few pixels higher on a warmer
           day, so the week's warming or cooling shows before a number is read.</>],
       ["The season so far",
         <>One chart per measure you have switched on. Grey band, solid season,

@@ -15,6 +15,7 @@ import SoilCard from "../components/SoilCard";
 import DiseaseCard from "../components/DiseaseCard";
 import { bands } from "../lib/diseaseBands";
 import { dryingLine } from "../lib/dryingLine";
+import { stormWords } from "../lib/storm";
 import Term from "../components/Term";
 import Provenance from "../components/Provenance";
 import { QuoteScroller } from "@tollbooth-dpyc/web/react";
@@ -241,6 +242,17 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
             <Tag>from {fmt(data.season_start)}</Tag>
             {data.region && (
               <Tag>{data.region.sample_count} samples · {Math.round(data.region.grid_spacing_m)} m</Tag>
+            )}
+            {/* The barometer, read on the drying call the Dashboard already
+                makes — no second fare. Tapping it opens the Almanac, where
+                the warning is said in full. */}
+            {drying?.storm && drying.storm.level !== "none" && (
+              <button onClick={() => onView?.("almanac")} {...tour("ledger.storm")}
+                title={drying.storm.reason}
+                className={`data rounded-full px-2.5 py-1 text-[10px] font-semibold active:opacity-80 ${
+                  drying.storm.level === "severe" ? "bg-clay/15 text-clay" : "bg-honey/20 text-ink"}`}>
+                🌀 {stormWords(drying.storm)}
+              </button>
             )}
             <button onClick={() => onView?.("references")}
               className="data rounded-full border border-rule px-2.5 py-1 text-[10px] text-ink-soft active:bg-band">

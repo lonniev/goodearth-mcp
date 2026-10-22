@@ -203,6 +203,23 @@ export const GLOSSARY: Entry[] = [
       + "dried. The dew point is the steadier figure; this is what a leaf feels.",
   },
   {
+    key: "pressure", term: "Barometric pressure", group: "sky",
+    aka: ["barometer", "air pressure", "sea-level pressure", "inHg", "hPa"],
+    said: "The weight of the air overhead, corrected to sea level so one place "
+      + "compares with another. Highs bring settled weather and lows bring "
+      + "cloud, wind and rain. Its level matters less than how fast it changes.",
+  },
+  {
+    key: "pressure_tendency", term: "Pressure tendency", group: "sky",
+    aka: ["falling quickly", "storm signal", "storm likely", "unsettled", "bomb"],
+    said: "How much the barometer moved in the last three hours, in the Met "
+      + "Office's words: steady (under 0.1 hPa), slowly (to 1.5), plain rising "
+      + "or falling (to 3.5), quickly (to 6) and very rapidly beyond. A fall of "
+      + "1.6 hPa reads as unsettled, 3.6 hPa as a storm likely, and more than "
+      + "6 hPa — or a day-long fall deep enough to count as a 'bomb' — as "
+      + "severe. It is a signal from the forecast model, not a rainfall amount.",
+  },
+  {
     key: "dew_point_depression", term: "Dew-point depression", group: "sky",
     aka: ["depression"],
     said: "How far the air temperature sits above its dew point. Near zero, "

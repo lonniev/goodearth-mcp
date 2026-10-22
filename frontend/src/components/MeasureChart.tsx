@@ -109,13 +109,18 @@ export default function MeasureChart({
   }
 
   const { x, y, path, bandPath, ticks, gridVals, act, fc } = view;
-  const decimals = measure.unit === "in" ? 2 : measure.unit === "hours" ? 1 : 0;
-  // Inches, hours and mph mean the same thing in both scales; only a degree
-  // series is converted, and its axis says which scale it is in. The shape is
-  // untouched — a linear rescale of the labels, not of the data.
+  // Inches, hours and mph mean the same thing in both scales; a degree series
+  // and a pressure series are converted, and the axis says which scale it is
+  // in. The shape is untouched — a linear rescale of the labels, not of the
+  // data. Pressure reads in inHg beside °F, to the hundredth a barometer shows.
   const degrees = measure.unit === "°F";
-  const show = (v: number) => (degrees ? u.temp(v) : v).toFixed(decimals);
-  const unitLabel = degrees ? u.tempUnit.trim() : measure.unit;
+  const barometric = measure.unit === "hPa";
+  const decimals = measure.unit === "in" ? 2 : measure.unit === "hours" ? 1
+    : barometric && u.unit === "F" ? 2 : 0;
+  const show = (v: number) =>
+    (degrees ? u.temp(v) : barometric ? u.pressure(v) : v).toFixed(decimals);
+  const unitLabel = degrees ? u.tempUnit.trim()
+    : barometric ? u.pressureUnit.trim() : measure.unit;
 
   return (
     <div className="rounded-md border border-rule bg-panel px-2.5 pt-2.5 pb-1.5">
