@@ -40,6 +40,7 @@ import SpeciesFinder from "../components/SpeciesFinder";
 import type { Chosen } from "../lib/basket";
 import type { SavedRegion } from "../lib/regions";
 import { useTour } from "@tollbooth-dpyc/web/react";
+import AddPanel, { showForm } from "../components/AddPanel";
 import { tour } from "../lib/tour/targets";
 import CommunityObservations from "../components/CommunityObservations";
 
@@ -111,7 +112,9 @@ export default function Pests({
   const [data, setData] = useState<PestWindowResult | null>(null);
   /// The models with where each stands, for the share button in the top bar.
   useShare(useMemo(() => pestsSheet(region, models, data, u.unit, total), [region, models, data, u.unit, total]));
-  useTour("pests");
+  /// The add form, folded until it is wanted.
+  const [addOpen, setAddOpen] = useState(false);
+  useTour("pests", { actions: { "open-add": () => setAddOpen(true) } });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [ranAt, setRanAt] = useState<Date | null>(null);
@@ -148,7 +151,7 @@ export default function Pests({
     // seeds off an effect keyed on the name, and a name that has not changed
     // fires nothing — the second tap would look like the page ignoring it.
     setPickKey((k) => k + 1);
-    document.getElementById("new-pest")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    showForm(setAddOpen, "new-pest", "center");
   }
 
 
@@ -275,6 +278,7 @@ export default function Pests({
       )}
 
       {/* ── Watch a pest ───────────────────────────────────────────────── */}
+      <AddPanel label="New pest" open={addOpen} onOpen={setAddOpen}>
       <form id="new-pest" onSubmit={add} className="mb-4 rounded-md border border-rule bg-panel p-4">
         {/* Every caption on one line, every box one height, and the act at the
             end of the flow rather than on a row of its own — the same shape
@@ -355,6 +359,7 @@ export default function Pests({
         </div>
         {formErr && <p className="mt-2 text-[12px] text-clay">{formErr}</p>}
       </form>
+      </AddPanel>
 
       {/* One row where there were three, and the same row the Plants ledger
           has: the heading carries its own reading time, the filter and the

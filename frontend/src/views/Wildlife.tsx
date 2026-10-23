@@ -38,6 +38,7 @@ import {
 } from "../components/ui";
 import { speciesHabits, type SpeciesHabitsResult } from "../lib/mcp";
 import { useTour } from "@tollbooth-dpyc/web/react";
+import AddPanel, { showForm } from "../components/AddPanel";
 import CommunityObservations from "../components/CommunityObservations";
 
 const CLOCK: Record<string, { label: string; cls: string }> = {
@@ -108,7 +109,17 @@ export default function Wildlife({
   // The clock and its figures sit in a panel; the tour opens it before
   // pointing inside.
   const [composing, setComposing] = useState(false);
-  useTour("wildlife", { actions: { "open-track": () => setComposing(true) } });
+  /// The add card, folded until it is wanted. The clock's panel lives inside
+  /// it, so opening the panel opens the card too.
+  const [addOpen, setAddOpen] = useState(false);
+  const compose = useCallback((open: boolean) => {
+    if (open) setAddOpen(true);
+    setComposing(open);
+  }, []);
+  useTour("wildlife", { actions: {
+    "open-add": () => setAddOpen(true),
+    "open-track": () => compose(true),
+  } });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [ranAt, setRanAt] = useState<Date | null>(null);
@@ -226,7 +237,7 @@ export default function Wildlife({
     // The form is ABOVE the table now, so a grower tapping this on a row far
     // down the page would be handed a filled-in form they cannot see. Plants
     // scrolls to its own form for the same reason.
-    document.getElementById("track-something")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    showForm(setAddOpen, "track-something");
   }
 
   /// Save the composed cycle, then retire what it replaced.
@@ -290,6 +301,7 @@ export default function Wildlife({
           the year — past the table, past its pager, past the empty state
           telling a grower to go and find a creature — so the page asked them
           to scroll away from the answer to act on it. */}
+      <AddPanel label="Track something" open={addOpen} onOpen={setAddOpen}>
       <EventComposer
         region={region}
         recorded={models}
@@ -299,7 +311,8 @@ export default function Wildlife({
         seed={seed}
         onSeedTaken={() => setSeed(null)}
         composing={composing}
-        onComposing={setComposing} />
+        onComposing={compose} />
+      </AddPanel>
 
       <DueSoon
         due={due}

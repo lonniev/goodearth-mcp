@@ -106,7 +106,7 @@ export const TOURS: Record<Tour["page"], Tour> = {
   ]},
 
   crops: { page: "crops", steps: [
-    { target: "crops.species", title: "Species", guide: ["Add a planting", "Species"],
+    { target: "crops.species", title: "Species", before: "open-add", guide: ["Add a planting", "Species"],
       says: "Type a plant's name and pick it from iNaturalist's list; the name, its Latin name and a photograph come with it. Fungi are here too." },
     { target: "crops.label", title: "Your name for it", guide: ["Add a planting", "Your name for it"],
       says: "Optional. How you will find the row again, like Zinnia · succession 4." },
@@ -154,7 +154,7 @@ export const TOURS: Record<Tour["page"], Tour> = {
   ]},
 
   pests: { page: "pests", steps: [
-    { target: "pests.species", title: "Pest", guide: ["Watch a pest", "Pest"],
+    { target: "pests.species", title: "Pest", before: "open-add", guide: ["Watch a pest", "Pest"],
       says: "Type its name and pick it from the list, or keep what you typed." },
     { target: "pests.base", title: "Base", guide: ["Watch a pest", "Base"],
       says: "The temperature its heat is counted from. Blank takes the plot's." },
@@ -178,7 +178,7 @@ export const TOURS: Record<Tour["page"], Tour> = {
   ]},
 
   wildlife: { page: "wildlife", steps: [
-    { target: "wildlife.species", title: "Species", guide: ["Track something", "The creature"],
+    { target: "wildlife.species", title: "Species", before: "open-add", guide: ["Track something", "The creature"],
       says: "Type a creature's name: your own record, what is seen nearby, or add it as yours." },
     { target: "wildlife.open", title: "Track it", guide: ["Track something", "Track it"],
       says: "Opens the panel for the clock, its figures and the dates they fall on." },
@@ -202,7 +202,7 @@ export const TOURS: Record<Tour["page"], Tour> = {
   ]},
 
   reports: { page: "reports", steps: [
-    { target: "reports.tags", title: "The tags", guide: ["File one", "The tags"],
+    { target: "reports.tags", title: "The tags", before: "open-add", guide: ["File one", "The tags"],
       says: "What you saw: frost, first bloom, emergence, a pest, or a note." },
     { target: "reports.custom", title: "Or your own words", guide: ["File one", "The tags"],
       says: "Type what you saw when the tags miss it." },
@@ -226,7 +226,7 @@ export const TOURS: Record<Tour["page"], Tour> = {
   ]},
 
   todo: { page: "todo", steps: [
-    { target: "todo.title", title: "What needs doing", guide: ["Write one down", "What needs doing · Due"],
+    { target: "todo.title", title: "What needs doing", before: "open-add", guide: ["Write one down", "What needs doing · Due"],
       says: "The task, in a few words." },
     { target: "todo.due", title: "Due", guide: ["Write one down", "What needs doing · Due"],
       says: "The day it is due. Optional." },

@@ -143,6 +143,9 @@ describe("the three pages are laid out alike", () => {
   it("a cycle seeded from a row reaches a form the grower can see", () => {
     // The form is above the table now, so "start another" on a row far down
     // would otherwise fill in a form off the top of the screen.
-    assert.match(view("Wildlife"), /getElementById\("track-something"\)\?\.scrollIntoView/);
+    // And it opens the fold first: a folded form has nothing to scroll to.
+    assert.match(view("Wildlife"), /showForm\(setAddOpen, "track-something"\)/);
+    assert.match(view("Crops"), /showForm\(setAddOpen, "new-planting"\)/);
+    assert.match(view("Pests"), /showForm\(setAddOpen, "new-pest"/);
   });
 });

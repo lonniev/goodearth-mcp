@@ -38,6 +38,7 @@ import { migrateLocalTodos } from "../lib/todos";
 import { makeFeedRefresher, publishedToken } from "../lib/publishFeed";
 import type { SavedRegion } from "../lib/regions";
 import { useTour } from "@tollbooth-dpyc/web/react";
+import AddPanel from "../components/AddPanel";
 import { tour } from "../lib/tour/targets";
 
 const nice = (iso?: string | null) =>
@@ -75,7 +76,12 @@ export default function TodoView({
   const [page, setPage] = useState<{ rows: TaskRow[]; total: number; page: number; pages: number } | null>(null);
   /// The page of tasks in hand, for the share button in the top bar.
   useShare(useMemo(() => (page ? todoSheet(region, page.rows, page.total) : null), [region, page]));
-  useTour("todo", { actions: { "show-times": () => setReminderOnly(false) } });
+  /// The add form, folded until it is wanted.
+  const [addOpen, setAddOpen] = useState(false);
+  useTour("todo", { actions: {
+    "open-add": () => setAddOpen(true),
+    "show-times": () => { setAddOpen(true); setReminderOnly(false); },
+  } });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [ranAt, setRanAt] = useState<Date | null>(null);
@@ -224,24 +230,17 @@ export default function TodoView({
 
   return (
     <>
-      <div className="mb-3 flex items-center justify-between gap-1.5">
-        {/* Names the form below. A tester starting an empty list kept typing
-            into the search box, because the only heading on the page was the
-            list's — so the form gets its own, in the row it already had. */}
-        <h2 className="figure text-[18px] font-semibold">New Task?</h2>
-        {/* The iCal control stays: it opens a settings page and belongs in the
-            page's own row. The ADD button went down to the foot of the form,
-            where the thing it submits actually is. */}
-        <IconButton path={ICON.settings} label="iCal" tone="quiet" tour="todo.gear"
-          title="Calendar feed settings" onClick={() => onView?.("account")} />
-      </div>
-
       {err && <ErrorBox>{err}</ErrorBox>}
 
-
       {/* ── Write it down ──────────────────────────────────────────────── */}
-      {/* Headed by "New Task?" in the row above, not a row of its own: a
-          heading plus a full-width submit was two rows spent saying "add". */}
+      {/* The iCal control stays on the toggle's row: it opens a settings page
+          and belongs in the page's own row. The ADD button is at the foot of
+          the form, where the thing it submits actually is. */}
+      <AddPanel label="New Task?" open={addOpen} onOpen={setAddOpen}
+        aside={
+          <IconButton path={ICON.settings} label="iCal" tone="quiet" tour="todo.gear"
+            title="Calendar feed settings" onClick={() => onView?.("account")} />
+        }>
       <form id="new-task" onSubmit={add} className="mb-4 rounded-md border border-rule bg-panel p-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="block text-[11px] text-ink-soft lg:col-span-2" {...tour("todo.title")}>
@@ -288,6 +287,7 @@ export default function TodoView({
             title="Add task" disabled={adding} />
         </div>
       </form>
+      </AddPanel>
 
       {/* ── What's on the list ─────────────────────────────────────────── */}
       <Section emoji="✅" title="Planned Tasks" tour="todo.list">
