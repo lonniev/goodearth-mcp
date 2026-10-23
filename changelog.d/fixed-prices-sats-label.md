@@ -1,0 +1,1 @@
+- The Prices page keeps "sats" beneath each fare, under the ₿ sign (tollbooth-web 2.4.1).
