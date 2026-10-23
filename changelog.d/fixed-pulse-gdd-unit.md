@@ -1,0 +1,1 @@
+- The Dashboard's heat tiles say GDD again: `2234₅₀ GDD total`, `22₅₀ GDD Δ`, `66₅₀ GDD ahead`.
