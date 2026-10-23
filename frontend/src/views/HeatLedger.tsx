@@ -17,7 +17,7 @@ import { bands } from "../lib/diseaseBands";
 import { dryingLine } from "../lib/dryingLine";
 import PulseTile, { type Gauge } from "../components/PulseTile";
 import DryingStrip from "../components/DryingStrip";
-import { stormWords } from "../lib/storm";
+import { FACE, onFace, stormWords, tendencyArrow } from "../lib/storm";
 import Term from "../components/Term";
 import Provenance from "../components/Provenance";
 import { QuoteScroller } from "@tollbooth-dpyc/web/react";
@@ -229,6 +229,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
 
   const g = data?.accumulated_gdd;
   const ahead = data?.normals?.ahead_of_normal_gdd ?? null;
+  const storm = drying?.storm ?? null;
 
 
   return (
@@ -244,17 +245,6 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
             <Tag>from {fmt(data.season_start)}</Tag>
             {data.region && (
               <Tag>{data.region.sample_count} samples · {Math.round(data.region.grid_spacing_m)} m</Tag>
-            )}
-            {/* The barometer, read on the drying call the Dashboard already
-                makes — no second fare. Tapping it opens the Almanac, where
-                the warning is said in full. */}
-            {drying?.storm && drying.storm.level !== "none" && (
-              <button onClick={() => onView?.("almanac")} {...tour("ledger.storm")}
-                title={drying.storm.reason}
-                className={`data rounded-full px-2.5 py-1 text-[10px] font-semibold active:opacity-80 ${
-                  drying.storm.level === "severe" ? "bg-clay/15 text-clay" : "bg-honey/20 text-ink"}`}>
-                🌀 {stormWords(drying.storm)}
-              </button>
             )}
             <button onClick={() => onView?.("references")}
               className="data rounded-full border border-rule px-2.5 py-1 text-[10px] text-ink-soft active:bg-band">
@@ -272,42 +262,39 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
       )}
 
       {/* ── Pulse strip ───────────────────────────────────────────────── */}
-      <div className="mb-4 grid grid-cols-2 border-t-2 border-b border-t-ink border-b-rule sm:grid-cols-3 lg:grid-cols-5" {...tour("ledger.pulse")}>
+      <div className="mb-4 grid grid-cols-2 border-t-2 border-b border-t-ink border-b-rule sm:grid-cols-3 lg:grid-cols-6" {...tour("ledger.pulse")}>
         <PulseTile
           emoji="🌡️"
           value={g ? Math.round(g.mean).toLocaleString() : busy ? "…" : "—"}
           unit={data ? `GDD${sub(data.base_temp_f)}` : ""}
-          label={data ? `total since ${fmt(data.season_start)} · across your ground`
-                      : "total this season"}
+          label={data ? `since ${fmt(data.season_start)}` : "this season"}
           gauge={heatGauge(data)}
         />
         <PulseTile
-          emoji="⛰️"
+          emoji={<Hillside />}
           value={g ? Math.round(g.spread).toLocaleString() : busy ? "…" : "—"}
-          unit={g ? "GDD" : ""}
+          unit={g && data ? `GDD${sub(data.base_temp_f)}` : ""}
           muted={!g || g.spread <= 0}
+          title="Coolest to warmest ground on this block"
           label={
             !g
-              ? "coolest to warmest ground"
+              ? "across the block"
               : g.spread <= 0
-                ? "every sample alike"
+                ? "all alike"
                 : daysApart(g, data) != null
-                  ? `coolest to warmest · ≈ ${daysApart(g, data)} days apart`
-                  : "coolest to warmest ground"
+                  ? `≈ ${daysApart(g, data)} days apart`
+                  : "across the block"
           }
           gauge={spreadGauge(g)}
         />
         <PulseTile
           emoji={ahead == null ? "📊" : ahead >= 0 ? "📈" : "📉"}
           value={ahead == null ? "—" : `${ahead >= 0 ? "+" : ""}${Math.round(ahead)}`}
-          unit={ahead == null ? "" : "GDD"}
+          unit={ahead == null || !data ? "" : `GDD${sub(data.base_temp_f)}`}
           tone={ahead == null ? undefined : ahead >= 0 ? "growth" : "frost"}
           gauge={aheadGauge(data)}
-          label={
-            data?.normals
-              ? `${ahead == null ? "vs" : ahead >= 0 ? "ahead of" : "behind"} ${data.normals.span_years} seasons${bandScale(data)}`
-              : "vs recent seasons"
-          }
+          title={data?.normals ? `Against ${data.normals.span_years} seasons${bandScale(data)}` : undefined}
+          label={data?.normals ? `vs ${data.normals.span_years} seasons` : "vs recent seasons"}
         />
         <PulseTile emoji="❄️" tone="frost" value={frostTile.value} label={frostTile.label}
           muted={frostTile.muted} title={frostTile.title} gauge={frostGauge(frost, frostTile.iso)} />
@@ -317,12 +304,30 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
           tone="frost"
           muted={!frost?.worst_night}
           gauge={coldGauge(frost, u.showTemp, u.temp)}
-          label={
-            frost?.worst_night
-              ? `coldest ground ${shortDate(frost.worst_night.date)} · forecast ${u.showTemp(frost.worst_night.forecast_low_f)}`
-              : "coldest ground ahead"
-          }
+          title={frost?.worst_night
+            ? `Coldest ground ${shortDate(frost.worst_night.date)}; the forecast says ${u.showTemp(frost.worst_night.forecast_low_f)}`
+            : undefined}
+          label={frost?.worst_night ? `coldest · ${shortDate(frost.worst_night.date)}` : "coldest ahead"}
         />
+        {/* The barometer, read on the drying call the Dashboard already makes
+            — no second fare. The figure is the reading; the words are the
+            storm signal when there is one, else which way it is heading.
+            Tapping it opens the Almanac, where the warning is said in full. */}
+        <button onClick={() => onView?.("almanac")} {...tour("ledger.storm")}
+          className="min-w-0 border-l border-rule text-left active:bg-band">
+          <PulseTile
+            emoji={storm && storm.level !== "none" ? "🌀" : "🧭"}
+            value={storm ? u.showPressure(storm.now_hpa).replace(u.pressureUnit, "") : "—"}
+            unit={storm ? u.pressureUnit.trim() : ""}
+            tone={storm?.level === "severe" || storm?.level === "storm likely" ? "clay" : undefined}
+            muted={!storm}
+            title={storm?.reason}
+            gauge={storm ? baroGauge(storm.now_hpa) : null}
+            label={!storm ? "barometer"
+              : storm.level !== "none" ? `${tendencyArrow(storm)} ${stormWords(storm)}`
+              : `${tendencyArrow(storm)} ${storm.tendency?.direction ?? "steady"}`}
+          />
+        </button>
       </div>
 
       <div className="mb-2.5 flex flex-wrap items-center gap-2">
@@ -544,6 +549,34 @@ function spreadGauge(g?: { min: number; mean: number; max: number; spread: numbe
     lo: `🥶 ${Math.round(g.min).toLocaleString()}`,
     hi: `${Math.round(g.max).toLocaleString()} ☀️`,
   };
+}
+
+/// The reading on a barometer's own face: stormy, rain, change, fair, dry,
+/// shaded from wet to dry, with the three middle words printed under it.
+function baroGauge(hpa: number): Gauge {
+  const shade: Record<string, string> = {
+    stormy: "bg-clay/35", rain: "bg-frost/30", change: "", fair: "bg-honey/30", dry: "bg-honey/50",
+  };
+  return {
+    kind: "range", pos: onFace(hpa),
+    zones: FACE.zones.filter((z) => shade[z.word]).map((z) =>
+      ({ from: onFace(z.from), to: onFace(z.to), className: shade[z.word] })),
+    ticks: FACE.zones.slice(1).map((z) => ({ pos: onFace(z.from) })),
+    labels: FACE.zones.filter((z) => ["rain", "change", "fair"].includes(z.word))
+      .map((z) => ({ pos: onFace((z.from + z.to) / 2), text: z.word })),
+  };
+}
+
+/// A hillside: the block's slope, coolest at its foot and warmest up the
+/// bench. A mountain overstated a farm's few metres of relief.
+function Hillside() {
+  return (
+    <svg viewBox="0 0 32 32" className="size-[1.1em]" aria-hidden>
+      <path d="M1 25 C 9 23, 15 15, 31 11 L31 29 L1 29 Z" fill="var(--color-growth)" opacity="0.45" />
+      <path d="M1 29 L1 22 C 8 22, 14 18, 22 19 C 26 19.5, 29 21, 31 22 L31 29 Z" fill="var(--color-growth)" />
+      <circle cx="24" cy="7" r="3" fill="var(--color-honey)" />
+    </svg>
+  );
 }
 
 /// Words a gauge end can lose on a phone, where only its number fits.
