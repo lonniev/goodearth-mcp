@@ -15,7 +15,7 @@ export const TARGETS = [
   // Where do you farm?
   "firstrun.here", "firstrun.draw",
   // The Dashboard.
-  "ledger.chips", "ledger.storm", "ledger.pulse", "ledger.ground", "ledger.events", "ledger.weather",
+  "ledger.chips", "ledger.heat", "ledger.spread", "ledger.ahead", "ledger.frost", "ledger.cold", "ledger.storm", "ledger.ground", "ledger.events", "ledger.weather",
   "ledger.chart", "ledger.trends", "ledger.doors",
   // My Plots.
   "plots.add", "plots.import", "plots.groups", "plots.chips", "plots.rename", "plots.share", "plots.forget",

@@ -8,6 +8,7 @@
 // normal. The picture is what makes the number mean something at a glance.
 
 import type { ReactNode } from "react";
+import { tour, type Target } from "../lib/tour/targets";
 
 export type Tone = "growth" | "frost" | "clay";
 
@@ -49,7 +50,7 @@ const DISC: Record<Tone | "plain", string> = {
   growth: "bg-growth/12", frost: "bg-frost/12", clay: "bg-clay/12", plain: "bg-band",
 };
 
-export default function PulseTile({ emoji, value, unit, label, tone, muted, gauge, title }: {
+export default function PulseTile({ emoji, value, unit, label, tone, muted, gauge, title, tourId }: {
   /// A glyph, or a small drawing where no emoji says the thing.
   emoji: ReactNode;
   value: string;
@@ -59,10 +60,12 @@ export default function PulseTile({ emoji, value, unit, label, tone, muted, gaug
   muted?: boolean;
   gauge?: Gauge | null;
   title?: string;
+  /// The tour stop that explains this tile.
+  tourId?: Target;
 }) {
   const fill = FILL[tone ?? "growth"];
   return (
-    <div title={title}
+    <div title={title} {...(tourId ? tour(tourId) : {})}
       className={`flex min-w-0 flex-col gap-2 border-l border-rule px-3 py-2.5 first:border-l-0 ${muted ? "opacity-45" : ""}`}>
       <div className="flex items-center gap-2.5 lg:gap-2">
         <span aria-hidden

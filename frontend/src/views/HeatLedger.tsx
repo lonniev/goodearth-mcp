@@ -262,18 +262,18 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
       )}
 
       {/* ── Pulse strip ───────────────────────────────────────────────── */}
-      <div className="mb-4 grid grid-cols-2 border-t-2 border-b border-t-ink border-b-rule sm:grid-cols-3 lg:grid-cols-6" {...tour("ledger.pulse")}>
+      <div className="mb-4 grid grid-cols-2 border-t-2 border-b border-t-ink border-b-rule sm:grid-cols-3 lg:grid-cols-6">
         <PulseTile
-          emoji="🌡️"
-          value={g ? Math.round(g.mean).toLocaleString() : busy ? "…" : "—"}
-          unit={data ? `GDD${sub(data.base_temp_f)}` : ""}
+          emoji="🌡️" tourId="ledger.heat"
+          value={g && data ? `${Math.round(g.mean)}${sub(data.base_temp_f)}` : busy ? "…" : "—"}
+          unit={g ? "total" : ""}
           label={data ? `since ${fmt(data.season_start)}` : "this season"}
           gauge={heatGauge(data)}
         />
         <PulseTile
-          emoji={<Hillside />}
-          value={g ? Math.round(g.spread).toLocaleString() : busy ? "…" : "—"}
-          unit={g && data ? `GDD${sub(data.base_temp_f)}` : ""}
+          emoji={<Hillside />} tourId="ledger.spread"
+          value={g && data ? `${Math.round(g.spread)}${sub(data.base_temp_f)}` : busy ? "…" : "—"}
+          unit={g ? "Δ" : ""}
           muted={!g || g.spread <= 0}
           title="Coolest to warmest ground on this block"
           label={
@@ -289,17 +289,18 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
         />
         <PulseTile
           emoji={ahead == null ? "📊" : ahead >= 0 ? "📈" : "📉"}
-          value={ahead == null ? "—" : `${ahead >= 0 ? "+" : ""}${Math.round(ahead)}`}
-          unit={ahead == null || !data ? "" : `GDD${sub(data.base_temp_f)}`}
+          tourId="ledger.ahead"
+          value={ahead == null || !data ? "—" : `${Math.abs(Math.round(ahead))}${sub(data.base_temp_f)}`}
+          unit={ahead == null || !data ? "" : ahead >= 0 ? "ahead" : "behind"}
           tone={ahead == null ? undefined : ahead >= 0 ? "growth" : "frost"}
           gauge={aheadGauge(data)}
           title={data?.normals ? `Against ${data.normals.span_years} seasons${bandScale(data)}` : undefined}
           label={data?.normals ? `vs ${data.normals.span_years} seasons` : "vs recent seasons"}
         />
-        <PulseTile emoji="❄️" tone="frost" value={frostTile.value} label={frostTile.label}
+        <PulseTile emoji="❄️" tone="frost" tourId="ledger.frost" value={frostTile.value} label={frostTile.label}
           muted={frostTile.muted} title={frostTile.title} gauge={frostGauge(frost, frostTile.iso)} />
         <PulseTile
-          emoji={frost?.worst_night && frost.worst_night.level !== "clear" ? "🥶" : "🌙"}
+          emoji={frost?.worst_night && frost.worst_night.level !== "clear" ? "🥶" : "🌙"} tourId="ledger.cold"
           value={frost?.worst_night ? u.showTemp(frost.worst_night.low_ground_f) : "—"}
           tone="frost"
           muted={!frost?.worst_night}
