@@ -1,0 +1,1 @@
+- The Prices page sets a small ₿ before each fare, like $ on a price tag (tollbooth-web 2.4.0).
