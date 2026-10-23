@@ -26,6 +26,7 @@ import {
 } from "../lib/reports";
 import type { SavedRegion } from "../lib/regions";
 import { ErrorBox, FIELD, ICON, IconButton, Note, TrashGlyph } from "../components/ui";
+import AddPanel from "../components/AddPanel";
 import { useSubmit } from "../lib/useSubmit";
 import { withId } from "../lib/submit";
 import { useTour } from "@tollbooth-dpyc/web/react";
@@ -63,7 +64,12 @@ export default function FieldReports({
     useBlockItems<FieldReport>(region.id, "observation", reportCodec);
   /// The reports as one table, for the share button in the top bar.
   useShare(useMemo(() => reportsSheet(region, reports), [region, reports]));
-  useTour("reports", { actions: { "pick-tag:first_bloom": () => setTag("first_bloom") } });
+  /// The add form, folded until it is wanted.
+  const [addOpen, setAddOpen] = useState(false);
+  useTour("reports", { actions: {
+    "open-add": () => setAddOpen(true),
+    "pick-tag:first_bloom": () => { setAddOpen(true); setTag("first_bloom"); },
+  } });
   const [tag, setTag] = useState<ReportTag>("frost");
   const [cal, setCal] = useState<CalibrationResult | null>(null);
   const [ranAt, setRanAt] = useState<Date | null>(null);
@@ -252,43 +258,9 @@ export default function FieldReports({
     <>
       <h1 className="figure mb-3.5 text-[22px] font-bold">Field Reports</h1>
 
-      {/* ── Your observations ────────────────────────────────────────── */}
-      <h2 className="figure mb-2.5 flex items-baseline gap-2.5 text-[18px] font-semibold">
-        Your Observations
-        {usable > 0 && <Provenance tool="goodearth_calibration" at={ranAt} onCost={onCost} />}
-      </h2>
-
-      {busy && !cal ? (
-        <div className="rounded-md border border-rule bg-panel"><QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Reading your reports" intervalMs={6500} classNames={quoteStyles} /></div>
-      ) : cal ? (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Bias title="Heat" s={cal.heat} unit="%" />
-          <Bias title="First frost" s={cal.first_frost} unit=" days" />
-          {Object.keys(cal.corrections).length > 0 && (
-            <p className="sm:col-span-2 rounded-md border border-rule border-l-4 border-l-growth bg-panel px-3.5 py-2.5 text-[13px]">
-              Applied to your ground:{" "}
-              {cal.corrections.heat_multiplier != null && (
-                <b>heat × {cal.corrections.heat_multiplier}</b>
-              )}
-              {cal.corrections.heat_multiplier != null && cal.corrections.first_frost_offset_days != null && " · "}
-              {cal.corrections.first_frost_offset_days != null && (
-                <b>frost {cal.corrections.first_frost_offset_days > 0 ? "+" : ""}
-                  {cal.corrections.first_frost_offset_days} days</b>
-              )}
-            </p>
-          )}
-        </div>
-      ) : (
-        <div className="rounded-md border border-dashed border-rule bg-panel/60 p-5 text-[13px] leading-relaxed text-ink-soft">
-          Nothing yet.
-        </div>
-      )}
-
-      {err && <p className="mt-3 rounded-md border border-clay/30 bg-clay/10 p-3 text-[13px] text-clay">{err}</p>}
-
       {/* ── File one ───────────────────────────────────────────────────── */}
-      <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold">Observation</h2>
-      <form onSubmit={file} className="rounded-md border border-rule bg-panel p-4">
+      <AddPanel label="New observation" open={addOpen} onOpen={setAddOpen}>
+      <form onSubmit={file} className="mb-4 rounded-md border border-rule bg-panel p-4">
         {/* Quick picks, not the vocabulary. Only frost and the stage kinds
             reach the calibration model; everything else is recorded either
             way, so a closed list only ever hid that a grower may report
@@ -358,6 +330,42 @@ export default function FieldReports({
 
         {msg && <p className="mt-2 text-[12.5px] text-ink-soft">{msg}</p>}
       </form>
+      </AddPanel>
+
+      {/* ── Your observations ────────────────────────────────────────── */}
+      <h2 className="figure mb-2.5 flex items-baseline gap-2.5 text-[18px] font-semibold">
+        Your Observations
+        {usable > 0 && <Provenance tool="goodearth_calibration" at={ranAt} onCost={onCost} />}
+      </h2>
+
+      {busy && !cal ? (
+        <div className="rounded-md border border-rule bg-panel"><QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Reading your reports" intervalMs={6500} classNames={quoteStyles} /></div>
+      ) : cal ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Bias title="Heat" s={cal.heat} unit="%" />
+          <Bias title="First frost" s={cal.first_frost} unit=" days" />
+          {Object.keys(cal.corrections).length > 0 && (
+            <p className="sm:col-span-2 rounded-md border border-rule border-l-4 border-l-growth bg-panel px-3.5 py-2.5 text-[13px]">
+              Applied to your ground:{" "}
+              {cal.corrections.heat_multiplier != null && (
+                <b>heat × {cal.corrections.heat_multiplier}</b>
+              )}
+              {cal.corrections.heat_multiplier != null && cal.corrections.first_frost_offset_days != null && " · "}
+              {cal.corrections.first_frost_offset_days != null && (
+                <b>frost {cal.corrections.first_frost_offset_days > 0 ? "+" : ""}
+                  {cal.corrections.first_frost_offset_days} days</b>
+              )}
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="rounded-md border border-dashed border-rule bg-panel/60 p-5 text-[13px] leading-relaxed text-ink-soft">
+          Nothing yet.
+        </div>
+      )}
+
+      {err && <p className="mt-3 rounded-md border border-clay/30 bg-clay/10 p-3 text-[13px] text-clay">{err}</p>}
+
 
       {/* ── Import ─────────────────────────────────────────────────────── */}
       <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold">🔭 Import from iNaturalist</h2>

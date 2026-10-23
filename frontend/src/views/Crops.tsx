@@ -53,6 +53,7 @@ import type { SavedRegion } from "../lib/regions";
 import { Empty, ErrorBox, Field, FIELD, Glyph, ICON, IconButton, PageTitle, Pill,
   Section, TABLE_FILTER } from "../components/ui";
 import { useTour } from "@tollbooth-dpyc/web/react";
+import AddPanel, { showForm } from "../components/AddPanel";
 import { tour } from "../lib/tour/targets";
 import CommunityObservations from "../components/CommunityObservations";
 
@@ -234,7 +235,9 @@ export default function Crops({
   const [ledger, setLedger] = useState<CropLedgerResult | null>(null);
   /// The plantings with where each stands, for the share button in the top bar.
   useShare(useMemo(() => cropsSheet(region, plantings, ledger, u.unit, total), [region, plantings, ledger, u.unit, total]));
-  useTour("crops");
+  /// The add form, folded until it is wanted.
+  const [addOpen, setAddOpen] = useState(false);
+  useTour("crops", { actions: { "open-add": () => setAddOpen(true) } });
   /// Disease risk for this block, joined to the plantings by each model's own
   /// "developed for" list. Its own call because it reads HOURS, not the heat
   /// curve the ledger is built on.
@@ -470,7 +473,7 @@ export default function Crops({
     setRepeating(d);
     setFormKey((k) => k + 1);
     setAdded(`${p.crop} from ${season} — choose the day it goes in, then add it.`);
-    document.getElementById("new-planting")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    showForm(setAddOpen, "new-planting");
   }
 
   /// A companion the grower tapped goes to the planting form to be confirmed
@@ -495,7 +498,7 @@ export default function Crops({
     setRepeating(null);
     setFormKey((k) => k + 1);
     setAdded(`${row.name} — choose the day it goes in, then add it.`);
-    document.getElementById("new-planting")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    showForm(setAddOpen, "new-planting");
   }
 
   /// Seed of a plant this plot's ledger does not hold.
@@ -527,7 +530,7 @@ export default function Crops({
     }
     setRepeating(d);
     setFormKey((k) => k + 1);
-    document.getElementById("new-planting")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    showForm(setAddOpen, "new-planting");
   }
 
   /// Every sowing of the plan onto the ledger, in one write and one fare.
@@ -716,6 +719,7 @@ export default function Crops({
       )}
 
       {/* ── Add a planting ─────────────────────────────────────────────── */}
+      <AddPanel label="New planting" open={addOpen} onOpen={setAddOpen}>
       <form key={formKey} id="new-planting" onSubmit={add} className="mb-4 rounded-md border border-rule bg-panel p-4">
         {/* The Pests form's shape: every caption on one line, every box one
             height, each as wide as what goes in it, and the act at the end of
@@ -820,6 +824,7 @@ export default function Crops({
         {formErr && <p className="mt-2 text-[12px] text-clay">{formErr}</p>}
         {added && !formErr && <p className="mt-2 text-[12px] text-growth">{added}</p>}
       </form>
+      </AddPanel>
 
       {/* One row where there were three. The heading carries its own reading
           time rather than sending it to the far right, and the frost sentence

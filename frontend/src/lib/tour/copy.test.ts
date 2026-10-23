@@ -83,7 +83,7 @@ describe("every step points at something drawn", () => {
   it("a page action a step asks for is one the page registers", () => {
     const registered: Record<string, string> = {
       plots: "views/Plots.tsx", reports: "views/FieldReports.tsx", todo: "views/Todo.tsx",
-      wildlife: "views/Wildlife.tsx",
+      wildlife: "views/Wildlife.tsx", crops: "views/Crops.tsx", pests: "views/Pests.tsx",
     };
     for (const t of Object.values(TOURS)) for (const s of t.steps) {
       if (!s.before) continue;
