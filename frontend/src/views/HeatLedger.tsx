@@ -266,14 +266,14 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
         <PulseTile
           emoji="🌡️" tourId="ledger.heat"
           value={g && data ? `${Math.round(g.mean)}${sub(data.base_temp_f)}` : busy ? "…" : "—"}
-          unit={g ? "total" : ""}
+          unit={g ? "GDD total" : ""}
           label={data ? `since ${fmt(data.season_start)}` : "this season"}
           gauge={heatGauge(data)}
         />
         <PulseTile
           emoji={<Hillside />} tourId="ledger.spread"
           value={g && data ? `${Math.round(g.spread)}${sub(data.base_temp_f)}` : busy ? "…" : "—"}
-          unit={g ? "Δ" : ""}
+          unit={g ? "GDD Δ" : ""}
           muted={!g || g.spread <= 0}
           title="Coolest to warmest ground on this block"
           label={
@@ -291,7 +291,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
           emoji={ahead == null ? "📊" : ahead >= 0 ? "📈" : "📉"}
           tourId="ledger.ahead"
           value={ahead == null || !data ? "—" : `${Math.abs(Math.round(ahead))}${sub(data.base_temp_f)}`}
-          unit={ahead == null || !data ? "" : ahead >= 0 ? "ahead" : "behind"}
+          unit={ahead == null || !data ? "" : ahead >= 0 ? "GDD ahead" : "GDD behind"}
           tone={ahead == null ? undefined : ahead >= 0 ? "growth" : "frost"}
           gauge={aheadGauge(data)}
           title={data?.normals ? `Against ${data.normals.span_years} seasons${bandScale(data)}` : undefined}
