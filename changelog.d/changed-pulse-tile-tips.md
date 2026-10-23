@@ -1,0 +1,2 @@
+- The Dashboard's live tutorial now stops at each pulse tile — heat so far, spread, ahead or behind, first frost, coldest night and the barometer — with a tip for each, where it had one stop for the whole strip.
+- The three heat tiles read with the base as a subscript and a word: `2234₅₀ total`, `22₅₀ Δ` across the block, and `66₅₀ ahead` (or `behind`).
