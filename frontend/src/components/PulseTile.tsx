@@ -23,6 +23,8 @@ export interface RangeGauge {
   ticks?: { pos: number; label?: string; mark?: string }[];
   /// Shaded stretches of the strip — the frost bands under a thermometer.
   zones?: { from: number; to: number; className: string }[];
+  /// Words under the strip with no tick of their own — a barometer's face.
+  labels?: { pos: number; text: string }[];
 }
 
 /// A signed departure from normal, -1..1, drawn as a bar out from the centre.
@@ -48,7 +50,8 @@ const DISC: Record<Tone | "plain", string> = {
 };
 
 export default function PulseTile({ emoji, value, unit, label, tone, muted, gauge, title }: {
-  emoji: string;
+  /// A glyph, or a small drawing where no emoji says the thing.
+  emoji: ReactNode;
   value: string;
   unit?: ReactNode;
   label: string;
@@ -61,9 +64,9 @@ export default function PulseTile({ emoji, value, unit, label, tone, muted, gaug
   return (
     <div title={title}
       className={`flex min-w-0 flex-col gap-2 border-l border-rule px-3 py-2.5 first:border-l-0 ${muted ? "opacity-45" : ""}`}>
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2.5 lg:gap-2">
         <span aria-hidden
-          className={`flex size-11 shrink-0 items-center justify-center rounded-full text-[26px] leading-none sm:size-12 sm:text-[28px] ${DISC[tone ?? "plain"]}`}>
+          className={`flex size-11 shrink-0 items-center justify-center rounded-full text-[26px] leading-none sm:size-12 sm:text-[28px] lg:size-10 lg:text-[23px] ${DISC[tone ?? "plain"]}`}>
           {emoji}
         </span>
         <div className="min-w-0">
@@ -95,11 +98,12 @@ export default function PulseTile({ emoji, value, unit, label, tone, muted, gaug
               <span className="truncate">{gauge.lo}</span><span className="truncate">{gauge.hi}</span>
             </div>
           )}
-          {gauge.ticks?.some((t) => t.mark) && (
+          {(gauge.ticks?.some((t) => t.mark) || gauge.labels?.length) && (
             <div className="data relative mt-1 h-3 text-[9.5px] text-ink-soft">
-              {gauge.ticks.filter((t) => t.mark).map((t, i) => (
-                <span key={i} title={t.label} className="absolute -translate-x-1/2 whitespace-nowrap"
-                  style={{ left: `${clamp(t.pos) * 100}%` }}>{t.mark}</span>
+              {[...(gauge.ticks ?? []).filter((t) => t.mark).map((t) => ({ pos: t.pos, text: t.mark!, title: t.label })),
+                ...(gauge.labels ?? []).map((l) => ({ ...l, title: undefined }))].map((t, i) => (
+                <span key={i} title={t.title} className="absolute -translate-x-1/2 whitespace-nowrap"
+                  style={{ left: `${clamp(t.pos) * 100}%` }}>{t.text}</span>
               ))}
             </div>
           )}

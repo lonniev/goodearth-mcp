@@ -1,0 +1,1 @@
+- The Dashboard's pulse strip has six tiles: the barometer joins it on its own face (stormy · rain · change · fair) with its tendency, or 🌀 and the day of a storm signal, replacing the storm chip by the title. Sublabels are a few words each, every GDD figure carries its base, and the spread tile's icon is a hillside.
