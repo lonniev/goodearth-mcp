@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MeasureChart from "../components/MeasureChart";
 import Provenance from "../components/Provenance";
 import RadarMap from "../components/RadarMap";
+import ForecastCard from "../components/ForecastCard";
 import { readingTime } from "../lib/readingTime";
 import { trendLift } from "../lib/trend";
 import { QuoteScroller } from "@tollbooth-dpyc/web/react";
@@ -66,6 +67,8 @@ export default function Almanac({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [ranAt, setRanAt] = useState<Date | null>(null);
+  /// The fortnight day whose forecast is open, by its place in the fortnight.
+  const [opened, setOpened] = useState<number | null>(null);
   const [shown, setShown] = useState<Set<MeasureKey>>(
     () => new Set<MeasureKey>(["temp_max", "dew_point", "precip", "sunshine"]),
   );
@@ -236,8 +239,10 @@ export default function Almanac({
             const baro = u.pressure;
             const decimals = u.unit === "F" ? 2 : 0;
             return data.upcoming.map((u, i) => (
-            <div key={u.date} style={{ transform: `translateY(${-lift[i]}px)` }}
-              className="flex flex-col items-center gap-0.5 rounded-md border border-rule bg-panel px-1 py-2.5">
+            <button key={u.date} type="button" onClick={() => setOpened(i)}
+              title="The day's forecast, to read or paste"
+              style={{ transform: `translateY(${-lift[i]}px)` }}
+              className="flex flex-col items-center gap-0.5 rounded-md border border-rule bg-panel px-1 py-2.5 active:bg-band">
               <span className="data text-[10.5px] text-ink-soft">
                 {new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" })}
               </span>
@@ -268,10 +273,15 @@ export default function Almanac({
                   : "\u00A0"}
               </span>
               <span className="data text-[10.5px] text-ink-soft">{u.wind.emoji}{u.wind.from ?? ""}</span>
-            </div>
+            </button>
             ));
           })()}
         </div>
+      )}
+      {data && opened != null && data.upcoming[opened] && (
+        <ForecastCard days={data.upcoming} index={opened} onIndex={setOpened}
+          place={region.name} issued={readingTime(data) ?? ranAt ?? new Date()}
+          onClose={() => setOpened(null)} />
       )}
 
       {/* ── Measures ───────────────────────────────────────────────────── */}

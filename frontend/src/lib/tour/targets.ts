@@ -10,7 +10,6 @@ export const TARGETS = [
   // The chrome, on every signed-in page.
   "shell.plot", "shell.conditions", "shell.undo", "shell.fullscreen",
   "shell.guide", "shell.share", "shell.account",
-  "rail.plots",
   // A stranger's first pages.
   "welcome.signin", "welcome.explainers", "welcome.guides",
   // Where do you farm?

@@ -22,10 +22,7 @@ import { applyOrder, move, readCollapsed, readOrder, writeCollapsed, writeOrder 
 // reaching into a component. Re-exported here because every view already
 // imports ViewKey from the shell.
 import type { ViewKey } from "../lib/views";
-import { tour, type Target } from "../lib/tour/targets";
-
-/// The rail's working pages, by the names the tour points at them.
-const RAIL_TOUR: Partial<Record<ViewKey, Target>> = { plots: "rail.plots" };
+import { tour } from "../lib/tour/targets";
 
 export { VIEW_KEYS, type ViewKey } from "../lib/views";
 
@@ -164,7 +161,6 @@ export default function AppShell({
               <button
                 onClick={() => it.ready && !editing && onView(it.key)}
                 disabled={!it.ready}
-                data-tour={RAIL_TOUR[it.key]}
                 title={it.ready ? it.label : it.soon}
                 aria-current={active ? "page" : undefined}
                 className={[
