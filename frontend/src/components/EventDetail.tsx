@@ -31,15 +31,15 @@ import {
 const KIND: Record<LedgerFlag["kind"], { label: string; tone: string; source: string }> = {
   crop: {
     label: "Crop target", tone: "text-growth",
-    source: "From your planting: the degree-days it needs, counted from the day it went in.",
+    source: "The degree-days your planting needs, counted from when it went in.",
   },
   pest: {
     label: "Pest threshold", tone: "text-honey",
-    source: "From the degree-day figure you gave this pest. Check it against your local extension bulletin.",
+    source: "Your degree-day figure for this pest — check it against your extension bulletin.",
   },
   wildlife: {
     label: "Fauna event", tone: "text-frost",
-    source: "From the degree-day figure you gave this animal.",
+    source: "Your degree-day figure for this animal.",
   },
   task: {
     label: "Your task", tone: "text-ink-soft",
@@ -118,13 +118,13 @@ export default function EventDetail({
   const confidence =
     isTask
       ? overdue
-        ? "This date has passed and you haven't marked it done."
+        ? "Past due and not marked done."
         : "You recorded this fixed date."
       : horizon === "recorded"
-      ? "It's happened. The date comes from this season's weather record."
+      ? "It's happened, by this season's record."
       : horizon === "forecast"
-        ? "Fairly sure. It falls inside the seven-day forecast."
-        : "A rough guess. It assumes the coming weeks warm up the way the last two did.";
+        ? "Fairly sure: it's within the 7-day forecast."
+        : "A rough guess, assuming the last two weeks' warmth holds.";
 
   const spread = curve.accumulated_gdd;
   const spreadDays =
@@ -214,8 +214,7 @@ export default function EventDetail({
         ) : (
           <Row label="What it is">
             <span className="text-ink-soft">
-              We couldn't find "{subject}" in the species lists, which usually
-              means it's a local name. The timing still holds.
+              Not in the species lists — likely a local name — but the timing holds.
             </span>
           </Row>
         )}
@@ -225,17 +224,15 @@ export default function EventDetail({
 
         {flag.baseMismatch != null && (
           <Row label="⚠ Different base temperature" tone="text-clay">
-            This figure counts heat from {u.showTemp(flag.baseMismatch)}, and your ground
-            counts from {u.showTemp(curve.base_temp_f)}, so the mark is dimmed and only roughly
-            placed. Set your ground's base to {u.showTemp(flag.baseMismatch)} to place it exactly.
+            Placed roughly: this counts heat from {u.showTemp(flag.baseMismatch)} and your
+            ground from {u.showTemp(curve.base_temp_f)} — match your base to place it exactly.
           </Row>
         )}
 
         {!isTask && spreadDays != null && spreadDays >= 1 && (
           <Row label="Across your ground">
-            Your warmest and coolest spots are about {spreadDays} day
-            {spreadDays === 1 ? "" : "s"} apart, so this date is the middle of that
-            spread. Expect it on the warm ground first and in the hollows last.
+            Your warm and cool spots run about {spreadDays} day{spreadDays === 1 ? "" : "s"} apart,
+            so expect it on warm ground first.
           </Row>
         )}
 
@@ -244,9 +241,7 @@ export default function EventDetail({
           <div className="mt-3.5">
             <div className="eyebrow">Treatment advice</div>
             <p className="mt-1 text-[13px] leading-relaxed">
-              Good Earth doesn't recommend treatments. What's allowed varies by
-              state and changes every year, and the label rate is the law, so go
-              by the bulletin below.
+              Follow the bulletin below: treatment rules vary by state, and the label is the law.
             </p>
             <div className="mt-2 flex flex-col gap-1.5">
               {links.map((l) => (
@@ -262,8 +257,7 @@ export default function EventDetail({
 
         {!isTask && (
           <Row label="Make it more accurate">
-            Send a field report when you see this happen. After a few, the dates
-            fit your own ground.
+            Report when you see it, and the dates learn your ground.
           </Row>
         )}
       </div>
