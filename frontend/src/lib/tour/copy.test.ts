@@ -42,10 +42,21 @@ describe("every page has its tour", () => {
       assert.ok(TOURS[p].steps.length >= 3, `${p} has too few steps`);
     }
   });
-  it("every guided page's tour ends at the (?)", () => {
+  it("every guided page's tour shows the (?): the Dashboard in its top row, the rest last", () => {
     for (const p of GUIDED) {
-      const last = TOURS[p as keyof typeof TOURS].steps.at(-1);
-      assert.equal(last?.target, "shell.guide", `${p}'s last step is ${String(last?.target)}`);
+      const steps = TOURS[p as keyof typeof TOURS].steps;
+      const at = steps.findIndex((s) => s.target === "shell.guide");
+      if (p === "ledger") {
+        assert.equal(steps[at - 1]?.target, "shell.undo", "the Dashboard's (?) sits beside Put back");
+      } else {
+        assert.equal(at, steps.length - 1, `${p}'s last step is ${String(steps.at(-1)?.target)}`);
+      }
+    }
+  });
+  it("no tour visits the same control twice", () => {
+    for (const [p, t] of Object.entries(TOURS)) {
+      const seen = t.steps.map((s) => s.target);
+      assert.equal(new Set(seen).size, seen.length, `${p} repeats a step`);
     }
   });
   it("every page's tour is asked for by that page's source", () => {

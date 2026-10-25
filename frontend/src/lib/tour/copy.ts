@@ -3,8 +3,8 @@
 // Short, and in the voice of someone showing a friend around: what the
 // control is and what to do with it, in a sentence or two. Each step names
 // the guide step it abbreviates, so when a guide changes the tour is caught
-// by the test that reads both. The last step on every page is the (?), where
-// the whole story is.
+// by the test that reads both. Every guided page shows the (?), where the
+// whole story is: the Dashboard among its top-row peers, every other page last.
 
 import { accountTour, signInTour } from "@tollbooth-dpyc/web";
 import type { Tour, TourStep } from "./types.ts";
@@ -35,6 +35,7 @@ export const TOURS: Record<Tour["page"], Tour> = {
       says: "The night ahead on your lowest ground: its low, the wind, the cloud and the dew point." },
     { target: "shell.undo", title: "Put back",
       says: "Something you removed on this plot. Tap to put it back.", side: "bottom", align: "end" },
+    GUIDE,
     { target: "shell.share", title: "Share",
       says: "This page's figures as a table or as JSON, to keep or send.", side: "bottom", align: "end" },
     { target: "shell.fullscreen", title: "Full screen",
@@ -73,9 +74,6 @@ export const TOURS: Record<Tour["page"], Tour> = {
       says: "Freezing, soil, drying and disease, each with its own card below.", side: "top" },
     { target: "ledger.doors", title: "More views", guide: ["The trends", "More Views"],
       says: "Doors to the other pages. The rail opens them too.", side: "top" },
-    { target: "rail.plots", title: "My Plots",
-      says: "Your ground lives here: add a plot, draw it, and every page answers for it.", side: "right" },
-    GUIDE,
   ]},
 
   plots: { page: "plots", steps: [
@@ -269,7 +267,7 @@ export const TOURS: Record<Tour["page"], Tour> = {
     { target: "almanac.radar", title: "Rain on the radar", guide: ["Read", "🌧️ in the title row"],
       says: "Shows the rain radar over the plot, playing the last hour." },
     { target: "almanac.fortnight", title: "The fortnight", guide: ["Read", "The fortnight"],
-      says: "Fourteen days ahead, a card each.", side: "top" },
+      says: "Fourteen days ahead, a card each. Tap a day for its forecast, ready to paste.", side: "top" },
     { target: "almanac.chiclets", title: "The season so far", guide: ["Arrange", "The chiclets"],
       says: "One chart per measure. Tap a chiclet to show or hide it; drag to reorder." },
     { target: "shell.share", title: "Share", guide: ["Read", "Share, in the top bar"],

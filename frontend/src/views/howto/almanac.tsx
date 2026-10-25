@@ -74,7 +74,9 @@ export const almanac: Guide = {
         <>Fourteen cards, one per day: sky, high and low, chance of rain,
           humidity, pressure with an arrow for its move from the day before,
           and wind. Each card rides a few pixels higher on a warmer
-          day, so the week's warming or cooling shows before a number is read.</>],
+          day, so the week's warming or cooling shows before a number is read.
+          Tap a card for that day's forecast, written the Weather Service's
+          way and ready to paste.</>],
       ["The season so far",
         <>One chart per measure you have switched on. Grey band, solid season,
           dashed forecast. The button in each chart's corner takes it to the

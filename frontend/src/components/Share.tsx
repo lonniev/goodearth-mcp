@@ -58,7 +58,7 @@ export function ShareButton() {
 /// Put text on the clipboard, or fail honestly. A write can be refused — an
 /// insecure context, a browser that wants a fresher gesture — and a tick
 /// that lies is worse than a prompt the grower can copy from by hand.
-async function toClipboard(text: string, what: string): Promise<boolean> {
+export async function toClipboard(text: string, what: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
     return true;
