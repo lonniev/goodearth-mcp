@@ -224,8 +224,9 @@ export default function EventDetail({
 
         {flag.baseMismatch != null && (
           <Row label="⚠ Different base temperature" tone="text-clay">
-            Placed roughly: this counts heat from {u.showTemp(flag.baseMismatch)} and your
-            ground from {u.showTemp(curve.base_temp_f)} — match your base to place it exactly.
+            Placed roughly: this has a GDD base of {u.showTemp(flag.baseMismatch)}, but your
+            Plot has a GDD base of {u.showTemp(curve.base_temp_f)} — change
+            the {u.showTemp(flag.baseMismatch)} base for better placement.
           </Row>
         )}
 
@@ -257,7 +258,7 @@ export default function EventDetail({
 
         {!isTask && (
           <Row label="Make it more accurate">
-            Report when you see it, and the dates learn your ground.
+            Report when you see it: your dated records improve the predictions.
           </Row>
         )}
       </div>
