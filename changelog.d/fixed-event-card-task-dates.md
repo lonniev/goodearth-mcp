@@ -1,0 +1,2 @@
+- A task's card on the Dashboard chart no longer says "This already happened" about a day still to come. It reads the task's own date: "due", or "due · not done yet" once the day has passed. A sowing's card reads its date the same way.
+- A task's card leaves out the rows that only make sense for a living thing: the taxonomy lookup, the spread across your ground and the field-report calibration note.
