@@ -134,8 +134,21 @@
 }
 .ge-bee     { animation: ge-settle 6s ease-in-out infinite; transform-origin: center; }
 .ge-bee-in  { animation: ge-arrive 9s ease-in-out infinite; transform-origin: center; }
+/* An event mark that opens a card: a ring that swells and fades every few
+   seconds. Slow on purpose, so it reads as "tap me", not as an alarm. */
+@keyframes ge-beacon {
+  0%   { transform: scale(1);   opacity: .75; }
+  45%  { transform: scale(3.4); opacity: 0; }
+  100% { transform: scale(3.4); opacity: 0; }
+}
+.ge-beacon {
+  animation: ge-beacon 3.6s ease-out infinite;
+  transform-box: fill-box; transform-origin: center;
+  pointer-events: none;
+}
 @media (prefers-reduced-motion: reduce) {
-  .ge-bee, .ge-bee-in { animation: none; }
+  .ge-bee, .ge-bee-in, .ge-beacon { animation: none; }
+  .ge-beacon { opacity: 0; }
 }
 
 /* ── The seasons ──────────────────────────────────────────────────────────

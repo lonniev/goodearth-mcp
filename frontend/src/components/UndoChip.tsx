@@ -25,6 +25,7 @@ import { drop, list, since, type UndoEntry } from "../lib/undo";
 import { RESTORED_EVENT, UNDO_EVENT, restored } from "../lib/undoEvents";
 import { restore } from "../lib/undoRestore";
 import { Glyph, ICON } from "./ui";
+import { tour } from "../lib/tour/targets";
 
 export default function UndoChip({ blockId }: {
   /// The ground on screen. Removals from other blocks are not this mark's to
@@ -92,6 +93,7 @@ export default function UndoChip({ blockId }: {
         aria-expanded={open}
         title={`Put back — ${mine.length} removed`}
         aria-label={`Put back — ${mine.length} removed`}
+        {...tour("shell.undo")}
         className="flex h-11 w-11 items-center justify-center rounded-full border-[1.5px] border-rule text-ink-soft active:bg-band"
       >
         <Glyph path={ICON.undo} />

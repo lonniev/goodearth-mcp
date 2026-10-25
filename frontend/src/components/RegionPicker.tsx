@@ -5,6 +5,7 @@ import { saveBlock } from "../lib/saveBlock";
 import { useUnits } from "./Units";
 import { useEffect, useRef, useState } from "react";
 import FolderTree from "./FolderTree";
+import { tour } from "../lib/tour/targets";
 import { matching, revealPlot, ungrouped } from "../lib/plotGroups";
 import { readOpenGroups, writeOpenGroups } from "../lib/openGroups";
 import {
@@ -126,6 +127,7 @@ export default function RegionPicker({
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
+        {...tour("shell.plot")}
         className="flex min-h-11 items-center gap-2 rounded-md border-[1.5px] border-ink bg-panel px-3 text-[13.5px] font-semibold"
       >
         {active.name}

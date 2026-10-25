@@ -8,6 +8,7 @@
 
 export const TARGETS = [
   // The chrome, on every signed-in page.
+  "shell.plot", "shell.conditions", "shell.undo", "shell.fullscreen",
   "shell.guide", "shell.share", "shell.account",
   "rail.plots",
   // A stranger's first pages.
@@ -16,7 +17,7 @@ export const TARGETS = [
   "firstrun.here", "firstrun.draw",
   // The Dashboard.
   "ledger.chips", "ledger.heat", "ledger.spread", "ledger.ahead", "ledger.frost", "ledger.cold", "ledger.storm", "ledger.ground", "ledger.events", "ledger.weather",
-  "ledger.chart", "ledger.trends", "ledger.doors",
+  "ledger.chart", "ledger.marker", "ledger.trends", "ledger.doors",
   // My Plots.
   "plots.add", "plots.import", "plots.groups", "plots.chips", "plots.rename", "plots.share", "plots.forget",
   "plots.search", "plots.locate", "plots.shape", "plots.map", "plots.name", "plots.base", "plots.save",
