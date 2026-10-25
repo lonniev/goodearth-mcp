@@ -214,7 +214,7 @@ export default function AppShell({
 
       <header className="col-start-1 row-start-1 flex items-center gap-3.5 border-b border-rule bg-paper px-4 md:col-start-2 md:px-5">
         <RegionPicker active={region} onPick={onRegion} />
-        <div className="hidden text-[12.5px] text-ink-soft lg:block">{conditions}</div>
+        <div {...tour("shell.conditions")} className="hidden text-[12.5px] text-ink-soft lg:block">{conditions}</div>
 
         {/* Balance and sign-out live on the account page now. Two persistent
             chrome elements for things a grower touches rarely cost more room

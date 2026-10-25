@@ -24,6 +24,7 @@ import { dateFor, dayNumber, timelineDomain } from "../lib/seasonDays";
 import { seasonBounds } from "../lib/meteoSeason";
 import { SEASON_ICON } from "../lib/seasonIcon";
 import { useChartFrame } from "./ui";
+import { tour } from "../lib/tour/targets";
 import { regionImageUrl } from "../lib/basemapImage";
 import { DEFAULT_SPAN, useChartZoom, windowToDomain } from "../lib/useChartZoom";
 import { spanTarget } from "../lib/chartSpan";
@@ -381,6 +382,9 @@ export default function SeasonChart({
   /// name on the Season button, and the window it opens.
   const thisSeason = seasonBounds(dateFor(last, origin) ?? "", data.region?.centroid.lat);
 
+  // Set by the first mark drawn, so only one carries the tour's name.
+  let marked = false;
+
   return (
     <div ref={shell} className={`overflow-x-auto rounded-md border border-rule bg-panel ${
       full ? "px-1 pt-1 pb-0" : "px-2.5 pt-3.5 pb-2"}`}>
@@ -537,6 +541,10 @@ export default function SeasonChart({
             if (Math.max(cx, ex) < L - 4 || Math.min(cx, ex) > R + 4) return null;
             const cy = f.gdd != null ? y(f.gdd) : B - 8;
             const { stem, flip } = placement[i] ?? { stem: 14, flip: false };
+            // The tour points at the first mark on screen, the one a new
+            // grower is told to tap.
+            const tourMark = !!onFlag && !marked;
+            if (tourMark) marked = true;
             const tone =
               f.kind === "crop" ? "var(--color-growth)"
               : f.kind === "pest" ? "var(--color-honey)"
@@ -551,7 +559,8 @@ export default function SeasonChart({
                 onPointerUp={onFlag ? (e) => { e.stopPropagation(); onFlag(f); } : undefined}
                 style={onFlag ? { cursor: "pointer" } : undefined}
                 role={onFlag ? "button" : undefined}
-                aria-label={onFlag ? `${f.label} — details` : undefined}>
+                aria-label={onFlag ? `${f.label} — details` : undefined}
+                {...(tourMark ? tour("ledger.marker") : {})}>
                 {/* Two finger targets, not one tall one. The dot is 7px so it
                     cannot hide the curve, and the tap area is 44 — but a single
                     rect spanning the whole stem would now be up to 190px tall
@@ -596,6 +605,12 @@ export default function SeasonChart({
                 {/* The stem can be long now, so it is drawn lighter than the
                     dot it belongs to — a leader should point, not compete. */}
                 <line x1={cx} y1={cy} x2={cx} y2={cy - stem} stroke={tone} strokeWidth={1} opacity={0.55} />
+                {/* A mark that opens a card breathes, slowly, so a grower who
+                    never read the guide still learns it can be tapped. */}
+                {onFlag && (
+                  <circle cx={cx} cy={cy} r={3.5} fill="none" stroke={tone} strokeWidth={1.5}
+                    className="ge-beacon" style={{ animationDelay: `${(i % 5) * 0.6}s` }} />
+                )}
                 <circle cx={cx} cy={cy} r={3.5} fill={tone} stroke="var(--color-panel)" strokeWidth={1.2} />
                 {(() => {
                   const lines = wrapLabel(f.label);

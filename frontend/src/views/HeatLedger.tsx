@@ -50,7 +50,6 @@ interface Props {
 }
 
 export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
-  useTour("ledger");
   const u = useUnits();
   const [data, setData] = useState<SeasonCurveResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -82,6 +81,8 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
   const [sick, setSick] = useState<DiseaseRiskResult | null>(null);
   const [sickAt, setSickAt] = useState<Date | null>(null);
   const [showFlags, setShowFlags] = useState(true);
+  // The tour's "tap a mark" step needs the marks on the chart.
+  useTour("ledger", { actions: { "show-events": () => setShowFlags(true) } });
   const [openFlag, setOpenFlag] = useState<LedgerFlag | null>(null);
   const [showGround, setShowGround] = useState(true);
   const [almanac, setAlmanac] = useState<AlmanacResult | null>(null);

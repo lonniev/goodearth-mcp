@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { dwellMs } from "../lib/dwell";
 import { fullscreenMode, isFullscreen, readEnv, toggleFullscreen } from "../lib/fullscreen";
 import { ICON } from "./ui";
+import { tour } from "../lib/tour/targets";
 
 const HOW = "iPhone Safari cannot hide its bars for a web page. Tap Share (the square "
   + "with an arrow), then Add to Home Screen. Open Good Earth from that icon and it "
@@ -58,6 +59,7 @@ export default function FullscreenButton() {
   return (
     <span ref={box} className="relative">
       <button type="button" aria-label={label} title={label} aria-expanded={mode === "install" ? open : undefined}
+        {...tour("shell.fullscreen")}
         onPointerUp={() => { lifted.current = true; act(); }}
         onClick={() => { if (lifted.current) { lifted.current = false; return; } act(); }}
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-[1.5px] border-rule text-ink-soft active:bg-band">
