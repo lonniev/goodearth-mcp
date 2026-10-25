@@ -1,0 +1,1 @@
+- A day's pasted forecast now carries everything its card shows: dew point, humidity, the barometer and which way it moved, the hours of sun, and the storm warning on the day the barometer falls fastest.

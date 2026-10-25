@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { chanceOf, dayForecast, rainfall, windLine, zoneForecast } from "./zoneForecast.ts";
+import { chanceOf, dayDetails, dayForecast, rainfall, stormLine, windLine, zoneForecast } from "./zoneForecast.ts";
 
 const day = (over: Record<string, unknown> = {}) => ({
   date: "2026-10-27", sky: { label: "Partly cloudy", emoji: "⛅" },
@@ -14,7 +14,8 @@ describe("zoneForecast", () => {
   it("writes a dry day and its night the Weather Service way", () => {
     const text = dayForecast(day(), day({ date: "2026-10-28", low_f: 38.6 }), "F", "2026-10-25");
     assert.equal(text,
-      ".TUESDAY...Partly sunny, with a high near 62. West wind up to 12 mph.\n" +
+      ".TUESDAY...Partly sunny, with a high near 62. West wind up to 12 mph. " +
+      "Dew point near 38. Humidity around 70 percent. Barometer 29.97 inHg. About 6 hours of sunshine.\n" +
       ".TUESDAY NIGHT...Low around 39.");
   });
   it("calls today TODAY and TONIGHT", () => {
@@ -44,8 +45,17 @@ describe("zoneForecast", () => {
   it("puts a wet day's rain first and its odds last", () => {
     const text = dayForecast(day({ sky: { label: "Rain", emoji: "🌧️" }, precip_chance_pct: 70, precip_in: 0.6 }),
       undefined, "F", "2026-10-25");
-    assert.equal(text, ".TUESDAY...Rain likely. Mostly cloudy, with a high near 62. West wind up to 12 mph. " +
-      "Chance of precipitation is 70%. New rainfall amounts between a half and three quarters of an inch possible.");
+    assert.ok(text.startsWith(".TUESDAY...Rain likely. Mostly cloudy, with a high near 62. West wind up to 12 mph. " +
+      "Chance of precipitation is 70%. New rainfall amounts between a half and three quarters of an inch possible. Dew point"));
+  });
+  it("tells the barometer's move from the day before, in the reader's unit", () => {
+    assert.deepEqual(dayDetails(day({ pressure_hpa: 1008, dew_point_f: null, humidity_pct: null, sunshine_hours: 0 }),
+      day({ pressure_hpa: 1013 }), "C"), ["Barometer 1008 hPa and falling.", "No sunshine."]);
+  });
+  it("warns of a storm only on the day its worst fall lands", () => {
+    const storm = { level: "storm likely", worst: { at: "2026-10-27T15:00", fall_3h_hpa: -4, change_24h_hpa: -9 } } as never;
+    assert.equal(stormLine(storm, "2026-10-27"), "Storm likely: the barometer is forecast to fall fast.");
+    assert.equal(stormLine(storm, "2026-10-28"), null);
   });
   it("gives a °C reader the unit", () => {
     assert.match(dayForecast(day(), undefined, "C", "2026-10-25"), /high near 16°C/);

@@ -7,18 +7,19 @@
 // "and Wednesday".
 
 import { useEffect, useRef, useState } from "react";
-import type { AlmanacResult } from "../lib/mcp";
+import type { AlmanacResult, StormSignal } from "../lib/mcp";
 import { zoneForecast } from "../lib/zoneForecast";
 import { toClipboard } from "./Share";
 import { useUnits } from "./Units";
 import { Glyph, ICON } from "./ui";
 
-export default function ForecastCard({ days, index, onIndex, place, issued, onClose }: {
+export default function ForecastCard({ days, index, onIndex, place, issued, storm, onClose }: {
   days: AlmanacResult["upcoming"];
   index: number;
   onIndex: (i: number) => void;
   place: string;
   issued: Date;
+  storm: StormSignal | null;
   onClose: () => void;
 }) {
   const { unit } = useUnits();
@@ -26,7 +27,7 @@ export default function ForecastCard({ days, index, onIndex, place, issued, onCl
   const [copied, setCopied] = useState(false);
   const day = days[index];
   const today = new Date().toLocaleDateString("en-CA");
-  const text = zoneForecast({ days, index, unit, place, issued, today });
+  const text = zoneForecast({ days, index, unit, place, issued, today, storm });
 
   useEffect(() => { box.current?.focus(); }, []);
   useEffect(() => {
