@@ -20,7 +20,7 @@ import { QuoteScroller } from "@tollbooth-dpyc/web/react";
 import { AGRARIAN_QUOTES, AGRARIAN_SOURCE, quoteStyles } from "../lib/quotes";
 import { type AlmanacResult, type MeasureKey, type StormSignal } from "../lib/mcp";
 import Term from "../components/Term";
-import { stormLevel, stormWhen } from "../lib/storm";
+import { dayTrend, stormLevel, stormWhen } from "../lib/storm";
 import { clock } from "../lib/dryingLine";
 import { loadAlmanac } from "../lib/pageLoads";
 import type { SavedRegion } from "../lib/regions";
@@ -281,6 +281,7 @@ export default function Almanac({
       {data && opened != null && data.upcoming[opened] && (
         <ForecastCard days={data.upcoming} index={opened} onIndex={setOpened}
           place={region.name} issued={readingTime(data) ?? ranAt ?? new Date()}
+          storm={data.pressure ?? null}
           onClose={() => setOpened(null)} />
       )}
 
@@ -351,9 +352,8 @@ const ARROW: Record<"rising" | "falling" | "steady", string> = {
 /// on an ordinary day; under that it is drawn level so the strip does not
 /// flicker.
 function dayArrow(today: number, before: number | null | undefined): string {
-  if (before == null) return "";
-  const d = today - before;
-  return Math.abs(d) < 2 ? "→" : d > 0 ? "↗" : "↘";
+  const t = dayTrend(today, before);
+  return t == null ? "" : t === "steady" ? "→" : t === "rising" ? "↗" : "↘";
 }
 
 /// The barometer's warning, when it has one. Said as a reading — how far, how

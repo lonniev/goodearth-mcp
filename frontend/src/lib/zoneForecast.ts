@@ -6,13 +6,17 @@
 // follow the Weather Service's own scale, so "Chance" and "Likely" mean here
 // what they mean there.
 //
+// After those sentences come the rest of the card's figures, in the same
+// plain sentences: dew point, humidity, the barometer and the sun.
+//
 // Only what the almanac read goes in. A day carries one wind figure, the
 // day's strongest, so the line says "up to" rather than inventing a range,
 // and the night's low is the next morning's low, which is the one the
 // Weather Service means by "tonight".
 
-import type { AlmanacResult } from "./mcp.ts";
-import { temp, tempUnit, type Unit } from "./units.ts";
+import type { AlmanacResult, StormSignal } from "./mcp.ts";
+import { dayTrend, stormLevel } from "./storm.ts";
+import { pressure, pressureUnit, temp, tempUnit, type Unit } from "./units.ts";
 
 type Day = AlmanacResult["upcoming"][number];
 
@@ -83,6 +87,30 @@ function degrees(f: number, unit: Unit): string {
   return unit === "F" ? `${n}` : `${n}${tempUnit(unit).trim()}`;
 }
 
+/// The rest of what the day's card shows, after the Weather Service's own
+/// sentences: the dew point, the humidity, the barometer and the sun.
+export function dayDetails(day: Day, before: Day | undefined, unit: Unit): string[] {
+  const out: string[] = [];
+  if (day.dew_point_f != null) out.push(`Dew point near ${degrees(day.dew_point_f, unit)}.`);
+  if (day.humidity_pct != null) out.push(`Humidity around ${Math.round(day.humidity_pct)} percent.`);
+  if (day.pressure_hpa != null) {
+    const reading = `${pressure(day.pressure_hpa, unit).toFixed(unit === "C" ? 0 : 2)}${pressureUnit(unit)}`;
+    const trend = dayTrend(day.pressure_hpa, before?.pressure_hpa);
+    out.push(`Barometer ${reading}${trend ? ` and ${trend}` : ""}.`);
+  }
+  if (day.sunshine_hours != null) {
+    const h = Math.round(day.sunshine_hours);
+    out.push(h === 0 ? "No sunshine." : `About ${h} hour${h === 1 ? "" : "s"} of sunshine.`);
+  }
+  return out;
+}
+
+/// The barometer's warning, on the day its worst fall lands.
+export function stormLine(storm: StormSignal | null | undefined, date: string): string | null {
+  if (!storm || storm.level === "none" || storm.worst?.at.slice(0, 10) !== date) return null;
+  return `${stormLevel(storm)}: the barometer is forecast to fall fast.`;
+}
+
 /// What the heading calls a day: TODAY and TONIGHT for today, else its name.
 function names(date: string, today: string): [string, string] {
   if (date === today) return ["TODAY", "TONIGHT"];
@@ -92,7 +120,10 @@ function names(date: string, today: string): [string, string] {
 }
 
 /// The day and the night after it, as two dotted paragraphs.
-export function dayForecast(day: Day, next: Day | undefined, unit: Unit, today: string): string {
+export function dayForecast(
+  day: Day, next: Day | undefined, unit: Unit, today: string,
+  before?: Day, storm?: StormSignal | null,
+): string {
   const [dayName, nightName] = names(day.date, today);
   const what = falling(day.sky.label);
   const wet = chanceOf(day.precip_chance_pct, what);
@@ -104,6 +135,8 @@ export function dayForecast(day: Day, next: Day | undefined, unit: Unit, today: 
     windLine(day.wind),
     wet?.[1],
     rainfall(day.precip_in, what.includes("snow")),
+    stormLine(storm, day.date),
+    ...dayDetails(day, before, unit),
   ].filter(Boolean);
   const lines = [`.${dayName}...${parts.join(" ")}`];
   if (next?.low_f != null) lines.push(`.${nightName}...Low around ${degrees(next.low_f, unit)}.`);
@@ -113,8 +146,9 @@ export function dayForecast(day: Day, next: Day | undefined, unit: Unit, today: 
 /// The whole pasteable product: a header naming the plot and when the
 /// figures were read, then the day.
 export function zoneForecast(
-  { days, index, unit, place, issued, today }: {
+  { days, index, unit, place, issued, today, storm }: {
     days: Day[]; index: number; unit: Unit; place: string; issued: Date; today: string;
+    storm?: StormSignal | null;
   },
 ): string {
   const at = issued.toLocaleString("en-US", {
@@ -125,6 +159,6 @@ export function zoneForecast(
     `Point forecast for ${place}`,
     `Good Earth · issued ${at}`,
     "",
-    dayForecast(days[index], days[index + 1], unit, today),
+    dayForecast(days[index], days[index + 1], unit, today, days[index - 1], storm),
   ].join("\n");
 }

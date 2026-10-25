@@ -51,3 +51,11 @@ export function tendencyArrow(s: StormSignal): string {
   const d = s.tendency?.direction;
   return d === "falling" ? "↘" : d === "rising" ? "↗" : "→";
 }
+
+/// Which way a day's mean pressure moved from the day before. Under 2 hPa is
+/// steady: a daily mean drifts that much on a quiet day.
+export function dayTrend(today: number, before: number | null | undefined): "rising" | "falling" | "steady" | null {
+  if (before == null) return null;
+  const d = today - before;
+  return Math.abs(d) < 2 ? "steady" : d > 0 ? "rising" : "falling";
+}
