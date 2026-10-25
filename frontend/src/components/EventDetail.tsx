@@ -31,19 +31,19 @@ import {
 const KIND: Record<LedgerFlag["kind"], { label: string; tone: string; source: string }> = {
   crop: {
     label: "Crop target", tone: "text-growth",
-    source: "Your planting's degree-day target, counted from its set-out date.",
+    source: "The degree-days your planting needs, counted from when it went in.",
   },
   pest: {
     label: "Pest threshold", tone: "text-honey",
-    source: "Your own pest model. Confirm the figure against a local extension bulletin.",
+    source: "Your degree-day figure for this pest — check it against your extension bulletin.",
   },
   wildlife: {
     label: "Fauna event", tone: "text-frost",
-    source: "Your own fauna threshold — Good Earth times it, it does not publish natural history.",
+    source: "Your degree-day figure for this animal.",
   },
   task: {
     label: "Your task", tone: "text-ink-soft",
-    source: "Your own dated work. It sits on the day you set, whatever the heat did.",
+    source: "You chose the date and it's not tied to GDDs.",
   },
 };
 
@@ -118,14 +118,13 @@ export default function EventDetail({
   const confidence =
     isTask
       ? overdue
-        ? "The day you set has passed and this task is not marked done yet."
-        : "The day you set. The weather does not move it."
+        ? "Past due and not marked done."
+        : "You recorded this fixed date."
       : horizon === "recorded"
-      ? "This already happened. The date is from the season's own record."
+      ? "It's happened, by this season's record."
       : horizon === "forecast"
-        ? "Inside the seven-day forecast, so this is a forecast date rather than a guess."
-        : "Past the forecast, carried forward at the last fortnight's rate. It answers "
-          + "'if the season keeps behaving as it has' — read it as a sketch, not a promise.";
+        ? "Fairly sure: it's within the 7-day forecast."
+        : "A rough guess, assuming the last two weeks' warmth holds.";
 
   const spread = curve.accumulated_gdd;
   const spreadDays =
@@ -166,7 +165,7 @@ export default function EventDetail({
 
         <div className="mt-4 rounded-md border border-rule bg-paper/60 px-3.5 py-3">
           <div className="figure text-[17px]">
-            {flag.date ? nice(flag.date) : "Beyond the projection"}
+            {flag.date ? nice(flag.date) : "Further out than we can project"}
           </div>
           <div className="mt-0.5 text-[12.5px] text-ink-soft">
             {isTask ? (overdue ? "due · not done yet" : "due")
@@ -215,42 +214,35 @@ export default function EventDetail({
         ) : (
           <Row label="What it is">
             <span className="text-ink-soft">
-              No match for "{subject}" in the taxonomy — which usually means the
-              name here is a local one. The timing below still stands.
+              Not in the species lists — likely a local name — but the timing holds.
             </span>
           </Row>
         )}
 
-        <Row label="How firm is this?">{confidence}</Row>
-        <Row label="Where the threshold came from">{k.source}</Row>
+        <Row label="How confident?">{confidence}</Row>
+        <Row label="How determined?">{k.source}</Row>
 
         {flag.baseMismatch != null && (
           <Row label="⚠ Different base temperature" tone="text-clay">
-            This threshold counts from {u.showTemp(flag.baseMismatch)}, but your ground's curve
-            accumulates from {u.showTemp(curve.base_temp_f)}. The flag is shown dimmed and its
-            position is approximate — the two are not the same axis. Set your ground's
-            base to match, or read this one on its own view.
+            Placed roughly: this has a GDD base of {u.showTemp(flag.baseMismatch)}, but your
+            Plot has a GDD base of {u.showTemp(curve.base_temp_f)} — change
+            the {u.showTemp(flag.baseMismatch)} base for better placement.
           </Row>
         )}
 
         {!isTask && spreadDays != null && spreadDays >= 1 && (
           <Row label="Across your ground">
-            The warm and cool ends of your ground are about {spreadDays} day
-            {spreadDays === 1 ? "" : "s"} apart in timing, so this date is the middle
-            of a spread rather than a line across the field. Expect the bench first
-            and the hollow last.
+            Your warm and cool spots run about {spreadDays} day{spreadDays === 1 ? "" : "s"} apart,
+            so expect it on warm ground first.
           </Row>
         )}
 
         {/* ── Management: routed, never generated ─────────────────── */}
         {links.length > 0 && (
           <div className="mt-3.5">
-            <div className="eyebrow">Where management guidance lives</div>
+            <div className="eyebrow">Treatment advice</div>
             <p className="mt-1 text-[13px] leading-relaxed">
-              Good Earth does not recommend treatments. Pesticide registration
-              is state-specific and changes yearly, and a label rate is law
-              rather than advice — so the bulletin below is the authority, not
-              this screen.
+              Follow the bulletin below: treatment rules vary by state, and the label is the law.
             </p>
             <div className="mt-2 flex flex-col gap-1.5">
               {links.map((l) => (
@@ -265,10 +257,8 @@ export default function EventDetail({
         )}
 
         {!isTask && (
-          <Row label="What would sharpen it">
-            A field report when you actually see this — the calibration loop turns
-            observations into a correction for your ground, and after a few of them
-            the date stops being the region's and starts being yours.
+          <Row label="Make it more accurate">
+            Report when you see it: your dated records improve the predictions.
           </Row>
         )}
       </div>
