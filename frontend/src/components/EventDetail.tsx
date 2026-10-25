@@ -22,6 +22,7 @@ import { useUnits } from "./Units";
 import { useEffect, useRef, useState } from "react";
 import type { LedgerFlag } from "../lib/ledgerFlags";
 import type { SeasonCurveResult } from "../lib/mcp";
+import { horizonOf } from "../lib/eventHorizon";
 import {
   guidanceLinks, jurisdictionFor, lookupSpecies,
   type GuidanceLink, type SpeciesInfo,
@@ -69,10 +70,16 @@ export default function EventDetail({
   // hatch" is a moth, not an egg hatch.
   const subject = flag.label.split("·")[0].trim();
 
+  const isTask = flag.kind === "task";
+
   useEffect(() => {
     const ac = new AbortController();
-    setLooking(true);
     setInfo(null);
+    // A task names work, not a living thing: no species to look up and no
+    // extension bulletin to route to. A "no match in the taxonomy" row, or
+    // pesticide guidance, under "Buy seeds" would say nothing.
+    if (flag.kind === "task") { setLooking(false); setLinks([]); return () => ac.abort(); }
+    setLooking(true);
     // Constrained to the kingdom the flag is about. Unconstrained, iNaturalist
     // ranks by observation count across all life and a plant can lose its own
     // name to an insect or a fish that shares it.
@@ -82,12 +89,7 @@ export default function EventDetail({
       .finally(() => { if (!ac.signal.aborted) setLooking(false); });
 
     const c = curve.region?.centroid;
-    // A task carries no species and no threshold — there is nothing to route
-    // to an extension service, and offering pesticide guidance next to "buy
-    // seeds" would be absurd. Skip the lookup rather than search for a crop
-    // called "Buy seeds".
     const kind = flag.kind;
-    if (kind === "task") { setLinks([]); return; }
     if (c) {
       jurisdictionFor(c.lat, c.lon, ac.signal)
         .then((state) => {
@@ -108,15 +110,17 @@ export default function EventDetail({
     return () => document.removeEventListener("keydown", key);
   }, [onClose]);
 
-  const recorded = curve.curve?.dates?.length ?? 0;
-  const forecastEnd = recorded + (curve.forecast?.cumulative.length ?? 0);
-  const horizon =
-    flag.index < recorded ? "recorded"
-    : flag.index < forecastEnd ? "forecast"
-    : "projected";
+  const horizon = horizonOf(flag, curve);
+  // A task's day is the grower's to set and to tick off. Past it and still on
+  // the chart means it is not marked done, since done tasks leave the chart.
+  const overdue = isTask && horizon === "recorded";
 
   const confidence =
-    horizon === "recorded"
+    isTask
+      ? overdue
+        ? "The day you set has passed and this task is not marked done yet."
+        : "The day you set. The weather does not move it."
+      : horizon === "recorded"
       ? "This already happened. The date is from the season's own record."
       : horizon === "forecast"
         ? "Inside the seven-day forecast, so this is a forecast date rather than a guess."
@@ -165,13 +169,14 @@ export default function EventDetail({
             {flag.date ? nice(flag.date) : "Beyond the projection"}
           </div>
           <div className="mt-0.5 text-[12.5px] text-ink-soft">
-            {flag.reached ? "already passed" : "expected"}
+            {isTask ? (overdue ? "due · not done yet" : "due")
+              : flag.reached ? "already passed" : "expected"}
             {flag.gdd != null && ` · at ${Math.round(flag.gdd).toLocaleString()} GDD accumulated`}
           </div>
         </div>
 
         {/* ── What it is ──────────────────────────────────────────── */}
-        {looking ? (
+        {isTask ? null : looking ? (
           <Row label="What it is"><span className="text-ink-soft">Looking it up…</span></Row>
         ) : info ? (
           <div className="mt-3.5">
@@ -228,7 +233,7 @@ export default function EventDetail({
           </Row>
         )}
 
-        {spreadDays != null && spreadDays >= 1 && (
+        {!isTask && spreadDays != null && spreadDays >= 1 && (
           <Row label="Across your ground">
             The warm and cool ends of your ground are about {spreadDays} day
             {spreadDays === 1 ? "" : "s"} apart in timing, so this date is the middle
@@ -259,11 +264,13 @@ export default function EventDetail({
           </div>
         )}
 
-        <Row label="What would sharpen it">
-          A field report when you actually see this — the calibration loop turns
-          observations into a correction for your ground, and after a few of them
-          the date stops being the region's and starts being yours.
-        </Row>
+        {!isTask && (
+          <Row label="What would sharpen it">
+            A field report when you actually see this — the calibration loop turns
+            observations into a correction for your ground, and after a few of them
+            the date stops being the region's and starts being yours.
+          </Row>
+        )}
       </div>
     </div>
   );
