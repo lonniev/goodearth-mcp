@@ -7,8 +7,9 @@
 //
 // The top-up is the package's (`useTopUp`): purchase_credits → a Lightning
 // invoice → check_payment, checked on its own every few seconds until it
-// settles, with "I've paid" for anyone who would rather not wait.
+// settles, with "Check now" for anyone who would rather not wait.
 
+import { awaitingWords, payLink } from "@tollbooth-dpyc/web";
 import { useTopUp } from "@tollbooth-dpyc/web/react";
 import { tour } from "../lib/tour/targets";
 
@@ -27,13 +28,13 @@ export default function AccountSummary({
   /** An invoice settled: read the balance again. */
   onToppedUp: () => void;
 }) {
-  const { state, create, check, cancel } = useTopUp({ onSettled: onToppedUp });
+  const { state, watching, create, check, cancel } = useTopUp({ onSettled: onToppedUp });
   const busy = state.phase === "creating" || (state.phase === "awaiting" && state.checking);
   const invoice = state.phase === "awaiting" ? state.invoice : null;
   const msg =
     state.phase === "settled" ? `Paid. ${state.credited.toLocaleString()} sats added.`
     : state.phase === "failed" ? state.message
-    : state.phase === "awaiting" && state.status ? `Not paid yet. The invoice reads ${state.status}.`
+    : state.phase === "awaiting" ? awaitingWords(state.status, watching)
     : state.phase === "idle" ? (state.message ?? "")
     : "";
 
@@ -73,15 +74,19 @@ export default function AccountSummary({
       ) : (
         <div className="mt-3 grid gap-2">
           <a
-            href={invoice.checkoutLink ?? (invoice.bolt11 ? `lightning:${invoice.bolt11}` : "#")}
-            target="_blank"
-            rel="noreferrer"
+            href={payLink(invoice) ?? "#"}
+            {...(invoice.bolt11 ? {} : { target: "_blank", rel: "noreferrer" })}
             className="flex min-h-11 items-center justify-center rounded bg-ink text-[13px] font-semibold text-paper"
           >
             ⚡ Pay {invoice.sats.toLocaleString()} sats
           </a>
           <div className="flex gap-2">
-            <button disabled={busy} onClick={check} className={chip}>I've paid · check</button>
+            <button disabled={busy} onClick={check} className={chip}>Check now</button>
+            {invoice.bolt11 && invoice.checkoutLink && (
+              <a href={invoice.checkoutLink} target="_blank" rel="noreferrer" className={`${chip} flex items-center justify-center`}>
+                QR code
+              </a>
+            )}
             <button onClick={cancel} className={`${chip} flex-none px-4`}>Cancel</button>
           </div>
         </div>
