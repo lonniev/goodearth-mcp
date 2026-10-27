@@ -15,7 +15,7 @@
 // than guessed at.
 
 import { useUnits } from "./Units";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SeasonCurveResult } from "../lib/mcp";
 import { combinedSeries, type LedgerFlag } from "../lib/ledgerFlags";
 import type { Band } from "../lib/diseaseBands";
@@ -24,6 +24,7 @@ import { dateFor, dayNumber, timelineDomain } from "../lib/seasonDays";
 import { seasonBounds } from "../lib/meteoSeason";
 import { SEASON_ICON } from "../lib/seasonIcon";
 import { useChartFrame } from "./ui";
+import { useFrameHeight } from "../lib/useFrameHeight";
 import { tour } from "../lib/tour/targets";
 import { regionImageUrl } from "../lib/basemapImage";
 import { DEFAULT_SPAN, useChartZoom, windowToDomain } from "../lib/useChartZoom";
@@ -44,10 +45,9 @@ const W = 740, L = 46, R = 716, T = 16;
 // is the only thing on this card anybody came to look at, so a row removed
 // from around it belongs to it.
 const H_INLINE = 300;
-/// Bounds on the measured full-screen height. The floor is the inline box —
-/// full screen must never make the plot SHORTER — and the ceiling stops a very
-/// tall window from stretching the curve into a wall.
-const H_FULL_MIN = H_INLINE, H_FULL_MAX = 900;
+/// The ceiling on the measured full-screen height: a very tall window must not
+/// stretch the curve into a wall. The inline box is the floor.
+const H_FULL_MAX = 900;
 /// Room under the plot for the date axis, in either box.
 const AXIS_H = 36;
 
@@ -135,16 +135,10 @@ export default function SeasonChart({
 }: Props) {
   const u = useUnits();
   // Full screen gets a taller box, so the height it buys is spent on the plot
-  // rather than on margin above and below it.
-  //
-  // MEASURED, not chosen. A fixed full-screen height was 885 px tall on a
-  // 834 px iPad — the plot alone was bigger than the window, so the span
-  // buttons under it were pushed off the bottom and the frame had to scroll.
-  // A number that fits one screen is wrong on every other one.
-  const { full, slotH } = useChartFrame();
+  // rather than on margin above and below it. See useFrameHeight.
+  const { full } = useChartFrame();
   const shell = useRef<HTMLDivElement | null>(null);
-  const [fullH, setFullH] = useState(H_INLINE);
-  const H = full ? fullH : H_INLINE;
+  const H = useFrameHeight({ inline: H_INLINE, max: H_FULL_MAX, width: W, card: shell });
   const B = H - AXIS_H;
   // The drag gutter has to follow the plot. Left at its 268-box default it
   // would sit inside a full-screen plot, and a drag beginning on the curve
@@ -351,31 +345,6 @@ export default function SeasonChart({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focus?.nonce]);
 
-  /// How tall the plot can be and still leave its own controls on screen.
-  ///
-  /// Everything in this card that is NOT the plot — the span buttons, the
-  /// hint line, the legend — plus whatever the frame put above it, is already
-  /// laid out and none of it depends on the plot's height. So the space left
-  /// over is a straight subtraction, and it converges in one pass rather than
-  /// chasing itself.
-  useLayoutEffect(() => {
-    if (!full || slotH <= 0) { setFullH(H_INLINE); return; }
-    const card = shell.current, svg = svgRef.current;
-    if (!card || !svg) return;
-    const plot = svg.getBoundingClientRect();
-    // Everything in this card that is NOT the plot — the span buttons, the
-    // legend, the card's own padding. None of it depends on the plot's
-    // height, so this is a straight subtraction from the height the FRAME
-    // measured, and it settles in one pass. Deriving the space from the
-    // card's own position instead is what left 80 px of slack: the card is
-    // centred, so its top moved with its height, which moved with the plot.
-    const avail = slotH - (card.scrollHeight - plot.height) - 6;
-    if (plot.width > 0 && avail > 140) {
-      setFullH(Math.max(H_FULL_MIN,
-        Math.min(H_FULL_MAX, Math.round((W * avail) / plot.width))));
-    }
-  }, [full, slotH, svgRef]);
-
   const { x, y, line, bandPath, ribbon, actual, fcPts, projPts, typPts, ticks, gridLines, last, mean, placement, dayOf, endDayOf, origin } = view;
   const todayGdd = mean[last];
   /// The meteorological quarter the curve's last recorded day falls in — the
@@ -403,6 +372,7 @@ export default function SeasonChart({
       <GestureHint isZoomed={isZoomed}>
       <svg
         ref={svgRef}
+        data-plot
         viewBox={`0 0 ${W} ${H}`}
         className={`ge-chart block h-auto w-full min-w-[560px] touch-none select-none ${isZoomed ? "cursor-grab" : ""}`}
         role="img"
