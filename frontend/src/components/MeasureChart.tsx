@@ -7,11 +7,12 @@
 // is the normal range, the solid line is this season, dashed is the forecast.
 
 import { useUnits } from "./Units";
-import { type ReactNode, useMemo } from "react";
+import { type ReactNode, useMemo, useRef } from "react";
 import type { Measure } from "../lib/mcp";
 import { dateTicks, labelFits, spaceTicks } from "../lib/dateTicks";
 import { drawWidth } from "../lib/chartBox";
 import { useBoxWidth } from "../lib/useBoxWidth";
+import { useFrameHeight } from "../lib/useFrameHeight";
 import { useChartZoom, windowToDomain } from "../lib/useChartZoom";
 import ZoomControls, { AxisZoom } from "./ZoomControls";
 
@@ -19,7 +20,12 @@ import ZoomControls, { AxisZoom } from "./ZoomControls";
 /// fixed 740-unit drawing held at a 520 px minimum, which on a phone ran each
 /// chart 229 px past the right edge of its card — cutting off exactly the
 /// recent weeks and the forecast.
-const H = 150, L = 46, RIGHT_PAD = 14, T = 10, B = 118;
+const L = 46, RIGHT_PAD = 14, T = 10;
+/// The height on the page. Full screen takes the height the frame has left —
+/// a wide, short strip across an iPad was most of a screen of nothing.
+const H_INLINE = 150, H_FULL_MAX = 2000;
+/// Room under the plot for the date labels.
+const AXIS_H = 32;
 
 export default function MeasureChart({
   measure, dates, forecastDates, label, emoji, color = "var(--color-growth)", zoomable = true,
@@ -36,6 +42,9 @@ export default function MeasureChart({
   const { ref: box, width: boxW } = useBoxWidth<HTMLDivElement>();
   const W = drawWidth(boxW);
   const R = W - RIGHT_PAD;
+  const card = useRef<HTMLDivElement | null>(null);
+  const H = useFrameHeight({ inline: H_INLINE, max: H_FULL_MAX, width: W, card });
+  const B = H - AXIS_H;
   // The gutters are fixed pixels, so the drag zones are this drawing's own
   // fractions rather than the 740-wide defaults.
   const { zoom, zoomX, zoomY, reset, isZoomed, svgRef } =
@@ -98,7 +107,7 @@ export default function MeasureChart({
     const gridVals = [vLo + (vHi - vLo) * 0.15, mid, vHi - (vHi - vLo) * 0.15];
 
     return { x, y, path, bandPath, ticks, gridVals, act, fc, total };
-  }, [measure, zoom, dates, forecastDates, W, R]);
+  }, [measure, zoom, dates, forecastDates, W, R, B]);
 
   if (!view) {
     return (
@@ -123,7 +132,7 @@ export default function MeasureChart({
     : barometric ? u.pressureUnit.trim() : measure.unit;
 
   return (
-    <div className="rounded-md border border-rule bg-panel px-2.5 pt-2.5 pb-1.5">
+    <div ref={card} className="rounded-md border border-rule bg-panel px-2.5 pt-2.5 pb-1.5">
       <div className="mb-1 flex flex-wrap items-baseline gap-2 px-1">
         <span className="figure text-[15px] font-semibold">
           {emoji && <span className="mr-1.5">{emoji}</span>}{label}
@@ -147,7 +156,7 @@ export default function MeasureChart({
       <div className="flex items-stretch">
       {zoomable && <AxisZoom onZoom={zoomY} label={unitLabel || label} />}
       <div ref={box} className="min-w-0 flex-1">
-      <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`}
+      <svg ref={svgRef} data-plot viewBox={`0 0 ${W} ${H}`}
         className={`ge-chart block h-auto w-full touch-none select-none ${isZoomed ? "cursor-grab" : ""}`}
         role="img" aria-label={`${label}, this season against the normal range`}>
         <defs>
