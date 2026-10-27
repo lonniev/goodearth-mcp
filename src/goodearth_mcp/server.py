@@ -42,6 +42,7 @@ from goodearth_mcp import (
     catalog,
     feed_store,
     gdd,
+    planting,
     record_cache,
     roster,
     season,
@@ -80,6 +81,7 @@ from goodearth_mcp.pest_window import region_pest_window as pest_window_impl
 from goodearth_mcp.pests import PestError
 from goodearth_mcp.planting import PlantingError
 from goodearth_mcp.planting_window import PlantingWindowError
+from goodearth_mcp.planting_window import region_heat_for_days as heat_for_days_impl
 from goodearth_mcp.planting_window import region_planting_window as planting_impl
 from goodearth_mcp.region import Region, RegionError, parse_region, ring_of
 from goodearth_mcp.soil import SoilError
@@ -226,6 +228,7 @@ DISEASE_RISK_UUID          = "b12c4ed8-c3cd-5a14-8e4b-a9fa344b7096"
 DRYING_WINDOW_UUID         = "9e07633f-a43a-5298-9691-7678a59cfb32"
 SUNLIGHT_UUID              = "64b04d3a-134c-5c42-85f6-e5a97eb3322d"
 BLOCK_TRANSFORM_UUID       = "2743c05c-ff22-5324-8f25-4faed396b50a"
+HEAT_FOR_DAYS_UUID         = "0c226f02-0f9e-51bb-83f8-50b79344ee0a"
 
 # A save with no id records a new row every time; a save with an id replaces
 # that row's payload. So it can overwrite, and repeating it can add more.
@@ -519,6 +522,14 @@ intent="Hours of direct sun each part of a plot gets, month by month, from its t
         title="Propose bed layouts",
         behavior=READS,
 intent="Propose bed layouts inside a plot, ready to accept in one save",
+    ),
+    ToolIdentity(
+        tool_id=HEAT_FOR_DAYS_UUID,
+        capability="heat_for_days",
+        category="read",
+        title="Heat target from days to maturity",
+        behavior=READS_REMOTE,
+intent="Turn a seed packet's days to maturity into the heat target those days hold on this plot",
     ),
 ]
 
@@ -2976,6 +2987,89 @@ async def sunlight(
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+
+
+@tool
+@runtime.paid_tool(HEAT_FOR_DAYS_UUID)
+async def heat_for_days(
+    block: Annotated[str, BLOCK_FIELD],
+    days_to_maturity: Annotated[
+        int,
+        Field(
+            description=(
+                "The seed packet's days to maturity, 14–365. Counted from the day "
+                "the packet counts from: transplanting for a started crop, "
+                "sowing for a direct-sown one."
+            ),
+        ),
+    ],
+    set_out: Annotated[
+        str,
+        Field(
+            description=(
+                "YYYY-MM-DD the planting went in, or will. Omit to count from this "
+                "plot's typical last spring frost."
+            ),
+        ),
+    ] = "",
+    base_temp: Annotated[
+        float | None,
+        Field(description="Base temperature in °F, 20–80. Omit for the plot's own."),
+    ] = None,
+    npub: PatronNpub = "",
+) -> dict[str, Any]:
+    """The heat target a seed packet's days to maturity hold on this plot.
+
+    Almost nobody publishes a growing-degree-day target for a cultivar, and a
+    made-up one quietly wrecks every date the ledger gives. Days to maturity are
+    on nearly every packet. This sums this plot's typical heat for each
+    calendar day, over the last ten years, across that many days from the
+    set-out — the heat target those days hold here.
+
+    An estimate, labelled as one: the packet's days were counted where the
+    breeder grew it, and a grower's own count from a season here beats it.
+
+    Args:
+        block: The ground to answer for — its id, its name, or an alias.
+        days_to_maturity: The packet's days, 14–365.
+        set_out: When it went in, or will. Omit for the typical last frost.
+        base_temp: Base temperature in °F. Omit for the plot's own.
+    """
+    # Every refusal RAISES. `paid_tool` refunds the fare only on an exception —
+    # a returned failure keeps it — and surfaces a ValueError's own words.
+    days = _days_to_maturity(days_to_maturity)
+    out_on = _set_out_day(set_out)
+    parsed, found = await _block_region(npub, block)
+    base = float(base_temp) if base_temp is not None else float(found.get("base_temp_f") or 50.0)
+    if not 20.0 <= base <= 80.0:
+        raise PlantingError("base_temp must be between 20 and 80 °F")
+    try:
+        return await heat_for_days_impl(parsed, days, base, out_on)
+    except (sources.UpstreamError, OSError) as exc:
+        logger.warning("heat_for_days failed: %s", exc)
+        raise PlantingWindowError(f"A weather feed did not answer: {exc}") from exc
+
+
+def _days_to_maturity(raw: Any) -> int:
+    """A packet's days, as a whole number in range. A bool is not a count."""
+    if isinstance(raw, bool) or not isinstance(raw, (int, float)) or raw != int(raw):
+        raise PlantingError("days_to_maturity must be a whole number of days")
+    days = int(raw)
+    if not planting.MIN_DAYS_TO_MATURITY <= days <= planting.MAX_DAYS_TO_MATURITY:
+        raise PlantingError(
+            f"days_to_maturity must be {planting.MIN_DAYS_TO_MATURITY}–"
+            f"{planting.MAX_DAYS_TO_MATURITY}, got {days}"
+        )
+    return days
+
+
+def _set_out_day(raw: str) -> date | None:
+    if not raw:
+        return None
+    try:
+        return date.fromisoformat(raw)
+    except (TypeError, ValueError) as exc:
+        raise PlantingError(f"set_out must be YYYY-MM-DD, got {raw!r}") from exc
 
 
 def main() -> None:

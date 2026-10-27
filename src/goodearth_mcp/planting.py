@@ -44,6 +44,9 @@ MIN_SUCCESSION_DAYS, MAX_SUCCESSION_DAYS = 3, 60
 
 # A sowing that has not banked its heat within a year never will.
 YEAR_DAYS = 366
+# A packet's days to maturity, within reason: under two weeks is a microgreen,
+# not a crop with a heat target, and over a year is not one season's packet.
+MIN_DAYS_TO_MATURITY, MAX_DAYS_TO_MATURITY = 14, 365
 
 
 class PlantingError(ValueError):
@@ -189,6 +192,22 @@ def finish_date(out_on: date, target: float, clim: gdd.Climate) -> date | None:
             return day
         day += timedelta(days=1)
     return None
+
+
+def heat_over(out_on: date, days: int, clim: gdd.Climate) -> float:
+    """The heat a sowing typically banks here in its first `days` days.
+
+    `finish_date` run the other way: that one asks how many days a heat target
+    takes on this ground, this one how much heat a number of days holds. It is
+    how a seed packet's days to maturity becomes a heat target. The packet's
+    days were counted on the breeder's trial ground; the same days in a typical
+    year here hold this ground's heat, which is the figure that travels.
+    """
+    if not MIN_DAYS_TO_MATURITY <= days <= MAX_DAYS_TO_MATURITY:
+        raise PlantingError(
+            f"days to maturity must be {MIN_DAYS_TO_MATURITY}–{MAX_DAYS_TO_MATURITY}, got {days}"
+        )
+    return sum(gdd.typical_heat(clim, out_on + timedelta(days=i)) for i in range(days))
 
 
 def latest_out(
