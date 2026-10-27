@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Changes not yet released live in `changelog.d/`, one file per change — see the README there for why, and `scripts/changelog.py` for what folds them in at release time.
 
+## [0.6.0] — 2026-10-27
+
+### Added
+
+- **Picking a plant fills the planting form.** Choose it from iNaturalist and Good Earth looks it up: its GDD target on this plot and its base, height, flower colour, bloom months and whether it handles a light frost, each from named sources. A figure you entered yourself is never overwritten. Each plant is looked up once and kept for every grower. New tool `plant_profile`; it needs the operator's `llm_api_key`.
+
+- New tool `heat_for_days`: a seed packet's days to maturity, as the heat target those days hold on a plot in a typical year, from its last ten years of record.
+
+- Kept plant profiles decay: a plant nobody has picked for 180 days is let go, one still in use is looked up again after a year (with a rising chance over its last month, so popular plants are not all renewed at once), and the table holds at most 5,000 plants. A renewal that fails still answers with the kept profile. New operator-only tool `plant_profile_refresh` lets one plant go so its next pick looks it up afresh.
+
 ## [0.5.0] — 2026-10-27
 
 ### Added
