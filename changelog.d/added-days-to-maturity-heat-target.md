@@ -1,1 +1,1 @@
-- A new planting takes the seed packet's **days to maturity** and fills the GDD target for you: the heat those days hold on this plot in a typical year, from its last ten years of record. A target you typed yourself is never overwritten. New tool `heat_for_days`.
+- New tool `heat_for_days`: a seed packet's days to maturity, as the heat target those days hold on a plot in a typical year, from its last ten years of record.

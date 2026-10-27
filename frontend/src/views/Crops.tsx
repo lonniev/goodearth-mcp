@@ -22,7 +22,7 @@ import { baseBounds, parseBase } from "../lib/baseTemp";
 import { QuoteScroller, TableFilter, useTimezone } from "@tollbooth-dpyc/web/react";
 import { clockTime } from "../lib/clock";
 import { AGRARIAN_QUOTES, AGRARIAN_SOURCE, quoteStyles } from "../lib/quotes";
-import { blockItemList, cropGddStatus, cropSuitability, diseaseRisk, heatForDays, plantingWindow,
+import { blockItemList, cropGddStatus, cropSuitability, diseaseRisk, plantProfile, plantingWindow,
   treeSuitability, treeYear,
   type CropLedgerResult, type DiseaseRiskResult, type PlantingWindowResult, type SuitabilityResult,
   type TreeAssessment, type TreeSuitabilityResult,
@@ -48,7 +48,7 @@ import { fromRow, repeatDraft, rotation,
 import { familiesFor } from "../lib/family";
 import { draftFromLot, lotLine, lotsFor, seedCodec, type SeedLot } from "../lib/seeds";
 import { useSubmit } from "../lib/useSubmit";
-import { mayFill, packetDays } from "../lib/daysToHeat";
+import { fillFrom, mayFill, provenance, type Fill } from "../lib/profileFill";
 import { withId } from "../lib/submit";
 import type { SavedRegion } from "../lib/regions";
 import { Empty, ErrorBox, Field, FIELD, Glyph, ICON, IconButton, PageTitle, Pill,
@@ -250,49 +250,58 @@ export default function Crops({
   const [formErr, setFormErr] = useState("");
   const submit = useSubmit("pl", setFormErr);
 
-  // ── The packet's days to maturity → a heat target ─────────────────────
+  // ── Picking a plant fills the rest ────────────────────────────────────
   //
-  // A grower should not have to know a degree-day figure, and a guessed one
-  // wrecks every date the ledger gives. The packet's days are on the packet;
-  // the server turns them into the heat those days hold on this plot in a
-  // typical year. The fields are uncontrolled, so this reads and writes them.
-  const daysField = useRef<HTMLInputElement>(null);
-  const targetField = useRef<HTMLInputElement>(null);
-  const setoutField = useRef<HTMLInputElement>(null);
-  const baseField = useRef<HTMLInputElement>(null);
-  /// The target this page last wrote, so a figure the grower typed is never
-  /// overwritten — see `mayFill`.
-  const filledTarget = useRef("");
-  /// Where the target in the field came from, for its tooltip.
-  const [targetFrom, setTargetFrom] = useState("");
-  const fromDays = useCallback(async () => {
-    const days = packetDays(daysField.current?.value ?? "");
-    const target = targetField.current;
-    if (days == null || !target || !mayFill(target.value, filledTarget.current)) return;
-    const base = parseBase(baseField.current?.value ?? "", u);
-    if (base.error) return;
-    const setOut = setoutField.current?.value ?? "";
+  // A grower should not have to know a degree-day figure, a height or a bloom
+  // month, and a guessed heat target wrecks every date the ledger gives. The
+  // server looks the plant up (`plant_profile`) and fits it to this plot. The
+  // fields are uncontrolled, so this reads and writes them by name, and only
+  // ever into a field that is empty or still holds what it wrote last.
+  const formRef = useRef<HTMLFormElement>(null);
+  const filled = useRef<Fill>({});
+  /// The plant the form was last filled for, so a change of Planted refits it.
+  const lookedUp = useRef<SpeciesHit | null>(null);
+  /// Where the filled figures came from, for their tooltip.
+  const [filledFrom, setFilledFrom] = useState("");
+  const [looking, setLooking] = useState(false);
+  const fillFor = useCallback(async (h: SpeciesHit) => {
+    const form = formRef.current;
+    if (!form) return;
+    lookedUp.current = h;
+    const field = (name: string) => form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | null;
+    const setOut = field("setout")?.value ?? "";
+    setLooking(true);
     try {
-      const r = await heatForDays(region.id, days, {
+      const r = await plantProfile(region.id, {
+        taxon_id: h.id, scientific_name: h.scientificName,
+        ...(h.commonName ? { common_name: h.commonName } : {}),
         ...(setOut ? { set_out: setOut } : {}),
-        ...(base.f != null ? { base_temp: base.f } : {}),
       });
-      if (!r.success || r.gdd_target == null) {
-        setFormErr(r.error || "The heat target could not be worked out.");
-        return;
+      // A different plant picked while this one was being looked up wins.
+      if (lookedUp.current !== h) return;
+      if (!r.success) { setFormErr(r.error || "The plant could not be looked up."); return; }
+      const want = fillFrom(r, u);
+      for (const [name, value] of Object.entries(want) as [keyof Fill, string][]) {
+        const el = field(name);
+        if (!el) continue;
+        if (el instanceof HTMLInputElement && el.type === "checkbox") {
+          if (!el.checked) { el.checked = true; filled.current[name] = value; }
+        } else if (mayFill(el.value, filled.current[name])) {
+          el.value = value;
+          filled.current[name] = value;
+        }
       }
-      // Asked again after the wait: the grower may have typed a figure meanwhile.
-      if (!mayFill(target.value, filledTarget.current)) return;
-      const shown = String(Math.round(u.degreeDays(r.gdd_target)));
-      target.value = shown;
-      filledTarget.current = shown;
-      const from = r.from ? new Date(`${r.from}T12:00:00`).toLocaleDateString(
-        "en-US", { month: "short", day: "numeric" }) : "";
-      setTargetFrom(`About ${days} days from ${from} in a typical year here (${r.record}).`);
+      setFilledFrom(provenance(r));
     } catch (e) {
       setFormErr((e as Error).message);
+    } finally {
+      setLooking(false);
     }
   }, [region.id, u]);
+  /// Planted moves the heat window, so a plant already looked up is refitted.
+  const refit = useCallback(() => {
+    if (lookedUp.current) void fillFor(lookedUp.current);
+  }, [fillFor]);
   /// What the last row-click put on the ledger, so a tap is not silent.
   /// What the last add put on the ledger, so the act is not silent.
   const [added, setAdded] = useState("");
@@ -315,7 +324,7 @@ export default function Crops({
   const [repeating, setRepeating] = useState<RepeatDraft | null>(null);
   const [formKey, setFormKey] = useState(0);
   // A fresh draft is a fresh form: nothing it holds came from this page.
-  useEffect(() => { filledTarget.current = ""; setTargetFrom(""); }, [formKey, region.id]);
+  useEffect(() => { filled.current = {}; lookedUp.current = null; setFilledFrom(""); }, [formKey, region.id]);
   /// A planting is rated on heat if it carries a target, and on winter if it
   /// is a perennial, and **these overlap**: alfalfa is a perennial that also
   /// answers "750 GDD per cutting". Membership is by what a row carries, never
@@ -690,8 +699,9 @@ export default function Crops({
       setAdded(`${named} — on the ledger.`);
       setPicked(null);
       form.reset();
-      filledTarget.current = "";
-      setTargetFrom("");
+      filled.current = {};
+      lookedUp.current = null;
+      setFilledFrom("");
       // A reset returns the fields to their defaults, which after a Rotation
       // tap are that crop's figures. Clear the draft so the form is empty.
       if (repeating) { setRepeating(null); setFormKey((k) => k + 1); }
@@ -776,7 +786,7 @@ export default function Crops({
 
       {/* ── Add a planting ─────────────────────────────────────────────── */}
       <AddPanel label="New planting" open={addOpen} onOpen={setAddOpen}>
-      <form key={formKey} id="new-planting" onSubmit={add} className="mb-4 rounded-md border border-rule bg-panel p-4">
+      <form key={formKey} id="new-planting" ref={formRef} onSubmit={add} className="mb-4 rounded-md border border-rule bg-panel p-4">
         {/* The Pests form's shape: every caption on one line, every box one
             height, each as wide as what goes in it, and the act at the end of
             the flow. It was a four-column grid whose boxes stretched to fill
@@ -797,19 +807,13 @@ export default function Crops({
                 thumb: picked.thumb,
               }}
               seed={seed}
-              onPick={(h) => { setPicked(h); setSeed(""); }}
-              onClear={() => setPicked(null)}
+              onPick={(h) => { setPicked(h); setSeed(""); void fillFor(h); }}
+              onClear={() => { setPicked(null); lookedUp.current = null; }}
               placeholder="sugar maple, zinnia, shiitake…" />
           </Field>
           <Field label="Your name for it" htmlFor="pl-label" width="min-w-[12rem] flex-1" tour="crops.label">
             <input id="pl-label" name="label" placeholder="succession 4, north lot" className={FIELD}
               defaultValue={repeating?.label ?? ""} />
-          </Field>
-          {/* Beside the target it fills. Leaving it, or changing Planted or
-              Base after it, asks the server what heat those days hold here. */}
-          <Field label="Days to maturity" htmlFor="pl-days" width="w-[8rem]">
-            <input id="pl-days" ref={daysField} inputMode="numeric" placeholder="75" className={FIELD}
-              onBlur={() => { void fromDays(); }} />
           </Field>
           <Field label="GDD target" htmlFor="pl-target" width="w-[7rem]" tour="crops.target"
             hint={
@@ -817,14 +821,13 @@ export default function Crops({
                 Leave it blank for a tree, or for anything you are not pacing.
               </Term>
             }>
-            <input id="pl-target" name="target" ref={targetField} inputMode="numeric" placeholder="780"
-              className={FIELD} title={targetFrom || undefined}
+            <input id="pl-target" name="target" inputMode="numeric" placeholder={looking ? "…" : "780"}
+              className={FIELD} title={filledFrom || undefined}
               defaultValue={repeating?.gddTargetF != null
                 ? String(Math.round(u.degreeDays(repeating.gddTargetF))) : ""} />
           </Field>
           <Field label="Planted" htmlFor="pl-setout" width="w-[10rem]" tour="crops.setout">
-            <input id="pl-setout" name="setout" type="date" ref={setoutField} className={FIELD}
-              onBlur={() => { void fromDays(); }} />
+            <input id="pl-setout" name="setout" type="date" className={FIELD} onBlur={refit} />
           </Field>
           {/* A number field bounded to what the service accepts, in the
               reader's scale. `submit` checks it again: a number field still
@@ -835,8 +838,7 @@ export default function Crops({
                 Blank takes {region.name}&rsquo;s {u.showTemp(region.baseTempF)}.
               </Term>
             }>
-            <input id="pl-base" name="base" type="number" inputMode="decimal" step="1" ref={baseField}
-              onBlur={() => { void fromDays(); }}
+            <input id="pl-base" name="base" type="number" inputMode="decimal" step="1"
               defaultValue={repeating?.baseTempF != null
                 ? String(Math.round(u.temp(repeating.baseTempF))) : ""}
               min={baseBounds(u).min} max={baseBounds(u).max}

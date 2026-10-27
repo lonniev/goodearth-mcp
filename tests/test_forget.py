@@ -118,6 +118,7 @@ def swept(monkeypatch):
         (forget.task_store, "goodearth_tasks"),
         (forget.feed_store, "goodearth_calendar_feeds"),
         (forget.record_cache, "goodearth_weather_cache"),
+        (forget.profile_store, "goodearth_plant_profiles"),
     ):
         monkeypatch.setattr(store, "forget_everything", stub(store, table))
     return seen
@@ -133,7 +134,7 @@ def test_the_right_words_sweep_every_store(swept):
 def test_it_reports_what_went_rather_than_reassuring(swept):
     """A count per table, so "gone" is checkable."""
     out = run(npub="npub1x", confirm=forget.CONFIRM_PHRASE)
-    assert out["rows"] == 12
+    assert out["rows"] == 3 * len(forget.STORES)
     assert out["forgotten"]["goodearth_calendar_feeds"] == 3
 
 
