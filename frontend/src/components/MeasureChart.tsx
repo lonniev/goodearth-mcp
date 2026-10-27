@@ -7,7 +7,7 @@
 // is the normal range, the solid line is this season, dashed is the forecast.
 
 import { useUnits } from "./Units";
-import { useMemo } from "react";
+import { type ReactNode, useMemo } from "react";
 import type { Measure } from "../lib/mcp";
 import { dateTicks, labelFits, spaceTicks } from "../lib/dateTicks";
 import { drawWidth } from "../lib/chartBox";
@@ -28,7 +28,7 @@ export default function MeasureChart({
   dates: string[];
   forecastDates: string[];
   label: string;
-  emoji?: string;
+  emoji?: ReactNode;
   color?: string;
   zoomable?: boolean;
 }) {

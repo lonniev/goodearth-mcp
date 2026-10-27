@@ -1,0 +1,1 @@
+- The Almanac's pressure reading wears a barometer dial (Weather Icons, SIL OFL 1.1) instead of the ⏲️ kitchen timer.

@@ -9,8 +9,9 @@
 // is identical across them so the eye learns it once.
 
 import { useUnits } from "../components/Units";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MeasureChart from "../components/MeasureChart";
+import Barometer from "../components/Barometer";
 import Provenance from "../components/Provenance";
 import RadarMap from "../components/RadarMap";
 import ForecastCard from "../components/ForecastCard";
@@ -31,7 +32,7 @@ import { almanacSheet } from "../lib/exports";
 import { useTour } from "@tollbooth-dpyc/web/react";
 import { tour } from "../lib/tour/targets";
 
-const SERIES: { key: MeasureKey; label: string; emoji: string; color?: string }[] = [
+const SERIES: { key: MeasureKey; label: string; emoji: ReactNode; color?: string }[] = [
   { key: "temp_max",  label: "Daily high",  emoji: "🌡️" },
   { key: "temp_min",  label: "Daily low",   emoji: "🌙", color: "var(--color-frost)" },
   { key: "dew_point", label: "Dew point",   emoji: "💧", color: "var(--color-frost)" },
@@ -46,7 +47,7 @@ const SERIES: { key: MeasureKey; label: string; emoji: string; color?: string }[
   { key: "humidity",  label: "Humidity",    emoji: "💦", color: "var(--color-frost)" },
   // The day's mean sea-level pressure. The storm signal reads the HOURLY
   // series server-side — a daily mean smooths away the three-hour fall.
-  { key: "pressure",  label: "Pressure",    emoji: "⏲️" },
+  { key: "pressure",  label: "Pressure",    emoji: <Barometer /> },
 ];
 
 const time = (iso: string | null) => (iso ? iso.slice(11, 16) : "—");
@@ -190,7 +191,7 @@ export default function Almanac({
             {/* The barometer: the hourly reading now, and which way it is
                 going. The arrow is the tendency, which is the half that
                 forecasts; the figure alone is a dull number. */}
-            <Stat emoji="⏲️" label="pressure"
+            <Stat emoji={<Barometer />} label="pressure"
               value={data?.pressure ? u.showPressure(data.pressure.now_hpa)
                 : c.pressure_hpa != null ? u.showPressure(c.pressure_hpa) : "—"}
               sub={data?.pressure?.tendency
@@ -387,7 +388,7 @@ function StormBanner({ storm }: { storm: StormSignal }) {
 }
 
 function Stat({ emoji, label, value, sub }: {
-  emoji: string; label: string; value: string; sub?: string;
+  emoji: ReactNode; label: string; value: string; sub?: string;
 }) {
   return (
     <div className="px-1 text-center">
