@@ -8,7 +8,7 @@ temperature — the soil record.
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from goodearth_mcp import frost, gdd, planting, record_cache, soil, sources
@@ -19,6 +19,103 @@ RECORD_SPAN_YEARS = 10
 
 class PlantingWindowError(ValueError):
     """The request cannot be answered as asked."""
+
+
+async def _air_record(region: Region, today: date) -> tuple[list[str], list, list]:
+    """This ground's daily air record over the span every answer here reads."""
+    span_from = date(today.year - RECORD_SPAN_YEARS, 1, 1).isoformat()
+    span_to = date(today.year - 1, 12, 31).isoformat()
+    try:
+        air = await record_cache.daily_history(
+            [region.centroid.lat], [region.centroid.lon], span_from, span_to)
+    except (sources.UpstreamError, OSError) as exc:
+        raise PlantingWindowError(f"could not read this ground's record: {exc}") from exc
+    if not air:
+        raise PlantingWindowError("could not read this ground's record")
+    try:
+        return sources.daily_series(air[0])
+    except (sources.UpstreamError, IndexError) as exc:
+        raise PlantingWindowError(f"the record is unreadable: {exc}") from exc
+
+
+def _frost_season(
+    dates: list[str], tmin: list, today: date,
+) -> tuple[int, tuple[int, int] | None, dict[str, Any] | None, dict[str, Any] | None]:
+    """The season being planned, its frost anchor, and its typical frosts.
+
+    The frost-free stretch sits round this ground's own midsummer — July in
+    the north, January in the south — so a southern spring frost belongs to
+    the season of the autumn after it, not to the calendar year.
+    """
+    years = list(range(today.year - RECORD_SPAN_YEARS, today.year))
+    start = frost.season_start(dates, tmin)
+    if start is None:
+        # Ground whose record never froze has no frost to plant around.
+        return today.year, None, None, None
+    seasons = frost.frost_free_seasons(dates, tmin, years, start)
+    spring_off = frost.offsets(seasons, "last_spring")
+    fall_off = frost.offsets(seasons, "first_fall")
+    season = planting.plan_season(frost.season_of(today, start), fall_off, today)
+    anchor = gdd.on_year(season, *start)
+    spring = frost.typical_around(anchor, spring_off)
+    fall = frost.typical_around(anchor, fall_off)
+    if not spring and not fall:
+        raise PlantingWindowError(
+            "No frost record could be built for this ground — the archive may be too short."
+        )
+    return season, start, spring, fall
+
+
+async def region_heat_for_days(
+    region: Region,
+    days: int,
+    base_f: float,
+    out_on: date | None = None,
+    today: date | None = None,
+) -> dict[str, Any]:
+    """A packet's days to maturity, as the heat target they hold on this ground.
+
+    Counted from `out_on` when the grower gives it — the day it went in, or
+    will — and otherwise from this ground's typical last spring frost, the day
+    a tender crop typically goes out. Summed over the typical heat for each
+    calendar day across the last ten years, at the planting's base.
+    """
+    today = today or datetime.now(UTC).date()
+    days = int(days)
+    dates, tmax, tmin = await _air_record(region, today)
+    clim = gdd.climatology(dates, tmax, tmin, base_f)
+    if not clim:
+        raise PlantingWindowError("this ground's record holds no usable temperatures")
+
+    counted_from = "set_out"
+    if out_on is None:
+        season, _start, spring, _fall = _frost_season(dates, tmin, today)
+        if spring:
+            out_on, counted_from = date.fromisoformat(spring["median"]), "typical_last_frost"
+        else:
+            out_on, counted_from = date(season, 5, 15), "mid_may"
+
+    heat = planting.heat_over(out_on, days, clim)
+    years = sorted({d[:4] for d in dates})
+    return {
+        "success": True,
+        # To the nearest ten: it is an estimate, and a figure to the degree-day
+        # would claim a precision the method does not have.
+        "gdd_target": int(round(heat / 10.0) * 10),
+        "base_temp_f": base_f,
+        "days_to_maturity": days,
+        "counted_from": counted_from,
+        "from": out_on.isoformat(),
+        "to": (out_on + timedelta(days=days - 1)).isoformat(),
+        "record": f"{years[0]}–{years[-1]}" if years else "",
+        "region": region.describe(),
+        "note": (
+            "An estimate: the heat this many days hold in a typical year on this "
+            "ground. A packet's days were counted where the breeder grew it; "
+            "degree days are the figure that travels. Your own count from a "
+            "season here beats it."
+        ),
+    }
 
 
 async def region_planting_window(
@@ -61,27 +158,7 @@ async def region_planting_window(
         raise PlantingWindowError(f"the record is unreadable: {exc}") from exc
 
     years = list(range(today.year - RECORD_SPAN_YEARS, today.year))
-
-    # The frost-free stretch sits round this ground's own midsummer — July in
-    # the north, January in the south — so a southern spring frost belongs
-    # to the season of the autumn after it, not to the calendar year.
-    start = frost.season_start(dates, tmin)
-    spring = fall = None
-    if start is None:
-        # Ground whose record never froze has no frost to plant around.
-        season = today.year
-    else:
-        seasons = frost.frost_free_seasons(dates, tmin, years, start)
-        spring_off = frost.offsets(seasons, "last_spring")
-        fall_off = frost.offsets(seasons, "first_fall")
-        season = planting.plan_season(frost.season_of(today, start), fall_off, today)
-        anchor = gdd.on_year(season, *start)
-        spring = frost.typical_around(anchor, spring_off)
-        fall = frost.typical_around(anchor, fall_off)
-        if not spring and not fall:
-            raise PlantingWindowError(
-                "No frost record could be built for this ground — the archive may be too short."
-            )
+    season, start, spring, fall = _frost_season(dates, tmin, today)
 
     last_frost = date.fromisoformat(spring["median"]) if spring else None
     first_frost = date.fromisoformat(fall["median"]) if fall else None

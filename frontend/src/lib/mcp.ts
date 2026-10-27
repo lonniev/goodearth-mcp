@@ -1187,6 +1187,32 @@ export async function plantingWindow(
   return callTool<PlantingWindowResult>("planting_window", { block, crops });
 }
 
+export interface HeatForDaysResult {
+  success: boolean;
+  /// Degree days in °F, to the nearest ten. An estimate, and named as one.
+  gdd_target?: number;
+  base_temp_f?: number;
+  days_to_maturity?: number;
+  /// set_out | typical_last_frost | mid_may
+  counted_from?: string;
+  from?: string;
+  to?: string;
+  /// The years of record the typical heat is drawn from, "2016–2025".
+  record?: string;
+  note?: string;
+  error?: string;
+  error_code?: string;
+}
+
+/// A seed packet's days to maturity, as the heat target they hold on this
+/// block in a typical year. Counted from `set_out`, or from the block's
+/// typical last frost when it is omitted.
+export async function heatForDays(
+  block: string, daysToMaturity: number, q: { set_out?: string; base_temp?: number } = {},
+): Promise<HeatForDaysResult> {
+  return callTool<HeatForDaysResult>("heat_for_days", { block, days_to_maturity: daysToMaturity, ...q });
+}
+
 // ── Regional catalogues ──────────────────────────────────────────────────
 //
 // What lives on this ground, read from the record of the surrounding country
