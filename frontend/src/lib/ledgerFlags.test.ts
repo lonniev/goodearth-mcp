@@ -287,12 +287,11 @@ describe("rolling up the plots inside", () => {
     farm: [mark("Mow")], bed1: [mark("Zinnia")], bed2: [mark("Dahlia"), mark("Stake")],
   };
 
-  it("keeps the plot's own marks as they are and names each part's", () => {
+  it("puts the parts' marks beside the plot's own, unchanged", () => {
     const got = rollUpFlags("farm",
       [{ block_id: "bed1", name: "East bed" }, { block_id: "bed2", name: "West bed" }],
       (plot) => byPlot[plot] ?? []);
-    assert.deepEqual(got.map((f) => f.label),
-      ["Mow", "Zinnia · East bed", "Dahlia · West bed", "Stake · West bed"]);
+    assert.deepEqual(got, [...byPlot.farm, ...byPlot.bed1, ...byPlot.bed2]);
   });
 
   it("builds each plot's marks once, from that plot's own rows", () => {

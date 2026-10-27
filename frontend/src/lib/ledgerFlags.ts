@@ -136,24 +136,20 @@ export function taskFlags(tasks: TaskLike[]): LedgerFlag[] {
   return out;
 }
 
-/// A plot's marks with the marks of the plots inside it, each named.
+/// A plot's marks with the marks of the plots inside it.
 ///
-/// `build` makes one plot's marks; it runs once per plot, so a planting on a
-/// bed is placed by its own set-out on the curve on screen, the plot asked
-/// for. A part's marks say which part they are on — on a farm of beds, "Zinnia"
-/// alone does not say where. The plot asked for keeps its marks unnamed.
+/// `build` makes one plot's marks from that plot's own rows, so a planting on a
+/// bed is placed by its own set-out on the curve on screen. The parts' marks
+/// look like the plot's own: one curve, one kind of mark, nothing to tell apart.
 export function rollUpFlags(
   own: string,
-  parts: { block_id: string; name: string }[],
+  parts: { block_id: string }[],
   build: (plot: string) => LedgerFlag[],
 ): LedgerFlag[] {
-  return [
-    ...build(own),
-    ...parts.flatMap((p) => build(p.block_id).map((f) => ({ ...f, label: `${f.label} · ${p.name}` }))),
-  ];
+  return [own, ...parts.map((p) => p.block_id)].flatMap(build);
 }
 
-/// Every plot named in any of the lists, once, in first-seen order.
+/// Every plot in any of the lists, once, in first-seen order.
 export function partsOf(...lists: ({ block_id: string; name: string }[] | undefined)[]) {
   const seen = new Map<string, { block_id: string; name: string }>();
   for (const p of lists.flat()) if (p && !seen.has(p.block_id)) seen.set(p.block_id, p);
