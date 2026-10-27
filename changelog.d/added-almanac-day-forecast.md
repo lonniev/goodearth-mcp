@@ -1,2 +1,0 @@
-- Tap any fortnight card on the Almanac to read that day's forecast, written the Weather Service's way and ready to copy and paste.
-- The Dashboard tour visits the plot chooser once, and shows the (?) beside the other top-row buttons.

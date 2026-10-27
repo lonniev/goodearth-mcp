@@ -1,1 +1,0 @@
-- The event card on the Dashboard chart speaks more plainly: "How confident?" and "How determined?" head its two main rows, a task reads "You recorded this fixed date", and every other line is shorter and in everyday words.

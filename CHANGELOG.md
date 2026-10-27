@@ -7,6 +7,86 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Changes not yet released live in `changelog.d/`, one file per change — see the README there for why, and `scripts/changelog.py` for what folds them in at release time.
 
+## [0.5.0] — 2026-10-27
+
+### Added
+
+- Tap any fortnight card on the Almanac to read that day's forecast, written the Weather Service's way and ready to copy and paste.
+- The Dashboard tour visits the plot chooser once, and shows the (?) beside the other top-row buttons.
+
+- Barometric pressure on the Almanac: a season chart with its normal band, today's reading with its three-hour tendency in the Met Office's words (steady, falling slowly, falling quickly…), and a pressure row on each fortnight card. Shown in inHg beside °F, hPa beside °C.
+- A storm signal from the barometer: unsettled, storm likely or severe, read from how fast hourly pressure falls over the next three days (3-hour falls of 1.6 / 3.6 / 6 hPa, plus a latitude-scaled "bomb" test). The Almanac shows a 🌀 banner, and the Dashboard shows a 🌀 chip that costs no extra read.
+- The drying line marks 🌀 on the first dry day a front crosses, and a disease model's projected period gets 🌀 when a front is due across it. The disease models themselves are unchanged.
+- `goodearth_almanac`, `goodearth_drying_window` and `goodearth_disease_risk` return a `storm` block (the almanac's is named `pressure`).
+
+- Each disease row on the Dashboard now draws its whole season as a strip: every qualifying period where it fell, the forecast's in clay, today as a tick, and the season's count beside it, under one row of month names. The disease answer carries `season_periods` for it.
+
+- The heat chart rolls up the plots inside the one you pick: a farm shows what is recorded on its fields and beds, on the one curve, as marks like its own. A plot is inside another when it is smaller and its centre lies within the other's outline, at any depth.
+- `block_item_list` and `task_list` take `include_inside`, which reads those plots in the same query and says which plot each row is on.
+
+- The Prices page offers "Need a wallet?": the steps to a first Lightning wallet, and the wallets people use this week with their installers.
+
+### Changed
+
+- The Almanac's pressure reading wears a barometer dial (Weather Icons, SIL OFL 1.1) instead of the ⏲️ kitchen timer.
+
+- The Dashboard's Drying panel is a ten-day strip of day cards below its summary line. Each card has:
+  - the day's sky
+  - a bar for its drying power (reference evapotranspiration)
+  - its rain, or its dew-off hour
+
+  The dry run is shaded as one stretch with ★ on its strongest day, 🌀 marks a day a falling barometer crosses, and a one-line key explains the glyphs.
+
+- The Dashboard's five weather tiles are small infographics. Each has a large icon in a tinted disc, a smaller figure and label beside it, and a picture of where its figure falls:
+  - heat against the coolest-to-warmest past season, with a tick at normal
+  - the spread between the coolest and warmest ground
+  - a bar out from normal for ahead/behind
+  - the first frost on the record's earliest-to-latest span, with a tick at the median
+  - the coldest ground on a thermometer shaded through hard freeze, frost and watch
+
+- The Dashboard's pulse strip has six tiles: the barometer joins it on its own face (stormy · rain · change · fair) with its tendency, or 🌀 and the day of a storm signal, replacing the storm chip by the title. Sublabels are a few words each, every GDD figure carries its base, and the spread tile's icon is a hillside.
+
+- The Dashboard tour opens on the plot chooser, pointing to My Plots for adding and drawing plots, then walks the top row: tonight's conditions, Put back, Share, Full screen and your profile.
+- The tour's chart step describes everything the chart shows, not just heat. A new step points at an event mark and says a tap opens its card.
+- Event marks on the season chart pulse slowly, so a tap is invited without reading the guide. The pulse stops under Reduce Motion.
+
+- A day's pasted forecast now carries everything its card shows: dew point, humidity, the barometer and which way it moved, the hours of sun, and the storm warning on the day the barometer falls fastest.
+
+- The event card on the Dashboard chart speaks more plainly: "How confident?" and "How determined?" head its two main rows, a task reads "You recorded this fixed date", and every other line is shorter and in everyday words.
+
+- Fauna's add form is one row like Pests and Flora — Species, What it does, and a round 🐾 button. The button opens a panel with friend/foe/watch, the clock, its figures, the dates they fall on, and Record. "Start another" on a due row opens the panel already filled in.
+- The Fauna table heading reads 🐾 Fauna ledger (was "📅 The year"), alongside 🌱 Plants ledger and 🐛 Pests ledger.
+
+- Flora page now lays out like Pests: a "Flora" title, a compact one-row form whose boxes are as wide as their contents, and a round seed button to add a planting.
+- Ledger headings read alike: 🌱 Plants ledger and 🐛 Pests ledger (was "📒 Plant ledger" and "👀 What you're watching").
+
+- Flora, Pests, Fauna, Tasks and Field Reports each fold their add form under a [+] at the top of the page, so an unused form takes one line. A half-written entry survives a fold, and anything that fills the form from further down the page — plant again, a companion, a catalogue stage, start another brood, the tutorial — opens it first.
+- Field Reports' observation form moves from below the report to the top, like the other four.
+
+- Pay now opens your own Lightning wallet on the invoice, and a QR code button opens BTCPay's checkout for a desktop. While an invoice is open the page says it is watching for your payment, and the button reads "Check now" (web 2.6.0).
+
+- The Prices page sets a small ₿ before each fare, like $ on a price tag (tollbooth-web 2.4.0).
+
+- The Dashboard's live tutorial now stops at each pulse tile — heat so far, spread, ahead or behind, first frost, coldest night and the barometer — with a tip for each, where it had one stop for the whole strip.
+- The three heat tiles read with the base as a subscript and a word: `2234₅₀ total`, `22₅₀ Δ` across the block, and `66₅₀ ahead` (or `behind`).
+
+### Fixed
+
+- The Crops page's What?, When? and Trees? checks read the plot's current plantings, and wait until there is something to rate. A plot with no rated crop no longer makes a paid call that can only be refused.
+
+- A task's card on the Dashboard chart no longer says "This already happened" about a day still to come. It reads the task's own date: "due", or "due · not done yet" once the day has passed. A sowing's card reads its date the same way.
+- A task's card leaves out the rows that only make sense for a living thing: the taxonomy lookup, the spread across your ground and the field-report calibration note.
+
+- A full-screen Almanac chart fills the screen's height as well as its width. It stayed a short strip across the top before.
+
+- "Need a wallet?" on the Prices page now loads its list of wallets.
+
+- A reload, or a phone's snapshot of a page that is reloading, shows this season's paper colour instead of flashing the plain-text introduction written for crawlers and AI assistants. That text stays in the page for readers that never run JavaScript.
+
+- The Prices page keeps "sats" beneath each fare, under the ₿ sign (tollbooth-web 2.4.1).
+
+- The Dashboard's heat tiles say GDD again: `2234₅₀ GDD total`, `22₅₀ GDD Δ`, `66₅₀ GDD ahead`.
+
 ## [0.4.0] — 2026-10-21
 
 ### Added

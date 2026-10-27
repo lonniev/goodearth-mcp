@@ -1,1 +1,0 @@
-- A reload, or a phone's snapshot of a page that is reloading, shows this season's paper colour instead of flashing the plain-text introduction written for crawlers and AI assistants. That text stays in the page for readers that never run JavaScript.

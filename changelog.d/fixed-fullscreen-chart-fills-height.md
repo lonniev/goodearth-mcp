@@ -1,1 +1,0 @@
-- A full-screen Almanac chart fills the screen's height as well as its width. It stayed a short strip across the top before.

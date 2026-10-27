@@ -1,3 +1,0 @@
-- The Dashboard tour opens on the plot chooser, pointing to My Plots for adding and drawing plots, then walks the top row: tonight's conditions, Put back, Share, Full screen and your profile.
-- The tour's chart step describes everything the chart shows, not just heat. A new step points at an event mark and says a tap opens its card.
-- Event marks on the season chart pulse slowly, so a tap is invited without reading the guide. The pulse stops under Reduce Motion.

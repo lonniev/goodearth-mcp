@@ -1,6 +1,0 @@
-- The Dashboard's five weather tiles are small infographics. Each has a large icon in a tinted disc, a smaller figure and label beside it, and a picture of where its figure falls:
-  - heat against the coolest-to-warmest past season, with a tick at normal
-  - the spread between the coolest and warmest ground
-  - a bar out from normal for ahead/behind
-  - the first frost on the record's earliest-to-latest span, with a tick at the median
-  - the coldest ground on a thermometer shaded through hard freeze, frost and watch
