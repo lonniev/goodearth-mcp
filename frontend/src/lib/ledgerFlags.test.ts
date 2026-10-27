@@ -10,7 +10,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { buildFlags, taskFlags } from "./ledgerFlags.ts";
+import { buildFlags, partsOf, rollUpFlags, taskFlags, type LedgerFlag } from "./ledgerFlags.ts";
 
 /// The shape HeatLedger hands in — a fortnight of accumulating heat.
 const N = 14;
@@ -276,5 +276,37 @@ describe("taskFlags", () => {
 
   it("survives junk without throwing", () => {
     assert.doesNotThrow(() => taskFlags([null, undefined] as never));
+  });
+});
+
+describe("rolling up the plots inside", () => {
+  const mark = (label: string): LedgerFlag => ({
+    kind: "task", label, index: 0, date: "2026-05-01", begin: "2026-05-01", anchor: "date", reached: false,
+  });
+  const byPlot: Record<string, LedgerFlag[]> = {
+    farm: [mark("Mow")], bed1: [mark("Zinnia")], bed2: [mark("Dahlia"), mark("Stake")],
+  };
+
+  it("puts the parts' marks beside the plot's own, unchanged", () => {
+    const got = rollUpFlags("farm",
+      [{ block_id: "bed1", name: "East bed" }, { block_id: "bed2", name: "West bed" }],
+      (plot) => byPlot[plot] ?? []);
+    assert.deepEqual(got, [...byPlot.farm, ...byPlot.bed1, ...byPlot.bed2]);
+  });
+
+  it("builds each plot's marks once, from that plot's own rows", () => {
+    const asked: string[] = [];
+    rollUpFlags("farm", [{ block_id: "bed1", name: "East bed" }], (p) => { asked.push(p); return []; });
+    assert.deepEqual(asked, ["farm", "bed1"]);
+  });
+
+  it("with no parts is exactly the plot's own marks", () => {
+    assert.deepEqual(rollUpFlags("farm", [], (p) => byPlot[p]), byPlot.farm);
+  });
+
+  it("names each part once, whichever list it came from", () => {
+    const a = [{ block_id: "bed1", name: "East bed" }];
+    const b = [{ block_id: "bed1", name: "East bed" }, { block_id: "bed2", name: "West bed" }];
+    assert.deepEqual(partsOf(a, undefined, b).map((p) => p.block_id), ["bed1", "bed2"]);
   });
 });

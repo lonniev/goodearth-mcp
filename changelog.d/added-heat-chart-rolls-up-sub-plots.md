@@ -1,0 +1,2 @@
+- The heat chart rolls up the plots inside the one you pick: a farm shows what is recorded on its fields and beds, on the one curve, as marks like its own. A plot is inside another when it is smaller and its centre lies within the other's outline, at any depth.
+- `block_item_list` and `task_list` take `include_inside`, which reads those plots in the same query and says which plot each row is on.

@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 import re
 import uuid
+from collections.abc import Sequence
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
@@ -199,19 +200,26 @@ async def save(
 
 
 async def listing(
-    npub: str, region_id: str, *, timeframe: str = "all", search: str = "",
+    npub: str, region_id: str, *, also: Sequence[str] = (),
+    timeframe: str = "all", search: str = "",
     sort_col: str = DEFAULT_SORT, sort_dir: str = "asc",
     page: int = 0, page_size: int = 20,
     today: date | None = None, season_start: date | None = None,
 ) -> dict[str, Any]:
-    """One page of tasks, filtered and ordered by the database."""
+    """One page of tasks, filtered and ordered by the database.
+
+    ``also`` names more regions to read in the same query — the plots inside
+    this one, for a roll-up. Each row says which region it is on.
+    """
     today = today or datetime.now(UTC).date()
     pat = clean_search(search)
     pg, size = page_bounds(page, page_size)
     window = window_for(timeframe, today, season_start)
 
-    where = ["npub = $1", "region_id = $2"]
-    args: list[Any] = [npub, region_id]
+    ids = list(dict.fromkeys([region_id, *also]))
+    args: list[Any] = [npub, *ids]
+    marks = ", ".join(f"${i + 2}" for i in range(len(ids)))
+    where = ["npub = $1", f"region_id IN ({marks})"]
     if window:
         args.extend([window[0].isoformat(), window[1].isoformat()])
         where.append(f"due BETWEEN ${len(args) - 1}::date AND ${len(args)}::date")
@@ -239,7 +247,7 @@ async def listing(
 
     rows_r = await v._execute(
         _qualify(
-            f"SELECT id, title, note, due, starts_at, ends_at, reminder_only, done, "
+            f"SELECT id, region_id, title, note, due, starts_at, ends_at, reminder_only, done, "
             f"created_at, updated_at FROM {TABLE} WHERE {clause} "
             # A second key so equal values keep a stable order between pages.
             # Without it a row can appear on two pages, or on none.

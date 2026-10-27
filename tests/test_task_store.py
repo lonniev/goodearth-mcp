@@ -201,5 +201,14 @@ async def test_a_query_is_always_scoped_to_the_caller(vault):
     """npub and region are the first two bound arguments, every time."""
     await ts.listing("npub1me", "east-bench")
     where = next(s for s in vault.sql if "COUNT(*)" in s)
-    assert "npub = $1" in where and "region_id = $2" in where
+    assert "npub = $1" in where and "region_id IN ($2)" in where
     assert vault.args[vault.sql.index(where)][:2] == ["npub1me", "east-bench"]
+
+
+@pytest.mark.asyncio
+async def test_a_roll_up_reads_the_plots_inside_in_the_same_query_and_still_only_the_callers(vault):
+    await ts.listing("npub1me", "farm", also=["bed-1", "bed-2", "farm"])
+    where = next(s for s in vault.sql if "COUNT(*)" in s)
+    assert "npub = $1" in where and "region_id IN ($2, $3, $4)" in where
+    assert vault.args[vault.sql.index(where)][:4] == ["npub1me", "farm", "bed-1", "bed-2"]
+    assert sum("COUNT(*)" in s for s in vault.sql) == 1, "one query, however many plots"

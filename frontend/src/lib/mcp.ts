@@ -1283,6 +1283,8 @@ export type TaskSort = "due" | "title" | "done" | "starts" | "created" | "update
 
 export interface TaskRow {
   id: string;
+  /// The plot it is on. Differs from the one asked for only in a roll-up.
+  region_id?: string;
   title: string;
   note?: string | null;
   due?: string | null;
@@ -1305,6 +1307,8 @@ export interface TaskPage {
   sort_col?: string;
   sort_dir?: string;
   timeframe?: string;
+  /// The plots rolled up, when `include_inside` was asked for.
+  inside?: PlotRef[];
 }
 
 export interface TaskInput {
@@ -1321,6 +1325,8 @@ export interface TaskInput {
 export async function taskList(regionId: string, q: {
   timeframe?: Timeframe; search?: string; sort_col?: TaskSort;
   sort_dir?: "asc" | "desc"; page?: number; page_size?: number; season_start?: string;
+  /// Also the plots lying inside this one. See `PlotRef`.
+  include_inside?: boolean;
 } = {}): Promise<TaskPage> {
   return callTool<TaskPage>("task_list", { region_id: regionId, ...q });
 }
@@ -1398,8 +1404,14 @@ export interface BlockListResult {
 
 export type ItemKind = "planting" | "pest" | "wildlife" | "observation" | "seed";
 
+/// A plot lying inside another: smaller, with its centre within the other's
+/// outline. A roll-up reads these along with the plot asked for.
+export interface PlotRef { block_id: string; name: string }
+
 export interface ItemRow {
   item_id: string;
+  /// The plot it is on. Differs from the one asked for only in a roll-up.
+  block_id?: string;
   kind: ItemKind;
   season_year?: number | null;
   observed_on?: string | null;
@@ -1424,6 +1436,8 @@ export interface ItemPage {
   page_size: number;
   pages: number;
   kind: ItemKind;
+  /// The plots rolled up, when `include_inside` was asked for.
+  inside?: PlotRef[];
   error?: string;
   error_code?: string;
 }
@@ -1469,6 +1483,8 @@ export async function blockItemList(
     /// name | event | driver | starts_on | target_gdd | observed_on | season |
     /// created | updated. Omit for the record's default order.
     sort_col?: ItemSort; sort_dir?: "asc" | "desc";
+    /// Also the plots lying inside this one. See `PlotRef`.
+    include_inside?: boolean;
   } = {},
 ): Promise<ItemPage> {
   return callTool<ItemPage>("block_item_list", { block, kind, ...q });
