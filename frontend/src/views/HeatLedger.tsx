@@ -22,7 +22,7 @@ import Term from "../components/Term";
 import Provenance from "../components/Provenance";
 import { QuoteScroller } from "@tollbooth-dpyc/web/react";
 import { AGRARIAN_QUOTES, AGRARIAN_SOURCE, quoteStyles } from "../lib/quotes";
-import { buildFlags, taskFlags, type LedgerFlag } from "../lib/ledgerFlags";
+import { buildFlags, partsOf, rollUpFlags, taskFlags, type LedgerFlag } from "../lib/ledgerFlags";
 import { readingTime } from "../lib/readingTime";
 import { findEvent, MIN_QUERY } from "../lib/findEvent";
 import { plantingCodec, type Planting } from "../lib/plantings";
@@ -32,11 +32,14 @@ import { useBlockItems } from "../lib/blockItems";
 import { useShare } from "../components/Share";
 import { ledgerSheet } from "../lib/exports";
 import { type AlmanacResult, type MeasureKey,
-  diseaseRisk, dryingWindow, frostWindow, soilTempProjection, taskList, type TaskRow, type DiseaseRiskResult, type DryingWindowResult, type FrostWindowResult, type SeasonCurveResult, type SoilWindowResult } from "../lib/mcp";
+  diseaseRisk, dryingWindow, frostWindow, soilTempProjection, taskList, type PlotRef, type TaskRow, type DiseaseRiskResult, type DryingWindowResult, type FrostWindowResult, type SeasonCurveResult, type SoilWindowResult } from "../lib/mcp";
 import type { SavedRegion } from "../lib/regions";
 import { loadAlmanac, loadLedger } from "../lib/pageLoads";
 import { useTour } from "@tollbooth-dpyc/web/react";
 import { tour } from "../lib/tour/targets";
+
+/// Stable, so the record hooks do not refetch on every render.
+const ROLL_UP = { includeInside: true } as const;
 
 interface Props {
   region: SavedRegion;
@@ -57,18 +60,25 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
 
   // The flags read the grower's record, not this browser — the same rows the
   // Crops, Pests and Wildlife pages show.
-  const { items: plantings } = useBlockItems<Planting>(region.id, "planting", plantingCodec);
-  const { items: pests } = useBlockItems<SavedPest>(region.id, "pest", pestCodec);
-  const { items: wildlife } = useBlockItems<SavedWildlife>(region.id, "wildlife", wildlifeCodec);
+  //
+  // Rolled up: a plot shows what is recorded on the plots inside it too, so a
+  // farm of beds reads as the farm.
+  const plantingRows = useBlockItems<Planting>(region.id, "planting", plantingCodec, undefined, ROLL_UP);
+  const pestRows = useBlockItems<SavedPest>(region.id, "pest", pestCodec, undefined, ROLL_UP);
+  const wildlifeRows = useBlockItems<SavedWildlife>(region.id, "wildlife", wildlifeCodec, undefined, ROLL_UP);
+  const plantings = plantingRows.items;
 
   // The grower's own dated work belongs on the timeline too: a task sits on
   // the day it is due, whatever the heat did that day. Fetched here rather
   // than derived from the record hooks because tasks are their own store.
   const [tasks, setTasks] = useState<TaskRow[]>([]);
+  const [taskParts, setTaskParts] = useState<PlotRef[]>([]);
   useEffect(() => {
     let live = true;
-    void taskList(region.id, { timeframe: "all", page_size: 200 })
-      .then((r) => { if (live && r?.success) setTasks(r.rows ?? []); })
+    void taskList(region.id, { timeframe: "all", page_size: 200, include_inside: true })
+      .then((r) => {
+        if (live && r?.success) { setTasks(r.rows ?? []); setTaskParts(r.inside ?? []); }
+      })
       .catch(() => { /* the chart is still worth drawing without them */ });
     return () => { live = false; };
   }, [region.id]);
@@ -172,8 +182,16 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
   // Every threshold the grower has entered is a GDD number, and where it meets
   // this curve is a date. The curve is already on the page, so this needs no
   // second call.
+  const parts = partsOf(plantingRows.inside, pestRows.inside, wildlifeRows.inside, taskParts);
   const flags: LedgerFlag[] = data
-    ? [...buildFlags(data, plantings, pests, wildlife), ...taskFlags(tasks)]
+    ? rollUpFlags(region.id, parts, (plot) => {
+        const on = <T,>(h: { items: T[]; plotOf: (t: T) => string }) =>
+          h.items.filter((i) => h.plotOf(i) === plot);
+        return [
+          ...buildFlags(data, on(plantingRows), on(pestRows), on(wildlifeRows)),
+          ...taskFlags(tasks.filter((k) => (k.region_id ?? region.id) === plot)),
+        ];
+      })
     : [];
 
   // What this block grows, as the grower wrote it — the record's side of the

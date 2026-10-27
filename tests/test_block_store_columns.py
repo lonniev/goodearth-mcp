@@ -238,3 +238,52 @@ async def test_a_row_that_will_not_open_is_converted_empty_rather_than_retried_f
     assert len(updates) == 1
     assert updates[0][1][2] == "{}"
     assert bs._backfill_done is True
+
+
+# ── Rolling up the plots inside ──────────────────────────────────────────
+
+
+class QueuedVault(FakeVault):
+    """Answers each SELECT with the next batch of rows, in order."""
+
+    def __init__(self, *batches: list[dict]):
+        super().__init__()
+        self.batches = list(batches)
+
+    async def _execute(self, sql: str, params: list | None = None):
+        self.calls.append((sql, params or []))
+        if sql.strip().upper().startswith("SELECT") and self.batches:
+            return {"rows": self.batches.pop(0)}
+        return {"rows": []}
+
+
+@pytest.mark.asyncio
+async def test_a_roll_up_reads_every_plot_in_one_query_scoped_to_the_caller():
+    v = QueuedVault([{"n": 0}], [])
+    bs._vault, bs._schema_done, bs._backfill_done = v, True, True
+    await bs.list_items("npub1a", "farm", "planting", also=["bed-1", "farm", "bed-2"])
+    count, rows = v.calls
+    assert "npub = $1" in count[0] and "block_id IN ($3, $4, $5)" in count[0]
+    assert count[1] == ["npub1a", "planting", "farm", "bed-1", "bed-2"], "deduplicated, parent first"
+    assert rows[1] == count[1]
+
+
+@pytest.mark.asyncio
+async def test_each_rolled_up_row_is_opened_with_its_own_plots_key_and_says_which_plot():
+    """A row is sealed under its own block's AAD. Opened under the parent's it
+    would not decrypt, and would read as an empty item."""
+    class ByBlock:
+        def decrypt(self, value, aad):
+            _npub, block = aad.split("|")
+            assert value == f"sealed-for-{block}", f"{value} opened with {block}'s key"
+            return json.dumps({"crop": f"crop on {block}"})
+    bs._cipher = ByBlock()
+    v = QueuedVault([{"n": 2}], [
+        {"item_id": "i1", "block_id": "farm", "kind": "planting", "payload_enc": "sealed-for-farm"},
+        {"item_id": "i2", "block_id": "bed-1", "kind": "planting", "payload_enc": "sealed-for-bed-1"},
+    ])
+    bs._vault, bs._schema_done, bs._backfill_done = v, True, True
+    page = await bs.list_items("npub1a", "farm", "planting", also=["bed-1"])
+    assert [(i["block_id"], i["crop"]) for i in page["items"]] == [
+        ("farm", "crop on farm"), ("bed-1", "crop on bed-1"),
+    ]

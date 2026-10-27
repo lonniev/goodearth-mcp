@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getStoredNpub, isNetworkError } from "@tollbooth-dpyc/web";
 import {
-  blockItemList, blockItemSave, type ItemKind, type ItemRow, type ItemSort,
+  blockItemList, blockItemSave, type ItemKind, type ItemRow, type ItemSort, type PlotRef,
 } from "./mcp";
 import { entries, overlay, pendingItems, subscribe } from "./outbox";
 import { RESTORED_EVENT } from "./undoEvents";
@@ -38,6 +38,9 @@ export interface ItemQuery {
   sortDir?: "asc" | "desc";
   page?: number;
   pageSize?: number;
+  /// Roll up the plots lying inside this one: their rows come too, and
+  /// `plotOf` says which plot each is on.
+  includeInside?: boolean;
 }
 
 /// Rows carry the server's bookkeeping alongside the grower's payload. Views
@@ -76,6 +79,10 @@ export interface ItemsHandle<T> {
   /// Several at once, in one write and one fare.
   retireMany: (itemIds: string[]) => Promise<void>;
   reload: () => Promise<void>;
+  /// The plots rolled up with this one. Empty unless `includeInside`.
+  inside: PlotRef[];
+  /// The plot an item is on: this block, or one of `inside`.
+  plotOf: (item: T) => string;
 }
 
 /// Read one kind of item for one block, and write it back.
@@ -97,6 +104,9 @@ export function useBlockItems<T>(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [unknownBlock, setUnknownBlock] = useState(false);
+  const [inside, setInside] = useState<PlotRef[]>([]);
+  /// item_id → the plot it is on, for the rows a roll-up brought in.
+  const [onPlot, setOnPlot] = useState<ReadonlyMap<string, string>>(new Map());
 
   const { from, to } = codec;
 
@@ -111,9 +121,12 @@ export function useBlockItems<T>(
         ...(query?.sortDir ? { sort_dir: query.sortDir } : {}),
         ...(query?.page != null ? { page: query.page } : {}),
         page_size: query?.pageSize ?? 200,
+        ...(query?.includeInside ? { include_inside: true } : {}),
       });
       if (page?.success) {
         setItems((page.items ?? []).map(from));
+        setInside(page.inside ?? []);
+        setOnPlot(new Map((page.items ?? []).map((r) => [r.item_id, r.block_id ?? block])));
         setCount({
           total: page.total ?? 0, page: page.page ?? 0, pages: page.pages ?? 1,
         });
@@ -145,7 +158,8 @@ export function useBlockItems<T>(
     // Every field is named rather than depending on the object, which a caller
     // rebuilds on each render — that would refetch forever.
   }, [block, kind, season, from,
-      query?.search, query?.since, query?.sortCol, query?.sortDir, query?.page, query?.pageSize]);
+      query?.search, query?.since, query?.sortCol, query?.sortDir, query?.page, query?.pageSize,
+      query?.includeInside]);
 
   useEffect(() => { setLoading(true); void reload(); }, [reload]);
 
@@ -169,6 +183,8 @@ export function useBlockItems<T>(
     [queue, block, kind, season],
   );
   const idOf = useCallback((t: T) => String(to(t).item_id ?? ""), [to]);
+  // A write still waiting for signal was made here, so it is on this block.
+  const plotOf = useCallback((t: T) => onPlot.get(idOf(t)) ?? block, [onPlot, idOf, block]);
   const shown = useMemo(
     () => overlay(items, waitingHere, idOf,
       (r) => from({ ...r, block_id: block, kind } as unknown as ItemRow)),
@@ -231,5 +247,5 @@ export function useBlockItems<T>(
   }, [block, kind, reload]);
 
   return { items: shown, ...count, loading, error, unknownBlock, pendingIds,
-           save, saveMany, retire, retireMany, reload };
+           save, saveMany, retire, retireMany, reload, inside, plotOf };
 }

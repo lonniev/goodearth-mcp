@@ -63,6 +63,7 @@ import math
 import re
 import unicodedata
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from typing import Any
@@ -1118,6 +1119,7 @@ def _payload_of(row: dict[str, Any], npub: str, block_id: str) -> dict[str, Any]
 
 async def list_items(
     npub: str, block_id: str, kind: str, *,
+    also: Sequence[str] = (),
     season_year: int | None = None, since: str = "", until: str = "",
     as_of: str = "", include_retired: bool = False,
     search: str = "", sort_col: str = "", sort_dir: str = "asc",
@@ -1133,13 +1135,20 @@ async def list_items(
     could not while it was sealed: a name that only exists inside a ciphertext
     cannot be an ORDER BY. Naming no ``sort_col`` keeps the order this function
     has always returned, so the new capability moved nothing already on screen.
+
+    ``also`` names more blocks to read in the same query — the plots lying
+    inside this one, for a roll-up. One query however many there are; each
+    item says which block it is on, and each is opened with its own block's
+    key, since that is the key it was sealed under.
     """
     k = _clean_kind(kind)
     pg = max(0, int(page or 0))
     size = max(1, min(int(page_size or 50), MAX_PAGE_SIZE))
 
-    where = ["npub = $1", "block_id = $2", "kind = $3"]
-    args: list[Any] = [npub, block_id, k]
+    ids = list(dict.fromkeys([block_id, *also]))
+    args: list[Any] = [npub, k, *ids]
+    marks = ", ".join(f"${i + 3}" for i in range(len(ids)))
+    where = ["npub = $1", "kind = $2", f"block_id IN ({marks})"]
 
     if as_of:
         moment = _clean_day(as_of, "as_of")
@@ -1194,10 +1203,12 @@ async def list_items(
     )
     items = []
     for row in rows_r.get("rows") or []:
-        payload = _payload_of(row, npub, block_id)
+        on = row.get("block_id") or block_id
+        payload = _payload_of(row, npub, on)
         items.append({
             **payload,
             "item_id": row.get("item_id"),
+            "block_id": on,
             "kind": row.get("kind"),
             "season_year": row.get("season_year"),
             "observed_on": row.get("observed_on"),

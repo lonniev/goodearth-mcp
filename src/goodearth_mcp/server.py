@@ -1273,6 +1273,15 @@ async def task_list(
     season_start: Annotated[
         str, Field(description="Optional YYYY-MM-DD, so 'season' means the grower's season."),
     ] = "",
+    include_inside: Annotated[
+        bool,
+        Field(
+            description=(
+                "Also read every plot lying inside this one — a bed in a field, "
+                "a field in a farm — and say which plot each row is on."
+            ),
+        ),
+    ] = False,
     npub: PatronNpub = "",
 ) -> dict[str, Any]:
     """One page of a region's tasks, ordered and filtered by the database.
@@ -1291,12 +1300,17 @@ async def task_list(
     """
     try:
         start = date.fromisoformat(season_start) if season_start else None
-        return {"success": True, **await task_store.listing(
-            npub, region_id, timeframe=timeframe, search=search,
+        inside: list[dict[str, Any]] = []
+        if include_inside:
+            inside = await _plots_inside(npub, await block_store.resolve(npub, region_id))
+        page_rows = await task_store.listing(
+            npub, region_id, also=[b["block_id"] for b in inside],
+            timeframe=timeframe, search=search,
             sort_col=sort_col, sort_dir=sort_dir, page=page, page_size=page_size,
             season_start=start,
-        )}
-    except (task_store.TaskError, ValueError) as exc:
+        )
+        return {"success": True, **({"inside": _named(inside)} if include_inside else {}), **page_rows}
+    except (task_store.TaskError, block_store.BlockError, ValueError) as exc:
         return {"success": False, "error": str(exc), "error_code": "invalid_request"}
     except OSError as exc:
         logger.warning("task_list failed: %s", exc)
@@ -2541,6 +2555,15 @@ async def block_item_list(
     sort_dir: Annotated[str, Field(description="'asc' or 'desc'.")] = "asc",
     page: Annotated[int, Field(description="Zero-based page number.")] = 0,
     page_size: Annotated[int, Field(description="Rows per page, up to 200.")] = 50,
+    include_inside: Annotated[
+        bool,
+        Field(
+            description=(
+                "Also read every plot lying inside this one — a bed in a field, "
+                "a field in a farm — and say which plot each row is on."
+            ),
+        ),
+    ] = False,
     npub: PatronNpub = "",
 ) -> dict[str, Any]:
     """What you grow, watch for, or saw on a plot — a page at a time.
@@ -2550,11 +2573,15 @@ async def block_item_list(
 
     Sorting and searching happen in the database, over as many rows as the
     block holds rather than the page you are looking at.
+
+    `include_inside` rolls up the plots inside this one (see `_plots_inside`)
+    and names them under `inside`; every row carries its own `block_id`.
     """
     try:
         found = await block_store.resolve(npub, block)
+        inside = await _plots_inside(npub, found) if include_inside else []
         result = await block_store.list_items(
-            npub, found["block_id"], kind,
+            npub, found["block_id"], kind, also=[b["block_id"] for b in inside],
             season_year=season, since=since, until=until, as_of=as_of,
             include_retired=include_retired, search=search,
             sort_col=sort_col, sort_dir=sort_dir,
@@ -2572,6 +2599,7 @@ async def block_item_list(
         "success": True,
         "block_id": found["block_id"],
         "block_name": found.get("name", ""),
+        **({"inside": _named(inside)} if include_inside else {}),
         **result,
     }
 
@@ -2820,6 +2848,27 @@ def _blocks_inside(parent: dict[str, Any], blocks: list[dict[str, Any]]) -> list
         if poly.area < outline.area and outline.contains(Point(poly.centroid.x, poly.centroid.y)):
             out.append(b)
     return out
+
+
+async def _plots_inside(npub: str, found: dict[str, Any]) -> list[dict[str, Any]]:
+    """The live plots a roll-up of `found` takes in: every one lying inside it.
+
+    Inside means smaller, with its centre within the outline. Smaller is what
+    makes the relation one-way: two overlapping plots of a size can each hold
+    the other's centre, and without it each would roll up into the other. A
+    bed in a field in a farm is inside the farm as well — the parts of a part
+    are parts of the whole — so one test reaches every depth with no walk.
+
+    Read once and tested in memory: a grower's plots are already one query,
+    and the test is under a millisecond at a thousand of them.
+    """
+    if found.get("block_id") == block_store.EXAMPLE_BLOCK_ID:
+        return []
+    return _blocks_inside(found, await block_store.list_blocks(npub))
+
+
+def _named(plots: list[dict[str, Any]]) -> list[dict[str, str]]:
+    return [{"block_id": b["block_id"], "name": b.get("name", "")} for b in plots]
 
 
 @tool
