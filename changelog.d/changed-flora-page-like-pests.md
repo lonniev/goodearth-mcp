@@ -1,2 +1,0 @@
-- Flora page now lays out like Pests: a "Flora" title, a compact one-row form whose boxes are as wide as their contents, and a round seed button to add a planting.
-- Ledger headings read alike: 🌱 Plants ledger and 🐛 Pests ledger (was "📒 Plant ledger" and "👀 What you're watching").

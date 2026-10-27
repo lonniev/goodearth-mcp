@@ -1,2 +1,0 @@
-- Flora, Pests, Fauna, Tasks and Field Reports each fold their add form under a [+] at the top of the page, so an unused form takes one line. A half-written entry survives a fold, and anything that fills the form from further down the page — plant again, a companion, a catalogue stage, start another brood, the tutorial — opens it first.
-- Field Reports' observation form moves from below the report to the top, like the other four.

@@ -1,1 +1,0 @@
-- The Prices page offers "Need a wallet?": the steps to a first Lightning wallet, and the wallets people use this week with their installers.
