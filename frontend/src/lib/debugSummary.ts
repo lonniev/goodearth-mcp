@@ -17,7 +17,7 @@
 /// `mcp.ts` and fails if a call there is missing from this list.
 export const GOOD_EARTH_TOOLS: readonly string[] = [
   "almanac", "calibration", "companions", "crop_gdd_status", "crop_suitability",
-  "heat_for_days",
+  "plant_profile",
   "disease_risk", "drying_window", "frost_window", "gdd_season_curve",
   "nearby_species", "pest_catalog", "pest_threshold", "planting_window",
   "soil_temp_projection", "sunlight", "tree_suitability", "tree_year",

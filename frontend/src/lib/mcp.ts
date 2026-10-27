@@ -1187,30 +1187,54 @@ export async function plantingWindow(
   return callTool<PlantingWindowResult>("planting_window", { block, crops });
 }
 
-export interface HeatForDaysResult {
+export interface PlantProfile {
+  scientific_name: string;
+  common_name: string;
+  family: string;
+  kind: "annual" | "biennial" | "perennial" | null;
+  days_to_maturity: { typical: number; low: number; high: number; counted_from: "sowing" | "transplant" } | null;
+  published_gdd: { gdd: number; base_f: number; stage: string; source_url: string } | null;
+  base_temp_f: number | null;
+  height_in: { typical: number; low: number; high: number } | null;
+  flower_color: string | null;
+  bloom_months: number[] | null;
+  frost_hardy: boolean | null;
+  chill_hours: number | null;
+  hardy_to_f: number | null;
+  sources: { title: string; url: string }[];
+  notes: string;
+}
+
+export interface PlantProfileResult {
   success: boolean;
-  /// Degree days in °F, to the nearest ten. An estimate, and named as one.
-  gdd_target?: number;
-  base_temp_f?: number;
-  days_to_maturity?: number;
-  /// set_out | typical_last_frost | mid_may
-  counted_from?: string;
-  from?: string;
-  to?: string;
-  /// The years of record the typical heat is drawn from, "2016–2025".
-  record?: string;
-  note?: string;
+  profile?: PlantProfile;
+  /// The profile fitted to the plot asked about.
+  on_this_plot?: {
+    /// Degree days in °F, to the nearest ten. Null when no source gives one.
+    gdd_target: number | null;
+    base_temp_f: number | null;
+    /// published | days_to_maturity
+    basis: string | null;
+    bloom_months: number[] | null;
+    days?: number;
+    counted_from?: string;
+    from?: string;
+    to?: string;
+    record?: string;
+  };
+  /// True when an earlier lookup of this plant was read rather than a new one made.
+  kept?: boolean;
   error?: string;
   error_code?: string;
 }
 
-/// A seed packet's days to maturity, as the heat target they hold on this
-/// block in a typical year. Counted from `set_out`, or from the block's
-/// typical last frost when it is omitted.
-export async function heatForDays(
-  block: string, daysToMaturity: number, q: { set_out?: string; base_temp?: number } = {},
-): Promise<HeatForDaysResult> {
-  return callTool<HeatForDaysResult>("heat_for_days", { block, days_to_maturity: daysToMaturity, ...q });
+/// Look a plant up: its heat target on this block, base, height, flower colour,
+/// bloom months and frost tolerance — so the grower never has to.
+export async function plantProfile(
+  block: string,
+  q: { taxon_id?: number; scientific_name?: string; common_name?: string; text?: string; set_out?: string },
+): Promise<PlantProfileResult> {
+  return callTool<PlantProfileResult>("plant_profile", { block, ...q });
 }
 
 // ── Regional catalogues ──────────────────────────────────────────────────

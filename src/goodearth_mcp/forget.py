@@ -25,10 +25,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from goodearth_mcp import block_store, feed_store, record_cache, task_store
+from goodearth_mcp import block_store, feed_store, profile_store, record_cache, task_store
 
 #: Every store holding a patron's own rows. Listed once, checked by a test.
-STORES = (block_store, task_store, feed_store, record_cache)
+STORES = (block_store, task_store, feed_store, record_cache, profile_store)
 
 
 class ForgetError(ValueError):

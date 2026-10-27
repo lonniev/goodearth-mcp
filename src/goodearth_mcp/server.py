@@ -15,6 +15,7 @@ import logging
 from datetime import UTC, date, datetime
 from typing import Annotated, Any
 
+import httpx
 from fastmcp import FastMCP
 from mcp.types import Icon
 from pydantic import Field
@@ -79,6 +80,8 @@ from goodearth_mcp.perennial_window import region_tree_window as tree_window_imp
 from goodearth_mcp.pest_window import PestWindowError
 from goodearth_mcp.pest_window import region_pest_window as pest_window_impl
 from goodearth_mcp.pests import PestError
+from goodearth_mcp.plant_profile import ProfileError
+from goodearth_mcp.plant_profile_window import block_plant_profile as plant_profile_impl
 from goodearth_mcp.planting import PlantingError
 from goodearth_mcp.planting_window import PlantingWindowError
 from goodearth_mcp.planting_window import region_heat_for_days as heat_for_days_impl
@@ -171,6 +174,8 @@ mcp = FastMCP(
         "   - eia_api_key, optional: a free EIA Open Data key "
         "(https://www.eia.gov/opendata/register.php), so the Sun page can quote "
         "what a kWh sells for in a block's state\n"
+        "   - llm_api_key, optional: the LLM route's key, so goodearth_plant_profile "
+        "can look a plant up\n"
         "   Call goodearth_request_credential_channel to start.\n\n"
         "## Pricing\n"
         "Tool prices are set dynamically by the operator's pricing model. Use "
@@ -229,6 +234,7 @@ DRYING_WINDOW_UUID         = "9e07633f-a43a-5298-9691-7678a59cfb32"
 SUNLIGHT_UUID              = "64b04d3a-134c-5c42-85f6-e5a97eb3322d"
 BLOCK_TRANSFORM_UUID       = "2743c05c-ff22-5324-8f25-4faed396b50a"
 HEAT_FOR_DAYS_UUID         = "0c226f02-0f9e-51bb-83f8-50b79344ee0a"
+PLANT_PROFILE_UUID         = "7add12a1-c3fb-5a1e-88c9-bd193a3baad2"
 
 # A save with no id records a new row every time; a save with an id replaces
 # that row's payload. So it can overwrite, and repeating it can add more.
@@ -531,6 +537,14 @@ intent="Propose bed layouts inside a plot, ready to accept in one save",
         behavior=READS_REMOTE,
 intent="Turn a seed packet's days to maturity into the heat target those days hold on this plot",
     ),
+    ToolIdentity(
+        tool_id=PLANT_PROFILE_UUID,
+        capability="plant_profile",
+        category="read",
+        title="Plant profile",
+        behavior=READS_REMOTE,
+intent="Look a plant up: heat target on this plot, base, height, flower colour, bloom months, frost tolerance",
+    ),
 ]
 
 TOOL_REGISTRY: dict[str, ToolIdentity] = {ti.tool_id: ti for ti in _DOMAIN_TOOLS}
@@ -563,6 +577,14 @@ runtime = OperatorRuntime(
                 description=(
                     "Optional. A free EIA Open Data API key (https://www.eia.gov/opendata/register.php), so the Sun page "
                     "can quote what a kWh sells for in a block's state."
+                ),
+            ),
+            "llm_api_key": FieldSpec(
+                required=False, sensitive=True, lifecycle="dynamic",
+                description=(
+                    "Optional. The LLM route's API key (the fleet's OpenRouter account), so picking a "
+                    "plant fills its heat target, height, colour and bloom months. Without it the "
+                    "grower types them."
                 ),
             ),
         },
@@ -3070,6 +3092,74 @@ def _set_out_day(raw: str) -> date | None:
         return date.fromisoformat(raw)
     except (TypeError, ValueError) as exc:
         raise PlantingError(f"set_out must be YYYY-MM-DD, got {raw!r}") from exc
+
+
+@tool
+@runtime.paid_tool(PLANT_PROFILE_UUID)
+async def plant_profile(
+    block: Annotated[str, BLOCK_FIELD],
+    taxon_id: Annotated[
+        int,
+        Field(description="The iNaturalist taxon id the grower picked. 0 when they only typed a name."),
+    ] = 0,
+    scientific_name: Annotated[str, Field(description="The binomial, e.g. 'Cucurbita pepo'.")] = "",
+    common_name: Annotated[str, Field(description="The common name, e.g. 'American pumpkin'.")] = "",
+    text: Annotated[
+        str,
+        Field(description="What the grower typed, when they picked nothing — 'punkin' is fine."),
+    ] = "",
+    set_out: Annotated[
+        str,
+        Field(description="YYYY-MM-DD it went in, or will. Omit to count from the typical last frost."),
+    ] = "",
+    npub: PatronNpub = "",
+) -> dict[str, Any]:
+    """Look a plant up, so the grower never has to: its heat target on this plot and how it grows.
+
+    A grower picks "American pumpkin", or types "punkin", and gets back what the
+    planting form asks for: the GDD target on THIS plot and its base, height,
+    flower colour, bloom months, whether it shrugs off a light frost, and for a
+    tree its chill hours and hardiness — each from the sources named.
+
+    An LLM with web search reads extension services and seed houses; every
+    field it returns is checked, and one it was unsure of comes back absent.
+    The profile is a species fact, kept once for every grower, so most calls
+    read it rather than look it up. The heat target is this plot's: a
+    published figure at its own base when a source states one, otherwise the
+    typical days to maturity summed over this ground's typical heat.
+
+    Args:
+        block: The plot to fit it to — its id, its name, or an alias.
+        taxon_id: iNaturalist's taxon id, when the grower picked one.
+        scientific_name: The binomial.
+        common_name: The common name.
+        text: What the grower typed, when they picked nothing.
+        set_out: When it went in. Omit for the typical last frost.
+    """
+    # Every refusal raises, so `paid_tool` refunds the fare (see heat_for_days).
+    if isinstance(taxon_id, bool) or not isinstance(taxon_id, int) or not 0 <= taxon_id < 10**9:
+        raise ProfileError("taxon_id must be iNaturalist's whole-number id, or 0")
+    names = {k: (v or "").strip() for k, v in
+             {"scientific_name": scientific_name, "common_name": common_name, "text": text}.items()}
+    if any(len(v) > 120 for v in names.values()):
+        raise ProfileError("a plant's name is at most 120 characters")
+    if not (taxon_id or any(names.values())):
+        raise ProfileError("name the plant: a taxon id, a scientific or common name, or what was typed")
+    out_on = _set_out_day(set_out)
+    parsed, found = await _block_region(npub, block)
+    # The operator's key, read here and handed down; it reaches no log, no
+    # answer and no error message.
+    keys = await runtime.load_credentials(["llm_api_key"])
+    try:
+        return await plant_profile_impl(
+            parsed, api_key=keys.get("llm_api_key", ""),
+            plot_base_f=float(found.get("base_temp_f") or 50.0),
+            taxon_id=taxon_id or None, out_on=out_on, scientific_name=names["scientific_name"],
+            common_name=names["common_name"], text=names["text"],
+        )
+    except (httpx.HTTPError, OSError) as exc:
+        logger.warning("plant_profile failed: %s", type(exc).__name__)
+        raise ProfileError("The plant reference did not answer; nothing was charged.") from exc
 
 
 def main() -> None:
