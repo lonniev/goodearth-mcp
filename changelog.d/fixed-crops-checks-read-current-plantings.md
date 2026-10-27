@@ -1,0 +1,1 @@
+- The Crops page's What?, When? and Trees? checks read the plot's current plantings, and wait until there is something to rate. A plot with no rated crop no longer makes a paid call that can only be refused.

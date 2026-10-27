@@ -274,9 +274,13 @@ export default function Crops({
   /// answers "750 GDD per cutting". Membership is by what a row carries, never
   /// by a category, so nothing reaches a call that would have to invent the
   /// figure it is missing.
-  const heatRated = plantings.filter((p) => p.gddTarget != null);
-  const winterRated = plantings.filter(
-    (p) => p.perennial || p.chillHours != null || p.hardyToF != null);
+  ///
+  /// Memoised because the checks below read them: a check made when the plot
+  /// changed, before its plantings arrived, used to keep the empty list and
+  /// send it — a paid call refused for having nothing in it.
+  const heatRated = useMemo(() => plantings.filter((p) => p.gddTarget != null), [plantings]);
+  const winterRated = useMemo(() => plantings.filter(
+    (p) => p.perennial || p.chillHours != null || p.hardyToF != null), [plantings]);
 
   /// iNaturalist's own photograph for each saved taxon, one request for the
   /// whole ledger. Decoration: a row that cannot get one still draws.
@@ -365,6 +369,7 @@ export default function Crops({
   // cultivar's heat target, so a number we did not get from the grower would
   // be a number we made up.
   const checkFit = useCallback(async () => {
+    if (!heatRated.length) return;
     setFitBusy(true); setError("");
     try {
       const r = await cropSuitability(
@@ -383,11 +388,12 @@ export default function Crops({
       setFit(r); setFitAt(new Date());
     } catch (e) { setError((e as Error).message); }
     finally { setFitBusy(false); }
-  }, [region]);
+  }, [region, heatRated]);
 
   // "How much heat does it need" and "when does it go in" are different
   // questions. This is the second one, from the block's own frost and soil.
   const checkWhen = useCallback(async () => {
+    if (!heatRated.length) return;
     setWhenBusy(true); setError("");
     try {
       const r = await plantingWindow(
@@ -402,7 +408,7 @@ export default function Crops({
       setWhen(r); setWhenAt(new Date());
     } catch (e) { setError((e as Error).message); }
     finally { setWhenBusy(false); }
-  }, [region]);
+  }, [region, heatRated]);
 
   /// Succession schedules, per crop, asked for one crop at a time — a tomato
   /// is not succession-sown, and asking for it would spend a fare on nothing.
@@ -572,6 +578,7 @@ export default function Crops({
   // "Will it live here?" — the perennial half of "what can I grow", against
   // every winter on record. Rates the perennials on the ledger.
   const checkTrees = useCallback(async () => {
+    if (!winterRated.length) return;
     setTreeBusy(true); setError("");
     try {
       const r = await treeSuitability(
@@ -586,7 +593,7 @@ export default function Crops({
       setTreeFit(r); setTreeAt(new Date());
     } catch (e) { setError((e as Error).message); }
     finally { setTreeBusy(false); }
-  }, [region]);
+  }, [region, winterRated]);
 
 
   function add(e: React.FormEvent<HTMLFormElement>) {
@@ -973,7 +980,8 @@ export default function Crops({
       {/* ── Grows here ─────────────────────────────────────────────── */}
       <Section emoji="🌾" title="Grows here" tour="crops.fit">
         {!fit && (
-          <Pill onClick={checkFit} disabled={fitBusy} active>
+          <Pill onClick={checkFit} disabled={fitBusy || !heatRated.length} active
+            title={heatRated.length ? undefined : "No crop on this plot has a heat target yet"}>
             {fitBusy ? "🧠 Reading…" : "🧠 What?"}
           </Pill>
         )}
@@ -983,7 +991,8 @@ export default function Crops({
             winter. Asked on its own so a grower with no trees never pays for
             an answer about them. */}
         {!treeFit && (
-          <Pill onClick={checkTrees} disabled={treeBusy}>
+          <Pill onClick={checkTrees} disabled={treeBusy || !winterRated.length}
+            title={winterRated.length ? undefined : "No tree on this plot has a winter figure yet"}>
             {treeBusy ? "🌳 Reading…" : "🌳 Trees?"}
           </Pill>
         )}
@@ -1130,7 +1139,8 @@ export default function Crops({
       {/* ── When to sow ────────────────────────────────────────────── */}
       <Section emoji="🌱" title="When to sow" tour="crops.sow">
         {!when && (
-          <Pill onClick={checkWhen} disabled={whenBusy} active>
+          <Pill onClick={checkWhen} disabled={whenBusy || !heatRated.length} active
+            title={heatRated.length ? undefined : "No crop on this plot has a heat target yet"}>
             {whenBusy ? "🧠 Reading…" : "🧠 When?"}
           </Pill>
         )}
