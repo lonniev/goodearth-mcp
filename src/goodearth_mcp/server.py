@@ -44,6 +44,7 @@ from goodearth_mcp import (
     feed_store,
     gdd,
     planting,
+    profile_store,
     record_cache,
     roster,
     season,
@@ -51,6 +52,7 @@ from goodearth_mcp import (
     sources,
     task_store,
 )
+from goodearth_mcp import plant_profile as plant_profile_lib
 from goodearth_mcp.almanac_window import AlmanacError
 from goodearth_mcp.almanac_window import region_almanac as almanac_impl
 from goodearth_mcp.calendar_feed import CalendarError
@@ -235,6 +237,7 @@ SUNLIGHT_UUID              = "64b04d3a-134c-5c42-85f6-e5a97eb3322d"
 BLOCK_TRANSFORM_UUID       = "2743c05c-ff22-5324-8f25-4faed396b50a"
 HEAT_FOR_DAYS_UUID         = "0c226f02-0f9e-51bb-83f8-50b79344ee0a"
 PLANT_PROFILE_UUID         = "7add12a1-c3fb-5a1e-88c9-bd193a3baad2"
+PLANT_PROFILE_REFRESH_UUID = "7fabde59-b448-5e8d-beb6-d8331c505d76"
 
 # A save with no id records a new row every time; a save with an id replaces
 # that row's payload. So it can overwrite, and repeating it can add more.
@@ -544,6 +547,14 @@ intent="Turn a seed packet's days to maturity into the heat target those days ho
         title="Plant profile",
         behavior=READS_REMOTE,
 intent="Look a plant up: heat target on this plot, base, height, flower colour, bloom months, frost tolerance",
+    ),
+    ToolIdentity(
+        tool_id=PLANT_PROFILE_REFRESH_UUID,
+        capability="plant_profile_refresh",
+        category="restricted",
+        title="Look a plant up again",
+        behavior=DELETES,
+intent="Operator only: let one kept plant profile go, so its next pick looks it up afresh",
     ),
 ]
 
@@ -3160,6 +3171,37 @@ async def plant_profile(
     except (httpx.HTTPError, OSError) as exc:
         logger.warning("plant_profile failed: %s", type(exc).__name__)
         raise ProfileError("The plant reference did not answer; nothing was charged.") from exc
+
+
+@tool
+@runtime.paid_tool(PLANT_PROFILE_REFRESH_UUID)
+async def plant_profile_refresh(
+    taxon_id: Annotated[
+        int, Field(description="The iNaturalist taxon id of the plant to look up afresh. 0 to name it instead."),
+    ] = 0,
+    name: Annotated[
+        str, Field(description="The name it was looked up by, when it had no taxon id."),
+    ] = "",
+    npub: PatronNpub = "",
+) -> dict[str, Any]:
+    """Let one kept plant profile go, so the next grower to pick it looks it up afresh.
+
+    For a profile that came back wrong. Restricted to the operator. Nothing is
+    looked up here: the next pick does that, and keeps the new answer.
+
+    Args:
+        taxon_id: iNaturalist's taxon id.
+        name: The name it was looked up by, when it had no taxon id.
+    """
+    if isinstance(taxon_id, bool) or not isinstance(taxon_id, int) or not 0 <= taxon_id < 10**9:
+        raise ProfileError("taxon_id must be iNaturalist's whole-number id, or 0")
+    if len(name or "") > 120:
+        raise ProfileError("a plant's name is at most 120 characters")
+    if not (taxon_id or (name or "").strip()):
+        raise ProfileError("name the plant: a taxon id, or the name it was looked up by")
+    key = plant_profile_lib.cache_key(taxon_id=taxon_id or None, scientific_name=name.strip(),
+                                      common_name="", text="")
+    return {"success": True, "key": key, "dropped": await profile_store.drop(key)}
 
 
 def main() -> None:

@@ -137,16 +137,19 @@ def _record(start: str, end: str) -> dict:
 def world(monkeypatch):
     """A climate, an in-memory cache, and an LLM that counts its calls."""
     kept: dict[str, dict] = {}
+    #: Each kept row's age in days; a test ages one to make it come due.
+    age: dict[str, float] = {}
     asked: list[str] = []
 
     async def daily(lats, lons, start, end):
         return [_record(start, end) for _ in (lats or [0])]
 
     async def get(key):
-        return kept.get(key)
+        return (kept[key], age.get(key, 0.0)) if key in kept else None
 
     async def put(key, profile, model):
         kept[key] = profile
+        age[key] = 0.0
 
     async def ask(api_key, user):
         asked.append(user)
@@ -156,7 +159,7 @@ def world(monkeypatch):
     monkeypatch.setattr(profile_store, "get", get)
     monkeypatch.setattr(profile_store, "put", put)
     monkeypatch.setattr(plant_profile, "ask", ask)
-    return kept, asked
+    return kept, asked, age
 
 
 def look(**kw):
@@ -185,7 +188,7 @@ def test_a_published_figure_wins_at_its_own_base(world, monkeypatch):
 
 
 def test_the_second_grower_reads_the_first_ones_lookup(world):
-    kept, asked = world
+    kept, asked, _age = world
     first, second = look(), look()
     assert (first["kept"], second["kept"]) == (False, True)
     assert len(asked) == 1, "one LLM call per plant, ever"
@@ -241,3 +244,126 @@ def test_the_operator_key_never_reaches_the_answer(world, monkeypatch):
     monkeypatch.setattr(server.runtime, "load_credentials", creds)
     out = asyncio.run(_bare(server.plant_profile)(block="b1", npub="npub1x", taxon_id=48927))
     assert "SECRET" not in json.dumps(out)
+
+
+# ── Decay: popular rows renew, unused ones go ────────────────────────────
+
+
+def test_a_young_profile_is_never_looked_up_again():
+    for roll in (0.0, 0.5, 0.999):
+        assert not profile_store.due(10, roll)
+        assert not profile_store.due(profile_store.FRESH_DAYS - profile_store.JITTER_DAYS - 0.01, roll)
+
+
+def test_an_old_profile_always_is():
+    for roll in (0.0, 0.999):
+        assert profile_store.due(profile_store.FRESH_DAYS, roll)
+        assert profile_store.due(900, roll)
+
+
+def test_in_the_last_month_the_chance_rises_day_by_day():
+    """So a plant every grower reads is not renewed by all of them at once."""
+    start = profile_store.FRESH_DAYS - profile_store.JITTER_DAYS
+    mid = start + profile_store.JITTER_DAYS / 2
+    assert profile_store.due(mid, 0.49) and not profile_store.due(mid, 0.51)
+    assert profile_store.due(start + 1, 0.0) and not profile_store.due(start + 1, 0.5)
+
+
+def test_a_profile_come_due_is_looked_up_again(world):
+    _kept, asked, age = world
+    look()
+    age["taxon:48927"] = profile_store.FRESH_DAYS + 1
+    out = look()
+    assert out["kept"] is False and len(asked) == 2
+
+
+def test_a_failed_renewal_still_answers_with_the_kept_profile(world, monkeypatch):
+    _kept, _asked, age = world
+    look()
+    age["taxon:48927"] = profile_store.FRESH_DAYS + 1
+
+    async def down(api_key, user):
+        raise ProfileError("The plant reference did not answer (HTTP 503).")
+    monkeypatch.setattr(plant_profile, "ask", down)
+    out = look()
+    assert out["kept"] is True and out["profile"]["common_name"] == "Pumpkin"
+
+
+# ── The store's own SQL ──────────────────────────────────────────────────
+
+
+class RecordingVault:
+    _schema_prefix = "op."
+
+    def __init__(self, rows=None):
+        self.sql: list[tuple[str, list]] = []
+        self.rows = rows or []
+
+    async def _execute(self, sql, params=None):
+        self.sql.append((sql, params or []))
+        return {"rows": self.rows, "rowCount": 2}
+
+
+@pytest.fixture
+def vault(monkeypatch):
+    v = RecordingVault()
+    monkeypatch.setattr(profile_store, "_vault", v)
+    monkeypatch.setattr(profile_store, "_schema_done", True)
+    return v
+
+
+def test_reading_a_row_is_what_keeps_it(vault):
+    vault.rows = [{"profile": json.dumps(PUMPKIN), "age_days": 12.5}]
+    got = asyncio.run(profile_store.get("taxon:1"))
+    assert got == (PUMPKIN, 12.5)
+    sql, args = vault.sql[0]
+    assert sql.startswith("UPDATE op.goodearth_plant_profiles SET last_read_at = NOW(), reads = reads + 1")
+    assert "RETURNING" in sql and args == ["taxon:1"]
+    assert len(vault.sql) == 1, "one round trip"
+
+
+def test_every_write_lets_go_of_the_idle_and_the_excess(vault):
+    asyncio.run(profile_store.put("taxon:1", PUMPKIN, "m"))
+    stmts = [s for s, _ in vault.sql]
+    assert stmts[0].startswith("INSERT INTO op.goodearth_plant_profiles")
+    assert any(f"INTERVAL '{profile_store.IDLE_DAYS} days'" in s and s.startswith("DELETE") for s in stmts)
+    assert any(f"OFFSET {profile_store.MAX_ROWS}" in s and "ORDER BY last_read_at DESC" in s for s in stmts)
+
+
+def test_one_plant_can_be_let_go_by_its_key(vault):
+    assert asyncio.run(profile_store.drop("taxon:76541")) is True
+    assert vault.sql[0] == ("DELETE FROM op.goodearth_plant_profiles WHERE key = $1", ["taxon:76541"])
+
+
+def test_the_index_name_is_never_given_the_schema(vault):
+    """A schema-qualified index name is a syntax error that would abort the
+    migrations on every request."""
+    stmt = profile_store._qualify(profile_store._MIGRATIONS[-1])
+    assert "INDEX IF NOT EXISTS goodearth_plant_profiles_last_read_idx ON op.goodearth_plant_profiles" in stmt
+
+
+# ── Letting one plant go ─────────────────────────────────────────────────
+
+
+def test_the_refresh_is_the_operators_alone():
+    ident = server.TOOL_REGISTRY[server.PLANT_PROFILE_REFRESH_UUID]
+    assert ident.category == "restricted"
+
+
+def test_the_refresh_lets_go_of_the_row_a_pick_would_read(monkeypatch):
+    dropped: list[str] = []
+
+    async def drop(key):
+        dropped.append(key)
+        return True
+    monkeypatch.setattr(profile_store, "drop", drop)
+    out = asyncio.run(_bare(server.plant_profile_refresh)(taxon_id=76541, npub="npub1x"))
+    assert out == {"success": True, "key": "taxon:76541", "dropped": True}
+    asyncio.run(_bare(server.plant_profile_refresh)(name=" Punkin ", npub="npub1x"))
+    assert dropped == ["taxon:76541", "name:punkin"]
+
+
+@pytest.mark.parametrize("kw", [{}, {"taxon_id": -1}, {"taxon_id": True}, {"name": "x" * 121}])
+def test_the_refresh_refuses_what_names_no_plant(kw):
+    with pytest.raises(ValueError):
+        asyncio.run(_bare(server.plant_profile_refresh)(npub="npub1x", **kw))
