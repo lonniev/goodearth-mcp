@@ -224,6 +224,13 @@ export function buildFlags(
     push("crop", p.crop, offset + p.gddTarget, "🌱", p.baseTempF ?? base, {
       begin: p.setOut,
     });
+    // Each stage the grower tracks is a moment on the same clock: the day the
+    // heat since set-out reaches it. The bar's own end already marks the
+    // target, so a stage at that heat is not drawn twice.
+    for (const s of p.stages ?? []) {
+      if (s.gdd === p.gddTarget) continue;
+      push("crop", `${p.crop} · ${s.stage}`, offset + s.gdd, s.emoji || "🌱", p.baseTempF ?? base);
+    }
   }
 
   // The day seed went in, as its own mark.

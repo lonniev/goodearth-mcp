@@ -27,7 +27,7 @@ import type { CropWatch } from "../lib/diseaseRows";
 import { describeHarvest, UNITS, type HarvestInput, type HarvestSummary } from "../lib/harvests";
 import { newItemId } from "../lib/submit";
 import type { PlantingStatus } from "../lib/mcp";
-import { SEEDLING, type Planting } from "../lib/plantings";
+import { SEEDLING, stageTicks, type Planting } from "../lib/plantings";
 import { lotLine, onHand, type SeedLot } from "../lib/seeds";
 import SeedForm from "./SeedForm";
 import { SortHeaders, type Column } from "./RecordTable";
@@ -317,6 +317,12 @@ function HeatBar({ r }: { r: PlantingStatus }) {
       <div className="relative h-[7px] min-w-[90px] overflow-hidden rounded bg-band">
         <i className={`absolute inset-y-0 left-0 rounded ${over ? "bg-honey" : "bg-growth"}`}
            style={{ width: `${Math.min(pct, 100)}%` }} />
+        {/* A tick for each stage the grower tracks, where its heat falls. */}
+        {stageTicks(r.stages, r.gdd_target).map((t) => (
+          <i key={t.at} title={t.title} aria-label={t.title}
+            className={`absolute inset-y-0 w-[2px] ${t.reached ? "bg-ink" : "bg-ink-soft/60"}`}
+            style={{ left: `${t.at}%` }} />
+        ))}
       </div>
       <span className="data mt-1 block text-[11px] text-ink-soft">
         {r.gdd_accumulated != null

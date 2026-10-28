@@ -29,8 +29,44 @@ RATE_WINDOW_DAYS = 14
 MAX_PROJECTION_DAYS = 120
 
 
+#: Stages one planting may carry. A crop's life has a handful; this only stops
+#: a hostile caller sending a thousand.
+MAX_STAGES = 40
+
+
 class CropError(ValueError):
     """A planting cannot be evaluated as described."""
+
+
+def validate_stages(name: str, raw: Any) -> list[dict[str, Any]]:
+    """A planting's named stages, each a heat sum from set-out — the same clock
+    as its target. Sorted by heat. Absent or empty is no stages."""
+    if raw in (None, "", []):
+        return []
+    if not isinstance(raw, list):
+        raise CropError(f"{name}: stages must be a list of {{stage, gdd}}")
+    if len(raw) > MAX_STAGES:
+        raise CropError(f"{name}: at most {MAX_STAGES} stages")
+    out = []
+    for s in raw:
+        if not isinstance(s, dict):
+            raise CropError(f"{name}: each stage is {{stage, gdd}}")
+        label = str(s.get("stage") or s.get("name") or "").strip()[:80]
+        if not label:
+            raise CropError(f"{name}: a stage needs a name")
+        try:
+            g = float(s["gdd"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise CropError(f"{name}: {label} needs a gdd from set-out") from exc
+        if not 0 < g <= 20_000:
+            raise CropError(f"{name}: {label} at {g:g} GDD is outside any real crop's range")
+        stage: dict[str, Any] = {"stage": label, "gdd": g}
+        if s.get("emoji"):
+            stage["emoji"] = str(s["emoji"]).strip()[:4]
+        if s.get("key"):
+            stage["key"] = True
+        out.append(stage)
+    return sorted(out, key=lambda x: x["gdd"])
 
 
 def validate_planting(planting: Any) -> dict[str, Any]:
@@ -48,8 +84,12 @@ def validate_planting(planting: Any) -> dict[str, Any]:
     # have one they care about. Requiring the number forces a fabricated zero,
     # which then fails this very range check and takes the whole ledger with
     # it. Absent is absent; a target that IS given still has to be plausible.
+    stages = validate_stages(name, planting.get("stages"))
     raw_target = planting.get("gdd_target")
     target: float | None = None
+    if raw_target in (None, "") and stages:
+        # The last stage is where it is going.
+        raw_target = stages[-1]["gdd"]
     if raw_target not in (None, ""):
         try:
             target = float(raw_target)
@@ -94,14 +134,15 @@ def validate_planting(planting: Any) -> dict[str, Any]:
         )
         return {"crop": name, "gdd_target": target, "set_out": None,
                 "base_temp_f": base_f, "presence_only": True,
-                "missing": missing,
+                "missing": missing, "stages": stages,
                 **({"perennial": True} if perennial else {})}
     try:
         set_out = date.fromisoformat(str(set_out_raw))
     except ValueError as exc:
         raise CropError(f"{name}: set_out must be YYYY-MM-DD, got {set_out_raw!r}") from exc
 
-    return {"crop": name, "gdd_target": target, "set_out": set_out, "base_temp_f": base_f}
+    return {"crop": name, "gdd_target": target, "set_out": set_out, "base_temp_f": base_f,
+            "stages": stages}
 
 
 def accumulated_since(
@@ -180,6 +221,13 @@ def status(
     rate = recent_rate(cumulative)
     projected = project_target_date(accumulated, target, rate, today)
     reached = accumulated >= target
+    stages = [
+        {**s, "reached": accumulated >= s["gdd"],
+         "projected_date": (p.isoformat()
+                            if (p := project_target_date(accumulated, s["gdd"], rate, today))
+                            else None)}
+        for s in planting.get("stages") or []
+    ]
 
     return {
         "crop": planting["crop"],
@@ -192,6 +240,7 @@ def status(
         "recent_rate_gdd_per_day": round(rate, 2),
         "projected_date": projected.isoformat() if projected else None,
         "state": "past_target" if reached else ("on_pace" if projected else "stalled"),
+        **({"stages": stages} if stages else {}),
         "note": (
             "Past target." if reached
             else "Projected at the last two weeks' rate — not a forecast."

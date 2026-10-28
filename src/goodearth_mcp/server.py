@@ -879,7 +879,10 @@ async def crop_gdd_status(
                 "The block's plantings. Each is "
                 '{"crop": "Lisianthus", "gdd_target": 1050, "set_out": "2026-07-06"} '
                 'with an optional "base_temp" in °F when the crop counts from '
-                "something other than the block default."
+                "something other than the block default, and optional "
+                '"stages": [{"stage": "first flowers", "gdd": 700}, …] — heat '
+                "from set-out, each reported as reached or with its projected "
+                "date. With stages and no gdd_target, the last stage is the target."
             ),
         ),
     ],

@@ -15,6 +15,7 @@
 
 import type { SunPath, WireGrid } from "./sunGrid.ts";
 import type { CompanionsResult, Kind } from "./companions.ts";
+import type { PlantingStage } from "./plantings.ts";
 import { nearbyArgs } from "./wire";
 import { callLine, resultLine } from "./debugSummary";
 import {
@@ -350,6 +351,9 @@ export interface PlantingStatus {
   projected_date: string | null;
   state: "past_target" | "on_pace" | "stalled" | "not_yet_planted";
   base_temp_f?: number;
+  /// The stages the grower tracks, each with whether the heat has reached it
+  /// and when it is due at the recent rate.
+  stages?: (PlantingStage & { reached: boolean; projected_date: string | null })[];
   note: string;
   finish: {
     verdict: "finished" | "finishes" | "wont_finish" | "unknown";
@@ -392,6 +396,7 @@ export async function cropGddStatus(
   plantings: {
     crop: string; gdd_target?: number; set_out?: string; base_temp?: number;
     perennial?: boolean; chill_hours?: number; hardy_to_f?: number; ref?: string;
+    stages?: PlantingStage[];
   }[],
   baseTemp = 50,
 ): Promise<CropLedgerResult> {
