@@ -28,7 +28,7 @@ import { blockItemList, cropGddStatus, cropSuitability, diseaseRisk, plantProfil
   type TreeAssessment, type TreeSuitabilityResult,
   type TreeYearResult, type Verdict } from "../lib/mcp";
 import { makePlanting, plantingCodec, SEEDLING,
-  type Planting } from "../lib/plantings";
+  type Planting, type PlantingStage } from "../lib/plantings";
 import SpeciesPicker from "../components/SpeciesPicker";
 import SpeciesFinder from "../components/SpeciesFinder";
 import type { Chosen } from "../lib/basket";
@@ -49,6 +49,8 @@ import { familiesFor } from "../lib/family";
 import { draftFromLot, lotLine, lotsFor, seedCodec, type SeedLot } from "../lib/seeds";
 import { useSubmit } from "../lib/useSubmit";
 import { fillFrom, mayFill, provenance, type Fill } from "../lib/profileFill";
+import LifeCycleStory from "../components/LifeCycleStory";
+import { heatStages } from "../lib/lifeCycle";
 import { withId } from "../lib/submit";
 import type { SavedRegion } from "../lib/regions";
 import { Empty, ErrorBox, Field, FIELD, Glyph, ICON, IconButton, PageTitle, Pill,
@@ -86,6 +88,12 @@ const MARK_TREE = {
 
 /// The three design fields off the form, present only when given. Height is
 /// kept in inches, the record's unit; a bloom span needs both ends.
+/// The stages ticked in a plant's life cycle, and the base they count heat at.
+interface ChosenStages { stages: PlantingStage[]; baseF?: number }
+const NO_STAGES: ChosenStages = { stages: [] };
+/// A new planting has no events on the record yet.
+const NO_TRACKED: ReadonlySet<string> = new Set();
+
 function look(f: FormData): { flowerColor?: Hue; heightIn?: number; bloomMonths?: number[] } {
   const color = String(f.get("color") ?? "");
   const height = String(f.get("height") ?? "").trim();
@@ -357,6 +365,8 @@ export default function Crops({
 
   /// What the picker has chosen but the form has not yet saved.
   const [picked, setPicked] = useState<SpeciesHit | null>(null);
+  /// The stages ticked in its life cycle, and the base they count at.
+  const [chosenStages, setChosenStages] = useState<ChosenStages>(NO_STAGES);
   const [when, setWhen] = useState<PlantingWindowResult | null>(null);
   const [whenAt, setWhenAt] = useState<Date | null>(null);
   const [whenBusy, setWhenBusy] = useState(false);
@@ -662,21 +672,33 @@ export default function Crops({
     // grower's own scale rather than by the record in Fahrenheit.
     const parsed = parseBase(String(f.get("base") ?? ""), u);
     if (parsed.error) { setFormErr(parsed.error); return; }
-    const base = parsed.f;
     const target = String(f.get("target") ?? "").trim();
     const label = String(f.get("label") ?? "").trim();
+    // Stages chosen from its life cycle count heat at the life cycle's base.
+    // A different Base on the form would count them on another scale.
+    const stages = chosenStages.stages;
+    if (stages.length && parsed.f != null && chosenStages.baseF != null
+        && Math.abs(parsed.f - chosenStages.baseF) > 0.5) {
+      setFormErr(`Its stages count from ${Math.round(u.temp(chosenStages.baseF))}${u.tempUnit}; `
+        + `Base says ${Math.round(u.temp(parsed.f))}${u.tempUnit}.`);
+      return;
+    }
+    const base = parsed.f ?? (stages.length ? chosenStages.baseF : undefined);
+    // With stages and no target typed, the last stage is where it is going.
+    const targetF = target ? u.ddToF(Number(target)) : stages[stages.length - 1]?.gdd;
 
     const made = makePlanting(
       // The grower's own label wins when they gave one — "Zinnia · succession
       // 4" is how they will find the row again — and the catalogue's common
       // name stands in when they did not.
       label || picked.commonName || picked.scientificName,
-      target ? u.ddToF(Number(target)) : undefined,
+      targetF,
       String(f.get("setout") ?? ""), region.id, base,
       {
         // Blank on both counts is how a perennial is entered: it is on the
         // record, and it is not being paced.
-        ...(target ? {} : { perennial: true }),
+        ...(targetF != null ? {} : { perennial: true }),
+        ...(stages.length ? { stages } : {}),
         ...(f.get("hardy") ? { frostHardy: true } : {}),
         ...(f.get("taps") ? { taps: true } : {}),
         ...(look(f)),
@@ -699,6 +721,7 @@ export default function Crops({
       await storePlanting(withId(made, key));
       setAdded(`${named} — on the ledger.`);
       setPicked(null);
+      setChosenStages(NO_STAGES);
       form.reset();
       filled.current = {};
       lookedUp.current = null;
@@ -892,6 +915,14 @@ export default function Crops({
         {formErr && <p className="mt-2 text-[12px] text-clay">{formErr}</p>}
         {added && !formErr && <p className="mt-2 text-[12px] text-growth">{added}</p>}
       </form>
+      {/* Its year, looked up: the ticked stages ride on the planting Add saves. */}
+      {picked && (
+        <LifeCycleStory region={region} subject="plant"
+          who={{ taxonId: picked.id, scientificName: picked.scientificName,
+                 commonName: picked.commonName ?? undefined }}
+          tracked={NO_TRACKED} onCost={onCost}
+          onChoose={(chosen, r) => setChosenStages({ stages: heatStages(chosen), baseF: r.base_temp_f })} />
+      )}
       </AddPanel>
 
       {/* One row where there were three. The heading carries its own reading

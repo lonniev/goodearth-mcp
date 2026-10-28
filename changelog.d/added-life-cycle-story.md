@@ -1,0 +1,1 @@
+- **Pick a subject, choose its year.** On Flora, Pests and Fauna, picking a plant, pest or animal shows its life cycle as a short story with a date on this plot beside each event. The key events start ticked, events already tracked are ticked and fixed, and one press saves the rest: a plant's as the planting's stages, a pest's as its stages, an animal's as one watch per event.

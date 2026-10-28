@@ -1243,6 +1243,58 @@ export interface PlantProfileResult {
   error_code?: string;
 }
 
+export type LifeCycleSubject = "plant" | "pest" | "animal";
+
+/// One event in a subject's life cycle, already in the shape its record
+/// stores: a plant's or pest's heat stage, or an animal's wildlife event.
+export interface LifeCycleEvent {
+  name: string;
+  emoji: string | null;
+  summary: string;
+  /// One of the few most growers watch — ticked from the start.
+  key: boolean;
+  driver: Driver;
+  gdd?: number;
+  base_temp?: number;
+  daylight_hours?: number;
+  rising?: boolean;
+  typical_on?: string;
+  trigger?: WildlifeEventInput["trigger"];
+  phase?: MoonPhase;
+  after?: string;
+  nth?: number;
+  source_url: string | null;
+  /// Its typical date on this plot, YYYY-MM-DD, or null when it cannot be told.
+  on_this_plot: string | null;
+}
+
+export interface LifeCycleResult {
+  success: boolean;
+  /// The kept answer's key, for the operator's `reference_refresh`.
+  key?: string;
+  kept?: boolean;
+  subject?: LifeCycleSubject;
+  scientific_name?: string;
+  common_name?: string;
+  narrative?: string;
+  /// Plants and pests: the base every heat stage counts at.
+  base_temp_f?: number;
+  events?: LifeCycleEvent[];
+  counted_from?: string;
+  unfitted?: string;
+  error?: string;
+  error_code?: string;
+}
+
+/// Every event a grower can track for a subject, and when each falls on this
+/// block — so they choose from its year instead of typing each one.
+export async function lifeCycle(
+  block: string, subject: LifeCycleSubject,
+  q: { taxon_id?: number; scientific_name?: string; common_name?: string; text?: string; set_out?: string },
+): Promise<LifeCycleResult> {
+  return callTool<LifeCycleResult>("life_cycle", { block, subject, ...q });
+}
+
 /// Look a plant up: its heat target on this block, base, height, flower colour,
 /// bloom months and frost tolerance — so the grower never has to.
 export async function plantProfile(
