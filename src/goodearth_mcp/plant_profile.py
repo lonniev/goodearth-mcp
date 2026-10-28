@@ -18,17 +18,16 @@ packet's days hold there, a southern bloom season — is `plant_profile_window`.
 from __future__ import annotations
 
 import json
-import math
 import re
 from typing import Any
 
-import httpx
-from tollbooth.llm_route import (
-    TIER_WRITER,
-    build_messages_request,
-    resolve_route,
-    web_search_tool,
-)
+from goodearth_mcp import llm_answer
+from goodearth_mcp.llm_answer import AnswerError
+from goodearth_mcp.llm_answer import number as _num
+from goodearth_mcp.llm_answer import one_of as _pick
+from goodearth_mcp.llm_answer import text as _text
+from goodearth_mcp.llm_answer import url as _url
+from goodearth_mcp.llm_answer import whole as _int
 
 #: Flower colours the companion designer pairs on. Mirrors the frontend's HUES.
 HUES = ("red", "orange", "yellow", "green", "blue", "violet", "pink", "white")
@@ -37,17 +36,13 @@ COUNTED_FROM = ("sowing", "transplant")
 
 #: Web searches the model may make for one plant.
 MAX_SEARCHES = 4
-#: A web-searching generation is slow; a minute and a half is the ceiling.
-TIMEOUT_S = 90.0
 MAX_TOKENS = 2000
 
-_PROFILE_RE = re.compile(r"<profile>(.*?)</profile>", re.DOTALL)
-_MAX_TEXT = 300
 _MAX_NAME = 120
 _MAX_SOURCES = 6
 
 
-class ProfileError(ValueError):
+class ProfileError(AnswerError):
     """The plant could not be profiled. A ValueError, so a paid call refunds."""
 
 
@@ -101,58 +96,16 @@ def prompt_for(*, taxon_id: int | None, scientific_name: str, common_name: str, 
 
 async def ask(api_key: str, user: str) -> dict[str, Any]:
     """One web-searching generation, and the raw JSON it answered with."""
-    route = resolve_route(api_key=api_key, tier=TIER_WRITER)
-    req = build_messages_request(
-        route, system=SYSTEM, user=user, max_tokens=MAX_TOKENS,
-        tools=[web_search_tool(MAX_SEARCHES)],
-        timeout_seconds=TIMEOUT_S, timeout_max_seconds=TIMEOUT_S,
-    )
-    async with httpx.AsyncClient(timeout=req["timeout"]) as client:
-        resp = await client.post(req["url"], headers=req["headers"], json=req["json"])
-    if resp.status_code >= 400:
-        # The body may echo request details; the status is all a patron needs.
-        raise ProfileError(f"The plant reference did not answer (HTTP {resp.status_code}).")
-    return resp.json()
+    return await llm_answer.ask(api_key, system=SYSTEM, user=user,
+                                max_tokens=MAX_TOKENS, searches=MAX_SEARCHES)
 
 
 def answer_text(data: dict[str, Any]) -> str:
     """The text inside the last <profile> tags, across every text block."""
-    full = "".join(b.get("text", "") for b in data.get("content", []) if isinstance(b, dict)
-                   and b.get("type") == "text")
-    found = _PROFILE_RE.findall(full)
-    if not found:
-        raise ProfileError("The plant reference answered without a profile.")
-    return found[-1].strip()
+    return llm_answer.tagged(data, "profile")
 
 
 # ── Checking the answer ──────────────────────────────────────────────────
-
-
-def _num(v: Any, lo: float, hi: float) -> float | None:
-    if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v):
-        return None
-    return float(v) if lo <= v <= hi else None
-
-
-def _int(v: Any, lo: int, hi: int) -> int | None:
-    n = _num(v, lo, hi)
-    return round(n) if n is not None else None
-
-
-def _text(v: Any, limit: int = _MAX_TEXT) -> str:
-    if not isinstance(v, str):
-        return ""
-    return re.sub(r"\s+", " ", v).strip()[:limit]
-
-
-def _url(v: Any) -> str:
-    u = _text(v, 500)
-    return u if re.match(r"^https?://[^\s<>\"']+$", u) else ""
-
-
-def _pick(v: Any, allowed: tuple[str, ...]) -> str | None:
-    t = _text(v, 20).lower()
-    return t if t in allowed else None
 
 
 def _span(v: Any, lo: float, hi: float, whole: bool) -> dict[str, float] | None:
@@ -230,7 +183,11 @@ def validate(raw: str) -> dict[str, Any]:
 
 def cache_key(*, taxon_id: int | None, scientific_name: str, common_name: str, text: str) -> str:
     """One row per plant: the taxon when there is one, else the name asked."""
+    return "profile:" + subject_key(taxon_id=taxon_id, name=scientific_name or common_name or text)
+
+
+def subject_key(*, taxon_id: int | None, name: str) -> str:
+    """Which subject an answer is about: its taxon when known, else its name."""
     if taxon_id:
         return f"taxon:{int(taxon_id)}"
-    name = scientific_name or common_name or text
-    return "name:" + re.sub(r"[^a-z0-9]+", " ", name.lower()).strip()
+    return "name:" + re.sub(r"[^a-z0-9]+", " ", (name or "").lower()).strip()

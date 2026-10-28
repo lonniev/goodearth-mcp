@@ -118,7 +118,7 @@ def swept(monkeypatch):
         (forget.task_store, "goodearth_tasks"),
         (forget.feed_store, "goodearth_calendar_feeds"),
         (forget.record_cache, "goodearth_weather_cache"),
-        (forget.profile_store, "goodearth_plant_profiles"),
+        (forget.reference_store, "goodearth_reference_cache"),
     ):
         monkeypatch.setattr(store, "forget_everything", stub(store, table))
     return seen

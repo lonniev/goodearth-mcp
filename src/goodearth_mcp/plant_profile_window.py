@@ -1,7 +1,7 @@
 """A plant's profile, and what it comes to on one plot.
 
 The profile is the species' (`plant_profile`), kept once for every grower
-(`profile_store`). This adds the plot: the heat target its days to maturity
+(`reference_store`). This adds the plot: the heat target its days to maturity
 hold on this ground in a typical year, and a bloom season turned round for
 ground south of the equator.
 """
@@ -9,13 +9,10 @@ ground south of the equator.
 from __future__ import annotations
 
 import logging
-import random
 from datetime import UTC, date, datetime
 from typing import Any
 
-import httpx
-
-from goodearth_mcp import plant_profile, profile_store
+from goodearth_mcp import plant_profile, reference_store
 from goodearth_mcp.plant_profile import ProfileError
 from goodearth_mcp.planting_window import PlantingWindowError, region_heat_for_days
 from goodearth_mcp.region import Region
@@ -34,46 +31,20 @@ async def profile_for(
     *, api_key: str, taxon_id: int | None, scientific_name: str, common_name: str,
     text: str, today: date,
 ) -> tuple[dict[str, Any], bool]:
-    """The kept profile for this plant, or a fresh one. True when it was kept.
-
-    A kept profile that has come due (`profile_store.due`) is looked up again;
-    if that lookup fails, the kept one is still the better answer than none.
-    """
+    """The kept profile for this plant, or a fresh one. True when it was kept."""
     key = plant_profile.cache_key(taxon_id=taxon_id, scientific_name=scientific_name,
                                   common_name=common_name, text=text)
-    try:
-        kept = await profile_store.get(key)
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("plant profile cache unreadable: %s", exc)
-        kept = None
-    if kept and not profile_store.due(kept[1], random.random()):
-        return kept[0], True
-    try:
-        fresh = await _look_up(api_key, key, taxon_id=taxon_id, scientific_name=scientific_name,
-                               common_name=common_name, text=text, today=today)
-    except (ProfileError, httpx.HTTPError, OSError):
-        if kept:
-            return kept[0], True
-        raise
-    return fresh, False
 
+    async def fetch() -> tuple[dict[str, Any], str]:
+        if not api_key:
+            raise ProfileError("This service has no plant reference configured yet.")
+        data = await plant_profile.ask(api_key, plant_profile.prompt_for(
+            taxon_id=taxon_id, scientific_name=scientific_name, common_name=common_name, text=text))
+        profile = plant_profile.validate(plant_profile.answer_text(data))
+        profile["looked_up_on"] = today.isoformat()
+        return profile, str(data.get("model") or "")
 
-async def _look_up(
-    api_key: str, key: str, *, taxon_id: int | None, scientific_name: str,
-    common_name: str, text: str, today: date,
-) -> dict[str, Any]:
-    if not api_key:
-        raise ProfileError("This service has no plant reference configured yet.")
-    data = await plant_profile.ask(api_key, plant_profile.prompt_for(
-        taxon_id=taxon_id, scientific_name=scientific_name, common_name=common_name, text=text))
-    profile = plant_profile.validate(plant_profile.answer_text(data))
-    profile["looked_up_on"] = today.isoformat()
-    try:
-        await profile_store.put(key, profile, str(data.get("model") or ""))
-    except Exception as exc:  # noqa: BLE001
-        # Unkept, it is asked again next time — dearer, never wrong.
-        logger.warning("plant profile not kept: %s", exc)
-    return profile
+    return await reference_store.remember(key, fetch)
 
 
 async def block_plant_profile(
@@ -118,4 +89,6 @@ async def block_plant_profile(
             # The profile still stands; only its fit to this ground is missing.
             here["unfitted"] = str(exc)
 
-    return {"success": True, "profile": profile, "on_this_plot": here, "kept": kept}
+    return {"success": True, "profile": profile, "on_this_plot": here, "kept": kept,
+            "key": plant_profile.cache_key(taxon_id=taxon_id, scientific_name=scientific_name,
+                                           common_name=common_name, text=text)}

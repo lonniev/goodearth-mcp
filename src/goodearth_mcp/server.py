@@ -44,15 +44,14 @@ from goodearth_mcp import (
     feed_store,
     gdd,
     planting,
-    profile_store,
     record_cache,
+    reference_store,
     roster,
     season,
     seasons,
     sources,
     task_store,
 )
-from goodearth_mcp import plant_profile as plant_profile_lib
 from goodearth_mcp.almanac_window import AlmanacError
 from goodearth_mcp.almanac_window import region_almanac as almanac_impl
 from goodearth_mcp.calendar_feed import CalendarError
@@ -76,6 +75,9 @@ from goodearth_mcp.forget import everything as forget_everything_impl
 from goodearth_mcp.frost_window import FrostError
 from goodearth_mcp.frost_window import region_frost_window as frost_window_impl
 from goodearth_mcp.layout import transform as layout_transform
+from goodearth_mcp.life_cycle import SUBJECTS as LIFE_CYCLE_SUBJECTS
+from goodearth_mcp.life_cycle import LifeCycleError
+from goodearth_mcp.life_cycle_window import block_life_cycle as life_cycle_impl
 from goodearth_mcp.perennial import PerennialError
 from goodearth_mcp.perennial_window import PerennialWindowError
 from goodearth_mcp.perennial_window import region_tree_window as tree_window_impl
@@ -177,7 +179,7 @@ mcp = FastMCP(
         "(https://www.eia.gov/opendata/register.php), so the Sun page can quote "
         "what a kWh sells for in a block's state\n"
         "   - llm_api_key, optional: the LLM route's key, so goodearth_plant_profile "
-        "can look a plant up\n"
+        "and goodearth_life_cycle can look a plant, pest or animal up\n"
         "   Call goodearth_request_credential_channel to start.\n\n"
         "## Pricing\n"
         "Tool prices are set dynamically by the operator's pricing model. Use "
@@ -237,7 +239,8 @@ SUNLIGHT_UUID              = "64b04d3a-134c-5c42-85f6-e5a97eb3322d"
 BLOCK_TRANSFORM_UUID       = "2743c05c-ff22-5324-8f25-4faed396b50a"
 HEAT_FOR_DAYS_UUID         = "0c226f02-0f9e-51bb-83f8-50b79344ee0a"
 PLANT_PROFILE_UUID         = "7add12a1-c3fb-5a1e-88c9-bd193a3baad2"
-PLANT_PROFILE_REFRESH_UUID = "7fabde59-b448-5e8d-beb6-d8331c505d76"
+LIFE_CYCLE_UUID            = "69c6b349-506a-5cb6-90da-31d2e581ca06"
+REFERENCE_REFRESH_UUID     = "466107e2-db81-5e65-a63a-a23bc19c2e21"
 
 # A save with no id records a new row every time; a save with an id replaces
 # that row's payload. So it can overwrite, and repeating it can add more.
@@ -549,12 +552,20 @@ intent="Turn a seed packet's days to maturity into the heat target those days ho
 intent="Look a plant up: heat target on this plot, base, height, flower colour, bloom months, frost tolerance",
     ),
     ToolIdentity(
-        tool_id=PLANT_PROFILE_REFRESH_UUID,
-        capability="plant_profile_refresh",
+        tool_id=REFERENCE_REFRESH_UUID,
+        capability="reference_refresh",
         category="restricted",
-        title="Look a plant up again",
+        title="Look it up again",
         behavior=DELETES,
-intent="Operator only: let one kept plant profile go, so its next pick looks it up afresh",
+intent="Operator only: let one kept plant profile or life cycle go, so the next ask looks it up afresh",
+    ),
+    ToolIdentity(
+        tool_id=LIFE_CYCLE_UUID,
+        capability="life_cycle",
+        category="read",
+        title="Life cycle",
+        behavior=READS_REMOTE,
+intent="Look up a plant's, pest's or animal's life cycle: every event a grower can track, and when each falls on this plot",
     ),
 ]
 
@@ -594,8 +605,8 @@ runtime = OperatorRuntime(
                 required=False, sensitive=True, lifecycle="dynamic",
                 description=(
                     "Optional. The LLM route's API key (the fleet's OpenRouter account), so picking a "
-                    "plant fills its heat target, height, colour and bloom months. Without it the "
-                    "grower types them."
+                    "plant fills its heat target, height, colour and bloom months, and picking any "
+                    "subject offers its life cycle to track. Without it the grower types them."
                 ),
             ),
         },
@@ -3180,34 +3191,108 @@ async def plant_profile(
 
 
 @tool
-@runtime.paid_tool(PLANT_PROFILE_REFRESH_UUID)
-async def plant_profile_refresh(
+@runtime.paid_tool(REFERENCE_REFRESH_UUID)
+async def reference_refresh(
+    key: Annotated[
+        str,
+        Field(description=(
+            "The kept answer to let go of, as plant_profile or life_cycle returned "
+            "it in `key` — e.g. 'profile:taxon:76541'."
+        )),
+    ],
+    npub: PatronNpub = "",
+) -> dict[str, Any]:
+    """Let one kept reference answer go, so the next ask looks it up afresh.
+
+    For a plant profile or a life cycle that came back wrong. Restricted to
+    the operator. Nothing is looked up here: the next ask does that, and keeps
+    the new answer.
+
+    Args:
+        key: The answer's key, as its lookup returned it.
+    """
+    key = (key or "").strip().lower()
+    if not reference_store.KEY.match(key):
+        raise ProfileError("key must be one a lookup returned, e.g. 'profile:taxon:76541'")
+    return {"success": True, "key": key, "dropped": await reference_store.drop(key)}
+
+
+@tool
+@runtime.paid_tool(LIFE_CYCLE_UUID)
+async def life_cycle(
+    block: Annotated[str, BLOCK_FIELD],
+    subject: Annotated[
+        str,
+        Field(description="What it is: 'plant', 'pest' or 'animal'."),
+    ],
     taxon_id: Annotated[
-        int, Field(description="The iNaturalist taxon id of the plant to look up afresh. 0 to name it instead."),
+        int,
+        Field(description="The iNaturalist taxon id the grower picked. 0 when they only typed a name."),
     ] = 0,
-    name: Annotated[
-        str, Field(description="The name it was looked up by, when it had no taxon id."),
+    scientific_name: Annotated[str, Field(description="The binomial, e.g. 'Buteo jamaicensis'.")] = "",
+    common_name: Annotated[str, Field(description="The common name, e.g. 'Red-tailed Hawk'.")] = "",
+    text: Annotated[
+        str,
+        Field(description="What the grower typed, when they picked nothing."),
+    ] = "",
+    set_out: Annotated[
+        str,
+        Field(description="A plant's YYYY-MM-DD set-out. Omit to count from the typical last frost."),
     ] = "",
     npub: PatronNpub = "",
 ) -> dict[str, Any]:
-    """Let one kept plant profile go, so the next grower to pick it looks it up afresh.
+    """Every event a grower can track for a subject, and when each falls on this plot.
 
-    For a profile that came back wrong. Restricted to the operator. Nothing is
-    looked up here: the next pick does that, and keeps the new answer.
+    A grower picks a subject and gets its year as a short story plus a list of
+    events — a pumpkin's emergence, first flowers and harvest; a hawk's
+    courtship, laying, hatching and first flight — each with what times it, a
+    one-line summary, its source, whether it is one of the few most growers
+    watch (`key`), and its typical date on THIS plot (`on_this_plot`).
+
+    Each event is already in the shape its record stores, so the chosen ones
+    save as they are: a plant's as the planting's `stages` (heat from set-out),
+    a pest's as its `stages` with `base_temp_f`, an animal's as one wildlife
+    item each (heat, daylight, calendar, condition or moon).
+
+    Looked up once per subject — per 5° band of latitude for an animal, whose
+    calendar dates move with it — and kept for every grower.
 
     Args:
-        taxon_id: iNaturalist's taxon id.
-        name: The name it was looked up by, when it had no taxon id.
+        block: The plot to date the events on — its id, its name, or an alias.
+        subject: plant, pest or animal.
+        taxon_id: iNaturalist's taxon id, when the grower picked one.
+        scientific_name: The binomial.
+        common_name: The common name.
+        text: What the grower typed, when they picked nothing.
+        set_out: A plant's set-out. Omit for the typical last frost.
     """
+    # Every refusal raises, so `paid_tool` refunds the fare.
+    kind = (subject or "").strip().lower()
+    if kind not in LIFE_CYCLE_SUBJECTS:
+        raise LifeCycleError(f"subject must be one of {', '.join(LIFE_CYCLE_SUBJECTS)}")
     if isinstance(taxon_id, bool) or not isinstance(taxon_id, int) or not 0 <= taxon_id < 10**9:
-        raise ProfileError("taxon_id must be iNaturalist's whole-number id, or 0")
-    if len(name or "") > 120:
-        raise ProfileError("a plant's name is at most 120 characters")
-    if not (taxon_id or (name or "").strip()):
-        raise ProfileError("name the plant: a taxon id, or the name it was looked up by")
-    key = plant_profile_lib.cache_key(taxon_id=taxon_id or None, scientific_name=name.strip(),
-                                      common_name="", text="")
-    return {"success": True, "key": key, "dropped": await profile_store.drop(key)}
+        raise LifeCycleError("taxon_id must be iNaturalist's whole-number id, or 0")
+    names = {k: (v or "").strip() for k, v in
+             {"scientific_name": scientific_name, "common_name": common_name, "text": text}.items()}
+    if any(len(v) > 120 for v in names.values()):
+        raise LifeCycleError("a name is at most 120 characters")
+    if not (taxon_id or any(names.values())):
+        raise LifeCycleError("name the subject: a taxon id, a scientific or common name, or what was typed")
+    out_on = _set_out_day(set_out)
+    parsed, found = await _block_region(npub, block)
+    # The operator's key, read here and handed down; it reaches no log, no
+    # answer and no error message.
+    keys = await runtime.load_credentials(["llm_api_key"])
+    try:
+        return await life_cycle_impl(
+            parsed, api_key=keys.get("llm_api_key", ""), subject=kind,
+            taxon_id=taxon_id or None, plot_base_f=float(found.get("base_temp_f") or 50.0),
+            out_on=out_on, scientific_name=names["scientific_name"],
+            common_name=names["common_name"], text=names["text"],
+        )
+    except (httpx.HTTPError, OSError) as exc:
+        logger.warning("life_cycle failed: %s", type(exc).__name__)
+        raise LifeCycleError("The reference did not answer; nothing was charged.") from exc
 
 
 def main() -> None:
