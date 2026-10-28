@@ -29,6 +29,34 @@ export const AGRARIAN_QUOTES: ReadonlyArray<Quote> = [
     author: "Hesiod, Works and Days" },
 ];
 
+/// Shown while a subject's life cycle is looked up: the naturalist's
+/// tradition of the field study, going out and looking closely. The corpus,
+/// with how each line was checked, is `quotes-naturalist.json` in the
+/// dpyc-community registry; this copy shows at once and when it cannot be read.
+export const NATURALIST_SOURCE =
+  "https://raw.githubusercontent.com/lonniev/dpyc-community/main/quotes-naturalist.json";
+
+export const NATURALIST_QUOTES: ReadonlyArray<Quote> = [
+  { text: "All nature is so full that that district produces the greatest variety which is the most examined.",
+    author: "Gilbert White, The Natural History of Selborne" },
+  { text: "I frequently tramped eight or ten miles through the deepest snow to keep an appointment with a beech-tree, or a yellow-birch, or an old acquaintance among the pines.",
+    author: "Henry David Thoreau, Walden" },
+  { text: "The question is not what you look at, but what you see.",
+    author: "Henry David Thoreau, Journal, 5 August 1851" },
+  { text: "Heaven is under our feet as well as over our heads.",
+    author: "Henry David Thoreau, Walden" },
+  { text: "In every walk with Nature one receives far more than he seeks.",
+    author: "John Muir, Steep Trails" },
+  { text: "It is interesting to contemplate an entangled bank, clothed with many plants of many kinds, with birds singing on the bushes, with various insects flitting about, and with worms crawling through the damp earth…",
+    author: "Charles Darwin, On the Origin of Species" },
+  { text: "Instructions for living a life: Pay attention. Be astonished. Tell about it.",
+    author: "Mary Oliver, Sometimes" },
+  { text: "Those who contemplate the beauty of the earth find reserves of strength that will endure as long as life lasts.",
+    author: "Rachel Carson, The Sense of Wonder" },
+  { text: "There are some who can live without wild things, and some who cannot.",
+    author: "Aldo Leopold, A Sand County Almanac" },
+];
+
 /** The almanac's look: a soft-ink eyebrow, a display-face italic quote between
  *  honey marks, the author in the data face. */
 export const quoteStyles: QuoteScrollerClassNames = {
