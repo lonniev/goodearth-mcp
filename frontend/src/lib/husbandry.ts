@@ -50,7 +50,7 @@ export interface Pick {
 /// catalogue, from a chiclet and from a grower's own typing, and
 /// "domestic  chicken" with two spaces would otherwise sit in the list beside
 /// "Domestic chicken" as a second animal, each holding half the history.
-const key = (name: string) =>
+export const animalKey = (name: string) =>
   (name ?? "")
     .normalize("NFD").replace(/\p{Diacritic}/gu, "")
     .trim().toLowerCase().replace(/\s+/g, " ");
@@ -81,7 +81,7 @@ export function mergeSpecies(
   for (const g of catalog?.groups ?? []) {
     if (NOT_ANIMALS.has(g.taxon)) continue;
     for (const s of g.species ?? []) {
-      const k = key(s.name);
+      const k = animalKey(s.name);
       if (!k || by.has(k)) continue;
       by.set(k, {
         name: s.name,
@@ -95,7 +95,7 @@ export function mergeSpecies(
   }
 
   for (const m of recorded) {
-    const k = key(m.species ?? "");
+    const k = animalKey(m.species ?? "");
     if (!k) continue;
     const had = by.get(k);
     // Marked, not replaced. The catalogue's count and photograph are worth
@@ -141,11 +141,11 @@ export function withFound(
   local: readonly Pick[], found: readonly SpeciesHit[],
 ): Pick[] {
   const out = local.map((p) => ({ ...p }));
-  const at = new Map(out.map((p, i) => [key(p.name), i]));
+  const at = new Map(out.map((p, i) => [animalKey(p.name), i]));
 
   for (const h of found) {
     const name = h.commonName ?? h.scientificName;
-    const k = key(name);
+    const k = animalKey(name);
     if (!k) continue;
     const i = at.get(k);
     if (i !== undefined) {
@@ -172,8 +172,8 @@ export function withFound(
 /// nearly always finds SOMETHING for a word, and a grower whose flock is
 /// called "Layers" must not have to pick a stranger's bird to get past it.
 export function listed(shown: readonly Pick[], q: string): boolean {
-  const k = key(q);
-  return !k || shown.some((p) => key(p.name) === k);
+  const k = animalKey(q);
+  return !k || shown.some((p) => animalKey(p.name) === k);
 }
 
 // ── What the grower has called things before ─────────────────────────────
@@ -204,9 +204,9 @@ export function labelsUsed(recorded: readonly SavedWildlife[]): string[] {
 export function lastInterval(
   recorded: readonly SavedWildlife[], species: string,
 ): number | undefined {
-  const k = key(species);
+  const k = animalKey(species);
   const rows = recorded.filter(
-    (m) => key(m.species ?? "") === k && m.driver === "interval"
+    (m) => animalKey(m.species ?? "") === k && m.driver === "interval"
       && Number.isFinite(m.days));
   return rows.length ? rows[rows.length - 1].days : undefined;
 }
@@ -327,8 +327,8 @@ export function nextCycle(
 export function cycleOf(
   recorded: readonly SavedWildlife[], species: string,
 ): SavedWildlife[] {
-  const k = key(species);
-  return recorded.filter((m) => key(m.species ?? "") === k);
+  const k = animalKey(species);
+  return recorded.filter((m) => animalKey(m.species ?? "") === k);
 }
 
 // ── What to be looking for ───────────────────────────────────────────────

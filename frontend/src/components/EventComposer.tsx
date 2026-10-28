@@ -28,6 +28,8 @@ import { searchSpecies, type SpeciesHit } from "../lib/species";
 import { makeWildlife, DRIVER_HELP, type SavedWildlife } from "../lib/wildlifeModels";
 import type { SavedRegion } from "../lib/regions";
 import Provenance from "./Provenance";
+import LifeCycleStory from "./LifeCycleStory";
+import { trackedFor, wildlifeRows } from "../lib/lifeCycle";
 import { useSubmit } from "../lib/useSubmit";
 import { useUnits } from "./Units";
 import {
@@ -109,6 +111,9 @@ export default function EventComposer({
   /// second brood, changes their mind and records something else entirely must
   /// not have the first brood retired out from under them.
   const [supersedes, setSupersedes] = useState<string[]>([]);
+  /// What this animal already has on the record, so its story ticks and fixes those.
+  const trackedHere = useMemo(
+    () => (animal ? trackedFor(recorded, animal.name) : new Set<string>()), [recorded, animal]);
 
   /// Asked for once, and only when the grower goes looking. A catalogue read
   /// costs a fare, and a page visit that never touches this panel should not.
@@ -450,6 +455,18 @@ export default function EventComposer({
               title="Track it: the clock and its figures" onClick={() => onComposing(true)} />
           </span>
         </div>
+        {/* Its year, looked up: tick what to watch for and save it in one go.
+            The clock above stays for anything the lookup does not have. */}
+        {animal && !composing && (
+          <LifeCycleStory region={region} subject="animal"
+            who={{ scientificName: animal.scientificName, commonName: animal.name }}
+            tracked={trackedHere} onCost={onCost}
+            onTrack={async (chosen) => {
+              await onSave(wildlifeRows(animal.name, chosen, region.id,
+                { scientificName: animal.scientificName, emoji: animal.emoji }), []);
+              reset();
+            }} />
+        )}
       </div>
 
       {composing && (

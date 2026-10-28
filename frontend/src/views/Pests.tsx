@@ -33,6 +33,9 @@ import { useBlockItems, type ItemSort } from "../lib/blockItems";
 import { useSubmit } from "../lib/useSubmit";
 import { withId } from "../lib/submit";
 import { pestCatalog, pestThreshold, type PestCatalogResult, type PestWindowResult } from "../lib/mcp";
+import LifeCycleStory from "../components/LifeCycleStory";
+import { eventKey, pestWithStages } from "../lib/lifeCycle";
+import { animalKey } from "../lib/husbandry";
 import {
   makePest, makeWatch, pestCodec, type SavedPest,
 } from "../lib/pestModels";
@@ -130,6 +133,13 @@ export default function Pests({
   /// What the catalogue resolved, when it did. A typed name with no pick is
   /// still a pest — it simply carries no taxon for later lookups.
   const [picked, setPicked] = useState<SpeciesHit | null>(null);
+  /// The record this pest already has, and the stages it already watches.
+  const existingPest = useMemo(() => {
+    const name = picked ? animalKey(picked.commonName || picked.scientificName) : "";
+    return name ? models.find((m) => animalKey(m.pest) === name) : undefined;
+  }, [picked, models]);
+  const trackedPest = useMemo(
+    () => new Set((existingPest?.stages ?? []).map((s) => eventKey(s.stage))), [existingPest]);
   /// A name handed to the picker from elsewhere on the page, so tapping a
   /// modelled stage searches for that creature rather than dropping a bare
   /// string into the record.
@@ -359,6 +369,23 @@ export default function Pests({
         </div>
         {formErr && <p className="mt-2 text-[12px] text-clay">{formErr}</p>}
       </form>
+      {/* Its stages, looked up: tick what to watch for and save them at once.
+          The stages field above stays for figures of the grower's own. */}
+      {picked && (
+        <LifeCycleStory region={region} subject="pest"
+          who={{ taxonId: picked.id, scientificName: picked.scientificName,
+                 commonName: picked.commonName ?? undefined }}
+          tracked={trackedPest} onCost={onCost}
+          trackLabel={(n) => `Watch these ${n}`}
+          onTrack={async (chosen, r) => {
+            const name = picked.commonName || picked.scientificName;
+            const made = pestWithStages(existingPest, name, chosen, r.base_temp_f ?? region.baseTempF,
+              region.id, { taxonId: picked.id, scientificName: picked.scientificName });
+            if (typeof made === "string") throw new Error(made);
+            await storePest(made);
+            setPestName(""); setPicked(null); setSeedName(""); setReading(null);
+          }} />
+      )}
       </AddPanel>
 
       {/* One row where there were three, and the same row the Plants ledger
