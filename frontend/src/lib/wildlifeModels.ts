@@ -10,7 +10,10 @@
 // authoritative.
 
 import { newItemId } from "./submit.ts";
-import type { WildlifeEventInput } from "./mcp";
+import type { MoonPhase, WildlifeEventInput } from "./mcp";
+
+/// The moon's principal phases, as the server names them.
+export const MOON_PHASES: readonly MoonPhase[] = ["new", "first_quarter", "full", "last_quarter"];
 
 export interface SavedWildlife extends WildlifeEventInput {
   id: string;
@@ -33,6 +36,7 @@ export const DRIVER_HELP: Record<string, string> = {
   daylight: "A day-length threshold — astronomy, so it barely moves year to year.",
   interval: "A count of days from a date you set — gestation, incubation, days to lay.",
   calendar: "A date from your own record, for events with no clean driver.",
+  moon: "A new, quarter or full moon after a day of the year — astronomy, so it re-dates itself.",
 };
 
 // ── No table of animals ──────────────────────────────────────────────────
@@ -87,6 +91,17 @@ export function makeWildlife(
       return "An interval needs a realistic number of days.";
     if (!input.from || Number.isNaN(Date.parse(input.from)))
       return "An interval needs the date it counts from.";
+  } else if (input.driver === "condition") {
+    const t = input.trigger;
+    if (!t || (t.min_night_f == null && t.min_day_f == null && !t.wet))
+      return "A weather event needs a night or day temperature, or wet ground.";
+  } else if (input.driver === "moon") {
+    if (!input.phase || !MOON_PHASES.includes(input.phase))
+      return "A moon event needs a phase: new, first quarter, full or last quarter.";
+    if (input.after != null && !/^\d{2}-\d{2}$/.test(input.after))
+      return "A moon event's starting day is MM-DD.";
+    if (input.nth != null && ![1, 2, 3].includes(input.nth))
+      return "Count the first, second or third such moon.";
   } else {
     if (!/^\d{2}-\d{2}$/.test(input.typical_on ?? ""))
       return "A calendar event needs a typical date as MM-DD.";

@@ -127,6 +127,8 @@ async def region_wildlife(
             detail = wildlife.interval_event(e, today)
         elif e["driver"] == "condition":
             detail = wildlife.condition_event(e, dates, tmax, tmin, precip, today)
+        elif e["driver"] == "moon":
+            detail = wildlife.moon_event(e, today)
         else:
             detail = wildlife.calendar_event(e, today)
         rows.append({

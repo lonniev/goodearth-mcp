@@ -325,7 +325,7 @@ intent="Temperature, dew point, rain, sun and moon for a region — normal, actu
         category="read",
         title="Wildlife calendar",
         behavior=READS_REMOTE,
-intent="When a grower's own wildlife events arrive on this ground — heat, daylight or calendar driven",
+intent="When a grower's own wildlife events arrive on this ground — heat, daylight, calendar or moon driven",
     ),
     ToolIdentity(
         tool_id=PLAN_THE_SEASON_UUID,
@@ -1563,7 +1563,7 @@ async def wildlife_catalog(
     is off by default.
 
     **The event name is not load-bearing.** A wildlife row is dated by its
-    DRIVER — heat, daylight, an interval, a calendar date — and the label is
+    DRIVER — heat, daylight, an interval, a calendar date, the moon — and the label is
     the grower's own words. `habit_events` is a courtesy to a caller looking
     for the right word, never a list of the only acceptable ones: "Big Night
     crossing" is a real thing a salamander does and no catalogue holds it.
@@ -1602,8 +1602,11 @@ async def wildlife_calendar(
                 '{"species": "Robin", "event": "first arrival", "driver": "daylight", '
                 '"daylight_hours": 11.5, "rising": true}. From your own record: '
                 '{"species": "Grey squirrel", "event": "nut caching", '
-                '"driver": "calendar", "typical_on": "09-15"}. All accept an '
-                "optional emoji and note."
+                '"driver": "calendar", "typical_on": "09-15"}. Timed by the moon: '
+                '{"species": "Wood frog", "event": "chorus", "driver": "moon", '
+                '"phase": "full", "after": "03-15", "nth": 1} — the nth new, '
+                "first_quarter, full or last_quarter moon on or after a day. "
+                "All accept an optional emoji and note."
             ),
         ),
     ],
