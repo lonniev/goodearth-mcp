@@ -1,1 +1,0 @@
-- New tool `heat_for_days`: a seed packet's days to maturity, as the heat target those days hold on a plot in a typical year, from its last ten years of record.
