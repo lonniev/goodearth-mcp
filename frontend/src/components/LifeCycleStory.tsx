@@ -12,6 +12,8 @@ import { aboutDate, eventKey, initialChoice, toAdd } from "../lib/lifeCycle";
 import type { SavedRegion } from "../lib/regions";
 import Provenance from "./Provenance";
 import { ErrorBox } from "./ui";
+import { QuoteScroller } from "@tollbooth-dpyc/web/react";
+import { NATURALIST_QUOTES, NATURALIST_SOURCE, quoteStyles } from "../lib/quotes";
 
 export interface Who {
   taxonId?: number;
@@ -84,8 +86,15 @@ export default function LifeCycleStory({
     setChosen(next);
   }
 
+  // A first lookup searches the web and takes a while; the field naturalists
+  // keep the grower company. A kept one returns before the first quote turns.
   if (busy) {
-    return <p className="mt-3 text-[12.5px] text-ink-soft">🧠 Reading its year…</p>;
+    return (
+      <div className="mt-3 rounded-md border border-rule bg-band/40">
+        <QuoteScroller quotes={NATURALIST_QUOTES} source={NATURALIST_SOURCE}
+          heading="Reading its year" intervalMs={6500} classNames={quoteStyles} />
+      </div>
+    );
   }
   if (error && !result) return <div className="mt-3"><ErrorBox>{error}</ErrorBox></div>;
   if (!result || !events.length) return null;
