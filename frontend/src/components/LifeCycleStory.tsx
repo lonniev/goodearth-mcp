@@ -93,7 +93,7 @@ export default function LifeCycleStory({
   return (
     <section className="mt-3 rounded-md border border-rule bg-band/40 p-4">
       {result.narrative && (
-        <p className="mb-3 max-w-prose text-[13px] leading-relaxed">{result.narrative}</p>
+        <p className="mb-3 text-[13px] leading-relaxed">{result.narrative}</p>
       )}
       <ol className="grid gap-1">
         {events.map((e) => {
