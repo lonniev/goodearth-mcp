@@ -126,8 +126,9 @@ const COLS: Column<ItemSort>[] = [
       against the target you gave it. The bar fills as the heat arrives; the
       target is when it reaches the stage you care about, usually harvest.</> },
   { label: "Projected",
-    info: <>The date this planting reaches its heat target if the season keeps
-      its pace of the last fortnight. A projection, not a forecast.</> },
+    info: <>The date this planting reaches its heat target if the last
+      fortnight&rsquo;s heat keeps arriving at the same daily pace. It reads
+      no weather forecast, so a cooling autumn reaches it later than shown.</> },
   { label: "Frost",
     info: <>Whether that date comes before the median first frost on this
       ground — and by how many days it clears it, or misses.</> },
@@ -445,11 +446,13 @@ function CompanionsRow({ planting, ask, onPick, onCost, onCancel }: {
                       const rel = RELATION[row.relation] ?? RELATION.other;
                       const glyph = kind === "design" && row.color ? HUE_GLYPH[row.color] : rel.glyph;
                       return (
-                        <li key={`${row.ref ?? row.name}-${i}`} className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                        <li key={`${row.ref ?? row.name}-${i}`} className="flex flex-wrap items-center gap-x-4 gap-y-1">
                           <Chiclet emoji={glyph} name={row.name} tone={rel.tone} title={rel.label}
                             figure={row.block ?? (row.scientific_name && row.where === "example" ? <i>{row.scientific_name}</i> : undefined)}
                             onClick={row.where === "this_plot" ? undefined : () => onPick(row)} />
-                          <span className="min-w-[12rem] flex-1 text-[12px] leading-snug text-ink-soft">
+                          {/* The plant on the left, its reason against the right edge: two
+                              columns the eye can run down, whatever each name's length. */}
+                          <span className="min-w-[12rem] flex-1 text-right text-[12px] leading-snug text-ink-soft">
                             {row.why}
                             {row.basis !== "grower" && (
                               <span className="data ml-1.5 rounded-full border border-rule px-1.5 py-px text-[10px]" title={row.cite}>{row.basis}</span>
