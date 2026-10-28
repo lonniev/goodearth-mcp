@@ -21,7 +21,7 @@ class PlantingWindowError(ValueError):
     """The request cannot be answered as asked."""
 
 
-async def _air_record(region: Region, today: date) -> tuple[list[str], list, list]:
+async def air_record(region: Region, today: date) -> tuple[list[str], list, list]:
     """This ground's daily air record over the span every answer here reads."""
     span_from = date(today.year - RECORD_SPAN_YEARS, 1, 1).isoformat()
     span_to = date(today.year - 1, 12, 31).isoformat()
@@ -38,7 +38,7 @@ async def _air_record(region: Region, today: date) -> tuple[list[str], list, lis
         raise PlantingWindowError(f"the record is unreadable: {exc}") from exc
 
 
-def _frost_season(
+def frost_season(
     dates: list[str], tmin: list, today: date,
 ) -> tuple[int, tuple[int, int] | None, dict[str, Any] | None, dict[str, Any] | None]:
     """The season being planned, its frost anchor, and its typical frosts.
@@ -82,14 +82,14 @@ async def region_heat_for_days(
     """
     today = today or datetime.now(UTC).date()
     days = int(days)
-    dates, tmax, tmin = await _air_record(region, today)
+    dates, tmax, tmin = await air_record(region, today)
     clim = gdd.climatology(dates, tmax, tmin, base_f)
     if not clim:
         raise PlantingWindowError("this ground's record holds no usable temperatures")
 
     counted_from = "set_out"
     if out_on is None:
-        season, _start, spring, _fall = _frost_season(dates, tmin, today)
+        season, _start, spring, _fall = frost_season(dates, tmin, today)
         if spring:
             out_on, counted_from = date.fromisoformat(spring["median"]), "typical_last_frost"
         else:
@@ -158,7 +158,7 @@ async def region_planting_window(
         raise PlantingWindowError(f"the record is unreadable: {exc}") from exc
 
     years = list(range(today.year - RECORD_SPAN_YEARS, today.year))
-    season, start, spring, fall = _frost_season(dates, tmin, today)
+    season, start, spring, fall = frost_season(dates, tmin, today)
 
     last_frost = date.fromisoformat(spring["median"]) if spring else None
     first_frost = date.fromisoformat(fall["median"]) if fall else None

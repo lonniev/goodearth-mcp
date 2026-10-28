@@ -1,0 +1,1 @@
+- `plant_profile_refresh` is now `reference_refresh(key)`: it lets go of one kept plant profile or life cycle, named by the `key` its lookup returned. Kept answers live in one cache, `goodearth_reference_cache`; the plant profiles kept before are looked up again on next use.

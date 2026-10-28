@@ -1,13 +1,15 @@
-"""Plant profiles, kept once per plant for every grower — and let go of.
+"""Reference answers, kept once for every grower — and let go of.
 
-A profile is a fact about a species — a pumpkin takes about a hundred days
-wherever it is grown — and holds nothing about who asked. So it is stored once,
-keyed by the plant, and the first grower to pick pumpkin pays for the lookup
-that every later one reads. The operator's own Neon schema, as `feed_store`.
+A plant's profile or a creature's life cycle is a fact about a species — a
+pumpkin takes about a hundred days wherever it is grown — and holds nothing
+about who asked. So each is stored once, keyed by what it answers
+(`profile:taxon:76541`, `lifecycle:animal:taxon:5212:40`), and the first grower
+to ask pays for the lookup that every later one reads. The operator's own Neon
+schema, as `feed_store`.
 
 It decays, so it neither grows without end nor goes stale:
 
-* **Unused rows go.** A plant nobody has picked for `IDLE_DAYS` is deleted.
+* **Unused rows go.** An answer nobody has read for `IDLE_DAYS` is deleted.
 * **Popular rows renew.** Content older than `FRESH_DAYS` is looked up again
   on its next read — and, over the last `JITTER_DAYS` before that, with a
   chance that rises day by day, so a plant every grower reads is not looked up
@@ -22,15 +24,22 @@ from __future__ import annotations
 
 import json
 import logging
+import random
 import re
+from collections.abc import Awaitable, Callable
 from typing import Any
+
+import httpx
 
 logger = logging.getLogger(__name__)
 
 _vault: Any = None
 _schema_done = False
 
-TABLE = "goodearth_plant_profiles"
+TABLE = "goodearth_reference_cache"
+
+#: What a key may look like: a namespace, then lowercase words, digits, colons.
+KEY = re.compile(r"^(profile|lifecycle):[a-z0-9 :._-]{1,160}$")
 
 #: Days without a read before a row is let go.
 IDLE_DAYS = 180
@@ -74,7 +83,7 @@ async def _vault_for() -> Any:
         except Exception as exc:  # noqa: BLE001
             # Without the table every lookup is a fresh one: slower and dearer,
             # never wrong. It must not take the operator down.
-            logger.error("plant profile schema DDL failed: %s", exc)
+            logger.error("reference cache schema DDL failed: %s", exc)
     return _vault
 
 
@@ -161,14 +170,44 @@ async def prune() -> int:
 
 
 async def drop(key: str) -> bool:
-    """Let one plant go, so its next pick looks it up afresh. True if it was kept."""
+    """Let one answer go, so the next ask looks it up afresh. True if it was kept."""
     v = await _vault_for()
     r = await v._execute(_qualify(f"DELETE FROM {TABLE} WHERE key = $1"), [key])
     return int(r.get("rowCount") or r.get("rowcount") or 0) > 0
 
 
+async def remember(
+    key: str, fetch: Callable[[], Awaitable[tuple[dict[str, Any], str]]],
+) -> tuple[dict[str, Any], bool]:
+    """The kept answer for ``key``, or a fresh one from ``fetch``. True when kept.
+
+    A kept answer that has come due (`due`) is looked up again; if that fails,
+    the kept one is still the better answer than none. ``fetch`` returns the
+    answer and the model that gave it. A cache that cannot be read or written
+    makes the lookup slower and dearer, never wrong.
+    """
+    try:
+        kept = await get(key)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("reference cache unreadable: %s", exc)
+        kept = None
+    if kept and not due(kept[1], random.random()):
+        return kept[0], True
+    try:
+        fresh, model = await fetch()
+    except (ValueError, httpx.HTTPError, OSError):
+        if kept:
+            return kept[0], True
+        raise
+    try:
+        await put(key, fresh, model)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("reference answer not kept: %s", exc)
+    return fresh, False
+
+
 async def forget_everything(npub: str) -> dict[str, int]:
-    """Nothing here is a patron's: a profile is a species fact with no npub, no
+    """Nothing here is a patron's: each answer is a species fact with no npub, no
     ground and no record of who asked. Listed in `forget.STORES` all the same, so
     the guard that every table is swept stays a guard — and says why this one
     deletes nothing."""
