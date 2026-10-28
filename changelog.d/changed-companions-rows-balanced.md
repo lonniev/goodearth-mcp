@@ -1,0 +1,2 @@
+- Companion rows read as two columns: the plant on the left, its reason against the right edge.
+- The Projected column's tip says what the date is: the last fortnight's daily heat carried forward, with no weather forecast in it.
