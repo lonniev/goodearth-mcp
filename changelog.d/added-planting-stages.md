@@ -1,0 +1,1 @@
+- A planting can hold several stages (emergence, first bloom, fruit set, harvest), each a heat sum from set-out. The Plants ledger ticks each on its heat bar, the season chart marks each, the calendar feed dates each, and `crop_gdd_status` reports whether each is reached and when it is due.

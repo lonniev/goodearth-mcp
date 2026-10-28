@@ -77,6 +77,18 @@ describe("buildFlags", () => {
     assert.deepEqual(with_, without);
   });
 
+  it("marks each tracked stage where its heat from set-out falls, and the target once", () => {
+    const p = { id: "3", crop: "Pumpkin", gddTarget: 200, setOut: "2026-05-01", regionId: "b",
+      stages: [{ stage: "emergence", gdd: 60, emoji: "🌱" }, { stage: "flowers", gdd: 120, emoji: "🌼" },
+               { stage: "harvest", gdd: 200, emoji: "🎃" }] };
+    const flags = buildFlags(curve, [p] as never, [], []);
+    const labels = flags.map((f) => f.label);
+    assert.ok(labels.includes("Pumpkin · emergence") && labels.includes("Pumpkin · flowers"));
+    assert.ok(!labels.includes("Pumpkin · harvest"), "the bar's end already marks the target");
+    const flowers = flags.find((f) => f.label === "Pumpkin · flowers")!;
+    assert.equal(flowers.date, "2026-05-07");   // 120 GDD at 20 a day from May 1
+  });
+
   it("places a sowing from before the curve's first day", () => {
     // Seed under lights in February, on a curve that starts in May. The
     // chart's timeline is a union that already holds a task dated next

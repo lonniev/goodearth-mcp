@@ -404,6 +404,7 @@ export default function Crops({
           ...(p.perennial ? { perennial: true } : {}),
           ...(p.chillHours != null ? { chill_hours: p.chillHours } : {}),
           ...(p.hardyToF != null ? { hardy_to_f: p.hardyToF } : {}),
+          ...(p.stages?.length ? { stages: p.stages } : {}),
         })),
         region.baseTempF,
       );

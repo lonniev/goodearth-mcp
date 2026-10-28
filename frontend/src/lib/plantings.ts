@@ -77,6 +77,54 @@ export interface Planting {
   /// nursery start and a grafted tree all have a planting date and no packet
   /// at all, and each must record its day without one.
   seedLotId?: string;
+
+  /// The stages the grower tracks — emergence, first bloom, fruit set,
+  /// harvest — each a heat sum from set-out, the same clock as `gddTarget`.
+  /// Sorted by heat; the last is where it is going.
+  stages?: PlantingStage[];
+}
+
+export interface PlantingStage {
+  stage: string;
+  /// Degree days (°F) from set-out.
+  gdd: number;
+  emoji?: string;
+  /// One of the few most growers watch.
+  key?: boolean;
+}
+
+/// Where each stage sits on a heat bar that runs from set-out to `target`, as a
+/// percentage, with the words for its tooltip. The target itself is the bar's
+/// end, so a stage at that heat gets no tick of its own.
+export function stageTicks(
+  stages: (PlantingStage & { reached?: boolean; projected_date?: string | null })[] | undefined,
+  target: number,
+): { at: number; reached: boolean; title: string }[] {
+  if (!stages?.length || !(target > 0)) return [];
+  return stages
+    .filter((s) => s.gdd < target)
+    .map((s) => ({
+      at: Math.round((s.gdd / target) * 1000) / 10,
+      reached: !!s.reached,
+      title: [s.emoji, s.stage, `${Math.round(s.gdd).toLocaleString()} GDD`,
+              s.reached ? "reached" : s.projected_date ? `due ${s.projected_date}` : null]
+        .filter(Boolean).join(" · "),
+    }));
+}
+
+/// Stages as the record keeps them: named, in range, sorted by heat.
+export function cleanStages(raw: unknown): PlantingStage[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((s): s is Record<string, unknown> => !!s && typeof s === "object")
+    .map((s) => ({
+      stage: String(s.stage ?? "").trim().slice(0, 80),
+      gdd: Number(s.gdd),
+      ...(s.emoji ? { emoji: String(s.emoji).slice(0, 4) } : {}),
+      ...(s.key ? { key: true } : {}),
+    }))
+    .filter((s) => s.stage && Number.isFinite(s.gdd) && s.gdd > 0 && s.gdd <= 20_000)
+    .sort((a, b) => a.gdd - b.gdd);
 }
 
 // ── There is no crop library ─────────────────────────────────────────────
@@ -108,7 +156,8 @@ export function makePlanting(
   baseTempF?: number,
   extra?: Pick<Planting,
     "perennial" | "chillHours" | "hardyToF" | "taxonId" | "scientificName"
-    | "commonName" | "taps" | "frostHardy" | "flowerColor" | "heightIn" | "bloomMonths">,
+    | "commonName" | "taps" | "frostHardy" | "flowerColor" | "heightIn" | "bloomMonths"
+    | "stages">,
 ): Planting | string {
   if (!crop.trim()) return "Give the planting a crop name.";
   const perennial = !!extra?.perennial;
@@ -148,6 +197,7 @@ export function makePlanting(
     ...(extra?.frostHardy ? { frostHardy: true } : {}),
     ...(extra?.flowerColor ? { flowerColor: extra.flowerColor } : {}),
     ...(extra?.heightIn != null ? { heightIn: extra.heightIn } : {}),
+    ...(extra?.stages?.length ? { stages: cleanStages(extra.stages) } : {}),
     ...(extra?.bloomMonths?.length ? { bloomMonths: extra.bloomMonths } : {}),
   };
 }
@@ -214,6 +264,7 @@ export const plantingCodec: ItemCodec<Planting> = {
     heightIn: r.height_in == null ? undefined : Number(r.height_in),
     bloomMonths: Array.isArray(r.bloom_months)
       ? (r.bloom_months as unknown[]).filter((m): m is number => typeof m === "number") : undefined,
+    stages: Array.isArray(r.stages) && r.stages.length ? cleanStages(r.stages) : undefined,
   }),
   to: (p: Planting) => ({
     ...(p.id ? { item_id: p.id } : {}),
@@ -234,5 +285,6 @@ export const plantingCodec: ItemCodec<Planting> = {
     ...(p.flowerColor ? { flower_color: p.flowerColor } : {}),
     ...(p.heightIn != null ? { height_in: p.heightIn } : {}),
     ...(p.bloomMonths?.length ? { bloom_months: p.bloomMonths } : {}),
+    ...(p.stages?.length ? { stages: p.stages } : {}),
   }),
 };

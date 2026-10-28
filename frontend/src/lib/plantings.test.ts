@@ -5,7 +5,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { makePlanting, plantingCodec, plantingDateFor } from "./plantings.ts";
+import { cleanStages, makePlanting, plantingCodec, plantingDateFor, stageTicks } from "./plantings.ts";
 
 describe("plantingDateFor — never backdates the heat", () => {
   const today = "2026-08-31";
@@ -200,4 +200,36 @@ describe("no catalogue of living things comes back", () => {
     }
     assert.deepEqual(offenders, []);
   });
+});
+
+describe("a planting's stages", () => {
+  const stages = [
+    { stage: "harvest", gdd: 1750, emoji: "🎃", key: true },
+    { stage: "emergence", gdd: 120 },
+    { stage: "first flowers", gdd: 700 },
+  ];
+
+  it("are kept sorted by heat, and the junk is dropped", () => {
+    const got = cleanStages([...stages, { stage: "", gdd: 5 }, { stage: "x", gdd: 0 },
+      { stage: "y", gdd: 99_999 }, null, "z"]);
+    assert.deepEqual(got.map((s) => s.stage), ["emergence", "first flowers", "harvest"]);
+    assert.deepEqual(got[2], { stage: "harvest", gdd: 1750, emoji: "🎃", key: true });
+  });
+
+  it("round-trip through the record", () => {
+    const p = makePlanting("Pumpkin", 1750, "2026-05-20", "b1", undefined, { stages });
+    assert.ok(typeof p !== "string");
+    const back = plantingCodec.from({ item_id: "pl1", kind: "planting", ...plantingCodec.to(p) });
+    assert.deepEqual(back.stages?.map((s) => s.gdd), [120, 700, 1750]);
+  });
+
+  it("tick the heat bar where their heat falls, the target excepted", () => {
+    const ticks = stageTicks(
+      cleanStages(stages).map((s) => ({ ...s, reached: s.gdd < 500, projected_date: "2026-07-10" })), 1750);
+    assert.deepEqual(ticks.map((t) => t.at), [6.9, 40]);
+    assert.equal(ticks[0].reached, true);
+    assert.ok(ticks[1].title.includes("first flowers") && ticks[1].title.includes("due 2026-07-10"));
+  });
+
+  it("tick nothing without a target", () => assert.deepEqual(stageTicks(stages, 0), []));
 });

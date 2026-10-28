@@ -283,6 +283,30 @@ async def build_feed(
         if acc is None:
             continue
         offset = curve[-1] - acc[0]
+        # Each named stage is its own entry, on the same clock as the target.
+        for s in p.get("stages") or []:
+            sd = when(curve, offset + s["gdd"])
+            if not sd:
+                continue
+            key = f"{p['crop']}-{p['set_out']}-{s['stage']}"
+            record("crop", key, f"{p['crop']} — {s['stage']}", sd,
+                   f"{s['gdd']:g} GDD from set-out {p['set_out'].isoformat()}",
+                   s.get("emoji") or "🌱")
+            entries.append(ical.vevent(
+                ical.uid_for(token, "crop", key),
+                f"{s.get('emoji') or '🌱'} {p['crop']} — {s['stage']}",
+                sd,
+                description=(
+                    f"{s['gdd']:g} GDD from set-out {p['set_out'].isoformat()}, "
+                    f"base {p['base_temp_f'] or base_temp_f:g}°F, on {region_name}. "
+                    "Projected past the forecast at the recent rate."
+                ),
+                stamp=stamp, categories="Good Earth,Crops",
+            ))
+            counted["crop"] += 1
+        # The target, unless a stage already marks that heat.
+        if any(s["gdd"] == p["gdd_target"] for s in p.get("stages") or []):
+            continue
         d = when(curve, offset + p["gdd_target"])
         if not d:
             continue

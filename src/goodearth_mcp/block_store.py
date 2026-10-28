@@ -68,7 +68,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from typing import Any
 
-from goodearth_mcp import calibration
+from goodearth_mcp import calibration, crops
 from goodearth_mcp.companions import validate_look
 
 logger = logging.getLogger(__name__)
@@ -965,6 +965,11 @@ def _check_planting(item: dict[str, Any]) -> None:
     which reads as "never sown" rather than as "we could not understand this".
     """
     _clean_day(item.get("sown_on"), "sown_on")
+    # Stages too: a malformed list would be stored and then fail every reader.
+    try:
+        crops.validate_stages(str(item.get("crop") or "planting"), item.get("stages"))
+    except crops.CropError as exc:
+        raise BlockError(str(exc)) from exc
     # The three design fields ride in the payload too; a colour the wheel
     # does not know would be stored happily and never pair with anything.
     try:
