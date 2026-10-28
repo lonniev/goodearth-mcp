@@ -319,11 +319,13 @@ export function buildFlags(
         });
       }
     }
-    // Daylight and condition events are deliberately not placed here. Neither
-    // reads the heat axis, and neither date can be worked out from this curve:
-    // a daylight crossing is astronomy and a condition is the first night this
-    // ground met the grower's own terms, and both come back from the wildlife
-    // tool. They live on the Wildlife view where that is legible.
+    // Daylight, moon and condition events are deliberately not placed here.
+    // None reads the heat axis, and none can be worked out from this curve: a
+    // daylight crossing and a moon phase are astronomy the server computes,
+    // and a condition is the first night this ground met the grower's own
+    // terms. All come back from the wildlife tool, and live on the Wildlife
+    // view where that is legible. Placing a moon here would mean a second copy
+    // of the server's astronomy in the browser.
   }
 
   return out.sort((a, b) => a.index - b.index);

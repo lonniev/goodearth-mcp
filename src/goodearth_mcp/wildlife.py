@@ -49,7 +49,10 @@ from goodearth_mcp import almanac
 MIN_BASE_F = 20.0
 MAX_BASE_F = 80.0
 
-DRIVERS = {"heat", "daylight", "interval", "calendar", "condition"}
+DRIVERS = {"heat", "daylight", "interval", "calendar", "condition", "moon"}
+
+#: The moon's principal phases, as a `moon` event names them.
+MOON_PHASES = tuple(almanac.PHASE_AT)
 
 #: What a `condition` trigger may ask about. Deliberately short: each of these
 #: is a field the block's own daily record already carries, so a trigger is
@@ -152,6 +155,29 @@ def validate_event(ev: Any) -> dict[str, Any]:
         # the RECORD, so it belongs to the grower and re-dates itself every
         # season, rather than being remembered by whichever agent last helped.
         out.update({"trigger": validate_trigger(species, ev.get("trigger"))})
+
+    elif driver == "moon":
+        # Timed by the moon: the nth new, quarter or full moon on or after a
+        # day of the year — "the first full moon after the last frost", "the
+        # new moon in May". Pure astronomy, so it re-dates itself each year.
+        phase = str(ev.get("phase") or "").strip().lower()
+        if phase not in MOON_PHASES:
+            raise WildlifeError(
+                f"{species}: a moon event needs phase — one of {', '.join(MOON_PHASES)}"
+            )
+        raw = ev.get("after") or "01-01"
+        try:
+            a_month, a_day = (int(x) for x in str(raw).split("-")[-2:])
+            date(2000, a_month, a_day)
+        except (ValueError, TypeError) as exc:
+            raise WildlifeError(f"{species}: after must be MM-DD, got {raw!r}") from exc
+        try:
+            nth = int(ev.get("nth") or 1)
+        except (TypeError, ValueError) as exc:
+            raise WildlifeError(f"{species}: nth must be 1, 2 or 3") from exc
+        if not 1 <= nth <= 3:
+            raise WildlifeError(f"{species}: nth must be 1, 2 or 3, got {nth}")
+        out.update({"phase": phase, "after": f"{a_month:02d}-{a_day:02d}", "nth": nth})
 
     else:  # calendar
         # A day that happened ONCE — a hen set on Dec 20 — carries its full
@@ -424,6 +450,38 @@ def calendar_event(ev: dict[str, Any], today: date) -> dict[str, Any]:
         "reached_on": when.isoformat() if when <= today else None,
         "projected_date": None if when <= today else when.isoformat(),
         "note": "From your own record — not computed from this season.",
+    }
+
+
+_ORDINAL = {1: "first", 2: "second", 3: "third"}
+
+
+def moon_date(ev: dict[str, Any], year: int) -> date | None:
+    """The day a moon event falls on in ``year``."""
+    month, day = (int(x) for x in ev["after"].split("-"))
+    try:
+        when = date(year, month, day)
+    except ValueError:  # 02-29 in a common year
+        when = date(year, 3, 1)
+    for _ in range(ev["nth"]):
+        found = almanac.next_phase(when, ev["phase"])
+        if found is None:
+            return None
+        when = found + timedelta(days=1)
+    return found
+
+
+def moon_event(ev: dict[str, Any], today: date) -> dict[str, Any]:
+    """This year's date for a moon event: astronomy, so exact a year ahead."""
+    when = moon_date(ev, today.year)
+    after = date(2000, *(int(x) for x in ev["after"].split("-"))).strftime("%b %-d")
+    threshold = f"{_ORDINAL[ev['nth']]} {ev['phase'].replace('_', ' ')} moon after {after}"
+    return {
+        "driver": "moon",
+        "threshold": threshold,
+        "reached_on": when.isoformat() if when and when <= today else None,
+        "projected_date": when.isoformat() if when and when > today else None,
+        "note": "The moon's own calendar — computed, never forecast.",
     }
 
 

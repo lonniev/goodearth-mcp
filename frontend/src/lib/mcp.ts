@@ -931,10 +931,15 @@ export async function almanacFor(block: string): Promise<AlmanacResult> {
 
 // ─── Wildlife calendar ───────────────────────────────────────────────────
 
+/// What times a wildlife event: its heat, the day length, a count of days, a
+/// day of the year, the weather, or the moon.
+export type Driver = "heat" | "daylight" | "interval" | "calendar" | "condition" | "moon";
+export type MoonPhase = "new" | "first_quarter" | "full" | "last_quarter";
+
 export interface WildlifeEventInput {
   species: string;
   event: string;
-  driver: "heat" | "daylight" | "interval" | "calendar" | "condition";
+  driver: Driver;
   emoji?: string;
   note?: string;
   gdd?: number;
@@ -961,6 +966,11 @@ export interface WildlifeEventInput {
     min_day_f?: number;
     wet?: boolean;
   };
+  /// Moon events: the `nth` (1–3) `phase` on or after `after` (MM-DD) — "the
+  /// first full moon after May 1". Astronomy, so it re-dates itself each year.
+  phase?: MoonPhase;
+  after?: string;
+  nth?: number;
 }
 
 export interface WildlifeRow {
@@ -969,7 +979,7 @@ export interface WildlifeRow {
   /// separates them with certainty.
   ref?: string;
   species: string; event: string; emoji: string | null; note: string | null;
-  driver: "heat" | "daylight" | "interval" | "calendar" | "condition";
+  driver: Driver;
   threshold: string;
   reached_on: string | null;
   projected_date: string | null;

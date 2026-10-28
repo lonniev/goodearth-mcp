@@ -172,17 +172,44 @@ def moon_phase(d: date) -> dict[str, Any]:
     }
 
 
+#: Where each principal phase falls in the cycle (0 and 1 are new, 0.5 full).
+PHASE_AT = {"new": 0.0, "first_quarter": 0.25, "full": 0.5, "last_quarter": 0.75}
+
+
+def _age(d: date) -> float:
+    return ((julian_day(d) - NEW_MOON_EPOCH) % SYNODIC) / SYNODIC
+
+
+def next_phase(after: date, phase: str, within_days: int = 40) -> date | None:
+    """The day of the next principal ``phase`` on or after ``after``.
+
+    The moon passes the phase at an instant; this is the day whose noon lies
+    nearest that instant. Found from where the cycle crosses the phase between
+    one noon and the next, so it never skips a phase the way matching on a
+    phase NAME can — a name's window is about a day wide.
+    """
+    if phase not in PHASE_AT:
+        raise ValueError(f"phase must be one of {', '.join(PHASE_AT)}, got {phase!r}")
+    target = PHASE_AT[phase]
+    for i in range(within_days):
+        d = after + timedelta(days=i)
+        a0, a1 = _age(d), _age(d + timedelta(days=1))
+        to_target, step = (target - a0) % 1.0, (a1 - a0) % 1.0
+        if to_target == 0.0:
+            return d
+        if to_target < step:
+            return d if to_target < step / 2 else d + timedelta(days=1)
+    return None
+
+
 def next_full_moon(after: date, within_days: int = 40) -> str | None:
     """The next full moon on or after ``after``.
 
     Worth surfacing because a clear night near full moon is also a still,
     radiating night — the frost nights growers remember.
     """
-    for i in range(within_days):
-        d = after + timedelta(days=i)
-        if moon_phase(d)["name"] == "Full moon":
-            return d.isoformat()
-    return None
+    d = next_phase(after, "full", within_days)
+    return d.isoformat() if d else None
 
 
 # ── Daily aggregation ────────────────────────────────────────────────────

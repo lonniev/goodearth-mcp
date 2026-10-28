@@ -1,0 +1,3 @@
+- Wildlife events can be timed by the moon: the first, second or third new, quarter or full moon on or after a day of the year. On the Fauna page, in the calendar feed, and for agents in `wildlife_calendar`.
+- The almanac finds each moon phase from the day the cycle crosses it, so a full moon is never skipped.
+- A weather-triggered event on Fauna is checked as weather; it was wrongly asked for a calendar date.

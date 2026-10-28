@@ -17,7 +17,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   almanacFor, gddSeasonCurve, speciesHabits, wildlifeCalendar, wildlifeCatalog,
-  type AlmanacResult, type SeasonCurveResult, type WildlifeCatalogResult,
+  type AlmanacResult, type MoonPhase, type SeasonCurveResult, type WildlifeCatalogResult,
   type WildlifeEventInput, type WildlifeResult,
 } from "../lib/mcp";
 import {
@@ -36,7 +36,7 @@ import {
 } from "./ui";
 import { tour } from "../lib/tour/targets";
 
-type Driver = "calendar" | "interval" | "daylight" | "heat" | "condition";
+type Driver = "calendar" | "interval" | "daylight" | "heat" | "condition" | "moon";
 
 const CLOCKS: { key: Driver; label: string }[] = [
   { key: "interval", label: "days from" },
@@ -44,7 +44,17 @@ const CLOCKS: { key: Driver; label: string }[] = [
   { key: "daylight", label: "daylight" },
   { key: "heat", label: "heat" },
   { key: "condition", label: "conditions" },
+  { key: "moon", label: "moon" },
 ];
+
+const PHASE_PILLS: { key: MoonPhase; glyph: string; label: string }[] = [
+  { key: "new", glyph: "🌑", label: "new" },
+  { key: "first_quarter", glyph: "🌓", label: "first quarter" },
+  { key: "full", glyph: "🌕", label: "full" },
+  { key: "last_quarter", glyph: "🌗", label: "last quarter" },
+];
+const NTH = [1, 2, 3] as const;
+const NTH_LABEL: Record<number, string> = { 1: "first", 2: "second", 3: "third" };
 
 const HELP: Record<Driver, string> = {
   ...DRIVER_HELP as Record<Driver, string>,
@@ -184,6 +194,8 @@ export default function EventComposer({
   const [minNight, setMinNight] = useState<number | "">("");
   const [minDay, setMinDay] = useState<number | "">("");
   const [wet, setWet] = useState(true);
+  const [phase, setPhase] = useState<MoonPhase>("full");
+  const [nth, setNth] = useState<1 | 2 | 3>(1);
 
   /// A cycle handed in from the record arrives complete. Nothing is invented:
   /// every figure came off rows the grower already saved.
@@ -248,6 +260,8 @@ export default function EventComposer({
         : driver === "heat"
           ? { driver, gdd: u.ddToF(Number(gdd)),
               base_temp: base === "" ? region.baseTempF : u.toF(Number(base)) }
+        : driver === "moon"
+          ? { driver, phase, nth, ...(after ? { after } : {}) }
           : { driver,
               trigger: {
                 ...(after ? { after } : {}),
@@ -264,7 +278,7 @@ export default function EventComposer({
     // `draft` is rebuilt every render; its parts are the real dependencies.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [driver, animal, label, role, startOn, steps, typicalOn, hours, rising,
-      gdd, base, after, minNight, minDay, wet, region.id]);
+      gdd, base, after, minNight, minDay, wet, phase, nth, region.id]);
 
   const ready = typeof rows !== "string";
   /// Nothing to say: the species is the first field and it is visibly empty.
@@ -604,6 +618,25 @@ export default function EventComposer({
                   <div className="flex items-end">
                     <Pill active={wet} onClick={() => setWet(!wet)}>and it rained</Pill>
                   </div>
+                </>
+              )}
+
+              {driver === "moon" && (
+                <>
+                  <div className="flex flex-wrap items-end gap-1.5">
+                    {NTH.map((n) => (
+                      <Pill key={n} active={nth === n} onClick={() => setNth(n)}>{NTH_LABEL[n]}</Pill>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap items-end gap-1.5">
+                    {PHASE_PILLS.map((p) => (
+                      <Pill key={p.key} active={phase === p.key} onClick={() => setPhase(p.key)}
+                        title={`${p.label} moon`}>
+                        {p.glyph} {p.label}
+                      </Pill>
+                    ))}
+                  </div>
+                  <MonthDay label="On or after" value={after} onChange={setAfter} />
                 </>
               )}
             </div>

@@ -365,6 +365,10 @@ async def build_feed(
             r = wildlife.calendar_event(e, today)
             d = ical.as_date(r.get("reached_on") or r.get("projected_date"))
             detail = r["threshold"]
+        elif e["driver"] == "moon":
+            r = wildlife.moon_event(e, today)
+            d = ical.as_date(r.get("reached_on") or r.get("projected_date"))
+            detail = r["threshold"]
         elif e["driver"] == "condition":
             if wx_error or not wx_dates:
                 skipped.append({"kind": "wildlife", "name": e["species"], "item_id": None,
