@@ -1,0 +1,2 @@
+- Each plant or life-cycle lookup makes at most 3 web searches (was 4 and 6), and keeps what it spent — model, searches, input and output tokens — with its answer and in the log.
+- A fungus picked on Flora gets its own year: fruiting after rain within its season, spore release, timed by the weather and the calendar and kept as watches on Fauna. It is looked up per latitude band, as an animal is.

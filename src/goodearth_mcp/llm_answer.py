@@ -29,6 +29,12 @@ logger = logging.getLogger(__name__)
 #: A web-searching generation is slow; a minute and a half is the ceiling.
 TIMEOUT_S = 90.0
 
+#: Web searches one reference lookup may make. Sampled 2026-10-28 on a common
+#: bird and an obscure fungus: two or three searches found everything there
+#: was; more only read further pages that said nothing new, at about 30,000
+#: input tokens each.
+MAX_SEARCHES = 3
+
 
 class AnswerError(ValueError):
     """The reference could not answer. A ValueError, so a paid call refunds."""
@@ -57,7 +63,26 @@ async def ask(api_key: str, *, system: str, user: str, max_tokens: int,
         logger.warning("reference LLM refused: HTTP %s %s (%s)", resp.status_code,
                        situation.error_code, error_message(body)[:200])
         raise AnswerError(situation.message)
-    return resp.json()
+    data = resp.json()
+    logger.info("reference LLM: %s", usage_of(data))
+    return data
+
+
+def usage_of(data: dict[str, Any]) -> dict[str, Any]:
+    """What one generation spent: model, web searches, tokens. Kept with the
+    answer, so whether the search cap is right is read from real lookups."""
+    usage = data.get("usage") if isinstance(data.get("usage"), dict) else {}
+    tool_use = usage.get("server_tool_use") if isinstance(usage.get("server_tool_use"), dict) else {}
+    searches = tool_use.get("web_search_requests")
+    if searches is None:
+        searches = sum(1 for b in data.get("content", []) if isinstance(b, dict)
+                       and b.get("type") == "server_tool_use" and b.get("name") == "web_search")
+    return {
+        "model": str(data.get("model") or ""),
+        "searches": int(searches or 0),
+        "input_tokens": int(usage.get("input_tokens") or 0),
+        "output_tokens": int(usage.get("output_tokens") or 0),
+    }
 
 
 def tagged(data: dict[str, Any], tag: str) -> str:

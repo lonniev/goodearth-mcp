@@ -192,6 +192,14 @@ export interface SpeciesHit {
   matched: string | null;
   thumb: string | null;
   observations: number;
+  /// iNaturalist's iconic group — "Plantae", "Fungi", "Aves"… — so a page
+  /// searching plants and fungi together can tell which it was handed.
+  kingdom?: string | null;
+}
+
+/// A fungus, picked where plants and fungi are searched together.
+export function isFungus(hit: Pick<SpeciesHit, "kingdom"> | null | undefined): boolean {
+  return hit?.kingdom === "Fungi";
 }
 
 function toHit(t: Record<string, unknown>): SpeciesHit {
@@ -204,6 +212,7 @@ function toHit(t: Record<string, unknown>): SpeciesHit {
     matched: (t.matched_term as string) ?? null,
     thumb: photo?.square_url ?? null,
     observations: Number(t.observations_count ?? 0),
+    kingdom: (t.iconic_taxon_name as string) ?? null,
   };
 }
 

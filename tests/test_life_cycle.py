@@ -349,3 +349,67 @@ def test_an_empty_provider_account_is_said_plainly(monkeypatch):
         asyncio.run(llm_answer.ask("sk-test", system="s", user="u", max_tokens=10, searches=1))
     assert "temporarily unavailable" in str(err.value) and "No fare was charged" in str(err.value)
     assert "402" not in str(err.value)
+
+
+# ── Fungi, the search cap, and what a lookup spent ───────────────────────
+
+PUFFBALL = {
+    "scientific_name": "Calvatia gigantea", "common_name": "Giant puffball",
+    "narrative": "Fruits in late summer after heavy rain; the dried sac cracks and smokes with spores.",
+    "events": [
+        {"name": "fruiting after rain", "emoji": "🍄", "key": True, "driver": "condition",
+         "trigger": {"after": "08-01", "wet": True, "min_night_f": 50}},
+        {"name": "fruiting season", "driver": "calendar", "typical_on": "08-20"},
+        {"name": "spore release", "driver": "calendar", "typical_on": "09-25"},
+    ],
+}
+
+
+def test_a_fungus_is_timed_by_the_weather_and_its_season_never_from_a_set_out():
+    got = check(PUFFBALL, "fungus")
+    assert [e["driver"] for e in got["events"]] == ["condition", "calendar", "calendar"]
+    assert "base_temp_f" not in got
+    assert check(PUFFBALL, "plant")["events"] == [], "as a plant, a puffball's year is lost"
+
+
+def test_a_fungus_is_kept_per_latitude_band_like_an_animal():
+    assert life_cycle.cache_key(subject="fungus", taxon_id=48701, name="", lat=44.2) \
+        == "lifecycle:fungus:taxon:48701:40"
+
+
+def test_every_lookup_is_capped_at_three_searches(monkeypatch):
+    from goodearth_mcp import llm_answer, plant_profile
+
+    sent: list[int] = []
+
+    async def ask(api_key, *, system, user, max_tokens, searches):
+        sent.append(searches)
+        return {}
+    monkeypatch.setattr(llm_answer, "ask", ask)
+    asyncio.run(life_cycle.ask("k", "u"))
+    asyncio.run(plant_profile.ask("k", "u"))
+    assert sent == [3, 3] and llm_answer.MAX_SEARCHES == 3
+
+
+def test_what_a_lookup_spent_is_read_from_the_providers_usage():
+    from goodearth_mcp import llm_answer
+
+    reported = {"model": "x-ai/grok-4.5", "content": [], "usage": {
+        "input_tokens": 194877, "output_tokens": 4000, "server_tool_use": {"web_search_requests": 3}}}
+    assert llm_answer.usage_of(reported) == {
+        "model": "x-ai/grok-4.5", "searches": 3, "input_tokens": 194877, "output_tokens": 4000}
+    counted = {"model": "m", "content": [{"type": "server_tool_use", "name": "web_search"}] * 2}
+    assert llm_answer.usage_of(counted)["searches"] == 2
+    assert llm_answer.usage_of({})["searches"] == 0
+
+
+def test_a_kept_answer_carries_what_it_cost(world, monkeypatch):
+    kept, _asked = world
+
+    async def ask(api_key, user):
+        return {**reply(PUFFBALL), "usage": {"input_tokens": 90000, "output_tokens": 2500,
+                                             "server_tool_use": {"web_search_requests": 2}}}
+    monkeypatch.setattr(life_cycle, "ask", ask)
+    out = look(subject="fungus", taxon_id=48701, scientific_name="Calvatia gigantea")
+    assert out["looked_up_with"]["searches"] == 2
+    assert kept["lifecycle:fungus:taxon:48701:40"]["looked_up_with"]["input_tokens"] == 90000

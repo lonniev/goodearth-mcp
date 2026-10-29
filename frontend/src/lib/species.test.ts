@@ -8,7 +8,7 @@ import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
-  FLORA, guidanceLinks, lookupSpecies, photosByName, searchSpecies, taxonScope,
+  FLORA, guidanceLinks, isFungus, lookupSpecies, photosByName, searchSpecies, taxonScope,
 } from "./species.ts";
 
 const realFetch = globalThis.fetch;
@@ -234,5 +234,22 @@ describe("where a fungus is named", () => {
     // One home. Two pages each offering mushrooms is two records for one log.
     assert.match(view("Crops"), /key: "fungi"/);
     assert.doesNotMatch(view("Wildlife"), /fungi/i);
+  });
+});
+
+
+describe("a fungus among the plants", () => {
+  it("is told apart by the group iNaturalist names", async () => {
+    globalThis.fetch = (async () => ({ ok: true, status: 200, json: async () => ({ results: [
+      { id: 48701, name: "Calvatia gigantea", preferred_common_name: "giant puffball",
+        iconic_taxon_name: "Fungi", observations_count: 9000 },
+      { id: 76541, name: "Cucurbita pepo", preferred_common_name: "American pumpkin",
+        iconic_taxon_name: "Plantae", observations_count: 5000 },
+    ] }) }) as unknown as Response) as typeof fetch;
+    const hits = await searchSpecies("pu", FLORA);
+    const byId = new Map(hits.map((h) => [h.id, h]));
+    assert.equal(isFungus(byId.get(48701)), true);
+    assert.equal(isFungus(byId.get(76541)), false);
+    assert.equal(isFungus(null), false);
   });
 });
