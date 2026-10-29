@@ -196,3 +196,24 @@ def test_the_model_asked_for_is_the_model_sent(monkeypatch):
                                model="google/gemini-2.5-flash"))
     asyncio.run(llm_answer.ask("k", system="s", user="u", max_tokens=10, searches=0))
     assert sent == ["google/gemini-2.5-flash", "x-ai/grok-4.5"]
+
+
+def test_an_answer_cut_off_is_said_plainly():
+    """2026-10-29: a reasoning model spent its whole allowance thinking."""
+    cut = {"stop_reason": "max_tokens", "content": [{"type": "thinking", "thinking": "hmm"}]}
+    with pytest.raises(llm_answer.AnswerError, match="ran out of room"):
+        llm_answer.tagged(cut, "lifecycle")
+    with pytest.raises(llm_answer.AnswerError, match="without a lifecycle"):
+        llm_answer.tagged({"stop_reason": "end_turn", "content": []}, "lifecycle")
+
+
+def test_both_lookups_leave_room_for_a_model_that_thinks(monkeypatch):
+    asked = []
+
+    async def ask(api_key, *, system, user, max_tokens, searches, model="writer"):
+        asked.append(max_tokens)
+        return {}
+    monkeypatch.setattr(llm_answer, "ask", ask)
+    for m in (life_cycle, plant_profile):
+        asyncio.run(m.ask("k", "u", edit=True))
+    assert asked == [llm_answer.MAX_TOKENS] * 2 and llm_answer.MAX_TOKENS >= 12_000

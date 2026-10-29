@@ -38,6 +38,14 @@ TIMEOUT_S = 90.0
 MAX_SEARCHES = 3
 
 
+#: Output tokens one answer may take, thinking included. A reasoning model
+#: thinks before it answers, and its thinking counts here: on 2026-10-29 a free
+#: Nemotron spent all of a 3,000-token cap thinking and stopped ("length")
+#: before writing a word. A model stops when it is done, so the cap is a
+#: ceiling, not a spend: grok-4.5 took about 4,900 for a hawk.
+MAX_TOKENS = 12_000
+
+
 class AnswerError(ValueError):
     """The reference could not answer. A ValueError, so a paid call refunds."""
 
@@ -101,6 +109,8 @@ def tagged(data: dict[str, Any], tag: str) -> str:
                    and b.get("type") == "text")
     found = re.findall(rf"<{tag}>(.*?)</{tag}>", full, re.DOTALL)
     if not found:
+        if data.get("stop_reason") == "max_tokens":
+            raise AnswerError("The reference ran out of room before it answered; nothing was charged.")
         raise AnswerError(f"The reference answered without a {tag}.")
     return found[-1].strip()
 

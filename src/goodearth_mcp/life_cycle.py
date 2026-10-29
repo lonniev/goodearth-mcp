@@ -62,7 +62,6 @@ DRIVER_FIELDS = {
 }
 
 MAX_EVENTS = 20
-MAX_TOKENS = 3000
 
 #: Calendar dates for an animal move with latitude, so its life cycle is kept
 #: per band of this many degrees. Heat and day-length thresholds travel.
@@ -150,8 +149,8 @@ async def ask(api_key: str, user: str, *, edit: bool = False,
     ``model`` is the operator's choice for that mode."""
     if edit:
         return await llm_answer.ask(api_key, system=SYSTEM_EDIT, user=user,
-                                    max_tokens=MAX_TOKENS, searches=0, model=model)
-    return await llm_answer.ask(api_key, system=SYSTEM, user=user, max_tokens=MAX_TOKENS,
+                                    max_tokens=llm_answer.MAX_TOKENS, searches=0, model=model)
+    return await llm_answer.ask(api_key, system=SYSTEM, user=user, max_tokens=llm_answer.MAX_TOKENS,
                                 searches=llm_answer.MAX_SEARCHES, model=model)
 
 
