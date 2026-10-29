@@ -152,7 +152,7 @@ def world(monkeypatch):
         kept[key] = profile
         age[key] = 0.0
 
-    async def ask(api_key, user, edit=False):
+    async def ask(api_key, user, edit=False, model="writer"):
         asked.append(user)
         return reply(PUMPKIN)
 
@@ -181,7 +181,7 @@ def test_a_published_figure_wins_at_its_own_base(world, monkeypatch):
     stated = {**PUMPKIN, "published_gdd": {"gdd": 1234, "base_f": 55, "stage": "harvest",
                                            "source_url": "https://x.edu/p"}}
 
-    async def ask(api_key, user, edit=False):
+    async def ask(api_key, user, edit=False, model="writer"):
         return reply(stated)
     monkeypatch.setattr(plant_profile, "ask", ask)
     here = look()["on_this_plot"]
@@ -283,7 +283,7 @@ def test_a_failed_renewal_still_answers_with_the_kept_profile(world, monkeypatch
     look()
     age["profile:taxon:48927"] = reference_store.FRESH_DAYS + 1
 
-    async def down(api_key, user, edit=False):
+    async def down(api_key, user, edit=False, model="writer"):
         raise ProfileError("The plant reference did not answer (HTTP 503).")
     monkeypatch.setattr(plant_profile, "ask", down)
     out = look()
@@ -384,7 +384,7 @@ def test_found_sources_are_edited_without_search(world, monkeypatch):
         return Found(sources=(Source(page, "UMN Extension", ("Pumpkins mature in 90–120 days.",)),),
                      queries=2)
 
-    async def ask(api_key, user, edit=False):
+    async def ask(api_key, user, edit=False, model="writer"):
         modes.append(edit)
         assert "90–120 days" in user
         return reply(PUMPKIN)

@@ -223,7 +223,7 @@ def world(monkeypatch):
     async def put(key, answer, model):
         kept[key] = answer
 
-    async def ask(api_key, user, edit=False):
+    async def ask(api_key, user, edit=False, model="writer"):
         asked.append(user)
         subject = user.split("Subject kind: ")[1].split("\n")[0]
         return reply(answers[subject])
@@ -327,7 +327,7 @@ def test_the_operator_key_never_reaches_the_answer(world, monkeypatch):
 def test_nothing_timeable_is_kept_once_and_refused_every_time(world, monkeypatch):
     _kept, asked = world
 
-    async def empty(api_key, user, edit=False):
+    async def empty(api_key, user, edit=False, model="writer"):
         asked.append(user)
         return reply({**HAWK, "common_name": "Eastern Chipmunk", "events": []})
     monkeypatch.setattr(life_cycle, "ask", empty)
@@ -387,7 +387,7 @@ def test_every_lookup_is_capped_at_three_searches(monkeypatch):
 
     sent: list[int] = []
 
-    async def ask(api_key, *, system, user, max_tokens, searches):
+    async def ask(api_key, *, system, user, max_tokens, searches, model="writer"):
         sent.append(searches)
         return {}
     monkeypatch.setattr(llm_answer, "ask", ask)
@@ -411,7 +411,7 @@ def test_what_a_lookup_spent_is_read_from_the_providers_usage():
 def test_a_kept_answer_carries_what_it_cost(world, monkeypatch):
     kept, _asked = world
 
-    async def ask(api_key, user, edit=False):
+    async def ask(api_key, user, edit=False, model="writer"):
         return {**reply(PUFFBALL), "usage": {"input_tokens": 90000, "output_tokens": 2500,
                                              "server_tool_use": {"web_search_requests": 2}}}
     monkeypatch.setattr(life_cycle, "ask", ask)
@@ -436,7 +436,7 @@ def test_found_sources_are_edited_without_search_and_cited_only_from_them(world,
         return Found(sources=(Source(page, "All About Birds", ("Courtship from February.",)),),
                      queries=2)
 
-    async def ask(api_key, user, edit=False):
+    async def ask(api_key, user, edit=False, model="writer"):
         modes.append(edit)
         assert "Courtship from February." in user and page in user
         assert "Jul 40" in user, "when it is seen near here travels with the sources"
@@ -455,7 +455,7 @@ def test_found_sources_are_edited_without_search_and_cited_only_from_them(world,
 def test_without_a_search_key_the_llm_searches_as_before(world, monkeypatch):
     modes = []
 
-    async def ask(api_key, user, edit=False):
+    async def ask(api_key, user, edit=False, model="writer"):
         modes.append(edit)
         assert "Sources (use only these" not in user
         return reply(HAWK)
@@ -464,3 +464,32 @@ def test_without_a_search_key_the_llm_searches_as_before(world, monkeypatch):
     assert modes == [False]
     assert out["looked_up_with"]["mode"] == "web_search"
     assert len(out["events"]) > 1
+
+
+@pytest.mark.parametrize("found,model", [(True, "google/gemini-2.5-flash"), (False, "x-ai/grok-4.5")])
+def test_each_mode_runs_on_the_operators_model_for_it(world, monkeypatch, found, model):
+    from goodearth_mcp import reference_search
+    from goodearth_mcp.reference_search import Found, Source
+
+    page = "https://www.allaboutbirds.org/guide/Red-tailed_Hawk/lifehistory"
+    used = []
+
+    async def sources_for(search_key, **kw):
+        return Found(sources=(Source(page, "AAB", ("Courtship from February.",)),), queries=2) \
+            if found else Found()
+
+    async def ask(api_key, user, edit=False, model="writer"):
+        used.append(model)
+        return reply(HAWK)
+    monkeypatch.setattr(reference_search, "sources_for", sources_for)
+    monkeypatch.setattr(life_cycle, "ask", ask)
+    look(subject="animal", taxon_id=5212, scientific_name="Buteo jamaicensis",
+         edit_model="google/gemini-2.5-flash", search_model="x-ai/grok-4.5")
+    assert used == [model]
+
+
+def test_the_runtime_declares_the_reference_models_and_the_growers_settings():
+    assert set(server.runtime.operator_properties) == {"reference_edit_model", "reference_search_model"}
+    assert {"units", "chart_order", "sell_cents", "bees", "theme", "timezone", "tour"} \
+        <= set(server.runtime.patron_properties)
+    assert server.runtime.operator_properties["reference_edit_model"].default == "writer"

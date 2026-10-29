@@ -12,6 +12,8 @@ import logging
 from datetime import UTC, date, datetime
 from typing import Any
 
+from tollbooth.llm_route import TIER_WRITER
+
 from goodearth_mcp import plant_profile, reference_search, reference_store
 from goodearth_mcp.plant_profile import ProfileError
 from goodearth_mcp.planting_window import PlantingWindowError, region_heat_for_days
@@ -30,6 +32,7 @@ def southern(months: list[int] | None, lat: float) -> list[int] | None:
 async def profile_for(
     *, api_key: str, taxon_id: int | None, scientific_name: str, common_name: str,
     text: str, today: date, search_key: str = "",
+    edit_model: str = TIER_WRITER, search_model: str = TIER_WRITER,
 ) -> tuple[dict[str, Any], bool]:
     """The kept profile for this plant, or a fresh one. True when it was kept."""
     key = plant_profile.cache_key(taxon_id=taxon_id, scientific_name=scientific_name,
@@ -46,7 +49,8 @@ async def profile_for(
         edit = bool(sources.sources)
         data = await plant_profile.ask(api_key, plant_profile.prompt_for(
             taxon_id=taxon_id, scientific_name=scientific_name, common_name=common_name, text=text,
-        ) + reference_search.prompt_block(sources), edit=edit)
+        ) + reference_search.prompt_block(sources), edit=edit,
+            model=edit_model if edit else search_model)
         profile = plant_profile.validate(plant_profile.answer_text(data),
                                          given=sources.urls if edit else None)
         profile["looked_up_on"] = today.isoformat()
@@ -62,6 +66,8 @@ async def block_plant_profile(
     api_key: str,
     plot_base_f: float,
     search_key: str = "",
+    edit_model: str = TIER_WRITER,
+    search_model: str = TIER_WRITER,
     taxon_id: int | None = None,
     scientific_name: str = "",
     common_name: str = "",
@@ -73,7 +79,8 @@ async def block_plant_profile(
     today = today or datetime.now(UTC).date()
     profile, kept = await profile_for(
         api_key=api_key, taxon_id=taxon_id, scientific_name=scientific_name,
-        common_name=common_name, text=text, today=today, search_key=search_key)
+        common_name=common_name, text=text, today=today, search_key=search_key,
+        edit_model=edit_model, search_model=search_model)
 
     here: dict[str, Any] = {
         "bloom_months": southern(profile.get("bloom_months"), region.centroid.lat),

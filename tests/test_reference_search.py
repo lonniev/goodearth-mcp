@@ -125,7 +125,7 @@ def test_with_no_searches_the_llm_is_given_no_tools(monkeypatch):
 def test_an_edit_asks_without_search_on_its_own_prompt(monkeypatch):
     calls = []
 
-    async def ask(api_key, *, system, user, max_tokens, searches):
+    async def ask(api_key, *, system, user, max_tokens, searches, model="writer"):
         calls.append((system, searches))
         return {}
     monkeypatch.setattr(llm_answer, "ask", ask)
@@ -180,3 +180,19 @@ def test_an_edited_life_cycle_cites_only_its_given_pages(given, kept):
     from tests.test_life_cycle import HAWK
     out = life_cycle.validate(json.dumps(HAWK), "animal", given=given)
     assert [e["name"] for e in out["events"]] == kept
+
+
+def test_the_model_asked_for_is_the_model_sent(monkeypatch):
+    sent = []
+
+    def handler(request):
+        sent.append(json.loads(request.content)["model"])
+        return httpx.Response(200, json={"content": []})
+    real = httpx.AsyncClient
+    monkeypatch.setattr(llm_answer.httpx, "AsyncClient",
+                        lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
+    monkeypatch.delenv("TOLLBOOTH_LLM_MODEL_WRITER", raising=False)
+    asyncio.run(llm_answer.ask("k", system="s", user="u", max_tokens=10, searches=0,
+                               model="google/gemini-2.5-flash"))
+    asyncio.run(llm_answer.ask("k", system="s", user="u", max_tokens=10, searches=0))
+    assert sent == ["google/gemini-2.5-flash", "x-ai/grok-4.5"]
