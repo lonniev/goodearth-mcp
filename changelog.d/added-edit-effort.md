@@ -1,0 +1,1 @@
+- The operator may bound how long the edit model reasons before it answers — `reference_edit_effort` (default, none, minimal, low, medium, high), sent as the Messages API's `output_config.effort`. `default` sends nothing, so nothing changes until it is set. The search-for-itself fallback is never bounded.

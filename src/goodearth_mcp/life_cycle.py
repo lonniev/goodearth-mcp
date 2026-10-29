@@ -143,13 +143,15 @@ def prompt_for(*, subject: str, taxon_id: int | None, scientific_name: str,
 
 
 async def ask(api_key: str, user: str, *, edit: bool = False,
-              model: str = TIER_WRITER) -> dict[str, Any]:
+              model: str = TIER_WRITER, effort: str = "default") -> dict[str, Any]:
     """One generation, and the raw JSON it answered with. It searches the web
     itself, or with ``edit`` reads only the sources the user turn carries.
-    ``model`` is the operator's choice for that mode."""
+    ``model`` is the operator's choice for that mode; ``effort`` bounds an
+    edit's reasoning."""
     if edit:
         return await llm_answer.ask(api_key, system=SYSTEM_EDIT, user=user,
-                                    max_tokens=llm_answer.MAX_TOKENS, searches=0, model=model)
+                                    max_tokens=llm_answer.MAX_TOKENS, searches=0, model=model,
+                                    effort=effort)
     return await llm_answer.ask(api_key, system=SYSTEM, user=user, max_tokens=llm_answer.MAX_TOKENS,
                                 searches=llm_answer.MAX_SEARCHES, model=model)
 

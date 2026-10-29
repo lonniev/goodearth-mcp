@@ -58,17 +58,26 @@ class AnswerError(ValueError):
     """The reference could not answer. A ValueError, so a paid call refunds."""
 
 
+#: Reasoning effort a caller may ask for; ``default`` sends nothing, so the
+#: model reasons as it always has.
+EFFORTS = ("default", "none", "minimal", "low", "medium", "high")
+
+
 async def ask(api_key: str, *, system: str, user: str, max_tokens: int,
-              searches: int, model: str = TIER_WRITER) -> dict[str, Any]:
+              searches: int, model: str = TIER_WRITER, effort: str = "default") -> dict[str, Any]:
     """One generation, and the raw JSON it answered with. With ``searches`` 0 it
     may not search: it edits the sources the user turn carries. ``model`` is a
-    tier or a slug — the operator's property for this use."""
+    tier or a slug — the operator's property for this use. ``effort`` bounds
+    how long the model reasons before it answers (the Messages API's
+    ``output_config.effort``; OpenRouter maps it for every model)."""
     route = resolve_route(api_key=api_key, model=model_for(model))
     req = build_messages_request(
         route, system=system, user=user, max_tokens=max_tokens,
         tools=[web_search_tool(searches)] if searches > 0 else None,
         timeout_seconds=TIMEOUT_S, timeout_max_seconds=TIMEOUT_S,
     )
+    if effort in EFFORTS and effort != "default":
+        req["json"]["output_config"] = {"effort": effort}
     async with httpx.AsyncClient(timeout=req["timeout"]) as client:
         resp = await client.post(req["url"], headers=req["headers"], json=req["json"])
     if resp.status_code >= 400:

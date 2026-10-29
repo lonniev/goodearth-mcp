@@ -125,7 +125,7 @@ def test_with_no_searches_the_llm_is_given_no_tools(monkeypatch):
 def test_an_edit_asks_without_search_on_its_own_prompt(monkeypatch):
     calls = []
 
-    async def ask(api_key, *, system, user, max_tokens, searches, model="writer"):
+    async def ask(api_key, *, system, user, max_tokens, searches, model="writer", effort="default"):
         calls.append((system, searches))
         return {}
     monkeypatch.setattr(llm_answer, "ask", ask)
@@ -210,7 +210,7 @@ def test_an_answer_cut_off_is_said_plainly():
 def test_both_lookups_leave_room_for_a_model_that_thinks(monkeypatch):
     asked = []
 
-    async def ask(api_key, *, system, user, max_tokens, searches, model="writer"):
+    async def ask(api_key, *, system, user, max_tokens, searches, model="writer", effort="default"):
         asked.append(max_tokens)
         return {}
     monkeypatch.setattr(llm_answer, "ask", ask)
@@ -233,3 +233,19 @@ def test_a_generation_may_take_minutes(monkeypatch):
     monkeypatch.setattr(llm_answer.httpx, "AsyncClient", client)
     asyncio.run(llm_answer.ask("k", system="s", user="u", max_tokens=10, searches=0))
     assert seen and seen[0] >= 300
+
+
+@pytest.mark.parametrize("effort,sent", [("default", None), ("low", {"effort": "low"}),
+                                         ("none", {"effort": "none"}), ("bogus", None)])
+def test_reasoning_effort_is_sent_only_when_chosen(monkeypatch, effort, sent):
+    bodies = []
+
+    def handler(request):
+        bodies.append(json.loads(request.content))
+        return httpx.Response(200, json={"content": []})
+    real = httpx.AsyncClient
+    monkeypatch.setattr(llm_answer.httpx, "AsyncClient",
+                        lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
+    asyncio.run(llm_answer.ask("k", system="s", user="u", max_tokens=10, searches=0, effort=effort))
+    assert bodies[0].get("output_config") == sent
+

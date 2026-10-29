@@ -33,6 +33,7 @@ async def profile_for(
     *, api_key: str, taxon_id: int | None, scientific_name: str, common_name: str,
     text: str, today: date, search_key: str = "",
     edit_model: str = TIER_WRITER, search_model: str = TIER_WRITER,
+    edit_effort: str = "default",
 ) -> tuple[dict[str, Any], bool]:
     """The kept profile for this plant, or a fresh one. True when it was kept."""
     key = plant_profile.cache_key(taxon_id=taxon_id, scientific_name=scientific_name,
@@ -51,7 +52,8 @@ async def profile_for(
         data = await steps.run("generation", plant_profile.ask(api_key, plant_profile.prompt_for(
             taxon_id=taxon_id, scientific_name=scientific_name, common_name=common_name, text=text,
         ) + reference_search.prompt_block(sources), edit=edit,
-            model=edit_model if edit else search_model))
+            model=edit_model if edit else search_model,
+            effort=edit_effort if edit else "default"))
         profile = plant_profile.validate(plant_profile.answer_text(data),
                                          given=sources.urls if edit else None)
         profile["looked_up_on"] = today.isoformat()
@@ -69,6 +71,7 @@ async def block_plant_profile(
     search_key: str = "",
     edit_model: str = TIER_WRITER,
     search_model: str = TIER_WRITER,
+    edit_effort: str = "default",
     taxon_id: int | None = None,
     scientific_name: str = "",
     common_name: str = "",
@@ -81,7 +84,7 @@ async def block_plant_profile(
     profile, kept = await profile_for(
         api_key=api_key, taxon_id=taxon_id, scientific_name=scientific_name,
         common_name=common_name, text=text, today=today, search_key=search_key,
-        edit_model=edit_model, search_model=search_model)
+        edit_model=edit_model, search_model=search_model, edit_effort=edit_effort)
 
     here: dict[str, Any] = {
         "bloom_months": southern(profile.get("bloom_months"), region.centroid.lat),
