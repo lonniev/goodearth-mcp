@@ -217,3 +217,19 @@ def test_both_lookups_leave_room_for_a_model_that_thinks(monkeypatch):
     for m in (life_cycle, plant_profile):
         asyncio.run(m.ask("k", "u", edit=True))
     assert asked == [llm_answer.MAX_TOKENS] * 2 and llm_answer.MAX_TOKENS >= 12_000
+
+
+def test_a_generation_may_take_minutes(monkeypatch):
+    """2026-10-29: a reasoning model ran past the old 90 s ceiling every time."""
+    seen = []
+
+    def handler(request):
+        return httpx.Response(200, json={"content": []})
+    real = httpx.AsyncClient
+
+    def client(**kw):
+        seen.append(kw["timeout"])
+        return real(transport=httpx.MockTransport(handler), **kw)
+    monkeypatch.setattr(llm_answer.httpx, "AsyncClient", client)
+    asyncio.run(llm_answer.ask("k", system="s", user="u", max_tokens=10, searches=0))
+    assert seen and seen[0] >= 300
