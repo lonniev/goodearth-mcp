@@ -17,7 +17,16 @@ from typing import Any
 
 from tollbooth.llm_route import TIER_WRITER
 
-from goodearth_mcp import biota, catalog, gdd, life_cycle, planting, reference_search, reference_store
+from goodearth_mcp import (
+    biota,
+    catalog,
+    gdd,
+    life_cycle,
+    llm_answer,
+    planting,
+    reference_search,
+    reference_store,
+)
 from goodearth_mcp.life_cycle import LifeCycleError
 from goodearth_mcp.planting_window import PlantingWindowError, air_record, frost_season
 from goodearth_mcp.region import Region
@@ -114,22 +123,23 @@ async def block_life_cycle(
             raise LifeCycleError("This service has no reference configured yet.")
         # Our own search first; the LLM edits what it found. Without a search key,
         # or with nothing found, the LLM searches for itself.
-        sources = await reference_search.sources_for(
+        steps = llm_answer.Steps(key)
+        sources = await steps.run("search", reference_search.sources_for(
             search_key, subject=subject, scientific_name=scientific_name,
-            common_name=common_name, text=text)
+            common_name=common_name, text=text))
         user = life_cycle.prompt_for(
             subject=subject, taxon_id=taxon_id, scientific_name=scientific_name,
             common_name=common_name, text_typed=text, lat=lat,
-            phenophases=await _phenophases(scientific_name),
-            observed_by_month=await _seen_by_month(subject, taxon_id, region),
+            phenophases=await steps.run("phenophases", _phenophases(scientific_name)),
+            observed_by_month=await steps.run("sightings", _seen_by_month(subject, taxon_id, region)),
         ) + reference_search.prompt_block(sources)
         edit = bool(sources.sources)
-        data = await life_cycle.ask(api_key, user, edit=edit,
-                                    model=edit_model if edit else search_model)
+        data = await steps.run("generation", life_cycle.ask(
+            api_key, user, edit=edit, model=edit_model if edit else search_model))
         found = life_cycle.validate(life_cycle.answer_text(data), subject,
                                     given=sources.urls if edit else None)
         found["looked_up_on"] = today.isoformat()
-        found["looked_up_with"] = reference_search.spent(data, sources)
+        found["looked_up_with"] = reference_search.spent(data, sources, steps)
         return found, str(data.get("model") or "")
 
     found, kept = await reference_store.remember(key, fetch)

@@ -14,7 +14,7 @@ from typing import Any
 
 from tollbooth.llm_route import TIER_WRITER
 
-from goodearth_mcp import plant_profile, reference_search, reference_store
+from goodearth_mcp import llm_answer, plant_profile, reference_search, reference_store
 from goodearth_mcp.plant_profile import ProfileError
 from goodearth_mcp.planting_window import PlantingWindowError, region_heat_for_days
 from goodearth_mcp.region import Region
@@ -43,18 +43,19 @@ async def profile_for(
             raise ProfileError("This service has no plant reference configured yet.")
         # Our own search first; the LLM edits what it found. Without a search key,
         # or with nothing found, the LLM searches for itself.
-        sources = await reference_search.sources_for(
+        steps = llm_answer.Steps(key)
+        sources = await steps.run("search", reference_search.sources_for(
             search_key, subject="plant", scientific_name=scientific_name,
-            common_name=common_name, text=text)
+            common_name=common_name, text=text))
         edit = bool(sources.sources)
-        data = await plant_profile.ask(api_key, plant_profile.prompt_for(
+        data = await steps.run("generation", plant_profile.ask(api_key, plant_profile.prompt_for(
             taxon_id=taxon_id, scientific_name=scientific_name, common_name=common_name, text=text,
         ) + reference_search.prompt_block(sources), edit=edit,
-            model=edit_model if edit else search_model)
+            model=edit_model if edit else search_model))
         profile = plant_profile.validate(plant_profile.answer_text(data),
                                          given=sources.urls if edit else None)
         profile["looked_up_on"] = today.isoformat()
-        profile["looked_up_with"] = reference_search.spent(data, sources)
+        profile["looked_up_with"] = reference_search.spent(data, sources, steps)
         return profile, str(data.get("model") or "")
 
     return await reference_store.remember(key, fetch)
