@@ -628,7 +628,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.16.0" },
     { name = "shapely", specifier = "==2.2.0" },
     { name = "tifffile", specifier = ">=2024.8.30" },
-    { name = "tollbooth-dpyc", extras = ["nostr"], specifier = "==0.108.0" },
+    { name = "tollbooth-dpyc", extras = ["nostr"], specifier = "==0.108.1" },
     { name = "zstandard", marker = "python_full_version < '3.14'", specifier = ">=0.22" },
 ]
 provides-extras = ["dev"]
@@ -1645,16 +1645,16 @@ sdist = { url = "https://files.pythonhosted.org/packages/bb/89/6df40b0c5fd9a1c30
 
 [[package]]
 name = "tollbooth-dpyc"
-version = "0.108.0"
+version = "0.108.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
     { name = "httpx" },
     { name = "pynostr" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ed/24/d0531fba06a9e437e1b962ed387fb46e1750107f15864932b3bae3387636/tollbooth_dpyc-0.108.0.tar.gz", hash = "sha256:172f153afe0a61f0f55e3e43aee8e3f3c6f4fe47eb0b6ceb3c85b5bf4f07c1ea", size = 2921693, upload-time = "2026-10-29T16:26:20.279Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/13/35/aecd505a842feac624795e42be44a5cfc8ab48debf3b9d1803d6d4f85638/tollbooth_dpyc-0.108.1.tar.gz", hash = "sha256:c3b132f2fa430d89bf8f56dc5bff37e46f2836c4bc3cfdb15dc28107c9385262", size = 2922159, upload-time = "2026-10-29T17:07:07.639Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fc/1a/9913dfbb5f33fa19cde2604bc5bdc183137f498b37372b0b0777bc6af0b8/tollbooth_dpyc-0.108.0-py3-none-any.whl", hash = "sha256:907937ebf98ef14e9189ac990f18e3c9dd2f73705e892ea6d3995c70810d25a3", size = 492234, upload-time = "2026-10-29T16:26:18.273Z" },
+    { url = "https://files.pythonhosted.org/packages/91/5c/94a8ce29e272fc65f9dad870b5e66dfa5a81bbdb6992db5b805faa4199d5/tollbooth_dpyc-0.108.1-py3-none-any.whl", hash = "sha256:498a3e29cd79da65c44496b61862582e084352c758220779bdcd1ca1e4ad6c4e", size = 492344, upload-time = "2026-10-29T17:07:05.513Z" },
 ]
 
 [package.optional-dependencies]
