@@ -180,6 +180,9 @@ mcp = FastMCP(
         "what a kWh sells for in a block's state\n"
         "   - llm_api_key, optional: the LLM route's key, so goodearth_plant_profile "
         "and goodearth_life_cycle can look a plant, pest or animal up\n"
+        "   - brave_search_api_key, optional: a Brave Search API key "
+        "(https://brave.com/search/api/), so those lookups search trusted sites "
+        "first and the LLM only edits what was found\n"
         "   Call goodearth_request_credential_channel to start.\n\n"
         "## Pricing\n"
         "Tool prices are set dynamically by the operator's pricing model. Use "
@@ -607,6 +610,14 @@ runtime = OperatorRuntime(
                     "Optional. The LLM route's API key (the fleet's OpenRouter account), so picking a "
                     "plant fills its heat target, height, colour and bloom months, and picking any "
                     "subject offers its life cycle to track. Without it the grower types them."
+                ),
+            ),
+            "brave_search_api_key": FieldSpec(
+                required=False, sensitive=True, lifecycle="dynamic",
+                description=(
+                    "Optional. A Brave Search API key (https://brave.com/search/api/), so a "
+                    "plant or life-cycle lookup reads trusted sites first and the LLM only "
+                    "edits what was found — far fewer tokens. Without it the LLM searches."
                 ),
             ),
         },
@@ -3177,10 +3188,11 @@ async def plant_profile(
     parsed, found = await _block_region(npub, block)
     # The operator's key, read here and handed down; it reaches no log, no
     # answer and no error message.
-    keys = await runtime.load_credentials(["llm_api_key"])
+    keys = await runtime.load_credentials(["llm_api_key", "brave_search_api_key"])
     try:
         return await plant_profile_impl(
             parsed, api_key=keys.get("llm_api_key", ""),
+            search_key=keys.get("brave_search_api_key", ""),
             plot_base_f=float(found.get("base_temp_f") or 50.0),
             taxon_id=taxon_id or None, out_on=out_on, scientific_name=names["scientific_name"],
             common_name=names["common_name"], text=names["text"],
@@ -3283,10 +3295,11 @@ async def life_cycle(
     parsed, found = await _block_region(npub, block)
     # The operator's key, read here and handed down; it reaches no log, no
     # answer and no error message.
-    keys = await runtime.load_credentials(["llm_api_key"])
+    keys = await runtime.load_credentials(["llm_api_key", "brave_search_api_key"])
     try:
         return await life_cycle_impl(
             parsed, api_key=keys.get("llm_api_key", ""), subject=kind,
+            search_key=keys.get("brave_search_api_key", ""),
             taxon_id=taxon_id or None, plot_base_f=float(found.get("base_temp_f") or 50.0),
             out_on=out_on, scientific_name=names["scientific_name"],
             common_name=names["common_name"], text=names["text"],

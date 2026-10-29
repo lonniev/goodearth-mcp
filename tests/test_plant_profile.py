@@ -152,7 +152,7 @@ def world(monkeypatch):
         kept[key] = profile
         age[key] = 0.0
 
-    async def ask(api_key, user):
+    async def ask(api_key, user, edit=False):
         asked.append(user)
         return reply(PUMPKIN)
 
@@ -181,7 +181,7 @@ def test_a_published_figure_wins_at_its_own_base(world, monkeypatch):
     stated = {**PUMPKIN, "published_gdd": {"gdd": 1234, "base_f": 55, "stage": "harvest",
                                            "source_url": "https://x.edu/p"}}
 
-    async def ask(api_key, user):
+    async def ask(api_key, user, edit=False):
         return reply(stated)
     monkeypatch.setattr(plant_profile, "ask", ask)
     here = look()["on_this_plot"]
@@ -283,7 +283,7 @@ def test_a_failed_renewal_still_answers_with_the_kept_profile(world, monkeypatch
     look()
     age["profile:taxon:48927"] = reference_store.FRESH_DAYS + 1
 
-    async def down(api_key, user):
+    async def down(api_key, user, edit=False):
         raise ProfileError("The plant reference did not answer (HTTP 503).")
     monkeypatch.setattr(plant_profile, "ask", down)
     out = look()
@@ -369,3 +369,29 @@ def test_the_refresh_lets_go_of_the_row_a_lookup_returned(monkeypatch):
 def test_the_refresh_refuses_a_key_no_lookup_returns(key):
     with pytest.raises(ValueError):
         asyncio.run(_bare(server.reference_refresh)(key=key, npub="npub1x"))
+
+
+def test_found_sources_are_edited_without_search(world, monkeypatch):
+    from goodearth_mcp import reference_search
+    from goodearth_mcp.reference_search import Found, Source
+
+    kept, _asked, _age = world
+    page = "https://extension.umn.edu/vegetables/pumpkins"
+    modes = []
+
+    async def sources_for(search_key, **kw):
+        assert kw["subject"] == "plant"
+        return Found(sources=(Source(page, "UMN Extension", ("Pumpkins mature in 90–120 days.",)),),
+                     queries=2)
+
+    async def ask(api_key, user, edit=False):
+        modes.append(edit)
+        assert "90–120 days" in user
+        return reply(PUMPKIN)
+    monkeypatch.setattr(reference_search, "sources_for", sources_for)
+    monkeypatch.setattr(plant_profile, "ask", ask)
+
+    out = look(search_key="brave-k")
+    assert modes == [True]
+    assert out["profile"]["sources"] == [{"title": "UMN Extension", "url": page}]
+    assert kept["profile:taxon:48927"]["looked_up_with"]["mode"] == "edit"

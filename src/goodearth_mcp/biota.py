@@ -133,6 +133,36 @@ async def fetch_taxa(ids: list[int] | set[int]) -> dict[int, dict[str, Any]]:
     return out
 
 
+# ── When a species is seen ───────────────────────────────────────────────
+
+_INAT_HISTOGRAM = "https://api.inaturalist.org/v1/observations/histogram"
+
+
+async def fetch_month_histogram(taxon_id: int, lat: float, lon: float,
+                                radius_km: float) -> dict[int, int]:
+    """Research-grade-eligible observations of one taxon within ``radius_km``,
+    by month of the year, all years together. ``{1: n, …, 12: n}``.
+
+    When a bird is seen, or a puffball, is not a stage — but a month with no
+    observations near here is evidence a stage is not then, and the LLM is
+    told so in those words.
+    """
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        data = await _json(client, _INAT_HISTOGRAM, {
+            "taxon_id": int(taxon_id), "lat": round(lat, 3), "lng": round(lon, 3),
+            "radius": round(radius_km), "interval": "month_of_year",
+            "date_field": "observed", "verifiable": "true",
+        })
+    months = (data.get("results") or {}).get("month_of_year") if isinstance(data, dict) else None
+    if not isinstance(months, dict):
+        raise BiotaError("iNaturalist returned an unexpected histogram")
+    out = {}
+    for m in range(1, 13):
+        n = months.get(str(m), months.get(m))
+        out[m] = n if isinstance(n, int) and not isinstance(n, bool) and n >= 0 else 0
+    return out
+
+
 # ── Observed species ─────────────────────────────────────────────────────
 
 

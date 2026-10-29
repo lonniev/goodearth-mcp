@@ -12,7 +12,7 @@ import logging
 from datetime import UTC, date, datetime
 from typing import Any
 
-from goodearth_mcp import llm_answer, plant_profile, reference_store
+from goodearth_mcp import plant_profile, reference_search, reference_store
 from goodearth_mcp.plant_profile import ProfileError
 from goodearth_mcp.planting_window import PlantingWindowError, region_heat_for_days
 from goodearth_mcp.region import Region
@@ -29,7 +29,7 @@ def southern(months: list[int] | None, lat: float) -> list[int] | None:
 
 async def profile_for(
     *, api_key: str, taxon_id: int | None, scientific_name: str, common_name: str,
-    text: str, today: date,
+    text: str, today: date, search_key: str = "",
 ) -> tuple[dict[str, Any], bool]:
     """The kept profile for this plant, or a fresh one. True when it was kept."""
     key = plant_profile.cache_key(taxon_id=taxon_id, scientific_name=scientific_name,
@@ -38,11 +38,19 @@ async def profile_for(
     async def fetch() -> tuple[dict[str, Any], str]:
         if not api_key:
             raise ProfileError("This service has no plant reference configured yet.")
+        # Our own search first; the LLM edits what it found. Without a search key,
+        # or with nothing found, the LLM searches for itself.
+        sources = await reference_search.sources_for(
+            search_key, subject="plant", scientific_name=scientific_name,
+            common_name=common_name, text=text)
+        edit = bool(sources.sources)
         data = await plant_profile.ask(api_key, plant_profile.prompt_for(
-            taxon_id=taxon_id, scientific_name=scientific_name, common_name=common_name, text=text))
-        profile = plant_profile.validate(plant_profile.answer_text(data))
+            taxon_id=taxon_id, scientific_name=scientific_name, common_name=common_name, text=text,
+        ) + reference_search.prompt_block(sources), edit=edit)
+        profile = plant_profile.validate(plant_profile.answer_text(data),
+                                         given=sources.urls if edit else None)
         profile["looked_up_on"] = today.isoformat()
-        profile["looked_up_with"] = llm_answer.usage_of(data)
+        profile["looked_up_with"] = reference_search.spent(data, sources)
         return profile, str(data.get("model") or "")
 
     return await reference_store.remember(key, fetch)
@@ -53,6 +61,7 @@ async def block_plant_profile(
     *,
     api_key: str,
     plot_base_f: float,
+    search_key: str = "",
     taxon_id: int | None = None,
     scientific_name: str = "",
     common_name: str = "",
@@ -64,7 +73,7 @@ async def block_plant_profile(
     today = today or datetime.now(UTC).date()
     profile, kept = await profile_for(
         api_key=api_key, taxon_id=taxon_id, scientific_name=scientific_name,
-        common_name=common_name, text=text, today=today)
+        common_name=common_name, text=text, today=today, search_key=search_key)
 
     here: dict[str, Any] = {
         "bloom_months": southern(profile.get("bloom_months"), region.centroid.lat),
