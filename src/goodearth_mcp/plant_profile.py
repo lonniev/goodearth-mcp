@@ -99,7 +99,7 @@ def prompt_for(*, taxon_id: int | None, scientific_name: str, common_name: str, 
 
 
 async def ask(api_key: str, user: str, *, edit: bool = False,
-              model: str = TIER_WRITER, effort: str = "default") -> dict[str, Any]:
+              model: str = TIER_WRITER, effort: str = "low") -> dict[str, Any]:
     """One generation, and the raw JSON it answered with. It searches the web
     itself, or with ``edit`` reads only the sources the user turn carries.
     ``model`` is the operator's choice for that mode; ``effort`` bounds an

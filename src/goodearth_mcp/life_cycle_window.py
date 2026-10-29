@@ -11,6 +11,7 @@ events are dated as the Fauna page dates them (`wildlife_window`).
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import UTC, date, datetime
 from typing import Any
@@ -35,15 +36,21 @@ from goodearth_mcp.wildlife_window import WildlifeWindowError, region_wildlife
 logger = logging.getLogger(__name__)
 
 
+#: How long USA-NPN's stage names may hold a lookup. Measured 2026-10-29: 0.3–1.7 s
+#: as a rule, 28 s once for the Japanese beetle.
+PHENOPHASES_S = 5.0
+
+
 async def _phenophases(scientific_name: str) -> list[str]:
     """The stages USA-NPN names for this species, to align the answer's words.
-    A courtesy: nothing depends on it, so a failure is an empty list."""
+    A courtesy: nothing depends on it, so a failure or a slow answer is an
+    empty list."""
     if not scientific_name:
         return []
     try:
-        rows = await catalog.species_phenophases([scientific_name])
-    except Exception as exc:  # noqa: BLE001
-        logger.info("NPN phenophases unavailable: %s", exc)
+        rows = await asyncio.wait_for(catalog.species_phenophases([scientific_name]), PHENOPHASES_S)
+    except Exception as exc:  # noqa: BLE001 — TimeoutError included
+        logger.info("NPN phenophases unavailable: %s", type(exc).__name__)
         return []
     return list((rows[0].get("habits") or []) if rows else [])
 
@@ -104,7 +111,7 @@ async def block_life_cycle(
     search_key: str = "",
     edit_model: str = TIER_WRITER,
     search_model: str = TIER_WRITER,
-    edit_effort: str = "default",
+    edit_effort: str = "low",
     taxon_id: int | None = None,
     scientific_name: str = "",
     common_name: str = "",

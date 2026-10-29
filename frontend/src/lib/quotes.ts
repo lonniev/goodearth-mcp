@@ -33,6 +33,11 @@ export const AGRARIAN_QUOTES: ReadonlyArray<Quote> = [
 /// tradition of the field study, going out and looking closely. The corpus,
 /// with how each line was checked, is `quotes-naturalist.json` in the
 /// dpyc-community registry; this copy shows at once and when it cannot be read.
+/// What a grower reads while a first lookup runs. True by construction: the
+/// service gives the edit at most 90 s (`llm_answer.TIMEOUT_S`).
+export const RESEARCH_WAIT =
+  "Our Research Assistant has your question and takes under 90 seconds to get the facts. Be patient.";
+
 export const NATURALIST_SOURCE =
   "https://raw.githubusercontent.com/lonniev/dpyc-community/main/quotes-naturalist.json";
 

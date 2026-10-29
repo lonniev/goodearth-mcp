@@ -33,7 +33,7 @@ async def profile_for(
     *, api_key: str, taxon_id: int | None, scientific_name: str, common_name: str,
     text: str, today: date, search_key: str = "",
     edit_model: str = TIER_WRITER, search_model: str = TIER_WRITER,
-    edit_effort: str = "default",
+    edit_effort: str = "low",
 ) -> tuple[dict[str, Any], bool]:
     """The kept profile for this plant, or a fresh one. True when it was kept."""
     key = plant_profile.cache_key(taxon_id=taxon_id, scientific_name=scientific_name,
@@ -71,7 +71,7 @@ async def block_plant_profile(
     search_key: str = "",
     edit_model: str = TIER_WRITER,
     search_model: str = TIER_WRITER,
-    edit_effort: str = "default",
+    edit_effort: str = "low",
     taxon_id: int | None = None,
     scientific_name: str = "",
     common_name: str = "",

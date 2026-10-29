@@ -32,12 +32,11 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
-#: How long one generation may take. A model that reasons first is slow: grok-4.5
-#: took about 83 s for a hawk, and a free Nemotron with room to think ran past
-#: the old 90 s ceiling every time, so each attempt was abandoned unanswered
-#: (2026-10-29). Each subject is looked up once and kept, so waiting for it is
-#: cheaper than asking again.
-TIMEOUT_S = 300.0
+#: How long one generation may take. Measured 2026-10-29 at low reasoning
+#: effort: the robin, the eggplant and the Japanese beetle each took 16–21 s;
+#: at the model's default effort a bluebird took 132 s. Sized from the first,
+#: with room for a slow provider: a lookup that needs more is thinking too long.
+TIMEOUT_S = 90.0
 
 #: Web searches one reference lookup may make. Sampled 2026-10-28 on a common
 #: bird and an obscure fungus: two or three searches found everything there
@@ -46,12 +45,11 @@ TIMEOUT_S = 300.0
 MAX_SEARCHES = 3
 
 
-#: Output tokens one answer may take, thinking included. A reasoning model
-#: thinks before it answers, and its thinking counts here: on 2026-10-29 a free
-#: Nemotron spent all of a 3,000-token cap thinking and stopped ("length")
-#: before writing a word. A model stops when it is done, so the cap is a
-#: ceiling, not a spend: grok-4.5 took about 4,900 for a hawk.
-MAX_TOKENS = 12_000
+#: Output tokens one answer may take, thinking included. Measured 2026-10-29
+#: at low reasoning effort: 1,047–1,598; at default effort a bluebird took
+#: 7,538 and a free Nemotron filled 12,000 without answering. A ceiling sized
+#: from the first, two and a half times the largest.
+MAX_TOKENS = 4_000
 
 
 class AnswerError(ValueError):

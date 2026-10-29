@@ -207,20 +207,22 @@ def test_an_answer_cut_off_is_said_plainly():
         llm_answer.tagged({"stop_reason": "end_turn", "content": []}, "lifecycle")
 
 
-def test_both_lookups_leave_room_for_a_model_that_thinks(monkeypatch):
+def test_both_lookups_ask_within_the_measured_ceiling_at_low_effort(monkeypatch):
+    """Sized 2026-10-29 from low-effort lookups: 1,047–1,598 output tokens."""
     asked = []
 
     async def ask(api_key, *, system, user, max_tokens, searches, model="writer", effort="default"):
-        asked.append(max_tokens)
+        asked.append((max_tokens, effort))
         return {}
     monkeypatch.setattr(llm_answer, "ask", ask)
     for m in (life_cycle, plant_profile):
         asyncio.run(m.ask("k", "u", edit=True))
-    assert asked == [llm_answer.MAX_TOKENS] * 2 and llm_answer.MAX_TOKENS >= 12_000
+    assert asked == [(llm_answer.MAX_TOKENS, "low")] * 2
+    assert 1_598 * 2 <= llm_answer.MAX_TOKENS <= 6_000
 
 
-def test_a_generation_may_take_minutes(monkeypatch):
-    """2026-10-29: a reasoning model ran past the old 90 s ceiling every time."""
+def test_a_generation_is_given_the_measured_time(monkeypatch):
+    """Sized 2026-10-29: low-effort edits took 16–21 s; 90 s is four times that."""
     seen = []
 
     def handler(request):
@@ -232,7 +234,7 @@ def test_a_generation_may_take_minutes(monkeypatch):
         return real(transport=httpx.MockTransport(handler), **kw)
     monkeypatch.setattr(llm_answer.httpx, "AsyncClient", client)
     asyncio.run(llm_answer.ask("k", system="s", user="u", max_tokens=10, searches=0))
-    assert seen and seen[0] >= 300
+    assert seen and 60 <= seen[0] <= 120
 
 
 @pytest.mark.parametrize("effort,sent", [("default", None), ("low", {"effort": "low"}),
