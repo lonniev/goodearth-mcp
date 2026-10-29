@@ -1,0 +1,2 @@
+- A plant or life-cycle lookup already under way is shared: asking again while it runs waits for it instead of paying for a second generation, and a caller who gives up no longer stops it from being kept.
+- `looked_up_with.input_tokens` counts the provider's prompt-cache reads and writes too, as billed; `cached_input_tokens` says how many were cached.

@@ -22,6 +22,7 @@ learned.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import random
@@ -176,10 +177,42 @@ async def drop(key: str) -> bool:
     return int(r.get("rowCount") or r.get("rowcount") or 0) > 0
 
 
+#: Lookups under way, by key. A lookup takes a minute or more — the model reasons
+#: before it answers — and a caller who gives up and asks again, or a second
+#: grower picking the same hawk, would otherwise pay for a second identical one.
+#: 2026-10-29: a timed-out call and its retry made two generations a minute apart.
+_inflight: dict[str, asyncio.Task[tuple[dict[str, Any], bool]]] = {}
+
+
+def _forget(key: str, task: asyncio.Task[Any]) -> None:
+    """Drop a finished lookup, and read its failure so nobody logs it later."""
+    _inflight.pop(key, None)
+    if not task.cancelled():
+        task.exception()
+
+
 async def remember(
     key: str, fetch: Callable[[], Awaitable[tuple[dict[str, Any], str]]],
 ) -> tuple[dict[str, Any], bool]:
     """The kept answer for ``key``, or a fresh one from ``fetch``. True when kept.
+
+    One lookup per key at a time: a caller asking for one already under way
+    waits on it, and gets the same answer or the same failure. Shielded, so a
+    caller who walks away does not cancel it — it finishes and is kept for the
+    next ask.
+    """
+    task = _inflight.get(key)
+    if task is None:
+        task = asyncio.create_task(_remember_now(key, fetch))
+        _inflight[key] = task
+        task.add_done_callback(lambda t, k=key: _forget(k, t))
+    return await asyncio.shield(task)
+
+
+async def _remember_now(
+    key: str, fetch: Callable[[], Awaitable[tuple[dict[str, Any], str]]],
+) -> tuple[dict[str, Any], bool]:
+    """One caller's lookup.
 
     A kept answer that has come due (`due`) is looked up again; if that fails,
     the kept one is still the better answer than none. ``fetch`` returns the

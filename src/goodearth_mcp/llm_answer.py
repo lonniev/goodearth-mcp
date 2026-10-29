@@ -79,10 +79,16 @@ def usage_of(data: dict[str, Any]) -> dict[str, Any]:
     if searches is None:
         searches = sum(1 for b in data.get("content", []) if isinstance(b, dict)
                        and b.get("type") == "server_tool_use" and b.get("name") == "web_search")
+    # The provider counts prompt-cache reads and writes apart from the rest of
+    # the input; billed input is all three. 2026-10-29: a lookup reported 113
+    # input tokens that OpenRouter's log showed as 3,825.
+    cached = int(usage.get("cache_read_input_tokens") or 0)
+    written = int(usage.get("cache_creation_input_tokens") or 0)
     return {
         "model": str(data.get("model") or ""),
         "searches": int(searches or 0),
-        "input_tokens": int(usage.get("input_tokens") or 0),
+        "input_tokens": int(usage.get("input_tokens") or 0) + cached + written,
+        "cached_input_tokens": cached,
         "output_tokens": int(usage.get("output_tokens") or 0),
     }
 

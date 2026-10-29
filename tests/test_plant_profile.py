@@ -395,3 +395,37 @@ def test_found_sources_are_edited_without_search(world, monkeypatch):
     assert modes == [True]
     assert out["profile"]["sources"] == [{"title": "UMN Extension", "url": page}]
     assert kept["profile:taxon:48927"]["looked_up_with"]["mode"] == "edit"
+
+
+def test_one_lookup_per_key_at_a_time_and_a_walkaway_does_not_cancel_it(monkeypatch):
+    """2026-10-29: a client timed out after a minute, asked again, and paid for a
+    second generation of the same hawk. The second ask now waits on the first,
+    and the first is kept even though its caller walked away."""
+    kept: dict[str, dict] = {}
+    calls: list[str] = []
+
+    async def get(key):
+        return (kept[key], 0.0) if key in kept else None
+
+    async def put(key, answer, model):
+        kept[key] = answer
+    monkeypatch.setattr(reference_store, "get", get)
+    monkeypatch.setattr(reference_store, "put", put)
+
+    async def fetch():
+        calls.append("looked up")
+        await asyncio.sleep(0.05)
+        return {"name": "hawk"}, "m"
+
+    async def scene():
+        walkaway = asyncio.create_task(reference_store.remember("lifecycle:animal:taxon:5212:40", fetch))
+        await asyncio.sleep(0.01)
+        walkaway.cancel()  # the client gave up
+        again = await reference_store.remember("lifecycle:animal:taxon:5212:40", fetch)
+        later = await reference_store.remember("lifecycle:animal:taxon:5212:40", fetch)
+        return again, later
+
+    again, later = asyncio.run(scene())
+    assert calls == ["looked up"], "one generation for three asks"
+    assert again == ({"name": "hawk"}, False)
+    assert later == ({"name": "hawk"}, True)
