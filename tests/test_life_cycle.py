@@ -402,7 +402,13 @@ def test_what_a_lookup_spent_is_read_from_the_providers_usage():
     reported = {"model": "x-ai/grok-4.5", "content": [], "usage": {
         "input_tokens": 194877, "output_tokens": 4000, "server_tool_use": {"web_search_requests": 3}}}
     assert llm_answer.usage_of(reported) == {
-        "model": "x-ai/grok-4.5", "searches": 3, "input_tokens": 194877, "output_tokens": 4000}
+        "model": "x-ai/grok-4.5", "searches": 3, "input_tokens": 194877,
+        "cached_input_tokens": 0, "output_tokens": 4000}
+    # As OpenRouter reported the 2026-10-29 hawk: 3,825 billed, 113 uncached.
+    cached = {"usage": {"input_tokens": 113, "cache_read_input_tokens": 3712,
+                        "output_tokens": 4942}}
+    assert llm_answer.usage_of(cached)["input_tokens"] == 3825
+    assert llm_answer.usage_of(cached)["cached_input_tokens"] == 3712
     counted = {"model": "m", "content": [{"type": "server_tool_use", "name": "web_search"}] * 2}
     assert llm_answer.usage_of(counted)["searches"] == 2
     assert llm_answer.usage_of({})["searches"] == 0
