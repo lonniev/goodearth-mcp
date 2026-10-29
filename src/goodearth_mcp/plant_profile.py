@@ -34,8 +34,6 @@ HUES = ("red", "orange", "yellow", "green", "blue", "violet", "pink", "white")
 KINDS = ("annual", "biennial", "perennial")
 COUNTED_FROM = ("sowing", "transplant")
 
-#: Web searches the model may make for one plant.
-MAX_SEARCHES = 4
 MAX_TOKENS = 2000
 
 _MAX_NAME = 120
@@ -97,7 +95,7 @@ def prompt_for(*, taxon_id: int | None, scientific_name: str, common_name: str, 
 async def ask(api_key: str, user: str) -> dict[str, Any]:
     """One web-searching generation, and the raw JSON it answered with."""
     return await llm_answer.ask(api_key, system=SYSTEM, user=user,
-                                max_tokens=MAX_TOKENS, searches=MAX_SEARCHES)
+                                max_tokens=MAX_TOKENS, searches=llm_answer.MAX_SEARCHES)
 
 
 def answer_text(data: dict[str, Any]) -> str:

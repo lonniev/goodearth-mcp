@@ -12,7 +12,7 @@ import logging
 from datetime import UTC, date, datetime
 from typing import Any
 
-from goodearth_mcp import plant_profile, reference_store
+from goodearth_mcp import llm_answer, plant_profile, reference_store
 from goodearth_mcp.plant_profile import ProfileError
 from goodearth_mcp.planting_window import PlantingWindowError, region_heat_for_days
 from goodearth_mcp.region import Region
@@ -42,6 +42,7 @@ async def profile_for(
             taxon_id=taxon_id, scientific_name=scientific_name, common_name=common_name, text=text))
         profile = plant_profile.validate(plant_profile.answer_text(data))
         profile["looked_up_on"] = today.isoformat()
+        profile["looked_up_with"] = llm_answer.usage_of(data)
         return profile, str(data.get("model") or "")
 
     return await reference_store.remember(key, fetch)

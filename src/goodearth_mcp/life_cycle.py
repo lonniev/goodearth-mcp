@@ -26,7 +26,7 @@ from goodearth_mcp import crops, llm_answer, wildlife
 from goodearth_mcp.llm_answer import AnswerError, number, one_of, text, url
 from goodearth_mcp.plant_profile import subject_key
 
-SUBJECTS = ("plant", "pest", "animal")
+SUBJECTS = ("plant", "pest", "animal", "fungus")
 
 #: What may time each subject's events. A plant's are heat stages from set-out,
 #: because that is what a planting holds. A pest's and an animal's may be any
@@ -38,7 +38,13 @@ DRIVERS = {
     "plant": ("heat",),
     "pest": _ANIMAL_DRIVERS,
     "animal": _ANIMAL_DRIVERS,
+    # Nobody sets out a wild puffball: it fruits when the weather says, within
+    # a season, so its year is timed as an animal's is.
+    "fungus": _ANIMAL_DRIVERS,
 }
+
+#: Subjects whose calendar dates move with latitude, so are kept per band.
+BANDED = ("animal", "fungus")
 
 #: The fields each driver carries, as the record stores them.
 DRIVER_FIELDS = {
@@ -50,7 +56,6 @@ DRIVER_FIELDS = {
 }
 
 MAX_EVENTS = 20
-MAX_SEARCHES = 6
 MAX_TOKENS = 3000
 
 #: Calendar dates for an animal move with latitude, so its life cycle is kept
@@ -64,7 +69,7 @@ class LifeCycleError(AnswerError):
 
 SYSTEM = (
     "You are a natural-history reference for growers. Given a subject — a "
-    "cultivated plant, a crop pest, or a wild or farm animal — use web search to "
+    "cultivated plant, a crop pest, a wild or farm animal, or a fungus — use web search to "
     "find its life cycle from university extension services, field guides and "
     "life-history accounts. Answer with ONE JSON object inside "
     "<lifecycle></lifecycle> tags and nothing else.\n\n"
@@ -94,7 +99,9 @@ SYSTEM = (
     "threshold; leave the event out instead.\n"
     "- A plant's events use the heat driver only. An insect or mite pest's stages "
     "use heat from January 1 at base_temp_f; a pest that is a mammal, bird or other "
-    "animal uses whatever driver fits, as any animal does.\n"
+    "animal uses whatever driver fits, as any animal does. A fungus fruits when the "
+    "weather allows within its season: prefer condition (the rain and warmth it needs, "
+    "after its earliest date) and calendar.\n"
     "- Prefer the driver a source states: heat for insects and crops, daylight for "
     "what day length cues, calendar only when nothing better is known.\n"
     f"- At most {MAX_EVENTS} events, in the order they happen."
@@ -124,7 +131,7 @@ def prompt_for(*, subject: str, taxon_id: int | None, scientific_name: str,
 async def ask(api_key: str, user: str) -> dict[str, Any]:
     """One web-searching generation, and the raw JSON it answered with."""
     return await llm_answer.ask(api_key, system=SYSTEM, user=user,
-                                max_tokens=MAX_TOKENS, searches=MAX_SEARCHES)
+                                max_tokens=MAX_TOKENS, searches=llm_answer.MAX_SEARCHES)
 
 
 def answer_text(data: dict[str, Any]) -> str:
@@ -140,7 +147,7 @@ def cache_key(*, subject: str, taxon_id: int | None, name: str, lat: float) -> s
     """One row per subject — and per latitude band for an animal, whose
     calendar dates move with it."""
     key = f"lifecycle:{subject}:{subject_key(taxon_id=taxon_id, name=name)}"
-    return f"{key}:{lat_band(lat)}" if subject == "animal" else key
+    return f"{key}:{lat_band(lat)}" if subject in BANDED else key
 
 
 # ── Checking the answer ──────────────────────────────────────────────────

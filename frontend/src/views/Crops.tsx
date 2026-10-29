@@ -22,7 +22,7 @@ import { baseBounds, parseBase } from "../lib/baseTemp";
 import { QuoteScroller, TableFilter, useTimezone } from "@tollbooth-dpyc/web/react";
 import { clockTime } from "../lib/clock";
 import { AGRARIAN_QUOTES, AGRARIAN_SOURCE, quoteStyles } from "../lib/quotes";
-import { blockItemList, cropGddStatus, cropSuitability, diseaseRisk, plantProfile, plantingWindow,
+import { blockItemList, blockItemSave, cropGddStatus, cropSuitability, diseaseRisk, plantProfile, plantingWindow,
   treeSuitability, treeYear,
   type CropLedgerResult, type DiseaseRiskResult, type PlantingWindowResult, type SuitabilityResult,
   type TreeAssessment, type TreeSuitabilityResult,
@@ -32,7 +32,7 @@ import { makePlanting, plantingCodec, SEEDLING,
 import SpeciesPicker from "../components/SpeciesPicker";
 import SpeciesFinder from "../components/SpeciesFinder";
 import type { Chosen } from "../lib/basket";
-import { FLORA, searchSpecies, speciesByIds, type SpeciesHit } from "../lib/species";
+import { FLORA, isFungus, searchSpecies, speciesByIds, type SpeciesHit } from "../lib/species";
 import { companions as askCompanions } from "../lib/mcp";
 import { HUES, HUE_GLYPH, MONTHS, monthsBetween, searchFor, toChosen, type CompanionRow, type Hue } from "../lib/companions";
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
@@ -50,7 +50,8 @@ import { draftFromLot, lotLine, lotsFor, seedCodec, type SeedLot } from "../lib/
 import { useSubmit } from "../lib/useSubmit";
 import { fillFrom, mayFill, provenance, type Fill } from "../lib/profileFill";
 import LifeCycleStory from "../components/LifeCycleStory";
-import { heatStages } from "../lib/lifeCycle";
+import { heatStages, wildlifeRows } from "../lib/lifeCycle";
+import { wildlifeCodec } from "../lib/wildlifeModels";
 import { withId } from "../lib/submit";
 import type { SavedRegion } from "../lib/regions";
 import { Empty, ErrorBox, Field, FIELD, Glyph, ICON, IconButton, PageTitle, Pill,
@@ -831,7 +832,11 @@ export default function Crops({
                 thumb: picked.thumb,
               }}
               seed={seed}
-              onPick={(h) => { setPicked(h); setSeed(""); void fillFor(h); }}
+              onPick={(h) => {
+                setPicked(h); setSeed("");
+                // A fungus has no heat target or bloom to fill; its year is below.
+                if (!isFungus(h)) void fillFor(h);
+              }}
               onClear={() => { setPicked(null); lookedUp.current = null; }}
               placeholder="sugar maple, zinnia, shiitake…" />
           </Field>
@@ -915,13 +920,31 @@ export default function Crops({
         {formErr && <p className="mt-2 text-[12px] text-clay">{formErr}</p>}
         {added && !formErr && <p className="mt-2 text-[12px] text-growth">{added}</p>}
       </form>
-      {/* Its year, looked up: the ticked stages ride on the planting Add saves. */}
-      {picked && (
+      {/* Its year, looked up. A plant's ticked stages ride on the planting Add
+          saves. A fungus fruits when the weather says, never from a set-out,
+          so its events are kept as watches on Fauna, where any year so timed is. */}
+      {picked && !isFungus(picked) && (
         <LifeCycleStory region={region} subject="plant"
           who={{ taxonId: picked.id, scientificName: picked.scientificName,
                  commonName: picked.commonName ?? undefined }}
           tracked={NO_TRACKED} onCost={onCost}
           onChoose={(chosen, r) => setChosenStages({ stages: heatStages(chosen), baseF: r.base_temp_f })} />
+      )}
+      {picked && isFungus(picked) && (
+        <LifeCycleStory region={region} subject="fungus"
+          who={{ taxonId: picked.id, scientificName: picked.scientificName,
+                 commonName: picked.commonName ?? undefined }}
+          tracked={NO_TRACKED} onCost={onCost}
+          trackLabel={(n) => `Watch these ${n}`}
+          onTrack={async (chosen) => {
+            const name = picked.commonName || picked.scientificName;
+            const rows = wildlifeRows(name, chosen, region.id,
+              { scientificName: picked.scientificName, emoji: "🍄", role: "watch" });
+            const res = await blockItemSave(region.id, "wildlife", { items: rows.map(wildlifeCodec.to) });
+            if (!res?.success) throw new Error(res?.error || "Its watches could not be saved.");
+            setAdded(`🍄 ${chosen.length} on Fauna`);
+            setPicked(null);
+          }} />
       )}
       </AddPanel>
 

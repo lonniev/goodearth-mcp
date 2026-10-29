@@ -3223,7 +3223,7 @@ async def life_cycle(
     block: Annotated[str, BLOCK_FIELD],
     subject: Annotated[
         str,
-        Field(description="What it is: 'plant', 'pest' or 'animal'."),
+        Field(description="What it is: 'plant', 'pest', 'animal' or 'fungus'."),
     ],
     taxon_id: Annotated[
         int,
@@ -3251,15 +3251,16 @@ async def life_cycle(
 
     Each event is already in the shape its record stores, so the chosen ones
     save as they are: a plant's as the planting's `stages` (heat from set-out),
-    a pest's as its `stages` with `base_temp_f`, an animal's as one wildlife
-    item each (heat, daylight, calendar, condition or moon).
+    a pest's heat stages as its `stages` with `base_temp_f`, and an animal's,
+    a fungus's and a pest's other events as one wildlife item each (heat,
+    daylight, calendar, condition or moon).
 
-    Looked up once per subject — per 5° band of latitude for an animal, whose
-    calendar dates move with it — and kept for every grower.
+    Looked up once per subject — per 5° band of latitude for an animal or a
+    fungus, whose calendar dates move with it — and kept for every grower.
 
     Args:
         block: The plot to date the events on — its id, its name, or an alias.
-        subject: plant, pest or animal.
+        subject: plant, pest, animal or fungus.
         taxon_id: iNaturalist's taxon id, when the grower picked one.
         scientific_name: The binomial.
         common_name: The common name.

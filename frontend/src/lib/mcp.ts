@@ -1243,7 +1243,7 @@ export interface PlantProfileResult {
   error_code?: string;
 }
 
-export type LifeCycleSubject = "plant" | "pest" | "animal";
+export type LifeCycleSubject = "plant" | "pest" | "animal" | "fungus";
 
 /// One event in a subject's life cycle, already in the shape its record
 /// stores: a plant's or pest's heat stage, or an animal's wildlife event.

@@ -15,7 +15,7 @@ import logging
 from datetime import UTC, date, datetime
 from typing import Any
 
-from goodearth_mcp import catalog, gdd, life_cycle, planting, reference_store
+from goodearth_mcp import catalog, gdd, life_cycle, llm_answer, planting, reference_store
 from goodearth_mcp.life_cycle import LifeCycleError
 from goodearth_mcp.planting_window import PlantingWindowError, air_record, frost_season
 from goodearth_mcp.region import Region
@@ -96,6 +96,7 @@ async def block_life_cycle(
         data = await life_cycle.ask(api_key, user)
         found = life_cycle.validate(life_cycle.answer_text(data), subject)
         found["looked_up_on"] = today.isoformat()
+        found["looked_up_with"] = llm_answer.usage_of(data)
         return found, str(data.get("model") or "")
 
     found, kept = await reference_store.remember(key, fetch)
