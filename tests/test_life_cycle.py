@@ -96,12 +96,37 @@ def test_a_plants_events_save_as_its_planting_stages():
          {"stage": "harvest", "gdd": 1750.0}], key=lambda s: s["gdd"])
 
 
-def test_a_plant_or_pest_keeps_only_heat_stages():
+def test_a_plant_keeps_only_heat_stages():
     mixed = {**PUMPKIN, "events": [*PUMPKIN["events"],
                                    {"name": "flowers by the calendar", "driver": "calendar",
                                     "typical_on": "07-10"}]}
-    for subject in ("plant", "pest"):
-        assert all(e["driver"] == "heat" for e in check(mixed, subject)["events"])
+    assert all(e["driver"] == "heat" for e in check(mixed, "plant")["events"])
+
+
+CHIPMUNK = {
+    "scientific_name": "Tamias striatus", "common_name": "Eastern Chipmunk",
+    "narrative": "Wakes in early spring, breeds, and caches nuts through autumn.",
+    "events": [
+        {"name": "spring emergence", "driver": "daylight", "daylight_hours": 11.5, "rising": True},
+        {"name": "first litter", "driver": "calendar", "typical_on": "05-10", "key": True},
+        {"name": "nut caching", "driver": "calendar", "typical_on": "09-15", "key": True},
+    ],
+}
+
+
+def test_a_pest_with_no_degree_days_keeps_its_year_as_any_animal_does():
+    """A chipmunk is a pest, and a mammal: its year is the calendar and the
+    light. Keeping only heat stages threw all of it away."""
+    got = check(CHIPMUNK, "pest")
+    assert [e["driver"] for e in got["events"]] == ["daylight", "calendar", "calendar"]
+
+
+def test_an_insect_pests_heat_stages_stay_stages():
+    moth = {**PUMPKIN, "common_name": "Codling moth", "events": [
+        {"name": "first flight", "driver": "heat", "gdd": 250}]}
+    assert check(moth, "pest")["events"][0] == {
+        "name": "first flight", "emoji": None, "summary": "", "key": False,
+        "driver": "heat", "gdd": 250.0, "source_url": None}
 
 
 def test_an_event_its_record_would_refuse_is_dropped_never_repaired():
@@ -119,9 +144,9 @@ def test_an_event_its_record_would_refuse_is_dropped_never_repaired():
     assert [e["name"] for e in check(hostile, "animal")["events"]] == ["courtship flights"]
 
 
-def test_an_answer_with_nothing_timeable_is_refused():
-    with pytest.raises(LifeCycleError):
-        check({**HAWK, "events": [{"name": "x", "driver": "calendar"}]}, "animal")
+def test_an_answer_with_nothing_timeable_is_still_an_answer():
+    """Kept like one, so the same search is not paid for again; the window refuses it."""
+    assert check({**HAWK, "events": [{"name": "x", "driver": "calendar"}]}, "animal")["events"] == []
 
 
 @pytest.mark.parametrize("raw", ["not json", "[1]", json.dumps({"events": HAWK["events"]})])
@@ -292,3 +317,35 @@ def test_the_operator_key_never_reaches_the_answer(world, monkeypatch):
     out = asyncio.run(_bare(server.life_cycle)(block="b1", npub="npub1x", subject="animal",
                                                taxon_id=5212, scientific_name="Buteo jamaicensis"))
     assert out["events"] and "SECRET" not in json.dumps(out)
+
+
+def test_nothing_timeable_is_kept_once_and_refused_every_time(world, monkeypatch):
+    _kept, asked = world
+
+    async def empty(api_key, user):
+        asked.append(user)
+        return reply({**HAWK, "common_name": "Eastern Chipmunk", "events": []})
+    monkeypatch.setattr(life_cycle, "ask", empty)
+    for _ in range(2):
+        with pytest.raises(LifeCycleError, match="Eastern Chipmunk"):
+            look(subject="animal", taxon_id=46217)
+    assert len(asked) == 1, "the empty answer was kept: no second search"
+
+
+def test_an_empty_provider_account_is_said_plainly(monkeypatch):
+    """HTTP 402 from the LLM provider is an empty account, the operator's to top
+    up; the grower is told the service is unavailable and nothing was charged."""
+    import httpx
+
+    from goodearth_mcp import llm_answer
+
+    def handler(request):
+        return httpx.Response(402, json={"error": {"message": "Insufficient credits"}})
+
+    real = httpx.AsyncClient
+    monkeypatch.setattr(llm_answer.httpx, "AsyncClient",
+                        lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
+    with pytest.raises(llm_answer.AnswerError) as err:
+        asyncio.run(llm_answer.ask("sk-test", system="s", user="u", max_tokens=10, searches=1))
+    assert "temporarily unavailable" in str(err.value) and "No fare was charged" in str(err.value)
+    assert "402" not in str(err.value)

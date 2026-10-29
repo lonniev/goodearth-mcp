@@ -99,6 +99,10 @@ async def block_life_cycle(
         return found, str(data.get("model") or "")
 
     found, kept = await reference_store.remember(key, fetch)
+    if not found["events"]:
+        # Kept, so the search is not paid for twice; refused, so neither is the fare.
+        name = found.get("common_name") or found.get("scientific_name") or "this subject"
+        raise LifeCycleError(f"Nothing in {name}'s life cycle could be timed from a source.")
 
     fit: dict[str, Any] = {}
     try:

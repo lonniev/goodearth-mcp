@@ -1,0 +1,3 @@
+- A pest with no degree days (a chipmunk, a vole, a deer) gets its whole year: its degree-day stages, if any, stay on the pest's record, and its other events are kept on Fauna as foe watches.
+- When nothing in a subject's life cycle can be timed, it says so by name, refunds the fare, and remembers the answer so the same search is not paid for again.
+- An LLM provider refusal is said plainly — an empty account reads as "temporarily unavailable … No fare was charged" — rather than as a bare HTTP status.

@@ -32,9 +32,10 @@ import {
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
 import { useSubmit } from "../lib/useSubmit";
 import { withId } from "../lib/submit";
-import { pestCatalog, pestThreshold, type PestCatalogResult, type PestWindowResult } from "../lib/mcp";
+import { blockItemSave, pestCatalog, pestThreshold, type PestCatalogResult, type PestWindowResult } from "../lib/mcp";
 import LifeCycleStory from "../components/LifeCycleStory";
-import { eventKey, pestWithStages } from "../lib/lifeCycle";
+import { eventKey, pestWithStages, splitPestEvents, wildlifeRows } from "../lib/lifeCycle";
+import { wildlifeCodec } from "../lib/wildlifeModels";
 import { animalKey } from "../lib/husbandry";
 import {
   makePest, makeWatch, pestCodec, type SavedPest,
@@ -133,6 +134,8 @@ export default function Pests({
   /// What the catalogue resolved, when it did. A typed name with no pick is
   /// still a pest — it simply carries no taxon for later lookups.
   const [picked, setPicked] = useState<SpeciesHit | null>(null);
+  /// Where a pest's non-degree-day events went, once they are saved.
+  const [savedNote, setSavedNote] = useState("");
   /// The record this pest already has, and the stages it already watches.
   const existingPest = useMemo(() => {
     const name = picked ? animalKey(picked.commonName || picked.scientificName) : "";
@@ -309,7 +312,7 @@ export default function Pests({
                 thumb: picked.thumb,
               }}
               placeholder="aster leafhopper, vole, slug…"
-              onPick={(hit) => { setPicked(hit); setReading(null); setPestName(hit.commonName || hit.scientificName); }}
+              onPick={(hit) => { setPicked(hit); setReading(null); setSavedNote(""); setPestName(hit.commonName || hit.scientificName); }}
               onClear={() => { setPicked(null); setPestName(""); }}
               onText={setPestName}
               onRead={() => setReading((r) => (r ? null : picked?.id ?? null))} />
@@ -368,6 +371,7 @@ export default function Pests({
           </span>
         </div>
         {formErr && <p className="mt-2 text-[12px] text-clay">{formErr}</p>}
+        {savedNote && !formErr && <p className="mt-2 text-[12px] text-growth">{savedNote}</p>}
       </form>
       {/* Its stages, looked up: tick what to watch for and save them at once.
           The stages field above stays for figures of the grower's own. */}
@@ -379,10 +383,21 @@ export default function Pests({
           trackLabel={(n) => `Watch these ${n}`}
           onTrack={async (chosen, r) => {
             const name = picked.commonName || picked.scientificName;
-            const made = pestWithStages(existingPest, name, chosen, r.base_temp_f ?? region.baseTempF,
-              region.id, { taxonId: picked.id, scientificName: picked.scientificName });
-            if (typeof made === "string") throw new Error(made);
-            await storePest(made);
+            const { stages, watches } = splitPestEvents(chosen);
+            if (stages.length) {
+              const made = pestWithStages(existingPest, name, stages, r.base_temp_f ?? region.baseTempF,
+                region.id, { taxonId: picked.id, scientificName: picked.scientificName });
+              if (typeof made === "string") throw new Error(made);
+              await storePest(made);
+            }
+            if (watches.length) {
+              // Not degree days: kept on Fauna as foe watches, with its year.
+              const rows = wildlifeRows(name, watches, region.id,
+                { scientificName: picked.scientificName, role: "foe" });
+              const res = await blockItemSave(region.id, "wildlife", { items: rows.map(wildlifeCodec.to) });
+              if (!res?.success) throw new Error(res?.error || "Its watches could not be saved.");
+              setSavedNote(`🐾 ${watches.length} on Fauna`);
+            }
             setPestName(""); setPicked(null); setSeedName(""); setReading(null);
           }} />
       )}
