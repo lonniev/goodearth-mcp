@@ -1,0 +1,1 @@
+- 🧠 on every Flora, Fauna and Pests row: the row beside what the reference holds for that species, one figure per line — tap yours or the AI's, and ✓ saves only what you switched.

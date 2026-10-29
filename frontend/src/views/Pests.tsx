@@ -8,7 +8,7 @@
 // what a farm cares about, the same for a Vermont lakeshore and a Georgia
 // orchard.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import Provenance from "../components/Provenance";
 import { QuoteScroller, TableFilter, useTimezone } from "@tollbooth-dpyc/web/react";
 import { clockTime } from "../lib/clock";
@@ -32,6 +32,9 @@ import {
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
 import { useSubmit } from "../lib/useSubmit";
 import { withId } from "../lib/submit";
+import { lifeCycle } from "../lib/mcp";
+import { lookupBy, pestDiff, type FieldDiff } from "../lib/refreshRow";
+import RefreshFromAI, { RefreshButton } from "../components/RefreshFromAI";
 import { blockItemSave, pestCatalog, pestThreshold, type PestCatalogResult, type PestWindowResult } from "../lib/mcp";
 import LifeCycleStory from "../components/LifeCycleStory";
 import { eventKey, pestWithStages, splitPestEvents, wildlifeRows } from "../lib/lifeCycle";
@@ -209,6 +212,19 @@ export default function Pests({
   /// stages, no published model and no watch flag is one of these — it is not
   /// slow to load, there is simply nothing to compute against it.
   const skipped = new Map((data?.skipped ?? []).map((s) => [s.name, s.reason]));
+
+  /// Which pest is open beside its life cycle (🧠).
+  const [refreshing, setRefreshing] = useState("");
+  async function askRefresh(m: SavedPest) {
+    const r = await lifeCycle(region.id, "pest",
+      lookupBy(m.pest, { taxonId: m.taxon_id, scientificName: m.scientific_name }));
+    if (!r.success) throw new Error(r.error || "The pest could not be looked up.");
+    return pestDiff(m, r, { temp: (f) => u.showTemp(f), dd: (n) => u.showDD(n) });
+  }
+  async function saveRefresh(m: SavedPest, taken: FieldDiff<SavedPest>[]) {
+    await storePest(taken.reduce((x, d) => d.take(x), m));
+    setRefreshing("");
+  }
 
   async function commitRow() {
     if (!draft) return;
@@ -460,7 +476,8 @@ export default function Pests({
                       onCommit={commitRow} saving={savingRow}
                       onCancel={() => { setEditing(""); setDraft(null); }} />
                   ) : (
-                    <tr key={m.id} className="border-b border-rule last:border-b-0">
+                    <Fragment key={m.id}>
+                    <tr className="border-b border-rule last:border-b-0">
                       <td onClick={() => { setEditing(m.id); setDraft(m); }}
                         className="cursor-text px-3 py-2.5 font-semibold">
                         <span className="mr-1.5 text-[15px]" aria-hidden="true">
@@ -522,7 +539,9 @@ export default function Pests({
                           </button>
                         )}
                       </td>
-                      <td className="px-2 py-2.5 text-right">
+                      <td className="px-2 py-2.5 text-right whitespace-nowrap">
+                        <RefreshButton name={m.pest} open={refreshing === m.id}
+                          onClick={() => setRefreshing(refreshing === m.id ? "" : m.id)} />
                         <button onClick={() => {
                           remembered({
                             kind: "pest", blockId: region.id, label: m.pest,
@@ -534,6 +553,13 @@ export default function Pests({
                           className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-clay"><TrashGlyph /></button>
                       </td>
                     </tr>
+                    {refreshing === m.id && (
+                      <RefreshFromAI<SavedPest> colSpan={columns("").length} tool="goodearth_life_cycle"
+                        ask={() => askRefresh(m)} onSave={(t) => saveRefresh(m, t)}
+                        onCancel={() => setRefreshing("")} onCost={onCost}
+                        missing="The reference has nothing to set beside this pest." />
+                    )}
+                    </Fragment>
                   )
                 ))}
               </tbody>

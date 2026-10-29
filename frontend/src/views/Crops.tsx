@@ -34,6 +34,7 @@ import SpeciesFinder from "../components/SpeciesFinder";
 import type { Chosen } from "../lib/basket";
 import { FLORA, isFungus, searchSpecies, speciesByIds, type SpeciesHit } from "../lib/species";
 import { companions as askCompanions } from "../lib/mcp";
+import { applyTaken, lookupBy, plantingDiff, type FieldDiff } from "../lib/refreshRow";
 import { HUES, HUE_GLYPH, MONTHS, monthsBetween, searchFor, toChosen, type CompanionRow, type Hue } from "../lib/companions";
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
 import { reportCodec, type FieldReport } from "../lib/reports";
@@ -190,6 +191,20 @@ export default function Crops({
   /// Which planting's companions are open — the third expansion, and like
   /// the other two the only one open on the page.
   const [companioning, setCompanioning] = useState("");
+  /// Which planting is open beside its profile (🧠).
+  const [refreshing, setRefreshing] = useState("");
+  const show = useMemo(() => ({ temp: (f: number) => u.showTemp(f), dd: (n: number) => u.showDD(n) }), [u]);
+  const askRefresh = useCallback(async (p: Planting) => {
+    const r = await plantProfile(region.id, {
+      ...lookupBy(p.crop, p), ...(p.setOut ? { set_out: p.setOut } : {}),
+    });
+    if (!r.success) throw new Error(r.error || "The plant could not be looked up.");
+    return plantingDiff(p, r, show);
+  }, [region.id, show]);
+  async function saveRefresh(p: Planting, taken: FieldDiff<Planting>[]) {
+    await storePlanting(applyTaken(p, taken, new Set(taken.map((t) => t.field))));
+    setRefreshing("");
+  }
 
   /// The sowing date and the packet, written onto the PLANTING.
   ///
@@ -1003,7 +1018,7 @@ export default function Crops({
             onDelete={remove}
             seeding={{
               open: seeding,
-              onOpen: (pl) => { setSeeding(pl.id); setCutting(""); setCompanioning(""); },
+              onOpen: (pl) => { setSeeding(pl.id); setCutting(""); setCompanioning(""); setRefreshing(""); },
               onClose: () => setSeeding(""),
               lotsFor: (pl) => lotsFor(pl.crop, pl.taxonId, lots),
               onBind: bindSeed,
@@ -1013,17 +1028,25 @@ export default function Crops({
             }}
             harvesting={{
               open: cutting,
-              onOpen: (pl) => { setCutting(pl.id); setSeeding(""); setCompanioning(""); },
+              onOpen: (pl) => { setCutting(pl.id); setSeeding(""); setCompanioning(""); setRefreshing(""); },
               onClose: () => setCutting(""),
               unitFor: (crop) => lastUnit(seen, crop),
               onSave: saveHarvest,
             }}
             companioning={{
               open: companioning,
-              onOpen: (pl) => { setCompanioning(pl.id); setSeeding(""); setCutting(""); },
+              onOpen: (pl) => { setCompanioning(pl.id); setSeeding(""); setCutting(""); setRefreshing(""); },
               onClose: () => setCompanioning(""),
               ask: askForCompanions,
               onPick: pickCompanion,
+              onCost,
+            }}
+            refreshing={{
+              open: refreshing,
+              onOpen: (pl) => { setRefreshing(pl.id); setSeeding(""); setCutting(""); setCompanioning(""); },
+              onClose: () => setRefreshing(""),
+              ask: askRefresh,
+              onSave: saveRefresh,
               onCost,
             }}
           />
