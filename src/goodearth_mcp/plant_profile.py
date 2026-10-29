@@ -37,7 +37,6 @@ HUES = ("red", "orange", "yellow", "green", "blue", "violet", "pink", "white")
 KINDS = ("annual", "biennial", "perennial")
 COUNTED_FROM = ("sowing", "transplant")
 
-MAX_TOKENS = 2000
 
 _MAX_NAME = 120
 _MAX_SOURCES = 6
@@ -106,8 +105,8 @@ async def ask(api_key: str, user: str, *, edit: bool = False,
     ``model`` is the operator's choice for that mode."""
     if edit:
         return await llm_answer.ask(api_key, system=SYSTEM_EDIT, user=user,
-                                    max_tokens=MAX_TOKENS, searches=0, model=model)
-    return await llm_answer.ask(api_key, system=SYSTEM, user=user, max_tokens=MAX_TOKENS,
+                                    max_tokens=llm_answer.MAX_TOKENS, searches=0, model=model)
+    return await llm_answer.ask(api_key, system=SYSTEM, user=user, max_tokens=llm_answer.MAX_TOKENS,
                                 searches=llm_answer.MAX_SEARCHES, model=model)
 
 
