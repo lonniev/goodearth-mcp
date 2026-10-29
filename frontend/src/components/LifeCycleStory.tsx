@@ -13,7 +13,7 @@ import type { SavedRegion } from "../lib/regions";
 import Provenance from "./Provenance";
 import { ErrorBox } from "./ui";
 import { QuoteScroller } from "@tollbooth-dpyc/web/react";
-import { NATURALIST_QUOTES, NATURALIST_SOURCE, quoteStyles } from "../lib/quotes";
+import { NATURALIST_QUOTES, NATURALIST_SOURCE, RESEARCH_WAIT, quoteStyles } from "../lib/quotes";
 
 export interface Who {
   taxonId?: number;
@@ -86,13 +86,14 @@ export default function LifeCycleStory({
     setChosen(next);
   }
 
-  // A first lookup searches the web and takes a while; the field naturalists
-  // keep the grower company. A kept one returns before the first quote turns.
+  // A first lookup gathers its sources and has them edited, which takes up to
+  // a minute and a half; the field naturalists keep the grower company. A kept
+  // one returns before the first quote turns.
   if (busy) {
     return (
       <div className="mt-3 rounded-md border border-rule bg-band/40">
         <QuoteScroller quotes={NATURALIST_QUOTES} source={NATURALIST_SOURCE}
-          heading="Reading its year" intervalMs={6500} classNames={quoteStyles} />
+          heading={RESEARCH_WAIT} intervalMs={6500} classNames={quoteStyles} />
       </div>
     );
   }

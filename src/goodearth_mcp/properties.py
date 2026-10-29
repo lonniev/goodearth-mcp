@@ -24,9 +24,11 @@ OPERATOR_PROPERTIES = {
         "Reference edit model",
         "Edits the pages our own search found into a plant profile or life cycle.",
         suggestions=_MODELS),
+    # Low, measured: an edit of given pages needs little thought, and at the
+    # model's own default it reasoned six times longer than it wrote.
     "reference_edit_effort": PropertySpec(
-        kind="choice", default="default", label="Reference edit reasoning",
-        description="How long the edit model may reason before it answers; default sends nothing.",
+        kind="choice", default="low", label="Reference edit reasoning",
+        description="How long the edit model may reason before it answers; default lets the model choose.",
         choices=EFFORTS),
     "reference_search_model": llm_model_property(
         "Reference search model",

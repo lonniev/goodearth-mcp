@@ -498,7 +498,7 @@ def test_each_mode_runs_on_the_operators_model_for_it(world, monkeypatch, found,
 def test_the_runtime_declares_the_reference_models_and_the_growers_settings():
     assert set(server.runtime.operator_properties) == {
         "reference_edit_model", "reference_edit_effort", "reference_search_model"}
-    assert server.runtime.operator_properties["reference_edit_effort"].default == "default"
+    assert server.runtime.operator_properties["reference_edit_effort"].default == "low"
     assert {"units", "chart_order", "sell_cents", "bees", "theme", "timezone", "tour"} \
         <= set(server.runtime.patron_properties)
     assert server.runtime.operator_properties["reference_edit_model"].default == "writer"
@@ -555,3 +555,17 @@ def test_only_an_edit_is_asked_for_less_reasoning(world, monkeypatch, found, eff
     monkeypatch.setattr(life_cycle, "ask", ask)
     look(subject="animal", taxon_id=5212, scientific_name="Buteo jamaicensis", edit_effort="low")
     assert used == [effort]
+
+
+def test_a_slow_usa_npn_costs_the_lookup_at_most_its_limit(monkeypatch):
+    """2026-10-29: USA-NPN took 28 s once for the Japanese beetle."""
+    import time
+
+    async def slow(names, today=None):
+        await asyncio.sleep(60)
+        return [{"habits": ["Adults"]}]
+    monkeypatch.setattr(catalog, "species_phenophases", slow)
+    monkeypatch.setattr(life_cycle_window, "PHENOPHASES_S", 0.05)
+    start = time.monotonic()
+    assert asyncio.run(life_cycle_window._phenophases("Popillia japonica")) == []
+    assert time.monotonic() - start < 1
