@@ -190,11 +190,13 @@ def _norm(u: str) -> str:
     return u.split("#")[0].rstrip("/").lower()
 
 
-def spent(data: dict[str, Any], found: Found) -> dict[str, Any]:
-    """What a lookup took: how it searched, and the generation's own usage."""
+def spent(data: dict[str, Any], found: Found, steps: llm_answer.Steps) -> dict[str, Any]:
+    """What a lookup took: how it searched, the generation's own usage, and how
+    long each step ran."""
     return {
         **llm_answer.usage_of(data),
         "mode": "edit" if found.sources else "web_search",
         "our_searches": found.queries,
         "pages": len(found.sources),
+        "took_s": dict(steps.took),
     }

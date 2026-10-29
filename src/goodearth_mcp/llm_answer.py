@@ -13,7 +13,9 @@ from __future__ import annotations
 import logging
 import math
 import re
-from typing import Any
+import time
+from collections.abc import Awaitable
+from typing import Any, TypeVar
 
 import httpx
 from tollbooth.llm_route import (
@@ -27,6 +29,8 @@ from tollbooth.llm_route import (
 )
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
 
 #: How long one generation may take. A model that reasons first is slow: grok-4.5
 #: took about 83 s for a hawk, and a free Nemotron with room to think ran past
@@ -98,13 +102,39 @@ def usage_of(data: dict[str, Any]) -> dict[str, Any]:
     # input tokens that OpenRouter's log showed as 3,825.
     cached = int(usage.get("cache_read_input_tokens") or 0)
     written = int(usage.get("cache_creation_input_tokens") or 0)
+    # How the output divided between thinking and the answer, so a cap or a
+    # reasoning setting is sized from real lookups rather than guessed.
+    blocks = [b for b in data.get("content", []) if isinstance(b, dict)]
+    details = usage.get("output_tokens_details") if isinstance(usage.get("output_tokens_details"), dict) else {}
     return {
         "model": str(data.get("model") or ""),
         "searches": int(searches or 0),
         "input_tokens": int(usage.get("input_tokens") or 0) + cached + written,
         "cached_input_tokens": cached,
         "output_tokens": int(usage.get("output_tokens") or 0),
+        "reasoning_tokens": details.get("reasoning_tokens"),
+        "thinking_chars": sum(len(str(b.get("thinking") or "")) for b in blocks if b.get("type") == "thinking"),
+        "answer_chars": sum(len(str(b.get("text") or "")) for b in blocks if b.get("type") == "text"),
+        "stop_reason": str(data.get("stop_reason") or ""),
     }
+
+
+class Steps:
+    """How long each step of one lookup took — logged as each starts and ends,
+    so a step that never ends shows in the log as the last one started."""
+
+    def __init__(self, key: str) -> None:
+        self.key = key
+        self.took: dict[str, float] = {}
+
+    async def run(self, name: str, step: Awaitable[T]) -> T:
+        logger.info("lookup %s: %s…", self.key, name)
+        start = time.monotonic()
+        try:
+            return await step
+        finally:
+            self.took[name] = round(time.monotonic() - start, 1)
+            logger.info("lookup %s: %s took %.1fs", self.key, name, self.took[name])
 
 
 def tagged(data: dict[str, Any], tag: str) -> str:

@@ -403,7 +403,8 @@ def test_what_a_lookup_spent_is_read_from_the_providers_usage():
         "input_tokens": 194877, "output_tokens": 4000, "server_tool_use": {"web_search_requests": 3}}}
     assert llm_answer.usage_of(reported) == {
         "model": "x-ai/grok-4.5", "searches": 3, "input_tokens": 194877,
-        "cached_input_tokens": 0, "output_tokens": 4000}
+        "cached_input_tokens": 0, "output_tokens": 4000, "reasoning_tokens": None,
+        "thinking_chars": 0, "answer_chars": 0, "stop_reason": ""}
     # As OpenRouter reported the 2026-10-29 hawk: 3,825 billed, 113 uncached.
     cached = {"usage": {"input_tokens": 113, "cache_read_input_tokens": 3712,
                         "output_tokens": 4942}}
@@ -499,3 +500,35 @@ def test_the_runtime_declares_the_reference_models_and_the_growers_settings():
     assert {"units", "chart_order", "sell_cents", "bees", "theme", "timezone", "tour"} \
         <= set(server.runtime.patron_properties)
     assert server.runtime.operator_properties["reference_edit_model"].default == "writer"
+
+
+def test_a_lookup_records_how_its_output_divided_and_how_long_each_step_took(world, monkeypatch, caplog):
+    """2026-10-29: a free model spent its whole allowance thinking; size from data."""
+    import logging
+
+    kept, _asked = world
+
+    async def ask(api_key, user, edit=False, model="writer"):
+        data = reply(PUFFBALL)
+        data["content"].insert(0, {"type": "thinking", "thinking": "x" * 900})
+        return {**data, "stop_reason": "end_turn",
+                "usage": {"output_tokens": 700, "output_tokens_details": {"reasoning_tokens": 500}}}
+    monkeypatch.setattr(life_cycle, "ask", ask)
+    with caplog.at_level(logging.INFO, logger="goodearth_mcp.llm_answer"):
+        look(subject="fungus", taxon_id=48701, scientific_name="Calvatia gigantea")
+    spent = kept["lifecycle:fungus:taxon:48701:40"]["looked_up_with"]
+    assert (spent["reasoning_tokens"], spent["thinking_chars"], spent["stop_reason"]) == (500, 900, "end_turn")
+    assert spent["answer_chars"] > 0
+    assert set(spent["took_s"]) == {"search", "phenophases", "sightings", "generation"}
+    assert "generation…" in caplog.text and "generation took" in caplog.text
+
+
+def test_a_step_that_fails_is_still_timed():
+    from goodearth_mcp import llm_answer
+
+    async def boom():
+        raise RuntimeError("down")
+    steps = llm_answer.Steps("k")
+    with pytest.raises(RuntimeError):
+        asyncio.run(steps.run("search", boom()))
+    assert "search" in steps.took

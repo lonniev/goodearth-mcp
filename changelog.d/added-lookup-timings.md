@@ -1,0 +1,1 @@
+- Each plant or life-cycle lookup logs each step as it starts and ends — our search, USA-NPN, iNaturalist sightings, the generation — and keeps how long each took (`looked_up_with.took_s`) and how its output divided between thinking and answer (`reasoning_tokens`, `thinking_chars`, `answer_chars`, `stop_reason`), so its limits are sized from real lookups.
