@@ -14,6 +14,8 @@ from __future__ import annotations
 
 from tollbooth.properties import PropertySpec, llm_model_property
 
+from goodearth_mcp.llm_answer import EFFORTS
+
 #: Models offered beside the tiers. Any valid slug may be set.
 _MODELS = ("google/gemini-2.5-flash", "openai/gpt-5-mini", "x-ai/grok-4.3", "x-ai/grok-4.5")
 
@@ -22,6 +24,10 @@ OPERATOR_PROPERTIES = {
         "Reference edit model",
         "Edits the pages our own search found into a plant profile or life cycle.",
         suggestions=_MODELS),
+    "reference_edit_effort": PropertySpec(
+        kind="choice", default="default", label="Reference edit reasoning",
+        description="How long the edit model may reason before it answers; default sends nothing.",
+        choices=EFFORTS),
     "reference_search_model": llm_model_property(
         "Reference search model",
         "Searches the web itself, when our own search found nothing to edit.",

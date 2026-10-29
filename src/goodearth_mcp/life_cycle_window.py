@@ -104,6 +104,7 @@ async def block_life_cycle(
     search_key: str = "",
     edit_model: str = TIER_WRITER,
     search_model: str = TIER_WRITER,
+    edit_effort: str = "default",
     taxon_id: int | None = None,
     scientific_name: str = "",
     common_name: str = "",
@@ -135,7 +136,8 @@ async def block_life_cycle(
         ) + reference_search.prompt_block(sources)
         edit = bool(sources.sources)
         data = await steps.run("generation", life_cycle.ask(
-            api_key, user, edit=edit, model=edit_model if edit else search_model))
+            api_key, user, edit=edit, model=edit_model if edit else search_model,
+            effort=edit_effort if edit else "default"))
         found = life_cycle.validate(life_cycle.answer_text(data), subject,
                                     given=sources.urls if edit else None)
         found["looked_up_on"] = today.isoformat()

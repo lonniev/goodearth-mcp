@@ -3196,6 +3196,7 @@ async def plant_profile(
         return await plant_profile_impl(
             parsed, api_key=keys.get("llm_api_key", ""),
             edit_model=await runtime.operator_property("reference_edit_model"),
+            edit_effort=await runtime.operator_property("reference_edit_effort"),
             search_model=await runtime.operator_property("reference_search_model"),
             search_key=keys.get("brave_search_api_key", ""),
             plot_base_f=float(found.get("base_temp_f") or 50.0),
@@ -3305,6 +3306,7 @@ async def life_cycle(
         return await life_cycle_impl(
             parsed, api_key=keys.get("llm_api_key", ""),
             edit_model=await runtime.operator_property("reference_edit_model"),
+            edit_effort=await runtime.operator_property("reference_edit_effort"),
             search_model=await runtime.operator_property("reference_search_model"), subject=kind,
             search_key=keys.get("brave_search_api_key", ""),
             taxon_id=taxon_id or None, plot_base_f=float(found.get("base_temp_f") or 50.0),
