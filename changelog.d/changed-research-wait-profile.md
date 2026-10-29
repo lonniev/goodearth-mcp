@@ -1,0 +1,1 @@
+- While a plant is looked up for the planting form, the form says the Research Assistant has the question and takes under 90 seconds, as the life-cycle wait does.

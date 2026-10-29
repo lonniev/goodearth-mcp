@@ -21,7 +21,7 @@ import { apply as applyFilter, isOn as filterOn, NO_FILTER, summarise as filterW
 import { baseBounds, parseBase } from "../lib/baseTemp";
 import { QuoteScroller, TableFilter, useTimezone } from "@tollbooth-dpyc/web/react";
 import { clockTime } from "../lib/clock";
-import { AGRARIAN_QUOTES, AGRARIAN_SOURCE, quoteStyles } from "../lib/quotes";
+import { AGRARIAN_QUOTES, AGRARIAN_SOURCE, RESEARCH_WAIT, quoteStyles } from "../lib/quotes";
 import { blockItemList, blockItemSave, cropGddStatus, cropSuitability, diseaseRisk, plantProfile, plantingWindow,
   treeSuitability, treeYear,
   type CropLedgerResult, type DiseaseRiskResult, type PlantingWindowResult, type SuitabilityResult,
@@ -917,6 +917,9 @@ export default function Crops({
               title="Add a planting" disabled={submit.busy} />
           </span>
         </div>
+        {/* A first lookup has its sources read and edited; a kept one fills
+            the form before this line could be read. */}
+        {looking && <p role="status" className="mt-2 text-[12px] text-ink-soft">{RESEARCH_WAIT}</p>}
         {formErr && <p className="mt-2 text-[12px] text-clay">{formErr}</p>}
         {added && !formErr && <p className="mt-2 text-[12px] text-growth">{added}</p>}
       </form>
