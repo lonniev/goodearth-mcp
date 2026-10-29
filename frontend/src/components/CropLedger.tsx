@@ -41,6 +41,8 @@ import QuantityField from "./QuantityField";
 import type { ItemSort } from "../lib/blockItems";
 import { baseBounds } from "../lib/baseTemp";
 import type { Target } from "../lib/tour/targets";
+import type { FieldDiff } from "../lib/refreshRow";
+import RefreshFromAI, { RefreshButton } from "./RefreshFromAI";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   past_target:     { label: "Past target",  cls: "bg-growth/15 text-growth" },
@@ -118,6 +120,16 @@ export interface Companioning {
   onCost: (sats: number) => void;
 }
 
+/// The 🧠 on a row: that planting beside its plant's profile.
+export interface Refreshing {
+  open: string;
+  onOpen: (p: Planting) => void;
+  onClose: () => void;
+  ask: (p: Planting) => Promise<FieldDiff<Planting>[] | null>;
+  onSave: (p: Planting, taken: FieldDiff<Planting>[]) => Promise<void>;
+  onCost: (sats: number) => void;
+}
+
 const COLS: Column<ItemSort>[] = [
   { key: "name", label: "Plant" },
   { key: "starts_on", label: "Set out" },
@@ -143,7 +155,7 @@ const COLS: Column<ItemSort>[] = [
 
 export default function CropLedger({
   rows, sort, dir, onSort, editing, onEdit, onCancel, onCommit, draft, onDraft,
-  saving, onDelete, harvesting, seeding, companioning, tour,
+  saving, onDelete, harvesting, seeding, companioning, refreshing, tour,
 }: {
   rows: LedgerRow[];
   /// The name the guided tour points at the ledger by.
@@ -163,6 +175,7 @@ export default function CropLedger({
   harvesting?: Harvesting;
   seeding?: Seeding;
   companioning?: Companioning;
+  refreshing?: Refreshing;
 }) {
   const u = useUnits();
   return (
@@ -282,6 +295,10 @@ export default function CropLedger({
                         companioning.open === p.id ? "text-growth" : "text-ink-soft active:text-growth"}`}>
                       <Glyph path={ICON.companions} /></button>
                   )}
+                  {refreshing && (
+                    <RefreshButton name={p.crop} open={refreshing.open === p.id}
+                      onClick={() => (refreshing.open === p.id ? refreshing.onClose() : refreshing.onOpen(p))} />
+                  )}
                   <button onClick={() => onDelete(p.id)} aria-label={`Remove ${p.crop}`} title="Remove"
                     className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-clay"><TrashGlyph /></button>
                 </td>
@@ -295,6 +312,12 @@ export default function CropLedger({
               {harvesting?.open === p.id && (
                 <HarvestRow planting={p} unit={harvesting.unitFor(p.crop)}
                   onSave={(h, id) => harvesting.onSave(p, h, id)} onCancel={harvesting.onClose} />
+              )}
+              {refreshing?.open === p.id && (
+                <RefreshFromAI<Planting> colSpan={COLS.length} tool="goodearth_plant_profile"
+                  ask={() => refreshing.ask(p)} onSave={(t) => refreshing.onSave(p, t)}
+                  onCancel={refreshing.onClose} onCost={refreshing.onCost}
+                  missing="The reference has nothing to set beside this planting." />
               )}
               {companioning?.open === p.id && (
                 <CompanionsRow planting={p} ask={(k) => companioning.ask(p, k)}

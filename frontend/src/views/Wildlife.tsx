@@ -8,7 +8,8 @@
 // changes how much to trust the date. A daylight event is astronomy and barely
 // moves; a heat event moves with the season.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { useUnits } from "../components/Units";
 import Provenance from "../components/Provenance";
 import { QuoteScroller, TableFilter, useTimezone } from "@tollbooth-dpyc/web/react";
 import { clockTime } from "../lib/clock";
@@ -18,7 +19,9 @@ import SearchBox from "../components/SearchBox";
 import { isOn as wildFilterOn, matches as wildMatches, NO_WILDLIFE_FILTER,
   summarise as wildFilterWords, type WildlifeFilter } from "../lib/wildlifeFilter";
 import { remembered } from "../lib/undoEvents";
-import { wildlifeCalendar, type WildlifeResult, type WildlifeRow } from "../lib/mcp";
+import { lifeCycle, wildlifeCalendar, type WildlifeResult, type WildlifeRow } from "../lib/mcp";
+import { lookupBy, wildlifeDiff, type FieldDiff } from "../lib/refreshRow";
+import RefreshFromAI, { RefreshButton } from "../components/RefreshFromAI";
 import { useBlockItems, type ItemSort } from "../lib/blockItems";
 import { photosByName } from "../lib/species";
 import { makeRoster, wildlifeCodec, type SavedWildlife } from "../lib/wildlifeModels";
@@ -88,6 +91,7 @@ export default function Wildlife({
   const narrowed = wildFilterOn(filter);
   const [editing, setEditing] = useState("");
   const [draft, setDraft] = useState<SavedWildlife | null>(null);
+  const u = useUnits();
   const [savingRow, setSavingRow] = useState(false);
 
   const { items: models, save: storeWildlife, saveMany: storeMany,
@@ -271,6 +275,21 @@ export default function Wildlife({
     ? watched.filter(({ model, seen }) => wildMatches(model, seen, filter))
     : watched;
 
+  /// Which watch is open beside its creature's life cycle (🧠).
+  const [refreshing, setRefreshing] = useState("");
+  async function askRefresh(m: SavedWildlife) {
+    // A foe came from the Pests page, looked up as a pest; the rest as animals.
+    const subject = (m as { role?: string }).role === "foe" ? "pest" : "animal";
+    const r = await lifeCycle(region.id, subject,
+      lookupBy(m.species, { taxonId: m.taxon_id, scientificName: m.scientific_name }));
+    if (!r.success) throw new Error(r.error || `${m.species} could not be looked up.`);
+    return wildlifeDiff(m, r, { temp: (f) => u.showTemp(f), dd: (n) => u.showDD(n) });
+  }
+  async function saveRefresh(m: SavedWildlife, taken: FieldDiff<SavedWildlife>[]) {
+    await storeWildlife(taken.reduce((x, d) => d.take(x), m));
+    setRefreshing("");
+  }
+
   async function commitRow() {
     if (!draft) return;
     setSavingRow(true); setError("");
@@ -374,7 +393,8 @@ export default function Wildlife({
                       onCommit={commitRow} saving={savingRow}
                       onCancel={() => { setEditing(""); setDraft(null); }} />
                   ) : (
-                    <tr key={m.id} className="border-b border-rule last:border-b-0">
+                    <Fragment key={m.id}>
+                    <tr className="border-b border-rule last:border-b-0">
                       <td onClick={open} className="cursor-text px-3 py-2.5 font-semibold">
                         {/* The grower's own emoji wins where they typed one:
                             they chose it for this row and it is theirs. Then
@@ -421,6 +441,8 @@ export default function Wildlife({
                           past ? "bg-growth/12 text-growth" : "bg-band text-ink-soft"}`}>
                           {past ? "seen" : "ahead"}
                         </span>
+                        <RefreshButton name={`${m.species} ${m.event}`} open={refreshing === m.id}
+                          onClick={() => setRefreshing(refreshing === m.id ? "" : m.id)} />
                         <button onClick={() => {
                           remembered({
                             kind: "wildlife", blockId: region.id,
@@ -433,6 +455,13 @@ export default function Wildlife({
                           className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-clay"><TrashGlyph /></button>
                       </td>
                     </tr>
+                    {refreshing === m.id && (
+                      <RefreshFromAI<SavedWildlife> colSpan={COLS.length} tool="goodearth_life_cycle"
+                        ask={() => askRefresh(m)} onSave={(t) => saveRefresh(m, t)}
+                        onCancel={() => setRefreshing("")} onCost={onCost}
+                        missing={`The reference has no “${m.event}” for ${m.species}.`} />
+                    )}
+                    </Fragment>
                   );
                 })}
               </tbody>
