@@ -21,6 +21,7 @@ from tollbooth.llm_route import (
     build_messages_request,
     error_message,
     llm_failure_situation,
+    model_for,
     resolve_route,
     web_search_tool,
 )
@@ -42,10 +43,11 @@ class AnswerError(ValueError):
 
 
 async def ask(api_key: str, *, system: str, user: str, max_tokens: int,
-              searches: int) -> dict[str, Any]:
+              searches: int, model: str = TIER_WRITER) -> dict[str, Any]:
     """One generation, and the raw JSON it answered with. With ``searches`` 0 it
-    may not search: it edits the sources the user turn carries."""
-    route = resolve_route(api_key=api_key, tier=TIER_WRITER)
+    may not search: it edits the sources the user turn carries. ``model`` is a
+    tier or a slug — the operator's property for this use."""
+    route = resolve_route(api_key=api_key, model=model_for(model))
     req = build_messages_request(
         route, system=system, user=user, max_tokens=max_tokens,
         tools=[web_search_tool(searches)] if searches > 0 else None,

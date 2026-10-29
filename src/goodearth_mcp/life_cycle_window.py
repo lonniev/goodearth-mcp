@@ -15,6 +15,8 @@ import logging
 from datetime import UTC, date, datetime
 from typing import Any
 
+from tollbooth.llm_route import TIER_WRITER
+
 from goodearth_mcp import biota, catalog, gdd, life_cycle, planting, reference_search, reference_store
 from goodearth_mcp.life_cycle import LifeCycleError
 from goodearth_mcp.planting_window import PlantingWindowError, air_record, frost_season
@@ -91,6 +93,8 @@ async def block_life_cycle(
     api_key: str,
     subject: str,
     search_key: str = "",
+    edit_model: str = TIER_WRITER,
+    search_model: str = TIER_WRITER,
     taxon_id: int | None = None,
     scientific_name: str = "",
     common_name: str = "",
@@ -120,7 +124,8 @@ async def block_life_cycle(
             observed_by_month=await _seen_by_month(subject, taxon_id, region),
         ) + reference_search.prompt_block(sources)
         edit = bool(sources.sources)
-        data = await life_cycle.ask(api_key, user, edit=edit)
+        data = await life_cycle.ask(api_key, user, edit=edit,
+                                    model=edit_model if edit else search_model)
         found = life_cycle.validate(life_cycle.answer_text(data), subject,
                                     given=sources.urls if edit else None)
         found["looked_up_on"] = today.isoformat()

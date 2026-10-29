@@ -90,6 +90,7 @@ from goodearth_mcp.planting import PlantingError
 from goodearth_mcp.planting_window import PlantingWindowError
 from goodearth_mcp.planting_window import region_heat_for_days as heat_for_days_impl
 from goodearth_mcp.planting_window import region_planting_window as planting_impl
+from goodearth_mcp.properties import OPERATOR_PROPERTIES, PATRON_PROPERTIES
 from goodearth_mcp.region import Region, RegionError, parse_region, ring_of
 from goodearth_mcp.soil import SoilError
 from goodearth_mcp.soil_window import SoilWindowError
@@ -580,6 +581,8 @@ TOOL_REGISTRY: dict[str, ToolIdentity] = {ti.tool_id: ti for ti in _DOMAIN_TOOLS
 
 runtime = OperatorRuntime(
     tool_registry={**STANDARD_IDENTITIES, **TOOL_REGISTRY},
+    operator_properties=OPERATOR_PROPERTIES,
+    patron_properties=PATRON_PROPERTIES,
     operator_credential_template=CredentialTemplate(
         service="goodearth-operator",
         version=1,
@@ -3192,6 +3195,8 @@ async def plant_profile(
     try:
         return await plant_profile_impl(
             parsed, api_key=keys.get("llm_api_key", ""),
+            edit_model=await runtime.operator_property("reference_edit_model"),
+            search_model=await runtime.operator_property("reference_search_model"),
             search_key=keys.get("brave_search_api_key", ""),
             plot_base_f=float(found.get("base_temp_f") or 50.0),
             taxon_id=taxon_id or None, out_on=out_on, scientific_name=names["scientific_name"],
@@ -3298,7 +3303,9 @@ async def life_cycle(
     keys = await runtime.load_credentials(["llm_api_key", "brave_search_api_key"])
     try:
         return await life_cycle_impl(
-            parsed, api_key=keys.get("llm_api_key", ""), subject=kind,
+            parsed, api_key=keys.get("llm_api_key", ""),
+            edit_model=await runtime.operator_property("reference_edit_model"),
+            search_model=await runtime.operator_property("reference_search_model"), subject=kind,
             search_key=keys.get("brave_search_api_key", ""),
             taxon_id=taxon_id or None, plot_base_f=float(found.get("base_temp_f") or 50.0),
             out_on=out_on, scientific_name=names["scientific_name"],

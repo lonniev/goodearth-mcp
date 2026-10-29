@@ -5,12 +5,14 @@ import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
 const store = new Map<string, string>();
-(globalThis as { window?: unknown }).window = {
-  localStorage: {
-    getItem: (k: string) => store.get(k) ?? null,
-    setItem: (k: string, v: string) => void store.set(k, v),
-  },
+const localStorage = {
+  getItem: (k: string) => store.get(k) ?? null,
+  setItem: (k: string, v: string) => void store.set(k, v),
+  removeItem: (k: string) => void store.delete(k),
 };
+// prefs.ts reads `window.localStorage`; tollbooth-web reads `globalThis.localStorage`.
+(globalThis as { window?: unknown }).window = { localStorage };
+Object.defineProperty(globalThis, "localStorage", { configurable: true, value: localStorage });
 
 const { readPrefs, writePrefs, DEFAULTS } = await import("./prefs.ts");
 
@@ -117,5 +119,46 @@ describe("the chart order", () => {
     window.localStorage.setItem("goodearth:prefs:v1",
       '{"chartOrder":["precip",7,null,"wind_max"]}');
     assert.deepEqual(readPrefs().chartOrder, ["precip", "wind_max"]);
+  });
+});
+
+describe("settings that follow the account", async () => {
+  const web = await import("@tollbooth-dpyc/web");
+  const sets: [string, string][] = [];
+  const declared = (name: string, dflt: unknown, follows = "account") => ({
+    name, kind: "text", label: name, description: "", default: dflt, follows,
+    value: dflt, is_default: true, updated_at: "",
+  });
+
+  beforeEach(async () => {
+    store.clear();
+    sets.length = 0;
+    web.configureTollbooth({ slug: "goodearth", appName: "Good Earth", mcpUrl: "/mcp" });
+    web.setStoredNpub("npub1grower");
+    store.set("goodearth:prop-synced:npub1grower", "earlier");
+    web.answerPropertyTools({
+      get: async () => ({ success: true, properties: [
+        { ...declared("units", "F"), value: "C", is_default: false },
+        { ...declared("array_w_m", 24), value: 30, is_default: false },
+        declared("sell_cents", null),
+        declared("bees", true, "device"),
+      ] }),
+      set: async (name, value) => { sets.push([name, value]); return { success: true }; },
+    });
+    await web.syncProperties("npub1grower");
+  });
+
+  it("brings the account's values into this device's settings, under the same key", () => {
+    const p = readPrefs();
+    assert.equal(p.units, "C");
+    assert.deepEqual(p.array, { w: 30, l: 12 });
+    assert.ok(store.get("goodearth:prefs:v1"));
+  });
+
+  it("keeps a changed account field with the account, and a device one here", async () => {
+    writePrefs({ ...readPrefs(), units: "F", bees: false, sellCents: 11 });
+    writePrefs({ ...readPrefs(), sellCents: null });
+    await new Promise((r) => setTimeout(r, 0));
+    assert.deepEqual(sets, [["units", "F"], ["sell_cents", "11"], ["sell_cents", ""]]);
   });
 });

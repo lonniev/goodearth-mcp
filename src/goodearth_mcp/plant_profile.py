@@ -22,6 +22,8 @@ import json
 import re
 from typing import Any
 
+from tollbooth.llm_route import TIER_WRITER
+
 from goodearth_mcp import llm_answer
 from goodearth_mcp.llm_answer import AnswerError
 from goodearth_mcp.llm_answer import number as _num
@@ -97,14 +99,16 @@ def prompt_for(*, taxon_id: int | None, scientific_name: str, common_name: str, 
     return "Profile this plant.\n" + "\n".join(parts)
 
 
-async def ask(api_key: str, user: str, *, edit: bool = False) -> dict[str, Any]:
+async def ask(api_key: str, user: str, *, edit: bool = False,
+              model: str = TIER_WRITER) -> dict[str, Any]:
     """One generation, and the raw JSON it answered with. It searches the web
-    itself, or with ``edit`` reads only the sources the user turn carries."""
+    itself, or with ``edit`` reads only the sources the user turn carries.
+    ``model`` is the operator's choice for that mode."""
     if edit:
         return await llm_answer.ask(api_key, system=SYSTEM_EDIT, user=user,
-                                    max_tokens=MAX_TOKENS, searches=0)
-    return await llm_answer.ask(api_key, system=SYSTEM, user=user,
-                                max_tokens=MAX_TOKENS, searches=llm_answer.MAX_SEARCHES)
+                                    max_tokens=MAX_TOKENS, searches=0, model=model)
+    return await llm_answer.ask(api_key, system=SYSTEM, user=user, max_tokens=MAX_TOKENS,
+                                searches=llm_answer.MAX_SEARCHES, model=model)
 
 
 def answer_text(data: dict[str, Any]) -> str:

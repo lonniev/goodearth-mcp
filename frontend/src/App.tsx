@@ -17,7 +17,8 @@ import Preferences from "./components/Preferences";
 import AccountSummary from "./components/AccountSummary";
 import { COUPONS } from "./components/couponDress";
 import CalendarFeed from "./components/CalendarFeed";
-import { readPrefs, themeOf, writePrefs, type Prefs } from "./lib/prefs";
+import { themeOf } from "./lib/prefs";
+import { usePrefs } from "./lib/usePrefs";
 import FirstRun from "./components/FirstRun";
 import ForgetMe from "./components/ForgetMe";
 import GuestShell from "./components/GuestShell";
@@ -45,7 +46,7 @@ import TodoView from "./views/Todo";
 import Plots from "./views/Plots";
 import {
   AVATAR_EVENT, avatarFor, checkBalance, fetchProfile, getStoredNpub, hydrateAvatarFromNostr,
-  isLoggedIn, logOut, onProofExpired,
+  isLoggedIn, logOut, onProofExpired, syncProperties,
 } from "@tollbooth-dpyc/web";
 import { blockList, type BlockRow, type FrostWindowResult } from "./lib/mcp";
 import {
@@ -129,7 +130,7 @@ export default function App() {
   const [balance, setBalance] = useState<number | null>(null);
   const [spent, setSpent] = useState(0);
   const [frost, setFrost] = useState<FrostWindowResult | null>(null);
-  const [prefs, setPrefs] = useState<Prefs>(() => readPrefs());
+  const [prefs, setPrefs] = usePrefs();
   /// Whether a visitor has asked to sign in. Separate from `signedIn` so the
   /// gate is somewhere they CHOSE to go rather than the wall they hit.
   const [asking, setAsking] = useState(false);
@@ -185,6 +186,8 @@ export default function App() {
     let live = true;
     const npub = getStoredNpub();
     void hydrateAvatarFromNostr(npub);
+    // The grower's settings follow their account: settle this device with it.
+    void syncProperties(npub);
     const sync = () => setAvatar(avatarFor(npub));
     sync();
     window.addEventListener(AVATAR_EVENT, sync);
@@ -378,7 +381,7 @@ export default function App() {
         {view === "almanac" && (
           <Almanac region={region} onCost={onCost}
             chartOrder={prefs.chartOrder}
-            onChartOrder={(o) => setPrefs(writePrefs({ ...prefs, chartOrder: o }))} />
+            onChartOrder={(o) => setPrefs({ ...prefs, chartOrder: o })} />
         )}
         {view === "crops" && <Crops region={region} onCost={onCost} />}
         {view === "wildlife" && <Wildlife region={region} onCost={onCost} />}
@@ -443,7 +446,7 @@ export default function App() {
             build={false}
             after={
               <div className="grid gap-3 lg:break-before-column">
-                <Preferences prefs={prefs} lat={latOf(region.region)} onChange={(p) => setPrefs(writePrefs(p))} />
+                <Preferences prefs={prefs} lat={latOf(region.region)} onChange={setPrefs} />
                 {/* Publishing is a once-per-region setup step, so it sits with
                     the other settings rather than at the top of the working page. */}
                 <CalendarFeed region={region} />
