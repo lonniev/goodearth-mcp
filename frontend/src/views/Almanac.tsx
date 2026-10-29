@@ -24,6 +24,7 @@ import Term from "../components/Term";
 import { dayTrend, stormLevel, stormWhen } from "../lib/storm";
 import { clock } from "../lib/dryingLine";
 import { loadAlmanac } from "../lib/pageLoads";
+import { skillChip } from "../lib/forecastSkill";
 import type { SavedRegion } from "../lib/regions";
 import { dropIndex, mergeOrder, moveItem } from "../lib/reorder";
 import { ChartFrame } from "../components/ui";
@@ -64,6 +65,10 @@ export default function Almanac({
   onChartOrder: (order: string[]) => void;
 }) {
   const u = useUnits();
+  const skillScale = {
+    tempDelta: (f: number) => `${+u.degreeDays(f).toFixed(1)}${u.tempUnit.trim()}`,
+    pressureDelta: (hpa: number) => `${+u.pressure(hpa).toFixed(2)} ${u.pressureUnit.trim()}`,
+  };
   const [data, setData] = useState<AlmanacResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -325,7 +330,8 @@ export default function Almanac({
             <ChartFrame key={s.key} label={s.label}>
               <MeasureChart measure={data.measures[s.key]}
                 dates={data.dates} forecastDates={data.forecast_dates}
-                label={s.label} emoji={s.emoji} color={s.color} />
+                label={s.label} emoji={s.emoji} color={s.color}
+                skill={skillChip(data.skill, s.key, skillScale)} />
             </ChartFrame>
           ))}
           <p className="data text-[10.5px] text-ink-soft">

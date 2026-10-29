@@ -136,3 +136,29 @@ def test_the_almanac_carries_the_barometer_and_answers_without_it(_feeds, monkey
     out = asyncio.run(region_almanac(REGION, today=TODAY))
     assert out["pressure"]["level"] == "unsettled"
     assert any("sea-level pressure" in s["role"] for s in out["sources"])
+
+
+def test_the_almanac_carries_the_forecasts_score_when_it_can_be_read(_feeds, monkeypatch):
+    hours = [f"2026-04-01T{h:02d}:00" for h in range(24)]
+    payload = {"hourly": {"time": hours, "temperature_2m": [60.0] * 24,
+                          "temperature_2m_previous_day1": [61.0] * 24,
+                          "temperature_2m_previous_day3": [66.0] * 24}}
+
+    async def runs(*_a, **_k):
+        return payload
+
+    async def nothing(*_a, **_k):
+        return None
+
+    monkeypatch.setattr(sources, "fetch_previous_runs", runs)
+    monkeypatch.setattr(record_cache, "remembered", nothing)
+    monkeypatch.setattr(record_cache, "remember", nothing)
+    out = asyncio.run(region_almanac(REGION, today=TODAY))
+    assert out["skill"]["measures"]["temp_max"]["leads"]["1"]["pct"] == 100
+    assert out["skill"]["measures"]["temp_max"]["leads"]["3"]["pct"] == 0
+
+
+def test_the_almanac_leaves_the_score_out_when_it_cannot_be_read(_feeds):
+    out = asyncio.run(region_almanac(REGION, today=TODAY))
+    assert out["success"] is True
+    assert "skill" not in out
