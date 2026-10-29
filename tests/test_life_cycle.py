@@ -15,6 +15,7 @@ from datetime import date, timedelta
 import pytest
 
 from goodearth_mcp import (
+    biota,
     block_store,
     catalog,
     crops,
@@ -222,7 +223,7 @@ def world(monkeypatch):
     async def put(key, answer, model):
         kept[key] = answer
 
-    async def ask(api_key, user):
+    async def ask(api_key, user, edit=False):
         asked.append(user)
         subject = user.split("Subject kind: ")[1].split("\n")[0]
         return reply(answers[subject])
@@ -233,12 +234,16 @@ def world(monkeypatch):
     async def season(lat, lon, start, end):
         return _record(start, end)
 
+    async def seen(taxon_id, lat, lon, radius_km):
+        return {m: (40 if 6 <= m <= 9 else 0) for m in range(1, 13)}
+
     monkeypatch.setattr(record_cache, "daily_history", daily)      # a plant's typical year
     monkeypatch.setattr(record_cache, "almanac_history", season)   # the Fauna page's season
     monkeypatch.setattr(reference_store, "get", get)
     monkeypatch.setattr(reference_store, "put", put)
     monkeypatch.setattr(life_cycle, "ask", ask)
     monkeypatch.setattr(catalog, "species_phenophases", no_npn)
+    monkeypatch.setattr(biota, "fetch_month_histogram", seen)
     return kept, asked
 
 
@@ -322,7 +327,7 @@ def test_the_operator_key_never_reaches_the_answer(world, monkeypatch):
 def test_nothing_timeable_is_kept_once_and_refused_every_time(world, monkeypatch):
     _kept, asked = world
 
-    async def empty(api_key, user):
+    async def empty(api_key, user, edit=False):
         asked.append(user)
         return reply({**HAWK, "common_name": "Eastern Chipmunk", "events": []})
     monkeypatch.setattr(life_cycle, "ask", empty)
@@ -406,10 +411,56 @@ def test_what_a_lookup_spent_is_read_from_the_providers_usage():
 def test_a_kept_answer_carries_what_it_cost(world, monkeypatch):
     kept, _asked = world
 
-    async def ask(api_key, user):
+    async def ask(api_key, user, edit=False):
         return {**reply(PUFFBALL), "usage": {"input_tokens": 90000, "output_tokens": 2500,
                                              "server_tool_use": {"web_search_requests": 2}}}
     monkeypatch.setattr(life_cycle, "ask", ask)
     out = look(subject="fungus", taxon_id=48701, scientific_name="Calvatia gigantea")
     assert out["looked_up_with"]["searches"] == 2
     assert kept["lifecycle:fungus:taxon:48701:40"]["looked_up_with"]["input_tokens"] == 90000
+
+
+# ── Our own search first ─────────────────────────────────────────────────
+
+
+def test_found_sources_are_edited_without_search_and_cited_only_from_them(world, monkeypatch):
+    from goodearth_mcp import reference_search
+    from goodearth_mcp.reference_search import Found, Source
+
+    kept, _asked = world
+    page = "https://www.allaboutbirds.org/guide/Red-tailed_Hawk/lifehistory"
+    modes = []
+
+    async def sources_for(search_key, **kw):
+        assert search_key == "brave-k"
+        return Found(sources=(Source(page, "All About Birds", ("Courtship from February.",)),),
+                     queries=2)
+
+    async def ask(api_key, user, edit=False):
+        modes.append(edit)
+        assert "Courtship from February." in user and page in user
+        assert "Jul 40" in user, "when it is seen near here travels with the sources"
+        return reply(HAWK)
+    monkeypatch.setattr(reference_search, "sources_for", sources_for)
+    monkeypatch.setattr(life_cycle, "ask", ask)
+
+    out = look(subject="animal", taxon_id=5212, scientific_name="Buteo jamaicensis",
+               search_key="brave-k")
+    assert modes == [True]
+    assert [e["name"] for e in out["events"]] == ["courtship flights"], "uncited events dropped"
+    spent = kept["lifecycle:animal:taxon:5212:40"]["looked_up_with"]
+    assert (spent["mode"], spent["our_searches"], spent["pages"]) == ("edit", 2, 1)
+
+
+def test_without_a_search_key_the_llm_searches_as_before(world, monkeypatch):
+    modes = []
+
+    async def ask(api_key, user, edit=False):
+        modes.append(edit)
+        assert "Sources (use only these" not in user
+        return reply(HAWK)
+    monkeypatch.setattr(life_cycle, "ask", ask)
+    out = look(subject="animal", taxon_id=5212, scientific_name="Buteo jamaicensis")
+    assert modes == [False]
+    assert out["looked_up_with"]["mode"] == "web_search"
+    assert len(out["events"]) > 1

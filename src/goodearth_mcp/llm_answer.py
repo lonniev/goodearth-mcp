@@ -1,8 +1,9 @@
 """Asking the fleet's LLM a reference question, and reading its answer safely.
 
 Both reference lookups — a plant's profile, a subject's life cycle — ask one
-web-searching generation on `tollbooth.llm_route` for one JSON object inside a
-named tag, then check every field before anything downstream sees it. The
+generation on `tollbooth.llm_route` for one JSON object inside a named tag: an
+edit of sources our own search found (`reference_search`), or a web search of
+its own when there are none, then check every field before anything downstream sees it. The
 answer is adversarial input like any other: a field out of range, mistyped or
 unsourced comes back absent, never invented.
 """
@@ -42,11 +43,12 @@ class AnswerError(ValueError):
 
 async def ask(api_key: str, *, system: str, user: str, max_tokens: int,
               searches: int) -> dict[str, Any]:
-    """One web-searching generation, and the raw JSON it answered with."""
+    """One generation, and the raw JSON it answered with. With ``searches`` 0 it
+    may not search: it edits the sources the user turn carries."""
     route = resolve_route(api_key=api_key, tier=TIER_WRITER)
     req = build_messages_request(
         route, system=system, user=user, max_tokens=max_tokens,
-        tools=[web_search_tool(searches)],
+        tools=[web_search_tool(searches)] if searches > 0 else None,
         timeout_seconds=TIMEOUT_S, timeout_max_seconds=TIMEOUT_S,
     )
     async with httpx.AsyncClient(timeout=req["timeout"]) as client:

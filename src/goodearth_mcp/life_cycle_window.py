@@ -15,7 +15,7 @@ import logging
 from datetime import UTC, date, datetime
 from typing import Any
 
-from goodearth_mcp import catalog, gdd, life_cycle, llm_answer, planting, reference_store
+from goodearth_mcp import biota, catalog, gdd, life_cycle, planting, reference_search, reference_store
 from goodearth_mcp.life_cycle import LifeCycleError
 from goodearth_mcp.planting_window import PlantingWindowError, air_record, frost_season
 from goodearth_mcp.region import Region
@@ -35,6 +35,24 @@ async def _phenophases(scientific_name: str) -> list[str]:
         logger.info("NPN phenophases unavailable: %s", exc)
         return []
     return list((rows[0].get("habits") or []) if rows else [])
+
+
+#: How far round the plot iNaturalist's sightings are counted: about the
+#: latitude band a banded answer is kept for.
+SEEN_RADIUS_KM = 250
+
+
+async def _seen_by_month(subject: str, taxon_id: int | None, region: Region) -> dict[int, int] | None:
+    """When this subject is seen near the plot, for a subject kept per band.
+    A courtesy like the phenophases: a failure is no hint at all."""
+    if subject not in life_cycle.BANDED or not taxon_id:
+        return None
+    try:
+        return await biota.fetch_month_histogram(taxon_id, region.centroid.lat,
+                                                 region.centroid.lon, SEEN_RADIUS_KM)
+    except Exception as exc:  # noqa: BLE001
+        logger.info("iNaturalist sightings unavailable: %s", exc)
+        return None
 
 
 async def _plant_dates(region: Region, events: list[dict[str, Any]], base_f: float,
@@ -72,6 +90,7 @@ async def block_life_cycle(
     *,
     api_key: str,
     subject: str,
+    search_key: str = "",
     taxon_id: int | None = None,
     scientific_name: str = "",
     common_name: str = "",
@@ -89,14 +108,23 @@ async def block_life_cycle(
     async def fetch() -> tuple[dict[str, Any], str]:
         if not api_key:
             raise LifeCycleError("This service has no reference configured yet.")
+        # Our own search first; the LLM edits what it found. Without a search key,
+        # or with nothing found, the LLM searches for itself.
+        sources = await reference_search.sources_for(
+            search_key, subject=subject, scientific_name=scientific_name,
+            common_name=common_name, text=text)
         user = life_cycle.prompt_for(
             subject=subject, taxon_id=taxon_id, scientific_name=scientific_name,
             common_name=common_name, text_typed=text, lat=lat,
-            phenophases=await _phenophases(scientific_name))
-        data = await life_cycle.ask(api_key, user)
-        found = life_cycle.validate(life_cycle.answer_text(data), subject)
+            phenophases=await _phenophases(scientific_name),
+            observed_by_month=await _seen_by_month(subject, taxon_id, region),
+        ) + reference_search.prompt_block(sources)
+        edit = bool(sources.sources)
+        data = await life_cycle.ask(api_key, user, edit=edit)
+        found = life_cycle.validate(life_cycle.answer_text(data), subject,
+                                    given=sources.urls if edit else None)
         found["looked_up_on"] = today.isoformat()
-        found["looked_up_with"] = llm_answer.usage_of(data)
+        found["looked_up_with"] = reference_search.spent(data, sources)
         return found, str(data.get("model") or "")
 
     found, kept = await reference_store.remember(key, fetch)

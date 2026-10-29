@@ -3,9 +3,10 @@
 A grower picks "American pumpkin" from iNaturalist, or types "punkin", and
 should not then be asked for a degree-day figure, a height or a bloom month.
 Almost nobody publishes a degree-day target for a cultivar, and a guessed one
-quietly wrecks every date the ledger gives. So the service looks it up: an LLM
-with web search reads the extension services and seed houses and answers in a
-fixed shape, with its sources.
+quietly wrecks every date the ledger gives. So the service looks it up: our own
+search reads the extension services and seed houses (`reference_search`) and an
+LLM edits them into a fixed shape, with its sources — or searches the web
+itself when nothing was found.
 
 The answer is treated as adversarial input like any other. Every field is
 checked here, clamped or dropped, before anything downstream sees it; a field
@@ -26,8 +27,8 @@ from goodearth_mcp.llm_answer import AnswerError
 from goodearth_mcp.llm_answer import number as _num
 from goodearth_mcp.llm_answer import one_of as _pick
 from goodearth_mcp.llm_answer import text as _text
-from goodearth_mcp.llm_answer import url as _url
 from goodearth_mcp.llm_answer import whole as _int
+from goodearth_mcp.reference_search import EDIT_RULE, cited
 
 #: Flower colours the companion designer pairs on. Mirrors the frontend's HUES.
 HUES = ("red", "orange", "yellow", "green", "blue", "violet", "pink", "white")
@@ -77,6 +78,10 @@ SYSTEM = (
     "- Fahrenheit and inches throughout."
 )
 
+#: The same reference, editing sources it was given rather than searching.
+SYSTEM_EDIT = SYSTEM.replace("use web search to find its growing facts from",
+                             "read the sources given for its growing facts, from") + EDIT_RULE
+
 
 def prompt_for(*, taxon_id: int | None, scientific_name: str, common_name: str, text: str) -> str:
     """The user turn: what the grower picked, or typed."""
@@ -92,8 +97,12 @@ def prompt_for(*, taxon_id: int | None, scientific_name: str, common_name: str, 
     return "Profile this plant.\n" + "\n".join(parts)
 
 
-async def ask(api_key: str, user: str) -> dict[str, Any]:
-    """One web-searching generation, and the raw JSON it answered with."""
+async def ask(api_key: str, user: str, *, edit: bool = False) -> dict[str, Any]:
+    """One generation, and the raw JSON it answered with. It searches the web
+    itself, or with ``edit`` reads only the sources the user turn carries."""
+    if edit:
+        return await llm_answer.ask(api_key, system=SYSTEM_EDIT, user=user,
+                                    max_tokens=MAX_TOKENS, searches=0)
     return await llm_answer.ask(api_key, system=SYSTEM, user=user,
                                 max_tokens=MAX_TOKENS, searches=llm_answer.MAX_SEARCHES)
 
@@ -120,8 +129,10 @@ def _span(v: Any, lo: float, hi: float, whole: bool) -> dict[str, float] | None:
     return {"typical": typical, "low": low, "high": high}
 
 
-def validate(raw: str) -> dict[str, Any]:
-    """The model's JSON, as only the fields this service can stand behind."""
+def validate(raw: str, *, given: set[str] | None = None) -> dict[str, Any]:
+    """The model's JSON, as only the fields this service can stand behind. With
+    ``given``, the URLs of the sources it was handed, a citation of any other
+    page is dropped, and a figure resting on one with it."""
     try:
         data = json.loads(raw)
     except (TypeError, ValueError) as exc:
@@ -153,7 +164,7 @@ def validate(raw: str) -> dict[str, Any]:
     published = None
     if isinstance(gdd, dict):
         figure, base = _num(gdd.get("gdd"), 1, 20_000), _num(gdd.get("base_f"), 20, 80)
-        source = _url(gdd.get("source_url"))
+        source = cited(gdd.get("source_url"), given)
         # A figure without its base is off by hundreds, and one without a
         # source is a claim nobody can check. Both, or nothing.
         if figure is not None and base is not None and source:
@@ -168,7 +179,7 @@ def validate(raw: str) -> dict[str, Any]:
 
     sources = []
     for s in data.get("sources") or []:
-        if isinstance(s, dict) and (u := _url(s.get("url"))):
+        if isinstance(s, dict) and (u := cited(s.get("url"), given)):
             sources.append({"title": _text(s.get("title"), _MAX_NAME) or u, "url": u})
         if len(sources) >= _MAX_SOURCES:
             break

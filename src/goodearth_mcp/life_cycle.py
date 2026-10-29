@@ -2,9 +2,10 @@
 
 A grower picks a subject — a pumpkin, a codling moth, a red-tailed hawk — and
 should not have to know which stages exist, what drives each, or its threshold.
-So the service looks them up: one web-searching generation reads extension
-services, field guides and life-history accounts and answers in a fixed shape,
-with its sources, and a short story of the subject's year.
+So the service looks them up: our own search reads extension services, field
+guides and life-history accounts (`reference_search`), and one generation edits
+them into a fixed shape, with its sources, and a short story of the subject's
+year. With nothing found, that generation searches the web itself.
 
 Every event must pass the same validator its saved record would face —
 `crops.validate_stages` for a plant's or a pest's heat stages,
@@ -23,8 +24,9 @@ import math
 from typing import Any
 
 from goodearth_mcp import crops, llm_answer, wildlife
-from goodearth_mcp.llm_answer import AnswerError, number, one_of, text, url
+from goodearth_mcp.llm_answer import AnswerError, number, one_of, text
 from goodearth_mcp.plant_profile import subject_key
+from goodearth_mcp.reference_search import EDIT_RULE, cited
 
 SUBJECTS = ("plant", "pest", "animal", "fungus")
 
@@ -42,6 +44,8 @@ DRIVERS = {
     # a season, so its year is timed as an animal's is.
     "fungus": _ANIMAL_DRIVERS,
 }
+
+_MONTH_ABBR = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 
 #: Subjects whose calendar dates move with latitude, so are kept per band.
 BANDED = ("animal", "fungus")
@@ -107,11 +111,16 @@ SYSTEM = (
     f"- At most {MAX_EVENTS} events, in the order they happen."
 )
 
+#: The same reference, editing sources it was given rather than searching.
+SYSTEM_EDIT = SYSTEM.replace("use web search to find its life cycle from",
+                             "read the sources given for its life cycle, from") + EDIT_RULE
+
 
 def prompt_for(*, subject: str, taxon_id: int | None, scientific_name: str,
                common_name: str, text_typed: str, lat: float,
-               phenophases: list[str]) -> str:
-    """The user turn: the subject, where it is, and the stages USA-NPN names."""
+               phenophases: list[str], observed_by_month: dict[int, int] | None = None) -> str:
+    """The user turn: the subject, where it is, the stages USA-NPN names, and
+    when it is seen near here."""
     parts = [f"Subject kind: {subject}"]
     if scientific_name:
         parts.append(f"Scientific name: {scientific_name}")
@@ -125,11 +134,19 @@ def prompt_for(*, subject: str, taxon_id: int | None, scientific_name: str,
     if phenophases:
         parts.append("USA-NPN tracks these stages for it (use these names where they fit): "
                      + "; ".join(phenophases[:30]))
+    if observed_by_month and sum(observed_by_month.values()):
+        parts.append("iNaturalist observations near here, by month (when it is seen, "
+                     "not a stage): " + ", ".join(
+                         f"{_MONTH_ABBR[m - 1]} {observed_by_month.get(m, 0)}" for m in range(1, 13)))
     return "Give this subject's life cycle.\n" + "\n".join(parts)
 
 
-async def ask(api_key: str, user: str) -> dict[str, Any]:
-    """One web-searching generation, and the raw JSON it answered with."""
+async def ask(api_key: str, user: str, *, edit: bool = False) -> dict[str, Any]:
+    """One generation, and the raw JSON it answered with. It searches the web
+    itself, or with ``edit`` reads only the sources the user turn carries."""
+    if edit:
+        return await llm_answer.ask(api_key, system=SYSTEM_EDIT, user=user,
+                                    max_tokens=MAX_TOKENS, searches=0)
     return await llm_answer.ask(api_key, system=SYSTEM, user=user,
                                 max_tokens=MAX_TOKENS, searches=llm_answer.MAX_SEARCHES)
 
@@ -153,11 +170,14 @@ def cache_key(*, subject: str, taxon_id: int | None, name: str, lat: float) -> s
 # ── Checking the answer ──────────────────────────────────────────────────
 
 
-def _event(subject: str, name: str, raw: dict[str, Any]) -> dict[str, Any] | None:
-    """One event in its record's own shape, or None when it does not validate."""
+def _event(subject: str, name: str, raw: dict[str, Any],
+           given: set[str] | None) -> dict[str, Any] | None:
+    """One event in its record's own shape, or None when it does not validate —
+    or cites a page it was not given."""
     label = text(raw.get("name"), 80)
     driver = one_of(raw.get("driver"), DRIVERS[subject])
-    if not label or not driver:
+    source = cited(raw.get("source_url"), given)
+    if not label or not driver or (given is not None and not source):
         return None
     fields = {f: raw[f] for f in DRIVER_FIELDS[driver] if f in raw}
     try:
@@ -176,7 +196,7 @@ def _event(subject: str, name: str, raw: dict[str, Any]) -> dict[str, Any] | Non
         "summary": text(raw.get("summary"), 200),
         "key": raw.get("key") is True,
         **timing,
-        "source_url": url(raw.get("source_url")) or None,
+        "source_url": source or None,
     }
 
 
@@ -194,8 +214,10 @@ def _record_fields(ev: dict[str, Any]) -> dict[str, Any]:
     return {"phase": ev["phase"], "after": ev["after"], "nth": ev["nth"]}
 
 
-def validate(raw: str, subject: str) -> dict[str, Any]:
-    """The model's JSON, as only the events this service can stand behind."""
+def validate(raw: str, subject: str, *, given: set[str] | None = None) -> dict[str, Any]:
+    """The model's JSON, as only the events this service can stand behind. With
+    ``given``, the URLs of the sources it was handed, an event citing any other
+    page is dropped: an edit invents no citations."""
     try:
         data = json.loads(raw)
     except (TypeError, ValueError) as exc:
@@ -214,7 +236,7 @@ def validate(raw: str, subject: str) -> dict[str, Any]:
     for raw_ev in data.get("events") or []:
         if not isinstance(raw_ev, dict) or len(events) >= MAX_EVENTS:
             continue
-        ev = _event(subject, name, raw_ev)
+        ev = _event(subject, name, raw_ev, given)
         if ev and ev["name"].lower() not in seen:
             seen.add(ev["name"].lower())
             events.append(ev)
