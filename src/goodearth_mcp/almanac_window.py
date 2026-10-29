@@ -10,11 +10,14 @@ season's actuals, one multi-year span for the normals, and the forecast.
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
-from goodearth_mcp import almanac, gdd, pressure_window, record_cache, sources
+from goodearth_mcp import almanac, forecast_skill, gdd, pressure_window, record_cache, sources
 from goodearth_mcp.region import Region
+
+logger = logging.getLogger(__name__)
 
 NORMALS_SPAN_YEARS = 10
 FORECAST_DAYS = 14
@@ -80,10 +83,14 @@ async def region_almanac(
         region.centroid.lat, region.centroid.lon, FORECAST_DAYS
     )
 
-    actual, normals, forecast, storm_read = await asyncio.gather(
+    actual, normals, forecast, storm_read, skill = await asyncio.gather(
         actual_task, normals_task, forecast_task, pressure_window.region_storm(region),
+        forecast_skill.region_skill(region.centroid.lat, region.centroid.lon, today),
         return_exceptions=True,
     )
+    if isinstance(skill, BaseException):
+        logger.warning("almanac: forecast skill failed: %s", skill)
+        skill = None
     storm = pressure_window.settle(storm_read)
 
     if isinstance(actual, BaseException):
@@ -259,6 +266,9 @@ async def region_almanac(
         "measures": measures,
         "conditions": conditions,
         "upcoming": upcoming,
+        # How often the forecast was right here over the last month, per
+        # measure, one and three days out. Absent when it could not be read.
+        **({"skill": skill} if skill and skill.get("measures") else {}),
         # The barometer now, its three-hour tendency, and the storm it implies
         # over the next three days. Absent when the hourly feed did not answer.
         "pressure": storm,

@@ -78,3 +78,16 @@ def _no_barometer(monkeypatch):
         raise sources.UpstreamError("no barometer in tests")
 
     monkeypatch.setattr(sources, "fetch_pressure_hourly", silent)
+
+
+@pytest.fixture(autouse=True)
+def _no_previous_runs(monkeypatch):
+    """The almanac scores its forecast beside its own call; by default the
+    record of past runs does not answer, which leaves the score out. A test
+    about the score sets its own `fetch_previous_runs`."""
+    from goodearth_mcp import sources
+
+    async def silent(*_a, **_k):
+        raise sources.UpstreamError("no previous runs in tests")
+
+    monkeypatch.setattr(sources, "fetch_previous_runs", silent)

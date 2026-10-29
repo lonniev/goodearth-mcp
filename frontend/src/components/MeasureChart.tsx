@@ -28,7 +28,7 @@ const H_INLINE = 150, H_FULL_MAX = 2000;
 const AXIS_H = 32;
 
 export default function MeasureChart({
-  measure, dates, forecastDates, label, emoji, color = "var(--color-growth)", zoomable = true,
+  measure, dates, forecastDates, label, emoji, color = "var(--color-growth)", zoomable = true, skill,
 }: {
   measure: Measure;
   dates: string[];
@@ -37,6 +37,8 @@ export default function MeasureChart({
   emoji?: ReactNode;
   color?: string;
   zoomable?: boolean;
+  /// How often the forecast for this measure was right here lately.
+  skill?: { pct: number; title: string } | null;
 }) {
   const u = useUnits();
   const { ref: box, width: boxW } = useBoxWidth<HTMLDivElement>();
@@ -137,6 +139,12 @@ export default function MeasureChart({
         <span className="figure text-[15px] font-semibold">
           {emoji && <span className="mr-1.5">{emoji}</span>}{label}
         </span>
+        {skill && (
+          <span title={skill.title} aria-label={skill.title}
+            className="data rounded-full bg-band px-1.5 py-[1px] text-[10.5px] text-ink-soft">
+            🎯 {skill.pct}%
+          </span>
+        )}
         {measure.accumulates ? (
           <span className="text-[12.5px] text-ink-soft">
             <b className="figure text-ink">{measure.actual_total?.toFixed(2)} {unitLabel}</b> so far

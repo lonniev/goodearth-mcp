@@ -58,6 +58,9 @@ _HISTORY = "https://historical-forecast-api.open-meteo.com/v1/forecast"
 #: other does not — and the two fail independently, which is the whole point.
 _ARCHIVE_ERA5 = "https://archive-api.open-meteo.com/v1/archive"
 _FORECAST = "https://api.open-meteo.com/v1/forecast"
+#: What the same forecast said one and three days before each hour. Open-Meteo
+#: keeps every run, so how good our forecast has been is read, never stored.
+_PREVIOUS_RUNS = "https://previous-runs-api.open-meteo.com/v1/forecast"
 _ELEVATION = "https://api.open-meteo.com/v1/elevation"
 _DAYMET = "https://daymet.ornl.gov/single-pixel/api/data"
 
@@ -923,6 +926,41 @@ async def fetch_almanac_forecast(lat: float, lon: float, days: int = 14) -> dict
     results = _as_list(payload)
     if not results:
         raise UpstreamError("almanac forecast returned no locations")
+    return results[0]
+
+
+#: The hourly fields scored, each with the leads asked for. The plain field is
+#: the latest run's reading for that hour — the truth a forecast is held to.
+PREVIOUS_RUN_FIELDS = (
+    "temperature_2m", "dew_point_2m", "precipitation",
+    "wind_speed_10m", "relative_humidity_2m", "pressure_msl",
+)
+PREVIOUS_RUN_LEADS = (1, 3)
+
+
+async def fetch_previous_runs(lat: float, lon: float, start: str, end: str) -> dict[str, Any]:
+    """Each hour from ``start`` to ``end`` (YYYY-MM-DD), as it turned out and as
+    the forecast said it would one and three days before, in local time.
+
+    The same model the almanac's forecast reads (no ``models``, so best match),
+    so the score is the score of what the grower was shown.
+    """
+    hourly = ",".join(
+        [*PREVIOUS_RUN_FIELDS,
+         *(f"{f}_previous_day{n}" for f in PREVIOUS_RUN_FIELDS for n in PREVIOUS_RUN_LEADS)]
+    )
+    payload = await _get(
+        _PREVIOUS_RUNS,
+        {
+            "latitude": lat, "longitude": lon, "hourly": hourly,
+            "start_date": start, "end_date": end, "timezone": "auto",
+            "precipitation_unit": "inch",
+            **_US_UNITS,
+        },
+    )
+    results = _as_list(payload)
+    if not results:
+        raise UpstreamError("previous runs returned no locations")
     return results[0]
 
 

@@ -892,6 +892,19 @@ export type MeasureKey =
   | "temp_max" | "temp_min" | "dew_point" | "precip" | "sunshine" | "daylight"
   | "wind_max" | "humidity" | "pressure";
 
+/// One measure's forecast score: `within` is the tolerance a hit lands in, in
+/// °F, mph, % or hPa (null: rain scored on the wet/dry call); `leads` by days out.
+export interface SkillScore {
+  within: number | null;
+  leads: Partial<Record<"1" | "3", { hits: number; days: number; pct: number }>>;
+}
+
+export interface ForecastSkill {
+  from: string;
+  to: string;
+  measures: Partial<Record<MeasureKey, SkillScore>>;
+}
+
 export interface AlmanacResult {
   success: boolean;
   error?: string;
@@ -901,6 +914,9 @@ export interface AlmanacResult {
   dates: string[];
   forecast_dates: string[];
   measures: Record<MeasureKey, Measure>;
+  /// How often the forecast was right here over the last month, per measure,
+  /// one and three days out. Absent when the record of past runs was unread.
+  skill?: ForecastSkill;
   conditions: {
     date: string; sky: Sky; wind: Wind;
     high_f: number | null; low_f: number | null; dew_point_f: number | null;

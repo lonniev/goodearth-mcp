@@ -1,0 +1,1 @@
+- 🎯 on each Almanac chart: how often the next-day forecast for that measure was right here over the last month (within ±3°F, ±5 mph, ±10%, ±3 hPa, or right about rain), with the 3-day figure in its tooltip. Scored from Open-Meteo's record of past forecast runs, so nothing is stored and a new block has a score at once.

@@ -42,6 +42,13 @@ const SOURCES: Source[] = [
     note: "Daily soil aggregates come back empty from this endpoint, so Good Earth asks hourly and averages.",
   },
   {
+    name: "Open-Meteo — previous runs",
+    url: "https://open-meteo.com/en/docs/previous-runs-api",
+    role: "What the forecast above said one and three days before each hour of the last month. Scored against how each day turned out, it is the 🎯 on every Almanac chart: how often the next-day forecast was right here.",
+    resolution: "≈ 2–11 km by model",
+    note: "The truth each day is held to is the latest run's reading for it, a model's best estimate rather than a station's.",
+  },
+  {
     name: "Open-Meteo — elevation (SRTM)",
     url: "https://open-meteo.com/en/docs/elevation-api",
     role: "Terrain height at each sample point. A working field sits inside one Daymet pixel, so within a single farm this is still the only feed that resolves anything, and it carries the whole burden of region spread.",
