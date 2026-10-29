@@ -1,0 +1,1 @@
+- A reference lookup may take up to five minutes, so a model that reasons before it answers is waited for rather than abandoned at 90 seconds.

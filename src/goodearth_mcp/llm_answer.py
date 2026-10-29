@@ -28,8 +28,12 @@ from tollbooth.llm_route import (
 
 logger = logging.getLogger(__name__)
 
-#: A web-searching generation is slow; a minute and a half is the ceiling.
-TIMEOUT_S = 90.0
+#: How long one generation may take. A model that reasons first is slow: grok-4.5
+#: took about 83 s for a hawk, and a free Nemotron with room to think ran past
+#: the old 90 s ceiling every time, so each attempt was abandoned unanswered
+#: (2026-10-29). Each subject is looked up once and kept, so waiting for it is
+#: cheaper than asking again.
+TIMEOUT_S = 300.0
 
 #: Web searches one reference lookup may make. Sampled 2026-10-28 on a common
 #: bird and an obscure fungus: two or three searches found everything there
