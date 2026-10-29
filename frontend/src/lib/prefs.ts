@@ -1,10 +1,16 @@
-// Viewing preferences.
+// A grower's settings.
 //
-// Per-device rather than per-patron on purpose: a grower may want the bees on
-// the tablet in the packing shed and off on the laptop they do accounts on.
-// These are display choices, not farm data, so they stay in localStorage and
-// are not published to Nostr with the regions and reports.
+// Most follow the grower's account from device to device — units, the chart
+// order, the array they size, what their kWh sells for — as Good Earth's
+// properties (`goodearth_mcp/properties.py`), kept by the wheel and settled on
+// sign-in by tollbooth-web. Two stay on the screen they were set on: a grower
+// may want the bees on the tablet in the packing shed and off on the laptop
+// they do accounts on, and the same for the season theme.
+//
+// They are all stored here, under one key, as before: each account property
+// is a mirror over its field, so nothing a grower chose moves or is lost.
 
+import { mirrorProperty, propertyChanged } from "@tollbooth-dpyc/web";
 import { seasonOf, type Season } from "./season.ts";
 import type { Unit } from "./units.ts";
 
@@ -81,7 +87,60 @@ export function readPrefs(): Prefs {
   }
 }
 
-export function writePrefs(p: Prefs): Prefs {
+const listeners = new Set<() => void>();
+
+/** Hear every change to the settings on this page. Returns an unsubscribe. */
+export function onPrefsChange(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => {
+    listeners.delete(fn);
+  };
+}
+
+/** The stored text, for a snapshot that stays the same while nothing changed. */
+export function prefsSnapshot(): string {
+  try { return window.localStorage.getItem(KEY) ?? ""; } catch { return ""; }
+}
+
+function storePrefs(p: Prefs): Prefs {
   try { window.localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* noop */ }
+  listeners.forEach((fn) => fn());
+  return p;
+}
+
+/**
+ * The fields that follow the account, by property name: how to read each from
+ * the settings, and how to put it back. A `null` kWh price is "none set", which
+ * the account keeps as its default.
+ */
+const ACCOUNT: Record<string, { get: (p: Prefs) => unknown; put: (p: Prefs, v: unknown) => Prefs }> = {
+  units: { get: (p) => p.units, put: (p, v) => ({ ...p, units: v === "C" ? "C" : "F" }) },
+  chart_order: {
+    get: (p) => p.chartOrder,
+    put: (p, v) => ({ ...p, chartOrder: Array.isArray(v) ? v.filter((k) => typeof k === "string") : [] }),
+  },
+  array_w_m: { get: (p) => p.array.w, put: (p, v) => ({ ...p, array: { ...p.array, w: num(v) ?? p.array.w } }) },
+  array_l_m: { get: (p) => p.array.l, put: (p, v) => ({ ...p, array: { ...p.array, l: num(v) ?? p.array.l } }) },
+  sell_cents: { get: (p) => p.sellCents, put: (p, v) => ({ ...p, sellCents: num(v) }) },
+};
+
+const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+
+for (const [name, field] of Object.entries(ACCOUNT)) {
+  mirrorProperty(name, {
+    read: () => (prefsSnapshot() ? field.get(readPrefs()) : undefined),
+    write: (v) => void storePrefs(field.put(readPrefs(), v)),
+  });
+}
+
+/** Store the settings, and keep each account field that changed with the account. */
+export function writePrefs(p: Prefs): Prefs {
+  const before = readPrefs();
+  storePrefs(p);
+  for (const [name, field] of Object.entries(ACCOUNT)) {
+    const was = field.get(before);
+    const now = field.get(p);
+    if (JSON.stringify(was) !== JSON.stringify(now)) propertyChanged(name, now === null ? "" : now);
+  }
   return p;
 }
