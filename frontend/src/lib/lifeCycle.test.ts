@@ -3,7 +3,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
-  aboutDate, eventKey, heatStages, initialChoice, pestRow, pestWithStages, toAdd, trackedFor, wildlifeRows,
+  aboutDate, eventKey, heatStages, initialChoice, pestRow, pestWithStages, splitPestEvents, toAdd,
+  trackedFor, wildlifeRows,
 } from "./lifeCycle.ts";
 import { makeWildlife } from "./wildlifeModels.ts";
 import type { LifeCycleEvent } from "./mcp.ts";
@@ -111,5 +112,25 @@ describe("adding stages to a pest already watched", () => {
   it("makes a new record when the pest is not watched yet", () => {
     const got = pestWithStages(undefined, "Codling moth", chosen, 50, "b1");
     assert.ok(typeof got !== "string" && got.id !== "pe1");
+  });
+});
+
+describe("a pest that has no degree days", () => {
+  const CHIPMUNK = [
+    ev("first litter", { typical_on: "05-10", key: true }),
+    ev("nut caching", { typical_on: "09-15" }),
+  ];
+  const MOTH = [ev("first flight", { driver: "heat", gdd: 375, typical_on: undefined })];
+
+  it("keeps degree-day stages on its record and the rest as foe watches on Fauna", () => {
+    const split = splitPestEvents([...MOTH, ...CHIPMUNK]);
+    assert.deepEqual(split.stages.map((e) => e.name), ["first flight"]);
+    assert.deepEqual(split.watches.map((e) => e.name), ["first litter", "nut caching"]);
+  });
+
+  it("saves its watches as foes, each passing the form's own check", () => {
+    const rows = wildlifeRows("Eastern Chipmunk", CHIPMUNK, "b1", { role: "foe" });
+    assert.ok(rows.every((r) => (r as { role?: string }).role === "foe"));
+    for (const r of rows) assert.notEqual(typeof makeWildlife(r, "b1"), "string");
   });
 });

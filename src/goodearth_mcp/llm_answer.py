@@ -9,6 +9,7 @@ unsourced comes back absent, never invented.
 
 from __future__ import annotations
 
+import logging
 import math
 import re
 from typing import Any
@@ -17,9 +18,13 @@ import httpx
 from tollbooth.llm_route import (
     TIER_WRITER,
     build_messages_request,
+    error_message,
+    llm_failure_situation,
     resolve_route,
     web_search_tool,
 )
+
+logger = logging.getLogger(__name__)
 
 #: A web-searching generation is slow; a minute and a half is the ceiling.
 TIMEOUT_S = 90.0
@@ -41,8 +46,17 @@ async def ask(api_key: str, *, system: str, user: str, max_tokens: int,
     async with httpx.AsyncClient(timeout=req["timeout"]) as client:
         resp = await client.post(req["url"], headers=req["headers"], json=req["json"])
     if resp.status_code >= 400:
-        # The body may echo request details; the status is all a patron needs.
-        raise AnswerError(f"The reference did not answer (HTTP {resp.status_code}).")
+        # Said in the SDK's words: an empty provider account, a bad key and a
+        # retired model each read as what they are, safely. The raw status and
+        # body stay here, in the operator's log.
+        try:
+            body: object = resp.json()
+        except ValueError:
+            body = resp.text
+        situation = llm_failure_situation(status=resp.status_code, body=body)
+        logger.warning("reference LLM refused: HTTP %s %s (%s)", resp.status_code,
+                       situation.error_code, error_message(body)[:200])
+        raise AnswerError(situation.message)
     return resp.json()
 
 

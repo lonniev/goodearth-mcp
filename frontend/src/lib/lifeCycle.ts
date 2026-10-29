@@ -51,7 +51,7 @@ export function aboutDate(iso: string | null): string {
 /// An animal's chosen events, one wildlife record each.
 export function wildlifeRows(
   species: string, events: LifeCycleEvent[], regionId: string,
-  extra?: { scientificName?: string; emoji?: string },
+  extra?: { scientificName?: string; emoji?: string; role?: "friend" | "foe" | "watch" },
 ): SavedWildlife[] {
   return events.map((e) => ({
     id: newItemId("wl"),
@@ -71,7 +71,20 @@ export function wildlifeRows(
     ...(e.after ? { after: e.after } : {}),
     ...(e.nth != null ? { nth: e.nth } : {}),
     ...(extra?.scientificName ? { scientific_name: extra.scientificName } : {}),
+    ...(extra?.role ? { role: extra.role } : {}),
   }) as SavedWildlife);
+}
+
+/// A pest's chosen events, split by where each is kept: degree-day stages on
+/// the pest's own record, everything else — a chipmunk's litters, its caching
+/// — as foe watches on Fauna, where any animal's year is kept.
+export function splitPestEvents(events: LifeCycleEvent[]): {
+  stages: LifeCycleEvent[]; watches: LifeCycleEvent[];
+} {
+  return {
+    stages: events.filter((e) => e.driver === "heat"),
+    watches: events.filter((e) => e.driver !== "heat"),
+  };
 }
 
 /// A plant's or pest's chosen heat events, as stages sorted by heat.

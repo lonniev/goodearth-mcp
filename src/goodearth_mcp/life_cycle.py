@@ -28,13 +28,16 @@ from goodearth_mcp.plant_profile import subject_key
 
 SUBJECTS = ("plant", "pest", "animal")
 
-#: What may time each subject's events. A plant's and a pest's events are heat
-#: stages, because that is what their saved records hold. An animal's may be
-#: any driver except `interval`, which counts from a day only the grower saw.
+#: What may time each subject's events. A plant's are heat stages from set-out,
+#: because that is what a planting holds. A pest's and an animal's may be any
+#: driver except `interval`, which counts from a day only the grower saw: an
+#: insect's are heat stages, but a chipmunk is a pest with no degree days, and
+#: its year is timed by the calendar and the light like any animal's.
+_ANIMAL_DRIVERS = ("heat", "daylight", "calendar", "condition", "moon")
 DRIVERS = {
     "plant": ("heat",),
-    "pest": ("heat",),
-    "animal": ("heat", "daylight", "calendar", "condition", "moon"),
+    "pest": _ANIMAL_DRIVERS,
+    "animal": _ANIMAL_DRIVERS,
 }
 
 #: The fields each driver carries, as the record stores them.
@@ -89,7 +92,9 @@ SYSTEM = (
     "Rules:\n"
     "- Only events a source supports, each with that source's URL. Never guess a "
     "threshold; leave the event out instead.\n"
-    "- A plant's and a pest's events use the heat driver only.\n"
+    "- A plant's events use the heat driver only. An insect or mite pest's stages "
+    "use heat from January 1 at base_temp_f; a pest that is a mammal, bird or other "
+    "animal uses whatever driver fits, as any animal does.\n"
     "- Prefer the driver a source states: heat for insects and crops, daylight for "
     "what day length cues, calendar only when nothing better is known.\n"
     f"- At most {MAX_EVENTS} events, in the order they happen."
@@ -149,7 +154,8 @@ def _event(subject: str, name: str, raw: dict[str, Any]) -> dict[str, Any] | Non
         return None
     fields = {f: raw[f] for f in DRIVER_FIELDS[driver] if f in raw}
     try:
-        if subject in ("plant", "pest"):
+        if subject == "plant" or (subject == "pest" and driver == "heat"):
+            # Kept as a stage: a planting's, or the pest record's own.
             stage = crops.validate_stages(name, [{"stage": label, "gdd": fields.get("gdd")}])[0]
             timing: dict[str, Any] = {"driver": "heat", "gdd": stage["gdd"]}
         else:
@@ -205,8 +211,8 @@ def validate(raw: str, subject: str) -> dict[str, Any]:
         if ev and ev["name"].lower() not in seen:
             seen.add(ev["name"].lower())
             events.append(ev)
-    if not events:
-        raise LifeCycleError("No event in its life cycle could be timed from a source.")
+    # None timeable is an answer too, and is kept like one: asking again would
+    # pay for the same search to find the same nothing. The window says so.
     return {
         "subject": subject,
         "scientific_name": scientific,
