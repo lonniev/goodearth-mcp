@@ -19,9 +19,9 @@ const skill: ForecastSkill = {
 
 describe("the forecast score on a card", () => {
   it("is the next-day figure, with both leads in its title", () => {
-    assert.deepEqual(skillChip(skill, "temp_max", F), {
-      pct: 83, title: "Next-day forecast within ±3°F on 25 of 30 days · 3 days out: 70%",
-    });
+    const chip = skillChip(skill, "temp_max", F)!;
+    assert.equal(chip.pct, 83);
+    assert.equal(chip.title, "Next-day forecast within ±3°F on 25 of 30 days · 3 days out: 70%");
   });
 
   it("states a tolerance in the reader's units, as a difference", () => {
@@ -31,6 +31,27 @@ describe("the forecast score on a card", () => {
 
   it("says rain is scored on whether it rained", () => {
     assert.equal(skillChip(skill, "precip", F)!.title, "Next-day forecast right about rain on 27 of 30 days");
+  });
+
+  it("explains itself for each measure, in the reader's units", () => {
+    const high = skillChip(skill, "temp_max", F)!.says;
+    assert.equal(high[0], "Over the last month here, the forecast made the day before got the day's high within ±3°F on 25 of 30 days.");
+    assert.equal(high[1], "Three days ahead, it was right 70% of the time.");
+    assert.match(skillChip(skill, "temp_max", C)!.says[0], /within ±1\.7°C/);
+    assert.match(skillChip(skill, "pressure", F)!.says[0], /the day's average pressure within ±0\.09 inHg/);
+  });
+
+  it("explains rain as the call, and has no three-day line without a three-day score", () => {
+    const rain = skillChip(skill, "precip", F)!.says;
+    assert.equal(rain[0], "Over the last month here, the forecast made the day before called rain or no rain correctly on 27 of 30 days.");
+    assert.ok(rain.includes("A trace too small to wet anything counts as dry."));
+    assert.ok(!rain.some((line) => line.startsWith("Three days")));
+  });
+
+  it("says the truth is the model's, on every card", () => {
+    for (const key of ["temp_max", "precip", "pressure"] as const) {
+      assert.match(skillChip(skill, key, F)!.says.at(-1)!, /not a station/);
+    }
   });
 
   it("is absent for a measure not scored, or no score at all", () => {

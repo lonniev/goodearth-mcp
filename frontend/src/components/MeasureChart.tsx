@@ -14,6 +14,7 @@ import { drawWidth } from "../lib/chartBox";
 import { useBoxWidth } from "../lib/useBoxWidth";
 import { useFrameHeight } from "../lib/useFrameHeight";
 import { useChartZoom, windowToDomain } from "../lib/useChartZoom";
+import Term from "./Term";
 import ZoomControls, { AxisZoom } from "./ZoomControls";
 
 /// Height, gutters and type are pixels; the WIDTH is the box's own. It was a
@@ -38,7 +39,7 @@ export default function MeasureChart({
   color?: string;
   zoomable?: boolean;
   /// How often the forecast for this measure was right here lately.
-  skill?: { pct: number; title: string } | null;
+  skill?: { pct: number; title: string; says: string[] } | null;
 }) {
   const u = useUnits();
   const { ref: box, width: boxW } = useBoxWidth<HTMLDivElement>();
@@ -140,10 +141,16 @@ export default function MeasureChart({
           {emoji && <span className="mr-1.5">{emoji}</span>}{label}
         </span>
         {skill && (
-          <span title={skill.title} aria-label={skill.title}
-            className="data rounded-full bg-band px-1.5 py-[1px] text-[10.5px] text-ink-soft">
-            🎯 {skill.pct}%
-          </span>
+          <Term
+            align="left"
+            label={
+              <span aria-label={skill.title} className="data rounded-full bg-band px-1.5 py-[1px] text-[10.5px] text-ink-soft">
+                🎯 {skill.pct}%
+              </span>
+            }
+          >
+            {skill.says.map((line) => <span key={line} className="mb-1 block last:mb-0">{line}</span>)}
+          </Term>
         )}
         {measure.accumulates ? (
           <span className="text-[12.5px] text-ink-soft">
