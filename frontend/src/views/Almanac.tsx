@@ -263,8 +263,8 @@ export default function Almanac({
                   put their rain, and fourteen cells stopped lining up. A
                   reserved line costs nothing and keeps the strip readable
                   across. */}
-              <span className="data text-[10.5px] text-frost">
-                {u.precip_chance_pct ? `${Math.round(u.precip_chance_pct)}%` : "\u00A0"}
+              <span className="data text-[10.5px] text-frost" title="Chance of rain">
+                {u.precip_chance_pct ? `🌧️${Math.round(u.precip_chance_pct)}%` : "\u00A0"}
               </span>
               <span className="data text-[10.5px] text-ink-soft"
                 title="Average relative humidity">
