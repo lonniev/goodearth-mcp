@@ -23,10 +23,20 @@ function tolerance(key: MeasureKey, within: number, s: Scale): string {
   return `±${within}`;
 }
 
+/// What each scored measure's forecast is held to, in a sentence.
+const SCORED: Partial<Record<MeasureKey, string>> = {
+  temp_max: "the day's high",
+  temp_min: "the day's low",
+  dew_point: "the day's average dew point",
+  wind_max: "the day's strongest wind",
+  humidity: "the day's average humidity",
+  pressure: "the day's average pressure",
+};
+
 /// The chip for one card, or null when that measure was not scored.
 export function skillChip(
   skill: ForecastSkill | undefined, key: MeasureKey, s: Scale,
-): { pct: number; title: string } | null {
+): { pct: number; title: string; says: string[] } | null {
   const m = skill?.measures[key];
   const next = m?.leads["1"];
   if (!m || !next) return null;
@@ -36,5 +46,14 @@ export function skillChip(
     `Next-day forecast ${right} on ${next.hits} of ${next.days} days`,
     far && `3 days out: ${far.pct}%`,
   ].filter(Boolean).join(" · ");
-  return { pct: next.pct, title };
+  const held = m.within == null
+    ? `the forecast made the day before called rain or no rain correctly on ${next.hits} of ${next.days} days`
+    : `the forecast made the day before got ${SCORED[key] ?? "this measure"} ${right} on ${next.hits} of ${next.days} days`;
+  const says = [
+    `Over the last month here, ${held}.`,
+    far && `Three days ahead, it was right ${far.pct}% of the time.`,
+    m.within == null && "A trace too small to wet anything counts as dry.",
+    "Each day is checked against the weather model's later reading, not a station on your ground.",
+  ].filter((line): line is string => Boolean(line));
+  return { pct: next.pct, title, says };
 }

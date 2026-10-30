@@ -20,7 +20,10 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { dwellMs } from "../lib/dwell";
 import { define } from "../lib/glossary";
 
-export default function Term({ label, of, children }: {
+export default function Term({ label, of, children, align = "right" }: {
+  /// Which edge of the word the panel lines up with. A word near the left of
+  /// the screen needs "left", or a right-anchored panel runs off that side.
+  align?: "left" | "right";
   /// The word being defined. Omit for a bare ⓘ beside a label that is
   /// already there — a column header, say, which cannot hold a second word.
   label?: ReactNode;
@@ -100,7 +103,7 @@ export default function Term({ label, of, children }: {
           // whatever it explains. Inside a table header it took the header's
           // `whitespace-nowrap` and monospace, and ran as one line across the
           // table. So: wrap, the body face, and never wider than the screen.
-          className="absolute top-full right-0 z-30 mt-1 w-64 max-w-[calc(100vw-2rem)] whitespace-normal break-words rounded-md border border-rule bg-paper p-2.5 text-left text-[12px] leading-snug font-normal normal-case tracking-normal text-ink shadow-lg [font-family:var(--font-body)]"
+          className={`absolute top-full ${align === "left" ? "left-0" : "right-0"} z-30 mt-1 w-64 max-w-[calc(100vw-2rem)] whitespace-normal break-words rounded-md border border-rule bg-paper p-2.5 text-left text-[12px] leading-snug font-normal normal-case tracking-normal text-ink shadow-lg [font-family:var(--font-body)]`}
         >
           {entry && <span className="block">{entry.said}</span>}
           {children && (
