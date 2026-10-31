@@ -262,3 +262,58 @@
   --tb-tile-chosen-bg: color-mix(in srgb, var(--color-honey) 15%, var(--color-panel));
   --tb-tile-chosen-line: var(--color-honey);
 }
+
+/* The wallet's amount tiles: a plant's life, its green rising from tile to tile.
+   Every colour is the season's own, so the tiles turn with the page. */
+:root {
+  --tb-wallet-display-font: var(--font-display);
+  --tb-wallet-figure-font: var(--font-display);
+  --tb-tile-line: var(--color-rule);
+  --tb-tile-radius: 0.875rem;
+  --tb-tile-chosen-bg: color-mix(in srgb, var(--color-honey) 24%, var(--color-panel));
+  --tb-tile-chosen-line: var(--color-honey);
+}
+.tb-wallet-tile {
+  --rise: 0%;
+  --tb-tile-bg: linear-gradient(to top,
+    color-mix(in srgb, var(--color-growth) 30%, var(--color-panel)),
+    var(--color-panel) var(--rise));
+  gap: 0.5rem;
+  padding: 0.5rem;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-ink) 12%, transparent);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.tb-wallet-tile:nth-child(1) { --rise: 30%; }
+.tb-wallet-tile:nth-child(2) { --rise: 50%; }
+.tb-wallet-tile:nth-child(3) { --rise: 70%; }
+.tb-wallet-tile:nth-child(4) { --rise: 90%; }
+.tb-wallet-tile:nth-child(5) { --rise: 120%; }
+.tb-wallet-tile:nth-child(6) { --tb-tile-bg: var(--color-panel); border-style: dashed; }
+.tb-wallet-tile:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px color-mix(in srgb, var(--color-ink) 18%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tb-wallet-tile { transition: none; }
+  .tb-wallet-tile:hover:not(:disabled) { transform: none; }
+}
+.tb-wallet-tile-mark {
+  width: 1.875rem;
+  height: 1.875rem;
+  border-radius: 9999px;
+  color: var(--color-panel);
+  background: var(--color-growth);
+}
+.tb-wallet-tile:nth-child(5) .tb-wallet-tile-mark { background: var(--color-honey); }
+.tb-wallet-tile-name {
+  font-family: var(--font-data);
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+.tb-wallet-tile-sats {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
