@@ -8,6 +8,8 @@ import { plotConditions, plotStation, type PlotConditions } from "../lib/mcp";
 import { readingLine, reportAge, tileReadings, windSpeed } from "../lib/stationNow";
 import { tour } from "../lib/tour/targets";
 import Barometer from "./Barometer";
+import PlotStation from "./PlotStation";
+import { Pill } from "./ui";
 import { useUnits } from "./Units";
 
 export function Stat({ emoji, label, value, sub }: {
@@ -28,6 +30,8 @@ export default function StationNow({ block }: { block: string }) {
   const [report, setReport] = useState<PlotConditions | null>(null);
   const [name, setName] = useState("");
   const [problem, setProblem] = useState("");
+  const [changing, setChanging] = useState(false);
+  const [chosenCount, setChosenCount] = useState(0);
 
   useEffect(() => {
     let live = true;
@@ -44,7 +48,7 @@ export default function StationNow({ block }: { block: string }) {
       if (live) setReport(answer);
     })().catch((e: Error) => { if (live) setProblem(e.message); });
     return () => { live = false; };
-  }, [block]);
+  }, [block, chosenCount]);
 
   if (!name) return null;
   return (
@@ -54,7 +58,13 @@ export default function StationNow({ block }: { block: string }) {
         {report?.observed_at && (
           <span className="data text-[10.5px] text-ink-soft">{reportAge(report.observed_at, Date.now())}</span>
         )}
+        {!changing && <span className="ml-auto"><Pill onClick={() => setChanging(true)}>Change station</Pill></span>}
       </div>
+      {changing && (
+        <PlotStation block={block} opened
+          onChosen={() => { setChanging(false); setChosenCount((n) => n + 1); }}
+          onKeep={() => setChanging(false)} />
+      )}
       {problem && <p className="mt-1 text-[12.5px] text-clay">{problem}</p>}
       {!report && !problem && <p className="mt-1 text-[12.5px] text-ink-soft" aria-busy="true">Reading the station…</p>}
       {report && (

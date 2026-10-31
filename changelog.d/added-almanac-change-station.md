@@ -1,0 +1,2 @@
+- The Almanac's current conditions carry a Change station button, which opens the FieldData station chooser in place.
+- Wallet package 3.1.1: Strike and Cash App buttons, and amount tiles that fill their section.

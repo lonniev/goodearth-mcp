@@ -2,7 +2,7 @@
 // FieldData as any client does, so a first use takes one Nostr reply. One button
 // moves it along, and it always says what is happening.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   fielddataConnect, fielddataConnectFinish, fielddataStations, plotStation,
   type PlotStationRow,
@@ -18,7 +18,13 @@ type Step =
 
 const NOT_CONNECTED = /connect your fielddata/i;
 
-export default function PlotStation({ block }: { block: string }) {
+export default function PlotStation({ block, opened = false, onChosen, onKeep }: {
+  block: string;
+  /// Start at the chooser, for a shortcut that already said "change".
+  opened?: boolean;
+  onChosen?: () => void;
+  onKeep?: () => void;
+}) {
   const [current, setCurrent] = useState<PlotStationRow | null>(null);
   const [step, setStep] = useState<Step>({ kind: "rest" });
   const [done, setDone] = useState("");
@@ -63,11 +69,20 @@ export default function PlotStation({ block }: { block: string }) {
     setStep({ kind: "choose", stations: await fielddataStations() });
   });
 
+  const openedOnce = useRef(false);
+  useEffect(() => {
+    if (!opened || openedOnce.current) return;
+    openedOnce.current = true;
+    void begin();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opened]);
+
   const pick = (back: Step, id: string, name: string) => run(back, async () => {
     setStep({ kind: "busy", words: "Saving…" });
     setCurrent((await plotStation(block, id, name)).station);
     setStep({ kind: "rest" });
     setDone("Saved");
+    onChosen?.();
   });
 
   return (
@@ -92,7 +107,7 @@ export default function PlotStation({ block }: { block: string }) {
               <option value="">None</option>
               {step.stations.map((s) => <option key={s.station_id} value={s.station_id}>{s.name}</option>)}
             </select>
-            <Pill onClick={() => setStep({ kind: "rest" })}>Keep this</Pill>
+            <Pill onClick={() => { setStep({ kind: "rest" }); onKeep?.(); }}>Keep this</Pill>
           </>
         )}
         {done && step.kind !== "busy" && <StatusChip tone="reached">✓ {done}</StatusChip>}
