@@ -92,7 +92,8 @@ _BACKFILL_BATCH = 500
 #: allowed any string there while ``calibration`` accepts only frost and stage.
 #: A ``seed`` lot is scoped to neither: a packet bought for 2025 is still on the
 #: shelf in 2026, and filing it under a season would hide it from the next one.
-KINDS = ("planting", "pest", "wildlife", "observation", "seed")
+#: A ``station`` is the one FieldData station a plot reads its conditions from.
+KINDS = ("planting", "pest", "wildlife", "observation", "seed", "station")
 SEASON_KINDS = ("planting", "pest", "wildlife")
 
 MAX_NAME_LEN = 120

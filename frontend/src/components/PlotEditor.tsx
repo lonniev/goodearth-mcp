@@ -8,6 +8,7 @@ import { useState } from "react";
 import { CELL, ICON, IconButton, RowActions } from "./ui";
 import { cleanAliases, withAlias } from "../lib/aliases";
 import { saveBlock } from "../lib/saveBlock";
+import PlotStation from "./PlotStation";
 import { listRegions, type SavedRegion } from "../lib/regions";
 import { allGroups, cleanPath, withGroup } from "../lib/plotGroups";
 
@@ -96,6 +97,8 @@ export default function PlotEditor({ plot, onDone }: {
       <p className="data mt-1.5 text-[10.5px] text-ink-soft">
         Any part of the name already works. Add one only for a name that shares no words with it.
       </p>
+
+      <PlotStation block={plot.id} />
 
       <p className="mt-3 text-[11px] text-ink-soft">Groups</p>
       {groups.length > 0 && (

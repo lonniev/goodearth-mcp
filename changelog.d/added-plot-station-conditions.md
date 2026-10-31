@@ -1,0 +1,1 @@
+- A plot can read its current conditions from one FieldData station you choose. Pick it in the plot editor, and the report shows at the top of the Almanac, with `goodearth_plot_station` and `goodearth_plot_conditions` for agents.
