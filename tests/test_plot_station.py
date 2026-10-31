@@ -134,3 +134,12 @@ async def test_keys_are_kept_under_their_own_service(monkeypatch):
     monkeypatch.setattr(server.runtime, "store_patron_session", store)
     assert await server._store_fielddata_connection(NPUB, {"access_token": "x"})
     assert seen["service"] == "fielddata-connection"
+
+
+def test_station_wind_uses_the_forecast_cards_words():
+    wind = server._station_wind([
+        {"sensor_kind": "wind_speed", "quantity": 2.2},
+        {"sensor_kind": "wind_direction", "quantity": 45},
+    ])
+    assert wind["from"] == "NE" and wind["emoji"] == "🍃" and wind["strength"] == "light"
+    assert server._station_wind([{"sensor_kind": "air_temperature", "quantity": 9}]) is None

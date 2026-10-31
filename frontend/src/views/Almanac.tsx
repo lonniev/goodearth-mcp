@@ -25,7 +25,7 @@ import { dayTrend, stormLevel, stormWhen } from "../lib/storm";
 import { clock } from "../lib/dryingLine";
 import { loadAlmanac } from "../lib/pageLoads";
 import { skillChip } from "../lib/forecastSkill";
-import StationNow from "../components/StationNow";
+import StationNow, { Stat } from "../components/StationNow";
 import type { SavedRegion } from "../lib/regions";
 import { dropIndex, mergeOrder, moveItem } from "../lib/reorder";
 import { ChartFrame } from "../components/ui";
@@ -396,15 +396,3 @@ function StormBanner({ storm }: { storm: StormSignal }) {
   );
 }
 
-function Stat({ emoji, label, value, sub }: {
-  emoji: ReactNode; label: string; value: string; sub?: string;
-}) {
-  return (
-    <div className="px-1 text-center">
-      <div className="text-[26px] leading-none">{emoji}</div>
-      <b className="figure mt-1.5 block text-[19px] leading-tight">{value}</b>
-      <div className="mt-0.5 text-[12px] leading-snug text-ink-soft">{label}</div>
-      {sub && <div className="data mt-0.5 text-[10.5px] leading-snug text-ink-soft">{sub}</div>}
-    </div>
-  );
-}

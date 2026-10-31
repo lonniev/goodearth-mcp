@@ -12,14 +12,22 @@ export interface StationReading {
   observed_at: string;
 }
 
-const NAMES: Record<string, string> = {
-  air_temperature: "Air", relative_humidity: "Humidity", pressure: "Pressure",
-  wind_speed: "Wind", wind_direction: "From", rain_rate: "Rain rate", rain_total: "Rain today",
-  solar_radiation: "Sun", uv_index: "UV", soil_moisture: "Soil moisture",
-  soil_temperature: "Soil", leaf_wetness: "Leaf wetness",
+/// The marks the forecast cards use, kind by kind. Pressure's is a drawn barometer.
+const LOOKS: Record<string, { name: string; emoji: string }> = {
+  air_temperature: { name: "air", emoji: "🌡️" },
+  relative_humidity: { name: "humidity", emoji: "💦" },
+  pressure: { name: "pressure", emoji: "barometer" },
+  rain_rate: { name: "rain rate", emoji: "🌧️" },
+  rain_total: { name: "rain today", emoji: "🌧️" },
+  solar_radiation: { name: "sun", emoji: "☀️" },
+  uv_index: { name: "UV", emoji: "☀️" },
+  soil_moisture: { name: "soil moisture", emoji: "💧" },
+  soil_temperature: { name: "soil", emoji: "🌡️" },
+  leaf_wetness: { name: "leaf wetness", emoji: "💧" },
 };
 
-const POINTS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+/// Wind has its own tile, as on the cards, so these two never show alone.
+const WIND_KINDS = ["wind_speed", "wind_direction"];
 
 function figure(r: StationReading, unit: Unit): string {
   const us = unit === "F";
@@ -29,7 +37,6 @@ function figure(r: StationReading, unit: Unit): string {
     case "m/s": return us ? `${(r.quantity * 2.23694).toFixed(1)} mph` : `${r.quantity.toFixed(1)} m/s`;
     case "mm": return us ? `${(r.quantity / 25.4).toFixed(2)} in` : `${r.quantity.toFixed(1)} mm`;
     case "mm/h": return us ? `${(r.quantity / 25.4).toFixed(2)} in/h` : `${r.quantity.toFixed(1)} mm/h`;
-    case "deg": return POINTS[Math.round(r.quantity / 45) % 8];
     case "index": return r.quantity.toFixed(0);
     case "%": return `${r.quantity.toFixed(0)}%`;
     default: return `${r.quantity.toFixed(0)} ${r.unit}`;
@@ -37,10 +44,21 @@ function figure(r: StationReading, unit: Unit): string {
 }
 
 /// What one reading says on the card. A kind this page does not know still shows.
-export function readingLine(r: StationReading, unit: Unit): { label: string; value: string } {
-  const name = NAMES[r.sensor_kind] ?? r.sensor_kind.replace(/_/g, " ");
+export function readingLine(r: StationReading, unit: Unit): { label: string; value: string; emoji: string } {
+  const look = LOOKS[r.sensor_kind];
+  const name = look?.name ?? r.sensor_kind.replace(/_/g, " ");
   const where = r.channel_name ?? (r.channel != null ? `${r.channel}` : "");
-  return { label: where ? `${name} ${where}` : name, value: figure(r, unit) };
+  return { label: where ? `${name} ${where}` : name, value: figure(r, unit), emoji: look?.emoji ?? "📟" };
+}
+
+/// The readings that take a tile of their own: everything but the wind.
+export const tileReadings = (readings: readonly StationReading[]) =>
+  readings.filter((r) => !WIND_KINDS.includes(r.sensor_kind));
+
+/// The wind's speed on its tile, in the reader's units.
+export function windSpeed(readings: readonly StationReading[], unit: Unit): string {
+  const speed = readings.find((r) => r.sensor_kind === "wind_speed");
+  return speed ? figure(speed, unit) : "—";
 }
 
 /// How old a report is, in the fewest words.
