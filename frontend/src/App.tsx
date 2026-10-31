@@ -12,6 +12,7 @@ import { isPublic } from "./lib/views";
 import Hive, { hiveMood } from "./components/Hive";
 import Bees from "./components/Bees";
 import { AccountPage, DebugPanel, NpubGate, Wallet } from "@tollbooth-dpyc/web/react";
+import { decorateTile } from "./lib/tiles";
 import { USAGE, USAGE_FIGURES, UsageRow } from "./components/usageDress";
 import Preferences from "./components/Preferences";
 import CalendarFeed from "./components/CalendarFeed";
@@ -417,7 +418,7 @@ export default function App() {
                     {spent.toLocaleString()} drawn today
                   </span>
                 )}
-                <Wallet />
+                <Wallet decorateTile={decorateTile} />
               </div>
             }
             usage={{ figures: USAGE_FIGURES, classNames: USAGE, renderRow: (t) => <UsageRow tool={t} /> }}
