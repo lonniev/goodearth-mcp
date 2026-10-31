@@ -7,6 +7,7 @@ import {
   fielddataConnect, fielddataConnectFinish, fielddataStations, plotStation,
   type PlotStationRow,
 } from "../lib/mcp";
+import { tour } from "../lib/tour/targets";
 import { Pill, StatusChip } from "./ui";
 
 type Step =
@@ -70,7 +71,7 @@ export default function PlotStation({ block }: { block: string }) {
   });
 
   return (
-    <div className="mt-3">
+    <div className="mt-3" {...tour("plots.station")}>
       <p className="text-[11px] text-ink-soft">Station</p>
       <div className="mt-1 flex flex-wrap items-center gap-2 text-[12.5px]">
         {step.kind !== "choose" && <span>{current ? current.name : "None"}</span>}
