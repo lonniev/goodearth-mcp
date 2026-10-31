@@ -11,7 +11,7 @@ import { DEFAULT_VIEW, GUEST_VIEW, onRouteChange, viewFromHash, writeView } from
 import { isPublic } from "./lib/views";
 import Hive, { hiveMood } from "./components/Hive";
 import Bees from "./components/Bees";
-import { AccountPage, DebugPanel, NpubGate, Wallet } from "@tollbooth-dpyc/web/react";
+import { AccountPage, DebugPanel, NostrProfilePanel, NpubGate, Wallet } from "@tollbooth-dpyc/web/react";
 import { decorateTile } from "./lib/tiles";
 import { USAGE, USAGE_FIGURES, UsageRow } from "./components/usageDress";
 import Preferences from "./components/Preferences";
@@ -421,6 +421,7 @@ export default function App() {
                 <Wallet decorateTile={decorateTile} />
               </div>
             }
+            profile={false}
             usage={{ figures: USAGE_FIGURES, classNames: USAGE, renderRow: (t) => <UsageRow tool={t} /> }}
             // The time zone sits in Viewing with the season and degrees; the
             // season is Good Earth's theme; the build panel is on About.
@@ -429,6 +430,7 @@ export default function App() {
             build={false}
             after={
               <div className="grid gap-3 lg:break-before-column">
+                <NostrProfilePanel npub={getStoredNpub()} />
                 <Preferences prefs={prefs} lat={latOf(region.region)} onChange={setPrefs} />
                 {/* Publishing is a once-per-region setup step, so it sits with
                     the other settings rather than at the top of the working page. */}
