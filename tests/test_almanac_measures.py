@@ -22,11 +22,13 @@ def test_every_measure_is_a_field_the_request_asks_for():
     assert not missing, f"offered but never requested: {missing}"
 
 
-def test_the_history_asks_for_the_same_fields_as_the_forecast():
-    """The record and the outlook are drawn on one chart. A field present in
-    one and absent from the other draws a line that stops halfway."""
+def test_the_history_asks_for_every_charted_field():
+    """The record and the outlook are drawn on one chart. A measure absent from
+    the record draws a line that starts halfway."""
     history = {f.strip() for f in sources._DAILY_ALMANAC_HISTORY.split(",") if f.strip()}
-    assert history == requested()
+    assert history <= requested()
+    missing = {k: m["field"] for k, m in MEASURES.items() if m["field"] not in history}
+    assert not missing, f"charted but absent from the record: {missing}"
 
 
 def test_humidity_is_offered_and_asked_for():

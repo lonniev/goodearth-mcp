@@ -248,13 +248,13 @@ def test_a_short_request_is_not_stretched():
     assert sources.record_start_year(2026, 3) == 2023
 
 
-def test_the_record_and_the_outlook_now_ask_for_the_same_measures():
-    """The asymmetry is gone, so nothing has to remember it is there.
-
-    ERA5 carried the measures but not the sun, so two field lists existed and
-    a caller assuming symmetry would have been quietly wrong.
-    """
-    assert sources._DAILY_ALMANAC_HISTORY == sources._DAILY_ALMANAC_FORECAST
+def test_the_outlook_asks_for_the_record_and_what_only_it_shows():
+    """The archive answers uv_index_max with nulls, so the record never asks."""
+    record = sources._DAILY_ALMANAC_HISTORY.split(",")
+    outlook = sources._DAILY_ALMANAC_FORECAST.split(",")
+    assert outlook[:len(record)] == record
+    assert outlook[len(record):] == [
+        "precipitation_hours", "shortwave_radiation_sum", "uv_index_max"]
 
 
 def test_a_provenance_line_never_raises():

@@ -16,7 +16,7 @@
 
 import type { AlmanacResult, StormSignal } from "./mcp.ts";
 import { dayTrend, stormLevel } from "./storm.ts";
-import { pressure, pressureUnit, temp, tempUnit, type Unit } from "./units.ts";
+import { pressure, pressureUnit, showRain, temp, tempUnit, type Unit } from "./units.ts";
 
 type Day = AlmanacResult["upcoming"][number];
 
@@ -88,7 +88,7 @@ function degrees(f: number, unit: Unit): string {
 }
 
 /// The rest of what the day's card shows, after the Weather Service's own
-/// sentences: the dew point, the humidity, the barometer and the sun.
+/// sentences: the dew point, the humidity, the barometer, the rain and the sun.
 export function dayDetails(day: Day, before: Day | undefined, unit: Unit): string[] {
   const out: string[] = [];
   if (day.dew_point_f != null) out.push(`Dew point near ${degrees(day.dew_point_f, unit)}.`);
@@ -98,6 +98,12 @@ export function dayDetails(day: Day, before: Day | undefined, unit: Unit): strin
     const trend = dayTrend(day.pressure_hpa, before?.pressure_hpa);
     out.push(`Barometer ${reading}${trend ? ` and ${trend}` : ""}.`);
   }
+  if (day.precip_in) {
+    const rate = day.rain_rate_in_h ? `, at ${showRain(day.rain_rate_in_h, unit)} an hour` : "";
+    out.push(`Rain about ${showRain(day.precip_in, unit)}${rate}.`);
+  }
+  if (day.sun_wm2 != null) out.push(`Sun strength averaging ${Math.round(day.sun_wm2)} W/m² in daylight.`);
+  if (day.uv_index != null) out.push(`UV peaking at ${day.uv_index.toFixed(0)}.`);
   if (day.sunshine_hours != null) {
     const h = Math.round(day.sunshine_hours);
     out.push(h === 0 ? "No sunshine." : `About ${h} hour${h === 1 ? "" : "s"} of sunshine.`);

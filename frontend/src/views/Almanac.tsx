@@ -26,6 +26,7 @@ import { clock } from "../lib/dryingLine";
 import { loadAlmanac } from "../lib/pageLoads";
 import { skillChip } from "../lib/forecastSkill";
 import StationNow, { Stat } from "../components/StationNow";
+import { showRain } from "../lib/units";
 import type { SavedRegion } from "../lib/regions";
 import { dropIndex, mergeOrder, moveItem } from "../lib/reorder";
 import { ChartFrame } from "../components/ui";
@@ -186,13 +187,14 @@ export default function Almanac({
       {/* ── Today ──────────────────────────────────────────────────────── */}
       {c && (
         <div className="mb-4 rounded-md border border-rule bg-panel px-4 py-3.5" {...tour("almanac.today")}>
-          {/* Nine readings, nine equal cells, one anatomy each. Today's sky
-              is a reading like the rest, so it takes the same cell rather than
-              a wider one — the eye compares them across a single axis. */}
-          <div className="grid grid-cols-2 gap-y-4 sm:grid-cols-3 lg:grid-cols-9">
+          {/* Equal cells, one anatomy each. Today's sky is a reading like the
+              rest, so it takes the same cell rather than a wider one — the eye
+              compares them across a single axis. The order is the station card's. */}
+          <div className="grid grid-cols-2 gap-y-4 sm:grid-cols-4 lg:grid-cols-7">
             <Stat emoji={c.sky.emoji} label={c.sky.label}
               value={`${c.high_f != null ? Math.round(u.temp(c.high_f)) : "—"}° / ${c.low_f != null ? Math.round(u.temp(c.low_f)) : "—"}°`} />
             <Stat emoji="💧" label="dew point" value={c.dew_point_f != null ? u.showTemp(c.dew_point_f) : "—"} />
+            <Stat emoji="💦" label="humidity" value={c.humidity_pct != null ? `${Math.round(c.humidity_pct)}%` : "—"} />
             <Stat emoji={c.wind.emoji} label="wind"
               value={c.wind.speed_mph != null ? `${Math.round(c.wind.speed_mph)} mph` : "—"}
               sub={c.wind.from ? `${c.wind.arrow ?? ""} from ${c.wind.from}` : undefined} />
@@ -207,12 +209,20 @@ export default function Almanac({
                 : undefined} />
             <Stat emoji="🌧️" label="chance of rain"
               value={c.precip_chance_pct != null ? `${Math.round(c.precip_chance_pct)}%` : "—"} />
+            <Stat emoji="🌧️" label="rain rate" sub="while it falls"
+              value={c.rain_rate_in_h != null ? `${showRain(c.rain_rate_in_h, u.unit)}/h` : "—"} />
+            <Stat emoji="🌧️" label="rain today"
+              value={c.precip_in != null ? showRain(c.precip_in, u.unit) : "—"} />
             <Stat emoji="🌅" label="sun"
               value={`${time(c.sunrise)}–${time(c.sunset)}`}
               sub={c.daylight_hours != null ? `${c.daylight_hours.toFixed(1)} h of daylight` : undefined} />
+            <Stat emoji="☀️" label="sun strength" sub="daylight average"
+              value={c.sun_wm2 != null ? `${Math.round(c.sun_wm2)} W/m²` : "—"} />
             <Stat emoji="☀️" label="sunshine"
               value={c.sunshine_hours != null ? `${c.sunshine_hours.toFixed(1)} h` : "—"}
               sub={c.sunshine_fraction != null ? `${Math.round(c.sunshine_fraction * 100)}% of daylight` : undefined} />
+            <Stat emoji="☀️" label="UV" sub="peak"
+              value={c.uv_index != null ? c.uv_index.toFixed(0) : "—"} />
             {/* The daily swing in day length was a sentence that ended in a
                 line telling the grower why to care. The figure is the useful
                 half; it reads as a reading like its neighbours. */}

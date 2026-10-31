@@ -217,6 +217,16 @@ async def region_almanac(
             "humidity_pct": _num((f_block.get("relative_humidity_2m_mean") or [None])[0]),
             "pressure_hpa": _num((f_block.get("pressure_msl_mean") or [None])[0]),
             "precip_chance_pct": _num((f_block.get("precipitation_probability_max") or [None])[0]),
+            "precip_in": _num((f_block.get("precipitation_sum") or [None])[0]),
+            "rain_rate_in_h": almanac.rain_rate(
+                _num((f_block.get("precipitation_sum") or [None])[0]),
+                _num((f_block.get("precipitation_hours") or [None])[0]),
+            ),
+            "sun_wm2": almanac.sun_strength(
+                _num((f_block.get("shortwave_radiation_sum") or [None])[0]),
+                _num((f_block.get("daylight_duration") or [None])[0]),
+            ),
+            "uv_index": _num((f_block.get("uv_index_max") or [None])[0]),
             "sunrise": (f_block.get("sunrise") or [None])[0],
             "sunset": (f_block.get("sunset") or [None])[0],
             "daylight_hours": almanac.hours(_num((f_block.get("daylight_duration") or [None])[0])),
@@ -249,6 +259,11 @@ async def region_almanac(
             "pressure_hpa": at("pressure_msl_mean", i),
             "precip_in": at("precipitation_sum", i),
             "precip_chance_pct": at("precipitation_probability_max", i),
+            "rain_rate_in_h": almanac.rain_rate(
+                at("precipitation_sum", i), at("precipitation_hours", i)),
+            "sun_wm2": almanac.sun_strength(
+                at("shortwave_radiation_sum", i), at("daylight_duration", i)),
+            "uv_index": at("uv_index_max", i),
             "sunshine_hours": almanac.hours(at("sunshine_duration", i)),
             "wind": almanac.describe_wind(
                 at("wind_speed_10m_max", i),

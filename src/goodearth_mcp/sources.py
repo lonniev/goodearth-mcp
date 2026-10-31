@@ -90,17 +90,19 @@ _DAILY_FROST = (
     "cloud_cover_mean,dew_point_2m_min"
 )
 
-# The almanac's own field set. One list now: the archived model runs carry the
-# sun times too, where ERA5 did not, so the record and the outlook finally ask
-# for the same thing. The two lists that used to differ were a standing
-# invitation to assume symmetry that was not there.
-_DAILY_ALMANAC_FORECAST = (
+# The almanac's own field set. The archived model runs carry the sun times too,
+# where ERA5 did not, so the record and the outlook share these measures.
+_DAILY_ALMANAC_HISTORY = (
     "temperature_2m_max,temperature_2m_min,dew_point_2m_mean,precipitation_sum,"
     "rain_sum,snowfall_sum,sunrise,sunset,daylight_duration,sunshine_duration,"
     "wind_speed_10m_max,wind_direction_10m_dominant,weather_code,"
     "precipitation_probability_max,relative_humidity_2m_mean,pressure_msl_mean"
 )
-_DAILY_ALMANAC_HISTORY = _DAILY_ALMANAC_FORECAST
+# What only the outlook shows. The archive answers uv_index_max with nulls, and
+# the charts read none of these, so the cached record never asks for them.
+_DAILY_ALMANAC_FORECAST = (
+    _DAILY_ALMANAC_HISTORY + ",precipitation_hours,shortwave_radiation_sum,uv_index_max"
+)
 
 
 def record_start_year(this_year: int, want_years: int) -> int:

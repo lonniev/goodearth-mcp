@@ -77,6 +77,11 @@ export function showPressure(hpa: number, unit: Unit, digits?: number): string {
 }
 
 /// A rounded accumulation with its suffix, thousands separated.
+/// Rain, from inches: inches to two places, or millimetres to one.
+export function showRain(inches: number, unit: Unit): string {
+  return unit === "F" ? `${inches.toFixed(2)} in` : `${(inches * 25.4).toFixed(1)} mm`;
+}
+
 export function showDD(gddF: number, unit: Unit, digits = 0): string {
   const v = degreeDays(gddF, unit);
   return `${v.toLocaleString(undefined, {
