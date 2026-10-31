@@ -53,7 +53,7 @@ export const almanac: Guide = {
         <>Shown when you have chosen a FieldData station for this plot on My
           Plots: what it reads right now and how long ago, in the order Today
           reads. These are measurements at the station; Today is a forecast for
-          the plot, so the two can differ.</>],
+          the plot, so the two can differ. Change station picks another one here.</>],
       ["Today",
         <>The forecast in equal cells: the sky with its high and low, dew
           point, humidity, wind with its direction, the barometer with which way

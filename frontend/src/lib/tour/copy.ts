@@ -263,7 +263,7 @@ export const TOURS: Record<Tour["page"], Tour> = {
 
   almanac: { page: "almanac", steps: [
     { target: "almanac.station", title: "Now at your station", guide: ["Read", "Now at your station"],
-      says: "What the FieldData station chosen for this plot reads right now. Choose one on My Plots." },
+      says: "What the FieldData station chosen for this plot reads right now. Change station picks another." },
     { target: "almanac.today", title: "Today", guide: ["Read", "Today"],
       says: "Today's forecast for this plot, reading in the station's order, with the sun times, day length and moon after." },
     { target: "almanac.storm", title: "Storm signal", guide: ["Read", "🌀 Storm signal"],
