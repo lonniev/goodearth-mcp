@@ -23,6 +23,7 @@ export const GOOD_EARTH_TOOLS: readonly string[] = [
   "soil_temp_projection", "sunlight", "tree_suitability", "tree_year",
   "wildlife_calendar", "wildlife_catalog",
   "block_list", "block_save", "block_item_list", "block_item_save",
+  "plot_station", "plot_conditions", "fielddata_stations", "fielddata_connect", "fielddata_connect_finish",
   "task_list", "task_save", "task_delete", "task_set_done",
   "calendar_dataset", "calendar_list", "calendar_revoke",
   "forget_my_ground",

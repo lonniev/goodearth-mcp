@@ -343,6 +343,11 @@ export const GLOSSARY: Entry[] = [
       + "have to take on trust.",
   },
   {
+    key: "plot_station", term: "A plot's station", group: "service", aka: ["FieldData", "current conditions"],
+    said: "The one FieldData station you chose for a plot. Its latest report shows at the top of the Almanac, "
+      + "and it comes from that one spot, so it may differ from the forecast read across the plot.",
+  },
+  {
     key: "npub", term: "npub", group: "service", aka: ["Nostr key"],
     said: "Your public Nostr key, which is how this service knows you. There "
       + "is no email, no password and no account to recover — the key is the "

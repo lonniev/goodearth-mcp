@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import uuid
 from datetime import UTC, date, datetime
 from typing import Annotated, Any
 
@@ -42,6 +43,7 @@ from goodearth_mcp import (
     calendar_feed,
     catalog,
     feed_store,
+    fielddata_client,
     gdd,
     planting,
     record_cache,
@@ -234,6 +236,11 @@ BLOCK_SAVE_UUID            = "f398ade0-3264-5c55-acf0-cac2ea69be53"
 BLOCK_LIST_UUID            = "00680666-0289-548b-b297-3700dfa4e885"
 BLOCK_ITEM_SAVE_UUID       = "af45380a-1bcb-54a8-9b81-3569f785c33f"
 BLOCK_ITEM_LIST_UUID       = "587e418b-59f5-5400-bc9b-98db6929fec1"
+FIELDDATA_CONNECT_UUID     = "a1aa6827-529e-5e84-b777-9b8825cfbd63"
+FIELDDATA_CONNECT_FINISH_UUID = "784db89f-28f8-5a69-baff-6944279cac7e"
+FIELDDATA_STATIONS_UUID    = "d3d3403f-6819-5f97-8cde-0610e280edc9"
+PLOT_STATION_UUID          = "ab75f903-672c-54ea-93ed-8f146f99fb53"
+PLOT_CONDITIONS_UUID       = "7573e0b2-55cf-5f0d-9fe2-ef1fa329c749"
 TREE_SUITABILITY_UUID      = "9f065c39-548a-5675-a562-cbf2bb720dd9"
 TREE_YEAR_UUID             = "993d83ad-9edd-5690-88fd-298f2137dc24"
 COMPANIONS_UUID            = "0bfd5920-12fa-5cff-aefb-466d9c0e2fd0"
@@ -570,6 +577,46 @@ intent="Operator only: let one kept plant profile or life cycle go, so the next 
         title="Life cycle",
         behavior=READS_REMOTE,
 intent="Look up a plant's, pest's or animal's life cycle: every event a grower can track, and when each falls on this plot",
+    ),
+    ToolIdentity(
+        tool_id=FIELDDATA_CONNECT_UUID,
+        capability="fielddata_connect",
+        category="free",
+        title="Connect FieldData",
+        behavior=READS_REMOTE,
+        intent="Send the Nostr message that lets Good Earth read your FieldData stations",
+    ),
+    ToolIdentity(
+        tool_id=FIELDDATA_CONNECT_FINISH_UUID,
+        capability="fielddata_connect_finish",
+        category="free",
+        title="Finish connecting FieldData",
+        behavior=READS_REMOTE,
+        intent="Collect your reply to that message",
+    ),
+    ToolIdentity(
+        tool_id=FIELDDATA_STATIONS_UUID,
+        capability="fielddata_stations",
+        category="read",
+        title="Your FieldData stations",
+        behavior=READS_REMOTE,
+        intent="The stations you track at FieldData, to choose one for a plot",
+    ),
+    ToolIdentity(
+        tool_id=PLOT_STATION_UUID,
+        capability="plot_station",
+        category="free",
+        title="A plot's station",
+        behavior=READS,
+        intent="See, set or clear the FieldData station a plot reads its conditions from",
+    ),
+    ToolIdentity(
+        tool_id=PLOT_CONDITIONS_UUID,
+        capability="plot_conditions",
+        category="read",
+        title="A plot's current conditions",
+        behavior=READS_REMOTE,
+        intent="What the plot's FieldData station reports right now",
     ),
 ]
 
@@ -2264,7 +2311,9 @@ async def forget_my_ground(
         confirm: The exact phrase "FORGET MY GROUND".
     """
     try:
-        return await forget_everything_impl(npub, confirm)
+        forgotten = await forget_everything_impl(npub, confirm)
+        await _store_fielddata_connection(npub, {})
+        return forgotten
     except ForgetError as exc:
         return {"success": False, "error": str(exc), "error_code": "confirmation_required"}
     except (block_store.BlockError, task_store.TaskError, OSError) as exc:
@@ -3046,6 +3095,130 @@ async def sunlight(
             "error": f"A map did not answer: {exc}",
             "error_code": "upstream_unavailable",
         }
+
+
+# ---------------------------------------------------------------------------
+# A plot's station, read from FieldData
+# ---------------------------------------------------------------------------
+
+_FIELDDATA_SERVICE = "fielddata-connection"
+
+
+async def _load_fielddata_connection(npub: str) -> dict[str, str] | None:
+    creds, situation = await runtime.load_patron_session(npub, service=_FIELDDATA_SERVICE)
+    if situation:
+        raise fielddata_client.FieldDataError("Your FieldData connection could not be read just now. Try again shortly.")
+    return creds
+
+
+async def _store_fielddata_connection(npub: str, tokens: dict[str, str]) -> bool:
+    return await runtime.store_patron_session(npub, tokens, service=_FIELDDATA_SERVICE)
+
+
+fielddata = fielddata_client.FieldData(_load_fielddata_connection, _store_fielddata_connection)
+
+
+def _named_npub(npub: str) -> str:
+    if not npub:
+        raise ValueError("npub is required.")
+    return npub
+
+
+async def _plot_station_rows(npub: str, block_id: str) -> list[dict[str, Any]]:
+    return (await block_store.list_items(npub, block_id, "station", page_size=block_store.MAX_PAGE_SIZE))["items"]
+
+
+def _station_of(rows: list[dict[str, Any]]) -> dict[str, str] | None:
+    if not rows:
+        return None
+    return {"station_id": str(rows[0].get("station_id") or ""), "name": str(rows[0].get("name") or "")}
+
+
+@tool
+@runtime.paid_tool(FIELDDATA_CONNECT_UUID)
+async def fielddata_connect(npub: PatronNpub = "") -> dict[str, Any]:
+    """Send the Nostr message that lets Good Earth read your stations at FieldData.
+
+    Reply to it, then call fielddata_connect_finish once with the phrase returned here.
+    """
+    return {"success": True, **await fielddata.connect(_named_npub(npub))}
+
+
+@tool
+@runtime.paid_tool(FIELDDATA_CONNECT_FINISH_UUID)
+async def fielddata_connect_finish(
+    phrase: Annotated[str, Field(description="The phrase fielddata_connect returned.", max_length=200)],
+    npub: PatronNpub = "",
+) -> dict[str, Any]:
+    """Collect your reply to the FieldData message. Call it once, after you have replied."""
+    await fielddata.finish_connect(_named_npub(npub), phrase)
+    return {"success": True}
+
+
+@tool
+@runtime.paid_tool(FIELDDATA_STATIONS_UUID)
+async def fielddata_stations(npub: PatronNpub = "") -> dict[str, Any]:
+    """The stations you track at FieldData, to choose one for a plot with plot_station."""
+    answer = await fielddata.call(_named_npub(npub), "list_stations")
+    return {
+        "success": True,
+        "stations": [
+            {"station_id": s.get("station_id"), "name": s.get("name")}
+            for s in answer.get("stations") or []
+        ],
+    }
+
+
+@tool
+@runtime.paid_tool(PLOT_STATION_UUID)
+async def plot_station(
+    block: Annotated[str, Field(description="The plot: its id, its name, or an alias.")],
+    station_id: Annotated[
+        str | None,
+        Field(description="Omit to see the plot's station; empty to clear it; an id to set it.", max_length=80),
+    ] = None,
+    name: Annotated[str, Field(description="The station's name, as fielddata_stations gave it.", max_length=120)] = "",
+    npub: PatronNpub = "",
+) -> dict[str, Any]:
+    """See, set or clear the one FieldData station a plot reads its conditions from."""
+    found = await block_store.resolve(_named_npub(npub), block)
+    rows = await _plot_station_rows(npub, found["block_id"])
+    if station_id is None:
+        return {"success": True, "station": _station_of(rows)}
+    wanted = station_id.strip()
+    await block_store.retire_items(npub, [str(r["item_id"]) for r in rows])
+    if not wanted:
+        return {"success": True, "station": None}
+    await block_store.save_items(npub, found["block_id"], "station", [
+        {"item_id": f"st-{uuid.uuid4().hex[:16]}", "station_id": wanted, "name": name.strip() or wanted},
+    ])
+    return {"success": True, "station": {"station_id": wanted, "name": name.strip() or wanted}}
+
+
+@tool
+@runtime.paid_tool(PLOT_CONDITIONS_UUID)
+async def plot_conditions(
+    block: Annotated[str, Field(description="The plot: its id, its name, or an alias.")],
+    npub: PatronNpub = "",
+) -> dict[str, Any]:
+    """What the plot's chosen FieldData station reports right now, named by station.
+
+    Readings are as FieldData gives them: SI units and UTC.
+    """
+    found = await block_store.resolve(_named_npub(npub), block)
+    station = _station_of(await _plot_station_rows(npub, found["block_id"]))
+    if station is None:
+        raise ValueError(f"{found.get('name', 'This plot')} has no station. Choose one with plot_station.")
+    answer = await fielddata.call(npub, "current", {"station": station["station_id"]})
+    readings = answer.get("readings") or []
+    return {
+        "success": True,
+        "block_id": found["block_id"],
+        "station": station,
+        "readings": readings,
+        "observed_at": max((str(r.get("observed_at") or "") for r in readings), default=""),
+        "source": "FieldData",
+    }
 
 
 # ---------------------------------------------------------------------------

@@ -13,6 +13,7 @@
  *   - the domain tools and their result types.
  */
 
+import type { StationReading } from "./stationNow.ts";
 import type { SunPath, WireGrid } from "./sunGrid.ts";
 import type { CompanionsResult, Kind } from "./companions.ts";
 import type { PlantingStage } from "./plantings.ts";
@@ -1535,7 +1536,7 @@ export interface BlockListResult {
   error_code?: string;
 }
 
-export type ItemKind = "planting" | "pest" | "wildlife" | "observation" | "seed";
+export type ItemKind = "planting" | "pest" | "wildlife" | "observation" | "seed" | "station";
 
 /// A plot lying inside another: smaller, with its centre within the other's
 /// outline. A roll-up reads these along with the plot asked for.
@@ -1596,6 +1597,42 @@ export async function blockSaveMany(blocks: BlockFields[]): Promise<{
   success: boolean; blocks?: BlockRow[]; error?: string; error_code?: string;
 }> {
   return callTool("block_save", { blocks });
+}
+
+export interface PlotStationRow { station_id: string; name: string }
+
+export interface PlotConditions {
+  station: PlotStationRow;
+  readings: StationReading[];
+  observed_at: string;
+}
+
+/// A tool's refusal arrives as `success: false`, and a page must not read it as an answer.
+function answered<T>(r: T & { success?: boolean; error?: string }): T {
+  if (r.success === false) throw new Error(r.error ?? "That could not be done.");
+  return r;
+}
+
+/// Omit `stationId` to read the plot's station; "" clears it.
+export async function plotStation(block: string, stationId?: string, name = ""): Promise<{ station: PlotStationRow | null }> {
+  const args = stationId === undefined ? { block } : { block, station_id: stationId, name };
+  return answered(await callTool<{ station: PlotStationRow | null }>("plot_station", args));
+}
+
+export async function plotConditions(block: string): Promise<PlotConditions> {
+  return answered(await callTool<PlotConditions>("plot_conditions", { block }));
+}
+
+export async function fielddataStations(): Promise<PlotStationRow[]> {
+  return answered(await callTool<{ stations: PlotStationRow[] }>("fielddata_stations")).stations;
+}
+
+export async function fielddataConnect(): Promise<{ phrase: string; relay: string }> {
+  return answered(await callTool<{ phrase: string; relay: string }>("fielddata_connect"));
+}
+
+export async function fielddataConnectFinish(phrase: string): Promise<void> {
+  answered(await callTool<object>("fielddata_connect_finish", { phrase }));
 }
 
 export async function blockItemSave(

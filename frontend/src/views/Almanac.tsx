@@ -25,6 +25,7 @@ import { dayTrend, stormLevel, stormWhen } from "../lib/storm";
 import { clock } from "../lib/dryingLine";
 import { loadAlmanac } from "../lib/pageLoads";
 import { skillChip } from "../lib/forecastSkill";
+import StationNow from "../components/StationNow";
 import type { SavedRegion } from "../lib/regions";
 import { dropIndex, mergeOrder, moveItem } from "../lib/reorder";
 import { ChartFrame } from "../components/ui";
@@ -170,6 +171,8 @@ export default function Almanac({
           🌧️
         </button>
       </div>
+
+      <StationNow block={region.id} />
 
       {error && (
         <div className="mb-4 rounded-md border border-clay/30 bg-clay/10 p-3 text-[13px] text-clay">{error}</div>

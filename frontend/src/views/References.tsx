@@ -14,6 +14,13 @@ import { referencesSheet, type Model, type Reading, type Source } from "../lib/e
 
 const SOURCES: Source[] = [
   {
+    name: "FieldData — your chosen station",
+    url: "https://fielddata.tollbooth-dpyc.com",
+    role: "The latest report from the one station you chose for a plot, shown at the top of the Almanac.",
+    resolution: "one point",
+    note: "A station measures its own spot, so its report may differ from the forecast read across the plot. It stays beside the forecast and is not mixed into it.",
+  },
+  {
     name: "Daymet v4 — daily surface weather (NASA ORNL)",
     url: "https://daymet.ornl.gov/",
     role: "Past seasons for the normal band: the ten-season record every 'ahead of normal' reading is measured against.",
