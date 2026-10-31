@@ -3,7 +3,7 @@
 @import "@tollbooth-dpyc/web/tour.css";
 @import "tailwindcss";
 @import "@tollbooth-dpyc/web/theme.css";
-@import "@tollbooth-dpyc/web/price-sheet.css";
+@import "@tollbooth-dpyc/web/wallet.css";
 @source "../node_modules/@tollbooth-dpyc/web/dist";
 
 /* Design tokens from frontend/design/heat-ledger-mock.html — the almanac
@@ -248,3 +248,17 @@
 }
 .tb-ps-band::before { border-color: var(--color-honey); }
 .tb-ps-fare-n { font-weight: 600; }
+
+/* The shared wallet in the almanac's type, with a chosen amount in honey. */
+:root {
+  --tb-wallet-font: var(--font-body);
+  --tb-wallet-display-font: var(--font-display);
+  --tb-wallet-figure-font: var(--font-display);
+  --tb-wallet-card: var(--color-panel);
+  --tb-wallet-line: var(--color-rule);
+  --tb-wallet-figure: var(--color-ink);
+  --tb-tile-bg: var(--color-paper);
+  --tb-tile-font: var(--font-data);
+  --tb-tile-chosen-bg: color-mix(in srgb, var(--color-honey) 15%, var(--color-panel));
+  --tb-tile-chosen-line: var(--color-honey);
+}

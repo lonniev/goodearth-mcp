@@ -11,11 +11,9 @@ import { DEFAULT_VIEW, GUEST_VIEW, onRouteChange, viewFromHash, writeView } from
 import { isPublic } from "./lib/views";
 import Hive, { hiveMood } from "./components/Hive";
 import Bees from "./components/Bees";
-import { AccountPage, DebugPanel, NpubGate } from "@tollbooth-dpyc/web/react";
+import { AccountPage, DebugPanel, NpubGate, Wallet } from "@tollbooth-dpyc/web/react";
 import { USAGE, USAGE_FIGURES, UsageRow } from "./components/usageDress";
 import Preferences from "./components/Preferences";
-import AccountSummary from "./components/AccountSummary";
-import { COUPONS } from "./components/couponDress";
 import CalendarFeed from "./components/CalendarFeed";
 import { themeOf } from "./lib/prefs";
 import { usePrefs } from "./lib/usePrefs";
@@ -45,7 +43,7 @@ import About from "./views/About";
 import TodoView from "./views/Todo";
 import Plots from "./views/Plots";
 import {
-  AVATAR_EVENT, avatarFor, checkBalance, fetchProfile, getStoredNpub, hydrateAvatarFromNostr,
+  AVATAR_EVENT, avatarFor, fetchProfile, getStoredNpub, hydrateAvatarFromNostr,
   isLoggedIn, logOut, onProofExpired, syncProperties,
 } from "@tollbooth-dpyc/web";
 import { blockList, type BlockRow, type FrostWindowResult } from "./lib/mcp";
@@ -58,6 +56,7 @@ import { peerOf, WARM_AFTER_MS } from "./lib/peerPage";
 import { warmPage } from "./lib/pageLoads";
 import { forgetAll } from "./lib/pageCache";
 import { TourProvider, useTour } from "@tollbooth-dpyc/web/react";
+import { tour } from "./lib/tour/targets";
 import { TOURS } from "./lib/tour/copy";
 
 /** Read by index.html before the app runs; keep the two in step. */
@@ -127,7 +126,6 @@ export default function App() {
   );
   const [avatar, setAvatar] = useState(() => avatarFor(getStoredNpub()));
   const [displayName, setDisplayName] = useState("");
-  const [balance, setBalance] = useState<number | null>(null);
   const [spent, setSpent] = useState(0);
   const [frost, setFrost] = useState<FrostWindowResult | null>(null);
   const [prefs, setPrefs] = usePrefs();
@@ -175,12 +173,11 @@ export default function App() {
   useEffect(() => onProofExpired((m) => { setSignedIn(false); setNotice(m); }), []);
 
   // Who is signed in belongs to that npub alone. Signing out drops the last
-  // patron's name, balance and spend here rather than leaving them for the
+  // patron's name and spend here rather than leaving them for the
   // next npub to wear — and a profile read still in flight for the old npub
   // is ignored when it lands.
   useEffect(() => {
     setDisplayName("");
-    setBalance(null);
     setSpent(0);
     if (!signedIn) return;
     let live = true;
@@ -196,15 +193,6 @@ export default function App() {
     });
     return () => { live = false; window.removeEventListener(AVATAR_EVENT, sync); };
   }, [signedIn]);
-
-  const refreshBalance = useCallback(async () => {
-    try {
-      const b = await checkBalance();
-      if (typeof b.balance_api_sats === "number") setBalance(b.balance_api_sats);
-    } catch { /* the chip shows an em dash rather than a wrong number */ }
-  }, []);
-
-  useEffect(() => { if (signedIn) void refreshBalance(); }, [signedIn, refreshBalance]);
 
   // Start the page the reader is most likely to open next.
   //
@@ -283,8 +271,8 @@ export default function App() {
   }, []);
 
   const onCost = useCallback((sats: number) => {
-    if (sats > 0) { setSpent((s) => s + sats); void refreshBalance(); }
-  }, [refreshBalance]);
+    if (sats > 0) setSpent((s) => s + sats);
+  }, []);
 
   // A visitor gets the front door, not a password box.
   //
@@ -423,26 +411,20 @@ export default function App() {
             npub={getStoredNpub()}
             heading="Account"
             before={
-              <AccountSummary balanceSats={balance} spentToday={spent}
-                onToppedUp={() => void refreshBalance()}
-                onSignOut={() => { logOut(); setSignedIn(false); }} />
+              <div className="grid gap-3" {...tour("account.summary")}>
+                {spent > 0 && (
+                  <span className="data justify-self-start rounded-full bg-band px-2.5 py-1 text-[10.5px] text-ink-soft">
+                    {spent.toLocaleString()} drawn today
+                  </span>
+                )}
+                <Wallet />
+              </div>
             }
             usage={{ figures: USAGE_FIGURES, classNames: USAGE, renderRow: (t) => <UsageRow tool={t} /> }}
             // The time zone sits in Viewing with the season and degrees; the
             // season is Good Earth's theme; the build panel is on About.
             timezone={false}
             theme={false}
-            // A code an operator hands out; redeemed once here, it discounts
-            // the paid calls on its own after that.
-            coupons={{
-              heading: "Coupons",
-              intro: "Redeem a code once. It applies on its own after that.",
-              placeholder: "Code",
-              redeemLabel: "Redeem",
-              forgetLabel: "Remove",
-              empty: "No coupons yet.",
-              classNames: COUPONS,
-            }}
             build={false}
             after={
               <div className="grid gap-3 lg:break-before-column">
@@ -460,9 +442,13 @@ export default function App() {
                 }} />
               </div>
             }
+            onSignOut={() => { logOut(); setSignedIn(false); }}
+            signOutLabel="Sign out"
             classNames={{
               root: "gap-3 lg:columns-2 [&>*]:mb-3 [&>*]:break-inside-avoid",
               heading: "figure mb-3 text-[26px] font-bold [column-span:all]",
+              actions: "flex justify-end",
+              signOut: "min-h-11 rounded-full border border-rule px-3.5 text-[12px] text-ink-soft active:bg-band",
             }}
           />
         )}
