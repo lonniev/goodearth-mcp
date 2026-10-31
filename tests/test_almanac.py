@@ -161,3 +161,15 @@ def test_the_band_truncates_to_the_shortest_season():
 def test_the_band_of_nothing_is_none():
     assert a.normal_band([]) is None
     assert a.normal_band([[]]) is None
+
+
+def test_rain_rate_is_per_hour_of_rain():
+    assert a.rain_rate(0.6, 3) == 0.2
+    assert a.rain_rate(0.0, 0) == 0.0
+    assert a.rain_rate(None, 3) is None
+
+
+def test_sun_strength_is_averaged_over_daylight():
+    assert a.sun_strength(12.15, 37000) == 328
+    assert a.sun_strength(12.15, 0) is None
+    assert a.sun_strength(None, 37000) is None

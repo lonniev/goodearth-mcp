@@ -69,3 +69,13 @@ describe("zoneForecast", () => {
     assert.equal(blank, "");
   });
 });
+
+describe("the rain and sun in a day's details", () => {
+  it("says what the forecast adds, and no rain on a dry day", () => {
+    const lines = dayDetails(day({ precip_in: 0.5, rain_rate_in_h: 0.1, sun_wm2: 328, uv_index: 3.6 }), undefined, "F");
+    assert.ok(lines.includes("Rain about 0.50 in, at 0.10 in an hour."));
+    assert.ok(lines.includes("Sun strength averaging 328 W/m² in daylight."));
+    assert.ok(lines.includes("UV peaking at 4."));
+    assert.ok(!dayDetails(day({ precip_in: 0 }), undefined, "F").some((l) => l.startsWith("Rain")));
+  });
+});

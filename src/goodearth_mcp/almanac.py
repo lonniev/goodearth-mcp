@@ -103,6 +103,20 @@ def hours(seconds: float | None) -> float | None:
     return round(seconds / 3600.0, 2) if isinstance(seconds, (int, float)) else None
 
 
+def rain_rate(rain: float | None, rain_hours: float | None) -> float | None:
+    """How hard the day's rain falls, per hour of the hours it falls in."""
+    if not isinstance(rain, (int, float)) or not isinstance(rain_hours, (int, float)):
+        return None
+    return round(rain / rain_hours, 3) if rain_hours > 0 else 0.0
+
+
+def sun_strength(radiation_mj: float | None, daylight_s: float | None) -> float | None:
+    """The day's sun in W/m², averaged over its daylight: what a station's sensor reads."""
+    if not isinstance(radiation_mj, (int, float)) or not isinstance(daylight_s, (int, float)):
+        return None
+    return round(radiation_mj * 1_000_000 / daylight_s) if daylight_s > 0 else None
+
+
 def sunshine_fraction(sunshine_s: float | None, daylight_s: float | None) -> float | None:
     """How much of the available daylight actually arrived as sun.
 

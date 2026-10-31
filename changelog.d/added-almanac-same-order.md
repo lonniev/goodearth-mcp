@@ -1,0 +1,1 @@
+- The station card reads in the order of today's forecast, and today's forecast adds humidity, rain rate, rain today, sun strength and UV.

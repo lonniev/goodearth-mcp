@@ -59,13 +59,15 @@ export default function StationNow({ block }: { block: string }) {
       {report && (
         <div className="mt-2.5 grid grid-cols-2 gap-x-2 gap-y-3.5 sm:grid-cols-4 lg:grid-cols-8">
           {tileReadings(report.readings).map((r) => {
+            if (r === "wind") {
+              return report.wind && (
+                <Stat key="wind" emoji={report.wind.emoji} label="wind" value={windSpeed(report.readings, u.unit)}
+                  sub={report.wind.from ? `${report.wind.arrow} from ${report.wind.from}` : undefined} />
+              );
+            }
             const line = readingLine(r, u.unit);
             return <Stat key={`${r.sensor_kind}-${r.channel}`} emoji={line.emoji === "barometer" ? <Barometer /> : line.emoji} label={line.label} value={line.value} />;
           })}
-          {report.wind && (
-            <Stat emoji={report.wind.emoji} label="wind" value={windSpeed(report.readings, u.unit)}
-              sub={report.wind.from ? `${report.wind.arrow} from ${report.wind.from}` : undefined} />
-          )}
         </div>
       )}
     </section>

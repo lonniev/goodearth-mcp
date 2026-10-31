@@ -924,6 +924,8 @@ export interface AlmanacResult {
     humidity_pct: number | null;
     pressure_hpa?: number | null;
     precip_chance_pct: number | null;
+    precip_in?: number | null; rain_rate_in_h?: number | null;
+    sun_wm2?: number | null; uv_index?: number | null;
     sunrise: string | null; sunset: string | null;
     daylight_hours: number | null; sunshine_hours: number | null;
     sunshine_fraction: number | null;
@@ -934,6 +936,8 @@ export interface AlmanacResult {
     humidity_pct: number | null;
     pressure_hpa?: number | null;
     precip_in: number | null; precip_chance_pct: number | null;
+    rain_rate_in_h?: number | null;
+    sun_wm2?: number | null; uv_index?: number | null;
     sunshine_hours: number | null;
   }[];
   sun: { daylight_change_min_per_day: number | null; note: string };

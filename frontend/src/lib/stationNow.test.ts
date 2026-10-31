@@ -27,9 +27,16 @@ describe("a station's reading on a plot's card", () => {
 
   it("gives the wind one tile", () => {
     const all = [r("air_temperature", 9, "°C"), r("wind_speed", 4.47, "m/s"), r("wind_direction", 45, "deg")];
-    assert.deepEqual(tileReadings(all).map((x) => x.sensor_kind), ["air_temperature"]);
+    assert.deepEqual(tileReadings(all).map((x) => (x === "wind" ? x : x.sensor_kind)), ["air_temperature", "wind"]);
     assert.equal(windSpeed(all, "F"), "10.0 mph");
     assert.equal(windSpeed([], "F"), "—");
+  });
+
+  it("reads in the forecast's order, with what it has no place for last", () => {
+    const all = ["sap_flow", "uv_index", "solar_radiation", "rain_total", "rain_rate", "pressure", "wind_speed", "relative_humidity", "air_temperature"]
+      .map((kind) => r(kind, 1, "x"));
+    assert.deepEqual(tileReadings(all).map((x) => (x === "wind" ? x : x.sensor_kind)),
+      ["air_temperature", "relative_humidity", "wind", "pressure", "rain_rate", "rain_total", "solar_radiation", "uv_index", "sap_flow"]);
   });
 
   it("still shows a kind it does not know", () => {

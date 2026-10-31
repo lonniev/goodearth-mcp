@@ -1,7 +1,7 @@
 // A plot's station report, for the screen: FieldData speaks SI and UTC, and these
 // are its readings in the units the reader chose. Kept pure so they can be tested.
 
-import { showPressure, showTemp, type Unit } from "./units.ts";
+import { showPressure, showRain, showTemp, type Unit } from "./units.ts";
 
 export interface StationReading {
   sensor_kind: string;
@@ -19,7 +19,7 @@ const LOOKS: Record<string, { name: string; emoji: string }> = {
   pressure: { name: "pressure", emoji: "barometer" },
   rain_rate: { name: "rain rate", emoji: "🌧️" },
   rain_total: { name: "rain today", emoji: "🌧️" },
-  solar_radiation: { name: "sun", emoji: "☀️" },
+  solar_radiation: { name: "sun strength", emoji: "☀️" },
   uv_index: { name: "UV", emoji: "☀️" },
   soil_moisture: { name: "soil moisture", emoji: "💧" },
   soil_temperature: { name: "soil", emoji: "🌡️" },
@@ -35,8 +35,8 @@ function figure(r: StationReading, unit: Unit): string {
     case "°C": return showTemp((r.quantity * 9) / 5 + 32, unit, 1);
     case "hPa": return showPressure(r.quantity, unit);
     case "m/s": return us ? `${(r.quantity * 2.23694).toFixed(1)} mph` : `${r.quantity.toFixed(1)} m/s`;
-    case "mm": return us ? `${(r.quantity / 25.4).toFixed(2)} in` : `${r.quantity.toFixed(1)} mm`;
-    case "mm/h": return us ? `${(r.quantity / 25.4).toFixed(2)} in/h` : `${r.quantity.toFixed(1)} mm/h`;
+    case "mm": return showRain(r.quantity / 25.4, unit);
+    case "mm/h": return `${showRain(r.quantity / 25.4, unit)}/h`;
     case "index": return r.quantity.toFixed(0);
     case "%": return `${r.quantity.toFixed(0)}%`;
     default: return `${r.quantity.toFixed(0)} ${r.unit}`;
@@ -51,9 +51,24 @@ export function readingLine(r: StationReading, unit: Unit): { label: string; val
   return { label: where ? `${name} ${where}` : name, value: figure(r, unit), emoji: look?.emoji ?? "📟" };
 }
 
-/// The readings that take a tile of their own: everything but the wind.
-export const tileReadings = (readings: readonly StationReading[]) =>
-  readings.filter((r) => !WIND_KINDS.includes(r.sensor_kind));
+/// The tiles in the order today's forecast reads. A kind it has no place for follows.
+const TILE_ORDER = [
+  "air_temperature", "dew_point", "relative_humidity", "wind",
+  "pressure", "rain_rate", "rain_total", "solar_radiation", "uv_index",
+];
+
+const rank = (kind: string) => {
+  const at = TILE_ORDER.indexOf(kind);
+  return at < 0 ? TILE_ORDER.length : at;
+};
+
+/// The card's tiles in order, the wind's two readings being its one "wind" tile.
+export function tileReadings(readings: readonly StationReading[]): (StationReading | "wind")[] {
+  const tiles: (StationReading | "wind")[] = readings.filter((r) => !WIND_KINDS.includes(r.sensor_kind));
+  if (readings.some((r) => WIND_KINDS.includes(r.sensor_kind))) tiles.push("wind");
+  const kind = (t: StationReading | "wind") => (t === "wind" ? t : t.sensor_kind);
+  return tiles.sort((a, b) => rank(kind(a)) - rank(kind(b)));
+}
 
 /// The wind's speed on its tile, in the reader's units.
 export function windSpeed(readings: readonly StationReading[], unit: Unit): string {
