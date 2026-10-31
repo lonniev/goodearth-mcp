@@ -20,7 +20,7 @@ export const TARGETS = [
   // My Plots.
   "plots.add", "plots.import", "plots.groups", "plots.chips", "plots.rename", "plots.share", "plots.forget",
   "plots.search", "plots.locate", "plots.shape", "plots.map", "plots.name", "plots.base", "plots.save",
-  "plots.sun", "plots.labels", "plots.sunview",
+  "plots.sun", "plots.labels", "plots.sunview", "plots.station",
   // Flora.
   "crops.species", "crops.label", "crops.target", "crops.setout", "crops.base",
   "crops.flower", "crops.height", "crops.blooms", "crops.hardy", "crops.taps", "crops.add",
@@ -39,7 +39,7 @@ export const TARGETS = [
   "todo.title", "todo.due", "todo.reminder", "todo.times", "todo.note", "todo.add", "todo.gear",
   "todo.frames", "todo.search", "todo.list",
   // Almanac.
-  "almanac.today", "almanac.storm", "almanac.radar", "almanac.fortnight", "almanac.chiclets",
+  "almanac.station", "almanac.today", "almanac.storm", "almanac.radar", "almanac.fortnight", "almanac.chiclets",
   // Account.
   "account.summary", "account.tutorial", "account.season", "account.degrees", "account.bees", "account.forget",
 ] as const;

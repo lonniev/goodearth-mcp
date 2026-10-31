@@ -49,12 +49,18 @@ export const almanac: Guide = {
   ],
   using: [
     { emoji: "👀", heading: "Read", steps: [
+      ["Now at your station",
+        <>Shown when you have chosen a FieldData station for this plot on My
+          Plots: what it reads right now and how long ago, in the order Today
+          reads. These are measurements at the station; Today is a forecast for
+          the plot, so the two can differ.</>],
       ["Today",
-        <>Nine readings in nine equal cells: the sky with its high and low,
-          dew point, wind with its direction, the barometer with which way it
-          is moving, chance of rain, sunrise to sunset
-          with the hours of daylight, hours of sunshine as a share of them, how
-          much the day length is changing, and the moon.</>],
+        <>The forecast in equal cells: the sky with its high and low, dew
+          point, humidity, wind with its direction, the barometer with which way
+          it is moving, chance of rain, rain rate while it falls, rain today,
+          sunrise to sunset with the hours of daylight, sun strength averaged
+          over daylight, hours of sunshine as a share of daylight, the day's
+          peak UV, how much the day length is changing, and the moon.</>],
       ["🌀 Storm signal",
         <>Shown above Today only when the barometer is forecast to fall fast
           in the next three days. Unsettled is a fall of 1.6 hPa (0.05 inHg)
@@ -76,7 +82,7 @@ export const almanac: Guide = {
           and wind. Each card rides a few pixels higher on a warmer
           day, so the week's warming or cooling shows before a number is read.
           Tap a card for that day's forecast, written the Weather Service's
-          way and ready to paste.</>],
+          way and ready to paste, with its rain, sun strength and UV.</>],
       ["The season so far",
         <>One chart per measure you have switched on. Grey band, solid season,
           dashed forecast. The button in each chart's corner takes it to the

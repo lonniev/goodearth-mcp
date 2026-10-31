@@ -71,6 +71,10 @@ export const plots: Guide = {
       ["Save",
         <>Writes the block to your record, measures it, and switches every
           view to it. The area is shown before you press it.</>],
+      ["Station",
+        <>The FieldData station this plot reads its conditions from, shown at
+          the top of its Almanac. Choose one from your FieldData account; a
+          first use sends you a Nostr message, and one reply connects them.</>],
       ["Import",
         <>Opens a farm bundle somebody shared with you — a file of their plot
           and this season's plantings, pests, fauna and tasks. It becomes a new

@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { getStoredNpub } from "@tollbooth-dpyc/web";
 import { plotConditions, plotStation, type PlotConditions } from "../lib/mcp";
 import { readingLine, reportAge, tileReadings, windSpeed } from "../lib/stationNow";
+import { tour } from "../lib/tour/targets";
 import Barometer from "./Barometer";
 import { useUnits } from "./Units";
 
@@ -47,7 +48,7 @@ export default function StationNow({ block }: { block: string }) {
 
   if (!name) return null;
   return (
-    <section className="mb-4 rounded-md border border-rule bg-panel px-4 py-3">
+    <section className="mb-4 rounded-md border border-rule bg-panel px-4 py-3" {...tour("almanac.station")}>
       <div className="flex flex-wrap items-baseline gap-2">
         <h2 className="figure text-[15px] font-semibold">Now at {name}</h2>
         {report?.observed_at && (

@@ -94,6 +94,8 @@ export const TOURS: Record<Tour["page"], Tour> = {
       says: "The temperature heat is counted from. Fifty is usual; change it when you know yours." },
     { target: "plots.save", title: "Save", guide: ["Add ground", "Save"],
       says: "Saves the ground and makes it the plot you are working." },
+    { target: "plots.station", title: "Station", guide: ["Add ground", "Station"],
+      says: "Reads this plot's conditions from a FieldData station. A first use takes one reply to a Nostr message.", side: "top" },
     { target: "plots.import", title: "Import", guide: ["Add ground", "Import"],
       says: "Brings in a farm bundle another grower shared." },
     { target: "plots.groups", title: "Groups", guide: ["Read and switch", "Groups"],
@@ -260,8 +262,10 @@ export const TOURS: Record<Tour["page"], Tour> = {
   ]},
 
   almanac: { page: "almanac", steps: [
+    { target: "almanac.station", title: "Now at your station", guide: ["Read", "Now at your station"],
+      says: "What the FieldData station chosen for this plot reads right now. Choose one on My Plots." },
     { target: "almanac.today", title: "Today", guide: ["Read", "Today"],
-      says: "The sky, the wind, the dew point, the pressure, the rain, sunrise and sunset and the moon, for this plot today." },
+      says: "Today's forecast for this plot, reading in the station's order, with the sun times, day length and moon after." },
     { target: "almanac.storm", title: "Storm signal", guide: ["Read", "🌀 Storm signal"],
       says: "Shows when the barometer is forecast to fall fast in the next three days: how far, how fast, and by when." },
     { target: "almanac.radar", title: "Rain on the radar", guide: ["Read", "🌧️ in the title row"],
@@ -277,7 +281,7 @@ export const TOURS: Record<Tour["page"], Tour> = {
 
   account: accountTour("account", [
     { target: "account.summary", title: "Your wallet",
-      says: "Your Patron's tranche of api_sats pays MCP tool fees, per call. Pick an amount for a Lightning invoice, and the balance updates on its own." },
+      says: "Your Patron's tranche of api_sats pays MCP tool fees, per call." },
     { target: "account.tutorial", title: "Live tutorial",
       says: "This tour, on every page. Turn it off here or from any popover; turn it on to see it all again." },
     { target: "account.season", title: "Season",
