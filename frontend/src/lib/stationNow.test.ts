@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { readingLine, reportAge, type StationReading } from "./stationNow.ts";
+import { readingLine, reportAge, tileReadings, windSpeed, type StationReading } from "./stationNow.ts";
 
 const r = (sensor_kind: string, quantity: number, unit: string, channel: number | null = null, channel_name: string | null = null): StationReading =>
   ({ sensor_kind, quantity, unit, channel, channel_name, observed_at: "2026-10-30T14:00:00Z" });
@@ -17,15 +17,23 @@ describe("a station's reading on a plot's card", () => {
     assert.match(readingLine(r("pressure", 1016, "hPa"), "F").value, /inHg/);
   });
 
-  it("names a compass point and a probe", () => {
-    assert.equal(readingLine(r("wind_direction", 292, "deg"), "F").value, "W");
-    assert.equal(readingLine(r("wind_direction", 359, "deg"), "F").value, "N");
-    assert.equal(readingLine(r("soil_moisture", 34, "%", 2), "F").label, "Soil moisture 2");
-    assert.equal(readingLine(r("soil_moisture", 34, "%", 2, "Row 4"), "F").label, "Soil moisture Row 4");
+  it("uses the forecast cards' marks and names a probe", () => {
+    assert.equal(readingLine(r("relative_humidity", 54, "%"), "F").emoji, "💦");
+    assert.equal(readingLine(r("pressure", 1016, "hPa"), "F").emoji, "barometer");
+    assert.equal(readingLine(r("rain_total", 1, "mm"), "F").emoji, "🌧️");
+    assert.equal(readingLine(r("soil_moisture", 34, "%", 2), "F").label, "soil moisture 2");
+    assert.equal(readingLine(r("soil_moisture", 34, "%", 2, "Row 4"), "F").label, "soil moisture Row 4");
+  });
+
+  it("gives the wind one tile", () => {
+    const all = [r("air_temperature", 9, "°C"), r("wind_speed", 4.47, "m/s"), r("wind_direction", 45, "deg")];
+    assert.deepEqual(tileReadings(all).map((x) => x.sensor_kind), ["air_temperature"]);
+    assert.equal(windSpeed(all, "F"), "10.0 mph");
+    assert.equal(windSpeed([], "F"), "—");
   });
 
   it("still shows a kind it does not know", () => {
-    assert.deepEqual(readingLine(r("sap_flow", 4, "g/h"), "F"), { label: "sap flow", value: "4 g/h" });
+    assert.deepEqual(readingLine(r("sap_flow", 4, "g/h"), "F"), { label: "sap flow", value: "4 g/h", emoji: "📟" });
   });
 });
 

@@ -54,6 +54,7 @@ from goodearth_mcp import (
     sources,
     task_store,
 )
+from goodearth_mcp.almanac import describe_wind
 from goodearth_mcp.almanac_window import AlmanacError
 from goodearth_mcp.almanac_window import region_almanac as almanac_impl
 from goodearth_mcp.calendar_feed import CalendarError
@@ -3128,6 +3129,18 @@ async def _plot_station_rows(npub: str, block_id: str) -> list[dict[str, Any]]:
     return (await block_store.list_items(npub, block_id, "station", page_size=block_store.MAX_PAGE_SIZE))["items"]
 
 
+_MPH_PER_MPS = 2.23694
+
+
+def _station_wind(readings: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """The station's wind in the words and marks the forecast cards use."""
+    quantity = {r.get("sensor_kind"): r.get("quantity") for r in readings}
+    speed, direction = quantity.get("wind_speed"), quantity.get("wind_direction")
+    if speed is None and direction is None:
+        return None
+    return describe_wind(None if speed is None else speed * _MPH_PER_MPS, direction)
+
+
 def _station_of(rows: list[dict[str, Any]]) -> dict[str, str] | None:
     if not rows:
         return None
@@ -3216,6 +3229,7 @@ async def plot_conditions(
         "block_id": found["block_id"],
         "station": station,
         "readings": readings,
+        "wind": _station_wind(readings),
         "observed_at": max((str(r.get("observed_at") or "") for r in readings), default=""),
         "source": "FieldData",
     }

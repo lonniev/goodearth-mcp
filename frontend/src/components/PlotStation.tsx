@@ -1,97 +1,114 @@
 // The one FieldData station a plot reads its conditions from. Good Earth reaches
-// FieldData as any client does, so a first use takes one Nostr reply.
+// FieldData as any client does, so a first use takes one Nostr reply. One button
+// moves it along, and it always says what is happening.
 
 import { useEffect, useState } from "react";
 import {
   fielddataConnect, fielddataConnectFinish, fielddataStations, plotStation,
   type PlotStationRow,
 } from "../lib/mcp";
+import { Pill, StatusChip } from "./ui";
 
-type Exchange = { phrase: string; relay: string };
+type Step =
+  | { kind: "rest" }
+  | { kind: "busy"; words: string }
+  | { kind: "reply"; phrase: string; relay: string }
+  | { kind: "choose"; stations: PlotStationRow[] };
+
+const NOT_CONNECTED = /connect your fielddata/i;
 
 export default function PlotStation({ block }: { block: string }) {
   const [current, setCurrent] = useState<PlotStationRow | null>(null);
-  const [stations, setStations] = useState<PlotStationRow[] | null>(null);
-  const [exchange, setExchange] = useState<Exchange | null>(null);
-  const [needsConnect, setNeedsConnect] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [step, setStep] = useState<Step>({ kind: "rest" });
+  const [done, setDone] = useState("");
   const [problem, setProblem] = useState("");
 
   useEffect(() => {
     plotStation(block).then((r) => setCurrent(r.station)).catch((e: Error) => setProblem(e.message));
   }, [block]);
 
-  async function attempt(step: () => Promise<void>) {
-    setBusy(true);
+  async function sendMessage() {
+    setStep({ kind: "busy", words: "Sending your Nostr message…" });
+    const { phrase, relay } = await fielddataConnect();
+    setStep({ kind: "reply", phrase, relay });
+  }
+
+  async function run(back: Step, work: () => Promise<void>) {
     setProblem("");
+    setDone("");
     try {
-      await step();
+      await work();
     } catch (e) {
+      setStep(back);
       setProblem((e as Error).message);
-    } finally {
-      setBusy(false);
     }
   }
 
-  const choose = () => attempt(async () => {
+  const begin = () => run({ kind: "rest" }, async () => {
+    setStep({ kind: "busy", words: "Asking FieldData for your stations…" });
     try {
-      setStations(await fielddataStations());
-      setNeedsConnect(false);
+      setStep({ kind: "choose", stations: await fielddataStations() });
     } catch (e) {
-      if (!/connect your fielddata/i.test((e as Error).message)) throw e;
-      setNeedsConnect(true);
+      if (!NOT_CONNECTED.test((e as Error).message)) throw e;
+      await sendMessage();
     }
   });
 
-  const connect = () => attempt(async () => setExchange(await fielddataConnect()));
-
-  const replied = () => attempt(async () => {
-    await fielddataConnectFinish(exchange!.phrase);
-    setExchange(null);
-    setNeedsConnect(false);
-    setStations(await fielddataStations());
+  const replied = (back: Step & { kind: "reply" }) => run(back, async () => {
+    setStep({ kind: "busy", words: "Looking for your reply…" });
+    await fielddataConnectFinish(back.phrase);
+    setDone("Connected");
+    setStep({ kind: "busy", words: "Asking FieldData for your stations…" });
+    setStep({ kind: "choose", stations: await fielddataStations() });
   });
 
-  const pick = (id: string) => attempt(async () => {
-    const found = stations?.find((s) => s.station_id === id);
-    setCurrent((await plotStation(block, id, found?.name ?? "")).station);
-    setStations(null);
+  const pick = (back: Step, id: string, name: string) => run(back, async () => {
+    setStep({ kind: "busy", words: "Saving…" });
+    setCurrent((await plotStation(block, id, name)).station);
+    setStep({ kind: "rest" });
+    setDone("Saved");
   });
 
   return (
     <div className="mt-3">
       <p className="text-[11px] text-ink-soft">Station</p>
       <div className="mt-1 flex flex-wrap items-center gap-2 text-[12.5px]">
-        <span>{current ? current.name : "None"}</span>
-        {!stations && !needsConnect && !exchange && (
-          <button type="button" disabled={busy} onClick={() => void choose()}
-            className="min-h-9 rounded-full border border-rule px-3 text-[12px]">
-            {current ? "Change" : "Choose from FieldData"}
-          </button>
+        {step.kind !== "choose" && <span>{current ? current.name : "None"}</span>}
+        {step.kind === "rest" && (
+          <Pill onClick={() => void begin()}>{current ? "Change" : "Choose from FieldData"}</Pill>
         )}
-        {needsConnect && !exchange && (
-          <button type="button" disabled={busy} onClick={() => void connect()}
-            className="min-h-9 rounded-full border border-rule px-3 text-[12px]">
-            Connect FieldData
-          </button>
+        {step.kind === "busy" && (
+          <span role="status" className="animate-pulse text-ink-soft motion-reduce:animate-none">{step.words}</span>
         )}
-        {stations && (
-          <select aria-label="Station" disabled={busy} value={current?.station_id ?? ""}
-            onChange={(e) => void pick(e.target.value)} className="min-h-9 rounded border border-rule bg-panel px-2">
-            <option value="">None</option>
-            {stations.map((s) => <option key={s.station_id} value={s.station_id}>{s.name}</option>)}
-          </select>
+        {step.kind === "choose" && (
+          <>
+            <select
+              aria-label="Station"
+              value={current?.station_id ?? ""}
+              onChange={(e) => void pick(step, e.target.value, e.target.selectedOptions[0]?.text ?? "")}
+              className="min-h-11 rounded border border-rule bg-panel px-2 text-[16px]"
+            >
+              <option value="">None</option>
+              {step.stations.map((s) => <option key={s.station_id} value={s.station_id}>{s.name}</option>)}
+            </select>
+            <Pill onClick={() => setStep({ kind: "rest" })}>Keep this</Pill>
+          </>
         )}
+        {done && step.kind !== "busy" && <StatusChip tone="reached">✓ {done}</StatusChip>}
       </div>
-      {exchange && (
+      {step.kind === "reply" && (
         <div className="mt-1.5 rounded-md bg-band p-2.5 text-[12.5px]">
-          <p>Check your Nostr messages for one marked <b className="data">{exchange.phrase}</b>, and reply to it.</p>
-          {exchange.relay && <p className="data mt-1 text-[10.5px] text-ink-soft">Reply on {exchange.relay}</p>}
-          <button type="button" disabled={busy} onClick={() => void replied()}
-            className="mt-1.5 min-h-9 rounded-full border border-rule px-3 text-[12px]">I replied</button>
+          <p>FieldData sent you a Nostr message marked <b className="data">{step.phrase}</b>.</p>
+          <p className="mt-0.5">Reply to it, then tap below.</p>
+          {step.relay && <p className="data mt-1 text-[10.5px] text-ink-soft">Reply on {step.relay}</p>}
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Pill active onClick={() => void replied(step)}>I replied</Pill>
+            <Pill onClick={() => void run(step, sendMessage)}>Send a new message</Pill>
+            <Pill onClick={() => { setProblem(""); setStep({ kind: "rest" }); }}>Cancel</Pill>
+          </div>
         </div>
       )}
-      {problem && <p className="mt-1 text-[12px] text-clay">{problem}</p>}
+      {problem && <p role="alert" className="mt-1 text-[12px] text-clay">{problem}</p>}
     </div>
   );
 }

@@ -1605,6 +1605,7 @@ export interface PlotConditions {
   station: PlotStationRow;
   readings: StationReading[];
   observed_at: string;
+  wind: { from: string | null; arrow: string | null; emoji: string } | null;
 }
 
 /// A tool's refusal arrives as `success: false`, and a page must not read it as an answer.
