@@ -1619,8 +1619,8 @@ function answered<T>(r: T & { success?: boolean; error?: string }): T {
 }
 
 /// Omit `stationId` to read the plot's station; "" clears it.
-export async function plotStation(block: string, stationId?: string, name = ""): Promise<{ station: PlotStationRow | null }> {
-  const args = stationId === undefined ? { block } : { block, station_id: stationId, name };
+export async function plotStation(block: string, stationId?: string, name = "", choice = ""): Promise<{ station: PlotStationRow | null }> {
+  const args = stationId === undefined ? { block } : { block, station_id: stationId, name, ...(choice ? { choice } : {}) };
   return answered(await callTool<{ station: PlotStationRow | null }>("plot_station", args));
 }
 
@@ -1630,6 +1630,26 @@ export async function plotConditions(block: string): Promise<PlotConditions> {
 
 export async function fielddataStations(): Promise<PlotStationRow[]> {
   return answered(await callTool<{ stations: PlotStationRow[] }>("fielddata_stations")).stations;
+}
+
+export interface MappedStation extends PlotStationRow {
+  latitude: number | null;
+  longitude: number | null;
+}
+
+export interface NearbyStationRow extends MappedStation {
+  distance_km: number;
+  choice: string;
+}
+
+export interface StationsNear {
+  stations: MappedStation[];
+  place: { name: string; latitude: number; longitude: number };
+  nearby: NearbyStationRow[];
+}
+
+export async function fielddataStationsNear(block: string): Promise<StationsNear> {
+  return answered(await callTool<StationsNear>("fielddata_stations", { block }));
 }
 
 export async function fielddataConnect(): Promise<{ phrase: string; relay: string }> {

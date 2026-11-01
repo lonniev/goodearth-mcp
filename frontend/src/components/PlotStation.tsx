@@ -8,6 +8,7 @@ import {
   type PlotStationRow,
 } from "../lib/mcp";
 import { tour } from "../lib/tour/targets";
+import StationMap from "./StationMap";
 import { Pill, StatusChip } from "./ui";
 
 type Step =
@@ -29,6 +30,7 @@ export default function PlotStation({ block, opened = false, onChosen, onKeep }:
   const [step, setStep] = useState<Step>({ kind: "rest" });
   const [done, setDone] = useState("");
   const [problem, setProblem] = useState("");
+  const [onMap, setOnMap] = useState(false);
 
   useEffect(() => {
     plotStation(block).then((r) => setCurrent(r.station)).catch((e: Error) => setProblem(e.message));
@@ -77,9 +79,10 @@ export default function PlotStation({ block, opened = false, onChosen, onKeep }:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened]);
 
-  const pick = (back: Step, id: string, name: string) => run(back, async () => {
+  const pick = (back: Step, id: string, name: string, choice = "") => run(back, async () => {
     setStep({ kind: "busy", words: "Saving…" });
-    setCurrent((await plotStation(block, id, name)).station);
+    setCurrent((await plotStation(block, id, name, choice)).station);
+    setOnMap(false);
     setStep({ kind: "rest" });
     setDone("Saved");
     onChosen?.();
@@ -107,11 +110,16 @@ export default function PlotStation({ block, opened = false, onChosen, onKeep }:
               <option value="">None</option>
               {step.stations.map((s) => <option key={s.station_id} value={s.station_id}>{s.name}</option>)}
             </select>
-            <Pill onClick={() => { setStep({ kind: "rest" }); onKeep?.(); }}>Keep this</Pill>
+            <Pill active={onMap} onClick={() => setOnMap((v) => !v)}>Find on map</Pill>
+            <Pill onClick={() => { setOnMap(false); setStep({ kind: "rest" }); onKeep?.(); }}>Keep this</Pill>
           </>
         )}
         {done && step.kind !== "busy" && <StatusChip tone="reached">✓ {done}</StatusChip>}
       </div>
+      {step.kind === "choose" && onMap && (
+        <StationMap block={block} currentId={current?.station_id ?? ""}
+          onPick={(s) => void pick(step, s.station_id, s.name, s.choice)} />
+      )}
       {step.kind === "reply" && (
         <div className="mt-1.5 rounded-md bg-band p-2.5 text-[12.5px]">
           <p>FieldData sent you a Nostr message marked <b className="data">{step.phrase}</b>.</p>

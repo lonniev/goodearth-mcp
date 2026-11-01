@@ -11,7 +11,9 @@ Run locally:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import re
 import uuid
 from datetime import UTC, date, datetime
 from typing import Annotated, Any
@@ -3103,6 +3105,9 @@ async def sunlight(
 # ---------------------------------------------------------------------------
 
 _FIELDDATA_SERVICE = "fielddata-connection"
+_NEARBY_STATION_KM = 50.0
+# vendor:lat:lon:short_id, FieldData's form of a chosen station.
+_STATION_CHOICE = re.compile(r"[a-z_]+:-?\d+:-?\d+:[0-9A-Za-z]+")
 
 
 async def _load_fielddata_connection(npub: str) -> dict[str, str] | None:
@@ -3170,16 +3175,52 @@ async def fielddata_connect_finish(
 
 @tool
 @runtime.paid_tool(FIELDDATA_STATIONS_UUID)
-async def fielddata_stations(npub: PatronNpub = "") -> dict[str, Any]:
-    """The stations you track at FieldData, to choose one for a plot with plot_station."""
-    answer = await fielddata.call(_named_npub(npub), "list_stations")
-    return {
+async def fielddata_stations(
+    block: Annotated[
+        str,
+        Field(description="A plot: also find the stations whose owners publish them near it.", max_length=200),
+    ] = "",
+    npub: PatronNpub = "",
+) -> dict[str, Any]:
+    """The stations you track at FieldData, to choose one for a plot with plot_station.
+
+    Given a plot, this also answers where it is and the published stations near it.
+    Pass a nearby station's `choice` to plot_station to track it and use it.
+    """
+    who = _named_npub(npub)
+    place: dict[str, Any] | None = None
+    if block:
+        region, found = await _block_region(who, block)
+        place = {"name": found.get("name"), "latitude": region.centroid.lat, "longitude": region.centroid.lon}
+    answer = await fielddata.call(who, "list_stations")
+    out: dict[str, Any] = {
         "success": True,
         "stations": [
-            {"station_id": s.get("station_id"), "name": s.get("name")}
+            {k: s.get(k) for k in ("station_id", "name", "latitude", "longitude")}
             for s in answer.get("stations") or []
         ],
     }
+    if place:
+        near = await fielddata.call(who, "nearby_stations", {
+            "latitude": place["latitude"], "longitude": place["longitude"], "radius_km": _NEARBY_STATION_KM,
+        })
+        out["place"] = place
+        out["nearby"] = [
+            {k: s.get(k) for k in ("station_id", "name", "latitude", "longitude", "distance_km", "choice")}
+            for s in near.get("stations") or []
+        ]
+    return out
+
+
+async def _track_at_fielddata(npub: str, choice: str) -> None:
+    """Add a published station to the patron's stations at FieldData, so it can be read."""
+    if not _STATION_CHOICE.fullmatch(choice):
+        raise ValueError("That is not a station choice from fielddata_stations.")
+    answer = await fielddata.call(npub, "get_my_properties")
+    saved = next((p.get("value") for p in answer.get("properties") or [] if p.get("name") == "chosen_stations"), [])
+    saved = saved if isinstance(saved, list) else []
+    if choice not in saved:
+        await fielddata.call(npub, "set_my_property", {"name": "chosen_stations", "value": json.dumps([*saved, choice])})
 
 
 @tool
@@ -3191,6 +3232,10 @@ async def plot_station(
         Field(description="Omit to see the plot's station; empty to clear it; an id to set it.", max_length=80),
     ] = None,
     name: Annotated[str, Field(description="The station's name, as fielddata_stations gave it.", max_length=120)] = "",
+    choice: Annotated[
+        str,
+        Field(description="A nearby station's `choice` from fielddata_stations, to track it at FieldData.", max_length=120),
+    ] = "",
     npub: PatronNpub = "",
 ) -> dict[str, Any]:
     """See, set or clear the one FieldData station a plot reads its conditions from."""
@@ -3199,6 +3244,8 @@ async def plot_station(
     if station_id is None:
         return {"success": True, "station": _station_of(rows)}
     wanted = station_id.strip()
+    if wanted and choice:
+        await _track_at_fielddata(npub, choice)
     await block_store.retire_items(npub, [str(r["item_id"]) for r in rows])
     if not wanted:
         return {"success": True, "station": None}

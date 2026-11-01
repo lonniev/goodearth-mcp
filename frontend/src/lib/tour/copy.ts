@@ -95,7 +95,7 @@ export const TOURS: Record<Tour["page"], Tour> = {
     { target: "plots.save", title: "Save", guide: ["Add ground", "Save"],
       says: "Saves the ground and makes it the plot you are working." },
     { target: "plots.station", title: "Station", guide: ["Add ground", "Station"],
-      says: "Reads this plot's conditions from a FieldData station. A first use takes one reply to a Nostr message.", side: "top" },
+      says: "Reads this plot's conditions from a FieldData station, chosen from a list or a map. A first use takes one reply to a Nostr message.", side: "top" },
     { target: "plots.import", title: "Import", guide: ["Add ground", "Import"],
       says: "Brings in a farm bundle another grower shared." },
     { target: "plots.groups", title: "Groups", guide: ["Read and switch", "Groups"],
