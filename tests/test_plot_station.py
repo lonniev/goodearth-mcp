@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+import json
 
 import pytest
 
@@ -109,13 +110,80 @@ async def test_one_patrons_station_is_not_anothers(items):
     assert (await station("north", npub="npub1other"))["station"] is None
 
 
-async def test_stations_show_only_id_and_name(monkeypatch):
+async def test_stations_show_id_name_and_place(monkeypatch):
     async def call(npub, tool, args=None):
-        return {"stations": [{"station_id": "s1", "name": "TheDellie", "latitude": 44.1, "sensors": []}]}
+        return {"stations": [{"station_id": "s1", "name": "TheDellie", "latitude": 44.1, "longitude": -73.2, "sensors": []}]}
 
     monkeypatch.setattr(server.fielddata, "call", call)
     out = await inspect.unwrap(server.fielddata_stations)(npub=NPUB)
-    assert out["stations"] == [{"station_id": "s1", "name": "TheDellie"}]
+    assert out["stations"] == [{"station_id": "s1", "name": "TheDellie", "latitude": 44.1, "longitude": -73.2}]
+    assert "nearby" not in out
+
+
+async def test_a_plot_also_gets_where_it_is_and_the_stations_near_it(monkeypatch):
+    asked = []
+
+    async def call(npub, tool, args=None):
+        asked.append((tool, args))
+        if tool == "list_stations":
+            return {"stations": []}
+        return {"stations": [{"station_id": "p1", "name": "Hill", "latitude": 44.2, "longitude": -73.1,
+                              "distance_km": 3.4, "choice": "ambient:1:2:p1", "readings": []}]}
+
+    async def block_region(npub, block):
+        centre = type("C", (), {"lat": 44.0, "lon": -73.0})
+        return type("R", (), {"centroid": centre}), {"name": "North"}
+
+    monkeypatch.setattr(server.fielddata, "call", call)
+    monkeypatch.setattr(server, "_block_region", block_region)
+    out = await inspect.unwrap(server.fielddata_stations)("north", npub=NPUB)
+    assert out["place"] == {"name": "North", "latitude": 44.0, "longitude": -73.0}
+    assert out["nearby"] == [{"station_id": "p1", "name": "Hill", "latitude": 44.2, "longitude": -73.1,
+                              "distance_km": 3.4, "choice": "ambient:1:2:p1"}]
+    assert asked[1] == ("nearby_stations", {"latitude": 44.0, "longitude": -73.0, "radius_km": 50.0})
+
+
+async def test_a_choice_joins_the_patrons_fielddata_stations_once(items, monkeypatch):
+    saved = ["ambient:1:2:old"]
+    written = []
+
+    async def call(npub, tool, args=None):
+        if tool == "get_my_properties":
+            return {"properties": [{"name": "other", "value": 1}, {"name": "chosen_stations", "value": list(saved)}]}
+        written.append(args)
+        saved[:] = json.loads(args["value"])
+        return {"success": True}
+
+    monkeypatch.setattr(server.fielddata, "call", call)
+    await station("north", "p1", "Hill", choice="ambient:3:-4:p1", npub=NPUB)
+    await station("north", "p1", "Hill", choice="ambient:3:-4:p1", npub=NPUB)
+    assert saved == ["ambient:1:2:old", "ambient:3:-4:p1"]
+    assert len(written) == 1
+    assert (await station("north", npub=NPUB))["station"]["station_id"] == "p1"
+
+
+async def test_a_malformed_choice_changes_nothing(items, monkeypatch):
+    await station("north", "s1", "TheDellie", npub=NPUB)
+
+    async def call(npub, tool, args=None):
+        raise AssertionError("FieldData was asked")
+
+    monkeypatch.setattr(server.fielddata, "call", call)
+    with pytest.raises(ValueError, match="not a station choice"):
+        await station("north", "p1", "Hill", choice='x","y', npub=NPUB)
+    assert (await station("north", npub=NPUB))["station"]["station_id"] == "s1"
+
+
+async def test_a_failed_fielddata_write_keeps_the_plots_station(items, monkeypatch):
+    await station("north", "s1", "TheDellie", npub=NPUB)
+
+    async def call(npub, tool, args=None):
+        raise fielddata_client.FieldDataError("FieldData refused that request.")
+
+    monkeypatch.setattr(server.fielddata, "call", call)
+    with pytest.raises(ValueError):
+        await station("north", "p1", "Hill", choice="ambient:3:-4:p1", npub=NPUB)
+    assert (await station("north", npub=NPUB))["station"]["station_id"] == "s1"
 
 
 @pytest.mark.parametrize("tool", [server.fielddata_connect, server.fielddata_stations])

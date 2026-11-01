@@ -1,0 +1,1 @@
+- Find on map: a plot's station chooser shows the plot and the stations near it, and tapping one sets it for the plot.
