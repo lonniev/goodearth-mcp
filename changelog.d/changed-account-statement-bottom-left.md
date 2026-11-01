@@ -1,0 +1,1 @@
+- The Account page shows the Statement at the bottom of its left column.
