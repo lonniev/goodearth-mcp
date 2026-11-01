@@ -11,7 +11,7 @@ import { DEFAULT_VIEW, GUEST_VIEW, onRouteChange, viewFromHash, writeView } from
 import { isPublic } from "./lib/views";
 import Hive, { hiveMood } from "./components/Hive";
 import Bees from "./components/Bees";
-import { AccountPage, DebugPanel, NostrProfilePanel, NpubGate, Wallet } from "@tollbooth-dpyc/web/react";
+import { AccountPage, DebugPanel, NostrProfilePanel, NpubGate, WalletFunds, WalletStatement } from "@tollbooth-dpyc/web/react";
 import { decorateTile } from "./lib/tiles";
 import { USAGE, USAGE_FIGURES, UsageRow } from "./components/usageDress";
 import Preferences from "./components/Preferences";
@@ -418,10 +418,11 @@ export default function App() {
                     {spent.toLocaleString()} drawn today
                   </span>
                 )}
-                <Wallet decorateTile={decorateTile} />
+                <WalletFunds decorateTile={decorateTile} />
               </div>
             }
             profile={false}
+            between={{ usage: <WalletStatement /> }}
             usage={{ figures: USAGE_FIGURES, classNames: USAGE, renderRow: (t) => <UsageRow tool={t} /> }}
             // The time zone sits in Viewing with the season and degrees; the
             // season is Good Earth's theme; the build panel is on About.
