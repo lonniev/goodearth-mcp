@@ -56,13 +56,10 @@ async def region_pest_window(
             skipped.append({"name": str((row or {}).get("pest") or "?"), "reason": str(exc_)})
 
     start = gdd.season_start(today, region.centroid.lat)
-    try:
-        history = await record_cache.daily_history(
-            [region.centroid.lat], [region.centroid.lon],
-            start.isoformat(), today.isoformat(),
-        )
-    except sources.UpstreamError as exc:
-        raise PestWindowError(f"could not read the season for this ground: {exc}") from exc
+    history = await record_cache.daily_history(
+        [region.centroid.lat], [region.centroid.lon],
+        start.isoformat(), today.isoformat(),
+    )
 
     if not history:
         raise PestWindowError("the archive returned no data for this region")

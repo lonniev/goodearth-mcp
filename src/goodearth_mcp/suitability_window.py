@@ -98,14 +98,11 @@ async def region_suitability(
         except suitability.SuitabilityError as exc_:
             skipped.append({"name": str((row or {}).get("crop") or "?"), "reason": str(exc_)})
 
-    try:
-        record = await record_cache.daily_history(
-            [region.centroid.lat], [region.centroid.lon],
-            date(today.year - RECORD_SPAN_YEARS, 1, 1).isoformat(),
-            date(today.year - 1, 12, 31).isoformat(),
-        )
-    except sources.UpstreamError as exc:
-        raise SuitabilityWindowError(f"could not read this ground's record: {exc}") from exc
+    record = await record_cache.daily_history(
+        [region.centroid.lat], [region.centroid.lon],
+        date(today.year - RECORD_SPAN_YEARS, 1, 1).isoformat(),
+        date(today.year - 1, 12, 31).isoformat(),
+    )
 
     if not record:
         raise SuitabilityWindowError("the archive returned no seasons for this region")

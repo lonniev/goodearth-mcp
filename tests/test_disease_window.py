@@ -150,7 +150,7 @@ async def test_a_failed_forecast_is_a_smaller_answer_not_a_failed_one(ground):
 async def test_a_failed_history_is_fatal_and_says_why(ground):
     # What already happened is the half a grower cannot get anywhere else.
     ground["history"] = sources.UpstreamError("the archive host timed out")
-    with pytest.raises(disease_window.DiseaseWindowError) as exc:
+    with pytest.raises(sources.UpstreamError) as exc:
         await disease_window.region_disease_window(REGION, None, today=TODAY)
     assert "archive host timed out" in str(exc.value)
 

@@ -25,11 +25,8 @@ async def air_record(region: Region, today: date) -> tuple[list[str], list, list
     """This ground's daily air record over the span every answer here reads."""
     span_from = date(today.year - RECORD_SPAN_YEARS, 1, 1).isoformat()
     span_to = date(today.year - 1, 12, 31).isoformat()
-    try:
-        air = await record_cache.daily_history(
-            [region.centroid.lat], [region.centroid.lon], span_from, span_to)
-    except (sources.UpstreamError, OSError) as exc:
-        raise PlantingWindowError(f"could not read this ground's record: {exc}") from exc
+    air = await record_cache.daily_history(
+        [region.centroid.lat], [region.centroid.lon], span_from, span_to)
     if not air:
         raise PlantingWindowError("could not read this ground's record")
     try:
@@ -149,6 +146,8 @@ async def region_planting_window(
     air = results[0]
     soil_rec = results[1] if len(results) > 1 else None
 
+    if isinstance(air, sources.UpstreamError):
+        raise air
     if isinstance(air, BaseException) or not air:
         raise PlantingWindowError(f"could not read this ground's record: {air}")
 

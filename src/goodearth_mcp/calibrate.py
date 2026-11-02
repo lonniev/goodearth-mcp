@@ -73,6 +73,8 @@ async def region_calibration(
     )
     history, frost_record = await asyncio.gather(history_task, frost_task, return_exceptions=True)
 
+    if isinstance(history, sources.UpstreamError):
+        raise history
     if isinstance(history, BaseException) or not history:
         raise CalibrateError(f"could not read the seasons these reports fall in: {history}")
 
