@@ -124,6 +124,8 @@ async def region_crop_ledger(
         history_task, frost_task, return_exceptions=True
     )
 
+    if isinstance(history, sources.UpstreamError):
+        raise history
     if isinstance(history, BaseException) or not history:
         raise LedgerError(f"could not read the season for this ground: {history}")
 

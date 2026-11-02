@@ -98,6 +98,8 @@ async def region_tree_window(
         return_exceptions=True,
     )
 
+    if isinstance(deep, sources.UpstreamError):
+        raise deep
     if isinstance(deep, BaseException) or not deep:
         raise PerennialWindowError(f"could not read this ground's record: {deep}")
 

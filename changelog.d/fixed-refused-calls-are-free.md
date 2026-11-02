@@ -1,0 +1,1 @@
+- A paid tool that cannot answer no longer keeps its fare. A weather feed outage now reports `upstream_unavailable`, where several tools said `invalid_request`.

@@ -11,6 +11,8 @@ Run locally:
 from __future__ import annotations
 
 import asyncio
+import functools
+import inspect
 import json
 import logging
 import re
@@ -629,7 +631,39 @@ TOOL_REGISTRY: dict[str, ToolIdentity] = {ti.tool_id: ti for ti in _DOMAIN_TOOLS
 # OperatorRuntime
 # ---------------------------------------------------------------------------
 
-runtime = OperatorRuntime(
+class _RefundingRuntime(OperatorRuntime):
+    """A paid tool that answers ``success: False`` gives the fare back.
+
+    The SDK refunds only on an exception, and an exception reaches the caller as
+    ``tool_input_invalid``. These tools return their refusals because the code
+    carries meaning: the site's outbox keeps a write queued on
+    ``upstream_unavailable`` and sets it aside as refused on anything else. So
+    the refund happens here and the answer goes out with its code intact.
+    """
+
+    def paid_tool(self, tool_id: str, *, catch_errors: bool = True) -> Any:
+        charge = super().paid_tool(tool_id, catch_errors=catch_errors)
+
+        def decorator(fn: Any) -> Any:
+            signature = inspect.signature(fn)
+
+            @functools.wraps(fn)
+            async def body(*args: Any, **kwargs: Any) -> Any:
+                answer = await fn(*args, **kwargs)
+                if not (isinstance(answer, dict) and answer.get("success") is False):
+                    return answer
+                npub = kwargs.get("npub") or signature.bind(*args, **kwargs).arguments.get("npub")
+                if not npub:
+                    return answer  # A tool with no patron took no fare.
+                await self.rollback_debit(tool_id, npub)
+                return {**answer, "error": f"{answer.get('error', 'That did not work.')} Nothing was charged."}
+
+            return charge(body)
+
+        return decorator
+
+
+runtime = _RefundingRuntime(
     tool_registry={**STANDARD_IDENTITIES, **TOOL_REGISTRY},
     operator_properties=OPERATOR_PROPERTIES,
     patron_properties=PATRON_PROPERTIES,

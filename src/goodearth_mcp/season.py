@@ -101,6 +101,8 @@ async def region_season_curve(
         history_task, forecast_task, normals_task, return_exceptions=True
     )
 
+    if isinstance(history, sources.UpstreamError):
+        raise history
     if isinstance(history, BaseException):
         raise SeasonError(f"could not read the season's observations: {history}")
     if not history:

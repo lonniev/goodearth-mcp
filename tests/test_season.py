@@ -244,7 +244,7 @@ async def test_history_outage_is_fatal(monkeypatch):
     monkeypatch.setattr(sources, "fetch_daily_history", boom)
     monkeypatch.setattr(sources, "fetch_daily_forecast", fake_forecast)
 
-    with pytest.raises(season.SeasonError):
+    with pytest.raises(sources.UpstreamError):
         await season.region_season_curve(region, 50.0, today=date(2026, 2, 1))
 
 

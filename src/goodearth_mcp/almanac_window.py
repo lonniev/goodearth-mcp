@@ -93,6 +93,8 @@ async def region_almanac(
         skill = None
     storm = pressure_window.settle(storm_read)
 
+    if isinstance(actual, sources.UpstreamError):
+        raise actual
     if isinstance(actual, BaseException):
         raise AlmanacError(f"could not read this season's record: {actual}")
 

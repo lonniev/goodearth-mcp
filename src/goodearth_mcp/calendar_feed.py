@@ -175,20 +175,17 @@ async def build_feed(
     # belong on any farm calendar, so even a feed of nothing but to-dos is
     # worth the fetch — and a feed that quietly omitted them depending on what
     # else was in it would be a surprising calendar.
-    try:
-        season, record = (
-            await record_cache.daily_history(
-                [region.centroid.lat], [region.centroid.lon],
-                start.isoformat(), today.isoformat(),
-            ),
-            await record_cache.daily_history(
-                [region.centroid.lat], [region.centroid.lon],
-                date(sources.record_start_year(today.year, RECORD_SPAN_YEARS), 1, 1).isoformat(),
-                date(today.year - 1, 12, 31).isoformat(),
-            ),
-        )
-    except sources.UpstreamError as exc:
-        raise CalendarError(f"could not read this ground's season: {exc}") from exc
+    season, record = (
+        await record_cache.daily_history(
+            [region.centroid.lat], [region.centroid.lon],
+            start.isoformat(), today.isoformat(),
+        ),
+        await record_cache.daily_history(
+            [region.centroid.lat], [region.centroid.lon],
+            date(sources.record_start_year(today.year, RECORD_SPAN_YEARS), 1, 1).isoformat(),
+            date(today.year - 1, 12, 31).isoformat(),
+        ),
+    )
 
     if season:
         try:

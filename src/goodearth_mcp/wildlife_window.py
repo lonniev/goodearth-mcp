@@ -81,13 +81,10 @@ async def region_wildlife(
 
     if needs_heat or needs_light or needs_weather:
         start = gdd.season_start(today, region.centroid.lat)
-        try:
-            record = await record_cache.almanac_history(
-                region.centroid.lat, region.centroid.lon,
-                start.isoformat(), today.isoformat(),
-            )
-        except sources.UpstreamError as exc:
-            raise WildlifeWindowError(f"could not read the season for this ground: {exc}") from exc
+        record = await record_cache.almanac_history(
+            region.centroid.lat, region.centroid.lon,
+            start.isoformat(), today.isoformat(),
+        )
 
         block = sources.daily_block(record)
         dates = [str(d) for d in (block.get("time") or [])]

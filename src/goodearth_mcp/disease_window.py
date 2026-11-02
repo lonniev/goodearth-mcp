@@ -102,6 +102,8 @@ async def region_disease_window(
     forecast = results[1] if len(results) > 1 else None
     storm = pressure_window.settle(results[2]) if len(results) > 2 else None
 
+    if isinstance(history, sources.UpstreamError):
+        raise history
     if isinstance(history, BaseException):
         raise DiseaseWindowError(
             f"could not read this ground's hours: {history}"
