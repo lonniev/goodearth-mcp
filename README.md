@@ -167,7 +167,7 @@ quote what a kWh sells for in the block's state.
 | Open-Meteo archive (ERA5) | Fallback daily record; hourly radiation for sunlight | ~9 km |
 | Daymet v4 (NASA ORNL) | Deep daily history for the normals, North America | 1 km |
 | Open-Meteo forecast | 7-day extension | ~2–11 km by model |
-| Open-Meteo elevation (SRTM) | Terrain downscaling | ~90 m |
+| Open-Meteo elevation (Copernicus GLO-90) | Terrain downscaling | ~90 m |
 | Copernicus GLO-30 DEM, Meta/WRI canopy height, CGLS land cover | Terrain, trees and shade for sunlight | 30 m, 1 m, 100 m |
 | iNaturalist, GBIF, USA National Phenology Network | Species recorded nearby; family and genus for Companions; phenology | — |
 | EIA retail electricity prices, DOE PV cost benchmarks, Nominatim | What a kWh sells for and a kW costs, by state | — |

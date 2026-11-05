@@ -175,7 +175,7 @@ def test_farm_sized_block_gets_many_samples():
 
 
 def test_grid_spacing_floors_at_the_elevation_model():
-    """Spacing is bounded below by SRTM's 90 m — the feed spread comes from.
+    """Spacing is bounded below by GLO-90's 90 m — the feed spread comes from.
 
     Uses a small region on purpose: a big one legitimately widens past the
     floor, so it could not tell a working floor from a missing one.

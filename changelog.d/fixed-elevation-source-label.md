@@ -1,0 +1,1 @@
+- The elevation source is named correctly as Copernicus DEM GLO-90 (it was labelled SRTM). Open-Meteo's elevation API serves GLO-90.

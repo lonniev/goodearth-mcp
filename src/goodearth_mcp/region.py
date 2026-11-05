@@ -9,7 +9,7 @@ This module owns two concerns and nothing else:
 
 1. Parsing the two accepted region shapes into a common ``Region``.
 2. Laying down sample points inside that region on a grid whose spacing
-   matches the **elevation** model (SRTM, ~90 m). That is the feed the
+   matches the **elevation** model (Copernicus GLO-90, ~90 m). That is the feed the
    spread is actually computed from: each point is downscaled by its own
    terrain, while the coarse weather cells behind those points are folded
    together before any fetch. Spacing the grid at the weather resolution
@@ -27,7 +27,7 @@ from typing import Any
 # The spread this service sells comes from TERRAIN, not from the temperature
 # feed: every sample is downscaled by its own elevation, and the archive cells
 # it draws from are folded together by ``cluster_to_grid`` before any fetch.
-# So the honest floor on spacing is the elevation model's resolution — SRTM's
+# So the honest floor on spacing is the elevation model's resolution — GLO-90's
 # 90 m — not the far coarser weather grid. Sampling at the weather grid would
 # hand a farm-sized block a single point and report its spread as zero, which
 # reads as "this ground is flat" when it only means "nobody looked".
