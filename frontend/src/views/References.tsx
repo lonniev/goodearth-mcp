@@ -56,7 +56,7 @@ const SOURCES: Source[] = [
     note: "The truth each day is held to is the latest run's reading for it, a model's best estimate rather than a station's.",
   },
   {
-    name: "Open-Meteo — elevation (SRTM)",
+    name: "Open-Meteo — elevation (Copernicus GLO-90)",
     url: "https://open-meteo.com/en/docs/elevation-api",
     role: "Terrain height at each sample point. A working field sits inside one Daymet pixel, so within a single farm this is still the only feed that resolves anything, and it carries the whole burden of region spread.",
     resolution: "≈ 90 m",

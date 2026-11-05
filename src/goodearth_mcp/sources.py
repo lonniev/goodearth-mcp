@@ -12,7 +12,7 @@ Sources (all free, no API key):
     history only (it lags the current year)
   - Open-Meteo archived runs — daily observed max/min, ~2 km, from 2018
   - Open-Meteo forecast      — 7-day daily max/min, ~2-11 km by model
-  - Open-Meteo elevation     — terrain height, ~90 m (SRTM)
+  - Open-Meteo elevation     — terrain height, ~90 m (Copernicus GLO-90)
 
 The running season used to come from the ERA5 reanalysis archive at ~9 km, and
 that was the wrong instrument for this service. Measured at Frogdale over one

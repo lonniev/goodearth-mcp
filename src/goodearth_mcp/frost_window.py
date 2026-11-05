@@ -203,7 +203,7 @@ async def region_frost_window(
                 "resolution_m": sources.FORECAST_RESOLUTION_M,
             },
             {
-                "name": "Open-Meteo elevation (SRTM)",
+                "name": "Open-Meteo elevation (Copernicus GLO-90)",
                 "role": "cold-air drainage",
                 "resolution_m": sources.ELEVATION_RESOLUTION_M,
             },

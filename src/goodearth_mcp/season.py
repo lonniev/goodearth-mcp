@@ -279,7 +279,7 @@ async def region_season_curve(
         "sources": [
             {**sources.feed_of(history), "role": "observed daily max/min"},
             {"name": "Open-Meteo forecast", "role": "7-day extension", "resolution_m": sources.FORECAST_RESOLUTION_M},
-            {"name": "Open-Meteo elevation (SRTM)", "role": "terrain downscaling", "resolution_m": sources.ELEVATION_RESOLUTION_M},
+            {"name": "Open-Meteo elevation (Copernicus GLO-90)", "role": "terrain downscaling", "resolution_m": sources.ELEVATION_RESOLUTION_M},
             {"name": normals_source, "role": "past seasons for the normal band", "resolution_m": normals_resolution},
         ],
     }
