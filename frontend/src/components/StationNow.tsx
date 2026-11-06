@@ -1,10 +1,12 @@
 // "Now at <station>": what a plot's chosen FieldData station reports, above the
-// charts, in the same tiles and marks as today's forecast. It asks once on arrival;
+// charts, in the same tiles and marks as today's forecast. It reads through the
+// page cache, so a report warmed from the Dashboard is on screen at once;
 // a plot with no station shows nothing at all.
 
 import { useEffect, useState, type ReactNode } from "react";
 import { getStoredNpub } from "@tollbooth-dpyc/web";
-import { plotConditions, plotStation, type PlotConditions } from "../lib/mcp";
+import { type PlotConditions } from "../lib/mcp";
+import { loadConditions, loadStation } from "../lib/pageLoads";
 import { readingLine, reportAge, tileReadings, windSpeed } from "../lib/stationNow";
 import { tour } from "../lib/tour/targets";
 import Barometer from "./Barometer";
@@ -41,10 +43,10 @@ export default function StationNow({ block }: { block: string }) {
     // A guest has no plots of their own to have chosen a station for.
     if (!getStoredNpub()) return;
     (async () => {
-      const { station } = await plotStation(block);
+      const station = await loadStation(block);
       if (!live || !station) return;
       setName(station.name);
-      const answer = await plotConditions(block);
+      const answer = await loadConditions(block);
       if (live) setReport(answer);
     })().catch((e: Error) => { if (live) setProblem(e.message); });
     return () => { live = false; };

@@ -7,6 +7,7 @@ import {
   fielddataConnect, fielddataConnectFinish, fielddataStations, plotStation,
   type PlotStationRow,
 } from "../lib/mcp";
+import { forgetStation } from "../lib/pageLoads";
 import { tour } from "../lib/tour/targets";
 import StationMap from "./StationMap";
 import { Pill, StatusChip } from "./ui";
@@ -82,6 +83,7 @@ export default function PlotStation({ block, opened = false, onChosen, onKeep }:
   const pick = (back: Step, id: string, name: string, choice = "") => run(back, async () => {
     setStep({ kind: "busy", words: "Saving…" });
     setCurrent((await plotStation(block, id, name, choice)).station);
+    forgetStation(block);
     setOnMap(false);
     setStep({ kind: "rest" });
     setDone("Saved");

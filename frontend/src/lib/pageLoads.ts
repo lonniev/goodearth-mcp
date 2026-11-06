@@ -7,9 +7,12 @@
 // symptom is that the page is exactly as slow as before while the grower pays
 // twice. So neither of them knows: they both ask here.
 
-import { almanacFor, gddSeasonCurve, type AlmanacResult, type SeasonCurveResult } from "./mcp";
-import { cached, warm } from "./pageCache";
-import { pageKey, type Ground, type Warmable } from "./peerPage";
+import {
+  almanacFor, gddSeasonCurve, plotConditions, plotStation,
+  type AlmanacResult, type PlotConditions, type PlotStationRow, type SeasonCurveResult,
+} from "./mcp";
+import { cached, forget, warm } from "./pageCache";
+import { conditionsKey, pageKey, stationKey, type Ground, type Warmable } from "./peerPage";
 
 export function loadLedger(ground: Ground): Promise<SeasonCurveResult> {
   return cached(pageKey("ledger", ground), () => gddSeasonCurve(ground.id, ground.baseTempF));
@@ -19,9 +22,34 @@ export function loadAlmanac(ground: Ground): Promise<AlmanacResult> {
   return cached(pageKey("almanac", ground), () => almanacFor(ground.id));
 }
 
+/// The station a plot reads its conditions from, or null when it has none.
+export function loadStation(blockId: string): Promise<PlotStationRow | null> {
+  return cached(stationKey(blockId), async () => (await plotStation(blockId)).station);
+}
+
+/// What that station reports now. Ask only once `loadStation` has named one.
+export function loadConditions(blockId: string): Promise<PlotConditions> {
+  return cached(conditionsKey(blockId), () => plotConditions(blockId));
+}
+
+/// A plot's station changed: the next read asks again.
+export function forgetStation(blockId: string): void {
+  forget(stationKey(blockId));
+  forget(conditionsKey(blockId));
+}
+
 /// Start a page's headline call without waiting for it or caring if it fails.
+///
+/// The Almanac opens on "Now at <station>", so its station's report is warmed
+/// with it. A plot with no station stops after the first, cheap question.
 export function warmPage(page: Warmable, ground: Ground): void {
   if (!ground?.id) return;
-  if (page === "ledger") warm(pageKey(page, ground), () => gddSeasonCurve(ground.id, ground.baseTempF));
-  else warm(pageKey(page, ground), () => almanacFor(ground.id));
+  if (page === "ledger") {
+    warm(pageKey(page, ground), () => gddSeasonCurve(ground.id, ground.baseTempF));
+    return;
+  }
+  warm(pageKey(page, ground), () => almanacFor(ground.id));
+  void loadStation(ground.id)
+    .then((station) => { if (station) warm(conditionsKey(ground.id), () => plotConditions(ground.id)); })
+    .catch(() => {});
 }

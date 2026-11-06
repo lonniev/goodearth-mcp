@@ -59,3 +59,17 @@ export function pageKey(page: Warmable, ground: Ground): string {
     ? `ledger|${ground.id}|${ground.baseTempF}`
     : `almanac|${ground.id}`;
 }
+
+/// What a plot's station and its latest report are filed under.
+///
+/// Two keys, not one: the page names the station as soon as it is known and
+/// shows "Reading the station…" under it while the report is on its way.
+/// The Almanac's own call says nothing about a station, so these sit beside
+/// its key rather than inside it.
+export function stationKey(blockId: string): string {
+  return `station|${blockId}`;
+}
+
+export function conditionsKey(blockId: string): string {
+  return `conditions|${blockId}`;
+}
