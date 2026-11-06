@@ -175,13 +175,20 @@ def test_farm_sized_block_gets_many_samples():
 
 
 def test_grid_spacing_floors_at_the_elevation_model():
-    """Spacing is bounded below by GLO-90's 90 m — the feed spread comes from.
+    """Spacing is bounded below by GLO-30's 30 m — the feed spread comes from.
 
     Uses a small region on purpose: a big one legitimately widens past the
     floor, so it could not tell a working floor from a missing one.
     """
     small = parse_region({"lat": 44.48, "lon": -73.21, "radius_m": 200})
-    assert small.describe()["grid_spacing_m"] == 90
+    assert small.describe()["grid_spacing_m"] == 30
+
+
+def test_a_farm_sized_block_keeps_30_m_spacing():
+    """The cap is sized so ~90 ha still samples at the terrain's own resolution."""
+    farm = parse_region({"lat": 44.48, "lon": -73.21, "radius_m": 500})  # ~79 ha
+    assert farm.describe()["grid_spacing_m"] == 30
+    assert farm.sample_count <= MAX_SAMPLES
 
 
 def test_describe_reports_the_spacing_actually_used():

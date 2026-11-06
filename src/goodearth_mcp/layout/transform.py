@@ -165,7 +165,7 @@ def propose(
     seed: int = 0,
     variants: int = 3,
     base_temp_f: float = 50.0,
-    grid_spacing_m: float = 90.0,
+    grid_spacing_m: float = 30.0,
     inside: list[dict[str, Any]] | None = None,
     taken_names: set[str] | None = None,
     bed_groups: list[str] | None = None,

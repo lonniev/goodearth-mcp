@@ -9,7 +9,7 @@ names a treatment.
 
 CENTROID, NOT EVERY SAMPLE POINT. The other windows that fan out do so because
 terrain moves the answer — a hollow frosts before a bench, and elevation is
-resolved at 90 m. Humidity is not resolved anywhere near that: the finest feed
+resolved at 30 m. Humidity is not resolved anywhere near that: the finest feed
 here is a ~2 km cell, which is wider than most of these blocks. Sampling fourteen
 points inside one cell would return fourteen identical numbers and charge for the
 privilege of looking like spread.

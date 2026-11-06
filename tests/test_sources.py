@@ -37,22 +37,77 @@ def test_daily_series_rejects_malformed_records(bad):
         sources.daily_series(bad)
 
 
-@respx.mock
-async def test_elevations_are_batched_into_one_request():
-    route = respx.get(sources._ELEVATION).mock(
-        return_value=httpx.Response(200, json={"elevation": [76.0, 97.0, 37.0]})
-    )
+class _FakeMosaic:
+    def __init__(self, heights):
+        self.heights = heights
+
+    def sample_bilinear(self, lats, lons):
+        import numpy as np
+
+        return np.asarray(self.heights[: len(lats)], dtype=np.float32)
+
+
+def _fake_terrain(monkeypatch, heights, reads=None):
+    def terrain(min_lat, min_lon, max_lat, max_lon, *, level=0):
+        if reads is not None:
+            reads.append(level)
+        return _FakeMosaic(heights)
+
+    monkeypatch.setattr(sources.rasters, "terrain", terrain)
+
+
+async def test_elevations_are_one_terrain_read_for_every_point(monkeypatch):
+    reads: list[int] = []
+    _fake_terrain(monkeypatch, [76.0, 97.0, 37.0], reads)
     out = await sources.fetch_elevations([44.48, 44.46, 44.50], [-73.21, -73.19, -73.23])
     assert out == [76.0, 97.0, 37.0]
-    assert route.call_count == 1
+    assert reads == [0], "a farm-sized box reads full resolution, once"
 
 
-@respx.mock
-async def test_elevation_count_mismatch_is_an_error():
-    """A short array would silently misalign every point's correction."""
-    respx.get(sources._ELEVATION).mock(return_value=httpx.Response(200, json={"elevation": [76.0]}))
+async def test_the_same_ground_asked_twice_at_once_is_one_read(monkeypatch):
+    """The season and the frost window both want this ground's terrain at once."""
+    import asyncio
+
+    reads: list[int] = []
+    _fake_terrain(monkeypatch, [76.0, 97.0], reads)
+    a, b = await asyncio.gather(
+        sources.fetch_elevations([44.48, 44.46], [-73.21, -73.19]),
+        sources.fetch_elevations([44.48, 44.46], [-73.21, -73.19]),
+    )
+    assert a == b == [76.0, 97.0]
+    assert len(reads) == 1
+
+
+async def test_a_wide_region_reads_a_coarser_overview(monkeypatch):
+    """A county-sized box must not pull a full-resolution window."""
+    reads: list[int] = []
+    _fake_terrain(monkeypatch, [76.0, 97.0], reads)
+    await sources.fetch_elevations([44.0, 44.9], [-73.9, -72.9])
+    assert reads and reads[0] >= 2
+
+
+async def test_the_overview_never_asked_for_is_one_the_tiles_lack(monkeypatch):
+    """The tiles stop at level 3; asking for 4 fails the whole read."""
+    reads: list[int] = []
+    _fake_terrain(monkeypatch, [76.0, 97.0], reads)
+    await sources.fetch_elevations([-60.0, 70.0], [-170.0, 170.0])
+    assert reads == [sources._TERRAIN_MAX_LEVEL]
+
+
+async def test_ground_with_no_height_is_an_error(monkeypatch):
+    """A NaN would misread as a cliff; the caller degrades to flat and says so."""
+    _fake_terrain(monkeypatch, [76.0, float("nan")])
     with pytest.raises(sources.UpstreamError):
         await sources.fetch_elevations([44.48, 44.46], [-73.21, -73.19])
+
+
+async def test_an_unreadable_tile_is_an_upstream_error(monkeypatch):
+    def terrain(*a, **k):
+        raise sources.rasters.RasterError("copernicus-dem-30m did not answer")
+
+    monkeypatch.setattr(sources.rasters, "terrain", terrain)
+    with pytest.raises(sources.UpstreamError):
+        await sources.fetch_elevations([44.48], [-73.21])
 
 
 async def test_no_points_makes_no_request():

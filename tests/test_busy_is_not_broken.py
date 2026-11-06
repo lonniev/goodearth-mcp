@@ -24,6 +24,16 @@ from goodearth_mcp import sources
 
 from .test_record_cache import FakeVault  # the same fake the cache's own tests use
 
+#: Any Open-Meteo GET exercises the request machinery under test here; the
+#: archived-runs feed is used because terrain no longer comes over HTTP.
+_ASKED = sources._HISTORY
+_ANSWER = {"daily": {"time": []}}
+
+
+async def _ask(lat: float, lon: float):
+    return await sources._get(_ASKED, {"latitude": lat, "longitude": lon})
+
+
 
 @pytest.fixture(autouse=True)
 def _no_waiting(monkeypatch):
@@ -50,13 +60,13 @@ def _no_waiting(monkeypatch):
 @respx.mock
 async def test_a_429_is_asked_again_and_answers(_no_waiting):
     """The minute quota recovers; the grower never learns it was ever tight."""
-    route = respx.get(sources._ELEVATION).mock(
+    route = respx.get(_ASKED).mock(
         side_effect=[
             httpx.Response(429),
-            httpx.Response(200, json={"elevation": [76.0]}),
+            httpx.Response(200, json=_ANSWER),
         ]
     )
-    assert await sources.fetch_elevations([44.48], [-73.21]) == [76.0]
+    assert await _ask(44.48, -73.21) == _ANSWER
     assert route.call_count == 2
     assert _no_waiting, "a refused request must wait before asking again"
 
@@ -64,34 +74,34 @@ async def test_a_429_is_asked_again_and_answers(_no_waiting):
 @respx.mock
 async def test_a_429_gives_up_after_its_retries(_no_waiting):
     """A quota that is out for the day is not waited out forever."""
-    route = respx.get(sources._ELEVATION).mock(return_value=httpx.Response(429))
+    route = respx.get(_ASKED).mock(return_value=httpx.Response(429))
     with pytest.raises(sources.RateLimited):
-        await sources.fetch_elevations([44.48], [-73.21])
+        await _ask(44.48, -73.21)
     assert route.call_count == sources._RETRIES + 1
 
 
 @respx.mock
 async def test_upstream_is_obeyed_when_it_says_how_long(_no_waiting):
-    respx.get(sources._ELEVATION).mock(
+    respx.get(_ASKED).mock(
         side_effect=[
             httpx.Response(429, headers={"Retry-After": "4"}),
-            httpx.Response(200, json={"elevation": [76.0]}),
+            httpx.Response(200, json=_ANSWER),
         ]
     )
-    await sources.fetch_elevations([44.48], [-73.21])
+    await _ask(44.48, -73.21)
     assert pytest.approx(_no_waiting[0], abs=0.5) == 4.0
 
 
 @respx.mock
 async def test_an_unreadable_retry_after_falls_back_to_our_own_wait(_no_waiting):
     """An HTTP-date is legal and unparsed here — a guess beats a misread date."""
-    respx.get(sources._ELEVATION).mock(
+    respx.get(_ASKED).mock(
         side_effect=[
             httpx.Response(429, headers={"Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT"}),
-            httpx.Response(200, json={"elevation": [76.0]}),
+            httpx.Response(200, json=_ANSWER),
         ]
     )
-    await sources.fetch_elevations([44.48], [-73.21])
+    await _ask(44.48, -73.21)
     assert _no_waiting[0] > 0
 
 
@@ -102,9 +112,9 @@ async def test_a_refusal_holds_back_the_rest_of_the_page(_no_waiting):
     Without this, the first refusal becomes twenty retries arriving together —
     the burst that caused it, repeated.
     """
-    respx.get(sources._ELEVATION).mock(return_value=httpx.Response(429))
+    respx.get(_ASKED).mock(return_value=httpx.Response(429))
     with pytest.raises(sources.RateLimited):
-        await sources.fetch_elevations([44.48], [-73.21])
+        await _ask(44.48, -73.21)
 
     respx.get(sources._FORECAST).mock(
         return_value=httpx.Response(200, json={"daily": {"time": [], "temperature_2m_max": [], "temperature_2m_min": []}})
@@ -117,9 +127,9 @@ async def test_a_refusal_holds_back_the_rest_of_the_page(_no_waiting):
 @respx.mock
 async def test_one_providers_refusal_does_not_stall_another(_no_waiting):
     """Daymet keeps its own budget. Open-Meteo's bad minute is not its problem."""
-    respx.get(sources._ELEVATION).mock(return_value=httpx.Response(429))
+    respx.get(_ASKED).mock(return_value=httpx.Response(429))
     with pytest.raises(sources.RateLimited):
-        await sources.fetch_elevations([44.48], [-73.21])
+        await _ask(44.48, -73.21)
 
     respx.get(sources._DAYMET).mock(return_value=httpx.Response(200, text="not a record"))
     before = len(_no_waiting)

@@ -56,11 +56,11 @@ const SOURCES: Source[] = [
     note: "The truth each day is held to is the latest run's reading for it, a model's best estimate rather than a station's.",
   },
   {
-    name: "Open-Meteo — elevation (Copernicus GLO-90)",
-    url: "https://open-meteo.com/en/docs/elevation-api",
+    name: "Copernicus GLO-30 — terrain",
+    url: "https://registry.opendata.aws/copernicus-dem/",
     role: "Terrain height at each sample point. A working field sits inside one Daymet pixel, so within a single farm this is still the only feed that resolves anything, and it carries the whole burden of region spread.",
-    resolution: "≈ 90 m",
-    note: "The only feed that resolves inside a single farm, so it carries the whole burden of region spread.",
+    resolution: "30 m",
+    note: "Sampled every 30 m across a block, each sample read again once a year. A surface model: in woods, radar partly sees the treetops, so a wooded block's range of heights can run high.",
   },
   {
     name: "USA National Phenology Network",
