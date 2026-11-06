@@ -238,7 +238,7 @@ async def region_season_curve(
         "across_region": {
             "note": (
                 "min/mean/max are across your region's terrain, not across time. "
-                "Spread comes from elevation at ~90 m; the temperature field itself "
+                f"Spread comes from elevation at {sources.ELEVATION_RESOLUTION_M} m; the temperature field itself "
                 f"resolves ~{sources.HISTORY_RESOLUTION_M // 1000} km."
             ),
             "terrain_correction": "applied" if elevs is not None else "unavailable",
@@ -279,7 +279,7 @@ async def region_season_curve(
         "sources": [
             {**sources.feed_of(history), "role": "observed daily max/min"},
             {"name": "Open-Meteo forecast", "role": "7-day extension", "resolution_m": sources.FORECAST_RESOLUTION_M},
-            {"name": "Open-Meteo elevation (Copernicus GLO-90)", "role": "terrain downscaling", "resolution_m": sources.ELEVATION_RESOLUTION_M},
+            {"name": "Copernicus GLO-30 terrain", "role": "terrain downscaling", "resolution_m": sources.ELEVATION_RESOLUTION_M},
             {"name": normals_source, "role": "past seasons for the normal band", "resolution_m": normals_resolution},
         ],
     }

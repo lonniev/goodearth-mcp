@@ -2940,7 +2940,7 @@ async def block_transform(
     `accept.batches`, saved in order.
 
     Paths are the space between beds, kept at the width asked for after the
-    edges are softened. Below one terrain cell (about 90 m) neighbouring beds
+    edges are softened. Below one terrain cell (about 30 m) neighbouring beds
     share a climate sample; the warning says so, because the beds are then
     bookkeeping and the climate answers stay at the plot's scale.
     """

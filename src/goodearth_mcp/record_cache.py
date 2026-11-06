@@ -337,12 +337,14 @@ async def _read(kind: str, subject: str, start: str, end: str, *, stale_ok: bool
 
 
 async def _write(
-    kind: str, subject: str, start: str, end: str, value: Any, *, immutable: bool = False,
+    kind: str, subject: str, start: str, end: str, value: Any, *,
+    immutable: bool = False, fresh_for: timedelta | None = None,
 ) -> None:
     """Remember an answer. Never raises, and never blocks the answer.
 
-    ``immutable`` is for an answer with no span to expire — terrain height,
-    which is the same this afternoon as it was when the ice left.
+    ``immutable`` is for an answer with no span to expire — a computed product
+    whose key names every input. ``fresh_for`` is for an answer with no span
+    that still ages, like terrain height.
     """
     npub = _patron.get()
     if not npub or not value:
@@ -371,7 +373,10 @@ async def _write(
             [
                 npub, cache_key, kind, start[:10] or None, end[:10] or None,
                 _seal(npub, cache_key, value),
-                None if immutable else _fresh_until(end),
+                (
+                    (datetime.now(UTC) + fresh_for).isoformat() if fresh_for
+                    else None if immutable else _fresh_until(end)
+                ),
             ],
         )
         await _prune(v, npub)
@@ -557,23 +562,37 @@ async def daily_history(
     return await _daily_span(subject, lats, lons, start, end)
 
 
-async def elevations(lats: list[float], lons: list[float]) -> list[float]:
-    """Terrain height per point, remembered for good.
+#: How long a block's terrain is trusted before it is read again. Ground does
+#: change — grading, a dug pond, a washout, an earthquake — but rarely, so
+#: once a year is soon enough and costs one raster read per block per year.
+TERRAIN_TTL = timedelta(days=365)
 
-    The one reading in this service with no span at all. Ground does not move,
-    so this row never expires — and it was being fetched TWICE on every
-    Dashboard load, once for the season's terrain correction and once for the
-    frost window's, on ground whose height was last news to anybody in the
-    Pleistocene.
+
+async def elevations(lats: list[float], lons: list[float]) -> list[float]:
+    """Terrain height per point, remembered for a year.
+
+    It was being fetched TWICE on every Dashboard load, once for the season's
+    terrain correction and once for the frost window's. The key names the
+    terrain model, so a change of model reads afresh rather than serving the
+    old model's heights. If the read fails, the last heights held are served,
+    however old: last year's ground beats a flat answer.
     """
     if not lats:
         return []
-    subject = ",".join(f"{a:.5f}/{b:.5f}" for a, b in zip(lats, lons, strict=False))
+    subject = sources.ELEVATION_SOURCE + "|" + ",".join(
+        f"{a:.5f}/{b:.5f}" for a, b in zip(lats, lons, strict=False)
+    )
     found = await _read("elevation", subject, "", "")
     if isinstance(found, list) and len(found) == len(lats):
         return [float(e) for e in found]
-    fresh = await sources.fetch_elevations(lats, lons)
-    await _write("elevation", subject, "", "", fresh, immutable=True)
+    try:
+        fresh = await sources.fetch_elevations(lats, lons)
+    except sources.UpstreamError as exc:
+        held = await _or_what_we_have("elevation", subject, "", "", exc)
+        if isinstance(held, list) and len(held) == len(lats):
+            return [float(e) for e in held]
+        raise
+    await _write("elevation", subject, "", "", fresh, fresh_for=TERRAIN_TTL)
     return fresh
 
 

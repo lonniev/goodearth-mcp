@@ -25,6 +25,16 @@ from goodearth_mcp import sources
 
 from .test_record_cache import FakeVault
 
+#: Any Open-Meteo GET exercises the request machinery under test here; the
+#: archived-runs feed is used because terrain no longer comes over HTTP.
+_ASKED = sources._HISTORY
+_ANSWER = {"daily": {"time": []}}
+
+
+async def _ask(lat: float, lon: float):
+    return await sources._get(_ASKED, {"latitude": lat, "longitude": lon})
+
+
 
 @pytest.fixture(autouse=True)
 def _clean():
@@ -46,32 +56,31 @@ def _clean():
 
 @respx.mock
 async def test_the_same_question_asked_twice_at_once_is_one_request():
-    """The season and the frost window both want this ground's terrain.
+    """Two tools started within a millisecond ask the same feed the same thing.
 
-    They are started within a millisecond of each other by two concurrent
-    tools, so neither is in the cache when the other goes out. The feed has no
-    reason to hear the question twice.
+    Neither is in the cache when the other goes out. The feed has no reason
+    to hear the question twice.
     """
-    route = respx.get(sources._ELEVATION).mock(
-        return_value=httpx.Response(200, json={"elevation": [76.0, 97.0]})
+    route = respx.get(_ASKED).mock(
+        return_value=httpx.Response(200, json=_ANSWER)
     )
     a, b = await asyncio.gather(
-        sources.fetch_elevations([44.48, 44.46], [-73.21, -73.19]),
-        sources.fetch_elevations([44.48, 44.46], [-73.21, -73.19]),
+        _ask(44.48, -73.21),
+        _ask(44.48, -73.21),
     )
-    assert a == b == [76.0, 97.0]
+    assert a == b == _ANSWER
     assert route.call_count == 1
 
 
 @respx.mock
 async def test_different_questions_are_still_different_requests():
     """Coalescing must key on what was ASKED, not merely on the host."""
-    route = respx.get(sources._ELEVATION).mock(
-        return_value=httpx.Response(200, json={"elevation": [76.0]})
+    route = respx.get(_ASKED).mock(
+        return_value=httpx.Response(200, json=_ANSWER)
     )
     await asyncio.gather(
-        sources.fetch_elevations([44.48], [-73.21]),
-        sources.fetch_elevations([44.50], [-73.23]),
+        _ask(44.48, -73.21),
+        _ask(44.50, -73.23),
     )
     assert route.call_count == 2
 
@@ -79,10 +88,10 @@ async def test_different_questions_are_still_different_requests():
 @respx.mock
 async def test_a_shared_failure_reaches_every_caller():
     """Both callers get the answer, so both must get the refusal too."""
-    respx.get(sources._ELEVATION).mock(return_value=httpx.Response(500))
+    respx.get(_ASKED).mock(return_value=httpx.Response(500))
     out = await asyncio.gather(
-        sources.fetch_elevations([44.48], [-73.21]),
-        sources.fetch_elevations([44.48], [-73.21]),
+        _ask(44.48, -73.21),
+        _ask(44.48, -73.21),
         return_exceptions=True,
     )
     assert all(isinstance(o, sources.UpstreamError) for o in out)
@@ -91,23 +100,23 @@ async def test_a_shared_failure_reaches_every_caller():
 @respx.mock
 async def test_a_later_asker_is_not_served_a_finished_request():
     """Coalescing is not caching. It ends when the request does."""
-    route = respx.get(sources._ELEVATION).mock(
-        return_value=httpx.Response(200, json={"elevation": [76.0]})
+    route = respx.get(_ASKED).mock(
+        return_value=httpx.Response(200, json=_ANSWER)
     )
-    await sources.fetch_elevations([44.48], [-73.21])
-    await sources.fetch_elevations([44.48], [-73.21])
+    await _ask(44.48, -73.21)
+    await _ask(44.48, -73.21)
     assert route.call_count == 2
 
 
 @respx.mock
 async def test_the_client_is_pooled_across_requests():
     """One handshake per host, not one per request."""
-    respx.get(sources._ELEVATION).mock(
-        return_value=httpx.Response(200, json={"elevation": [76.0]})
+    respx.get(_ASKED).mock(
+        return_value=httpx.Response(200, json=_ANSWER)
     )
-    await sources.fetch_elevations([44.48], [-73.21])
+    await _ask(44.48, -73.21)
     first = sources._shared_client()
-    await sources.fetch_elevations([44.50], [-73.23])
+    await _ask(44.50, -73.23)
     assert sources._shared_client() is first
     assert not first.is_closed
 
@@ -261,8 +270,10 @@ async def test_terrain_is_read_once_for_the_life_of_the_ground(monkeypatch):
     assert calls == 1
 
 
-async def test_terrain_is_stored_without_an_expiry(monkeypatch):
-    """Ground does not move. A row that expires would ask again for nothing."""
+async def test_terrain_is_read_again_after_a_year(monkeypatch):
+    """Ground changes rarely — grading, a pond, an earthquake — so a year, not never."""
+    from datetime import UTC, datetime, timedelta
+
     vault = FakeVault()
     rc._vault, rc._cipher, rc._schema_done = vault, None, True
     rc.serving("npub1grower")
@@ -273,8 +284,66 @@ async def test_terrain_is_stored_without_an_expiry(monkeypatch):
     monkeypatch.setattr(rc.sources, "fetch_elevations", fake)
     await rc.elevations([44.48], [-73.21])
     insert = vault.statements("INSERT")[0]
-    assert insert[1][6] is None
+    expires = datetime.fromisoformat(insert[1][6])
+    assert abs(expires - (datetime.now(UTC) + timedelta(days=365))) < timedelta(minutes=1)
     assert insert[1][3] is None, "terrain has no span, and must not claim one"
+
+
+async def test_a_new_terrain_model_is_a_new_question(monkeypatch):
+    """Heights from the old model must not answer for the new one."""
+    vault = FakeVault()
+    rc._vault, rc._cipher, rc._schema_done = vault, None, True
+    rc.serving("npub1grower")
+    calls = 0
+
+    async def fake(lats, lons):
+        nonlocal calls
+        calls += 1
+        return [76.0]
+
+    monkeypatch.setattr(rc.sources, "fetch_elevations", fake)
+    await rc.elevations([44.48], [-73.21])
+    monkeypatch.setattr(rc.sources, "ELEVATION_SOURCE", "some-later-model")
+    await rc.elevations([44.48], [-73.21])
+    assert calls == 2
+
+
+async def test_terrain_that_cannot_be_read_serves_the_heights_held(monkeypatch):
+    """Last year's ground beats a flat answer."""
+    vault = FakeVault()
+    rc._vault, rc._cipher, rc._schema_done = vault, None, True
+    rc.serving("npub1grower")
+
+    async def first(lats, lons):
+        return [76.0]
+
+    async def refused(lats, lons):
+        raise sources.UpstreamError("terrain could not be read")
+
+    monkeypatch.setattr(rc.sources, "fetch_elevations", first)
+    await rc.elevations([44.48], [-73.21])
+    # A year on: the ordinary read steps over the row, the stale read finds it.
+    real_read = rc._read
+
+    async def a_year_later(*args, stale_ok=False):
+        return await real_read(*args, stale_ok=True) if stale_ok else None
+
+    monkeypatch.setattr(rc, "_read", a_year_later)
+    monkeypatch.setattr(rc.sources, "fetch_elevations", refused)
+    assert await rc.elevations([44.48], [-73.21]) == [76.0]
+
+
+async def test_terrain_never_read_still_reports_the_failure(monkeypatch):
+    vault = FakeVault()
+    rc._vault, rc._cipher, rc._schema_done = vault, None, True
+    rc.serving("npub1grower")
+
+    async def refused(lats, lons):
+        raise sources.UpstreamError("terrain could not be read")
+
+    monkeypatch.setattr(rc.sources, "fetch_elevations", refused)
+    with pytest.raises(sources.UpstreamError):
+        await rc.elevations([44.48], [-73.21])
 
 
 async def test_terrain_for_other_ground_is_not_served(monkeypatch):

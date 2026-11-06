@@ -1,0 +1,2 @@
+- Terrain heights now come from Copernicus GLO-30 (30 m), read from the same tiles the Sun page reads, instead of Open-Meteo's 90 m elevation feed. Blocks are sampled every 30 m (up to 1,024 points, which keeps 30 m spacing to about 90 ha), so `sample_count` and `grid_spacing_m` rise on most blocks.
+- A block's terrain is read again once a year rather than kept forever, and a failed read serves the heights already held.

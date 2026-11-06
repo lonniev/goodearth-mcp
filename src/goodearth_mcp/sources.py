@@ -3,7 +3,7 @@
 Every function here records the feed's **native resolution**, because that
 number decides what Good Earth may honestly claim. The reanalysis archive
 resolves about 9 km: two sample points on the same farm land in the same
-cell and come back byte-identical. Terrain resolves at 90 m. So the coarse
+cell and come back byte-identical. Terrain resolves at 30 m. So the coarse
 feed supplies the region's signal and the elevation field supplies the
 variation across it — see ``downscale`` in ``gdd.py``.
 
@@ -12,7 +12,8 @@ Sources (all free, no API key):
     history only (it lags the current year)
   - Open-Meteo archived runs — daily observed max/min, ~2 km, from 2018
   - Open-Meteo forecast      — 7-day daily max/min, ~2-11 km by model
-  - Open-Meteo elevation     — terrain height, ~90 m (Copernicus GLO-90)
+  - Copernicus GLO-30        — terrain height, 30 m, read from its own COGs
+                               (the same tiles the Sun page reads, see ``rasters``)
 
 The running season used to come from the ERA5 reanalysis archive at ~9 km, and
 that was the wrong instrument for this service. Measured at Frogdale over one
@@ -38,6 +39,9 @@ from typing import Any
 from urllib.parse import urlsplit
 
 import httpx
+import numpy as np
+
+from goodearth_mcp import rasters
 
 # The season's record comes from Open-Meteo's archived high-resolution model
 # runs, not from ERA5.
@@ -61,7 +65,6 @@ _FORECAST = "https://api.open-meteo.com/v1/forecast"
 #: What the same forecast said one and three days before each hour. Open-Meteo
 #: keeps every run, so how good our forecast has been is read, never stored.
 _PREVIOUS_RUNS = "https://previous-runs-api.open-meteo.com/v1/forecast"
-_ELEVATION = "https://api.open-meteo.com/v1/elevation"
 _DAYMET = "https://daymet.ornl.gov/single-pixel/api/data"
 
 _TIMEOUT = 30.0
@@ -78,7 +81,18 @@ ERA5_RESOLUTION_M = 9_000
 #: nothing, which is the shape that gets read as "no frost that year".
 HISTORY_FROM_YEAR = 2018
 FORECAST_RESOLUTION_M = 11_000
-ELEVATION_RESOLUTION_M = 90
+ELEVATION_RESOLUTION_M = rasters.DEM_RESOLUTION_M
+#: Names the terrain model in every cache key that holds its heights, so a
+#: change of model is a change of question rather than a stale answer.
+ELEVATION_SOURCE = rasters.DEM_VERSION
+#: Widest window, in pixels a side, read for one block's terrain. A block wider
+#: than this many full-resolution pixels (~15 km) reads a coarser overview —
+#: its sample grid has widened far past 30 m by then, so nothing is lost.
+#: Measured 2026-11-06 on a 50 km region: 7.0 s at 1024 px, 2.7 s at 512 px,
+#: relief 1134 m against 1130 m.
+_TERRAIN_MAX_PX = 512
+#: The GLO-30 tiles carry overviews 1–3 (60, 120, 240 m) and no level 4.
+_TERRAIN_MAX_LEVEL = 3
 DAYMET_RESOLUTION_M = 1_000
 
 _US_UNITS = {"temperature_unit": "fahrenheit", "windspeed_unit": "mph"}
@@ -379,19 +393,55 @@ def _join(values: list[float]) -> str:
 
 
 async def fetch_elevations(lats: list[float], lons: list[float]) -> list[float]:
-    """Terrain height in metres for each point, at ~90 m resolution.
+    """Terrain height in metres for each point, from Copernicus GLO-30 (30 m).
 
     This is the only feed that resolves within a single farm, so it carries
     the whole burden of region spread. A failure here is not fatal — the
     caller degrades to a flat-terrain answer and says so.
+
+    The heights come from one windowed read of the GLO-30 tiles under the
+    points' bounding box, however many points there are, so a dense grid
+    costs no more requests than a sparse one. Two tools asking for the same
+    ground at the same moment share one read.
     """
     if not lats:
         return []
-    data = await _get(_ELEVATION, {"latitude": _join(lats), "longitude": _join(lons)})
-    elevations = data.get("elevation") if isinstance(data, dict) else None
-    if not isinstance(elevations, list) or len(elevations) != len(lats):
-        raise UpstreamError("elevation service returned an unexpected shape")
-    return [float(e) for e in elevations]
+    key = f"{ELEVATION_SOURCE}|{_join(lats)}|{_join(lons)}"
+    task = _inflight.get(key)
+    if task is None:
+        task = asyncio.create_task(asyncio.to_thread(_sample_terrain, list(lats), list(lons)))
+        _inflight[key] = task
+        task.add_done_callback(lambda t, k=key: _forget(k, t))
+    return await asyncio.shield(task)
+
+
+def _terrain_level(lats: np.ndarray, lons: np.ndarray) -> int:
+    """The finest GLO-30 overview that keeps the window within ``_TERRAIN_MAX_PX``."""
+    mid = float(lats.mean())
+    span_m = max(
+        float(lats.max() - lats.min()) * 111_320.0,
+        float(lons.max() - lons.min()) * 111_320.0 * max(np.cos(np.radians(mid)), 0.01),
+    )
+    level = 0
+    while level < _TERRAIN_MAX_LEVEL and span_m / (ELEVATION_RESOLUTION_M * 2**level) > _TERRAIN_MAX_PX:
+        level += 1
+    return level
+
+
+def _sample_terrain(lats: list[float], lons: list[float]) -> list[float]:
+    """Blocking: read the tiles and sample them. Run in a worker thread."""
+    la = np.asarray(lats, dtype=np.float64)
+    lo = np.asarray(lons, dtype=np.float64)
+    try:
+        heights = rasters.terrain(
+            float(la.min()), float(lo.min()), float(la.max()), float(lo.max()),
+            level=_terrain_level(la, lo),
+        ).sample_bilinear(la, lo)
+    except (rasters.RasterError, OSError, ValueError) as exc:
+        raise UpstreamError(f"terrain could not be read: {exc}") from exc
+    if np.isnan(heights).any():
+        raise UpstreamError("terrain has no height for part of this ground")
+    return [round(float(h), 1) for h in heights]
 
 
 async def fetch_daily_forecast(lat: float, lon: float, days: int = 7) -> dict[str, Any]:

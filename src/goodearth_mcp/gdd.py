@@ -9,7 +9,7 @@ region rather than a point.
 The spread problem, stated plainly: the reanalysis archive resolves about
 9 km, so every sample point on one farm returns the *same* numbers. Reporting
 that as "min/mean/max across your region" would be a lie dressed as data.
-Terrain, however, resolves at 90 m, and terrain is what actually varies
+Terrain, however, resolves at 30 m, and terrain is what actually varies
 within a farm. So the coarse field sets the region's level and elevation
 sets the variation around it — a bench runs warmer than the hollow below it
 by an amount the lapse rate predicts, and the hollow pools cold air on the
