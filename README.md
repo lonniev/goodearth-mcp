@@ -132,6 +132,7 @@ Every tool below takes a saved `block` unless noted.
 | `goodearth_crop_suitability` | Which crops finish on this ground, and with how much room to spare |
 | `goodearth_almanac` | The sky's record for this ground — normal, actual, and what is coming |
 | `goodearth_drying_window` | When the dew burns off, the dry days ahead, and the next rain |
+| `goodearth_water_balance` | Rain against what the air pulls out, two weeks back and one ahead, and the modelled soil moisture |
 | `goodearth_sunlight` | Hours of direct sun across the block, month by month, and what a solar panel would make |
 | **Pests, disease and wildlife** | |
 | `goodearth_pest_catalog`, `goodearth_pest_threshold` | Which pest stages are modelled here, and where their degree-day stages stand |
@@ -166,7 +167,7 @@ quote what a kWh sells for in the block's state.
 | Open-Meteo archived model runs | Observed daily max/min, running season | ~2 km |
 | Open-Meteo archive (ERA5) | Fallback daily record; hourly radiation for sunlight | ~9 km |
 | Daymet v4 (NASA ORNL) | Deep daily history for the normals, North America | 1 km |
-| Open-Meteo forecast | 7-day extension | ~2–11 km by model |
+| Open-Meteo forecast | 7-day extension; rain, evapotranspiration and modelled soil moisture for the water balance | ~2–11 km by model |
 | Copernicus GLO-30 terrain | Terrain downscaling | 30 m |
 | Copernicus GLO-30 DEM, Meta/WRI canopy height, CGLS land cover | Terrain, trees and shade for sunlight | 30 m, 1 m, 100 m |
 | iNaturalist, GBIF, USA National Phenology Network | Species recorded nearby; family and genus for Companions; phenology | — |

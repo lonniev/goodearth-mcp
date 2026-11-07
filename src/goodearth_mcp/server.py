@@ -109,6 +109,8 @@ from goodearth_mcp.sunlight_window import SunlightError
 from goodearth_mcp.sunlight_window import region_sunlight as sunlight_impl
 from goodearth_mcp.tree_year_window import TreeYearError
 from goodearth_mcp.tree_year_window import region_tree_year as tree_year_impl
+from goodearth_mcp.water_window import WaterWindowError
+from goodearth_mcp.water_window import region_water as water_impl
 from goodearth_mcp.wildlife import WildlifeError
 from goodearth_mcp.wildlife_window import WildlifeWindowError
 from goodearth_mcp.wildlife_window import region_wildlife as wildlife_impl
@@ -212,7 +214,7 @@ GDD_SEASON_CURVE_UUID      = "886ebfd6-dde4-5297-9145-2154caefb943"
 REGION_CLIMATE_BUNDLE_UUID = "2a6cda20-40e0-5aea-8b3a-3f8310937f05"  # T2
 FROST_WINDOW_UUID          = "2b611018-f61d-5d72-bc8e-27abb605b669"
 DLI_CURVE_UUID             = "b111cfd0-1bef-5cf4-907c-37bbf8d2d96a"  # T3
-WATER_BALANCE_UUID         = "c4ec3643-1e8b-59bc-a239-82353c4a0f52"  # T3
+WATER_BALANCE_UUID         = "c4ec3643-1e8b-59bc-a239-82353c4a0f52"
 SOIL_TEMP_PROJECTION_UUID  = "03764cdc-c9d9-5396-9eb1-9b7f56da08f6"
 CROP_GDD_STATUS_UUID       = "a8f72831-77df-57d4-9e6a-dcf81b06832e"
 FINISH_BEFORE_FROST_UUID   = "b5f11328-8d8f-58db-ba89-11f8cbcc3314"  # T4
@@ -321,6 +323,14 @@ intent="How many hours this ground stayed wet, and what the published disease mo
         title="Drying window",
         behavior=READS_REMOTE,
 intent="When the dew burns off this ground, the dry days ahead, and the next rain",
+    ),
+    ToolIdentity(
+        tool_id=WATER_BALANCE_UUID,
+        capability="water_balance",
+        category="read",
+        title="Water balance",
+        behavior=READS_REMOTE,
+intent="Rain against what the air pulls out of this ground, and the modelled soil moisture",
     ),
     ToolIdentity(
         tool_id=CALIBRATION_UUID,
@@ -3318,6 +3328,48 @@ async def plot_conditions(
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+
+
+@tool
+@runtime.paid_tool(WATER_BALANCE_UUID)
+async def water_balance(
+    block: Annotated[str, BLOCK_FIELD],
+    npub: PatronNpub = "",
+) -> dict[str, Any]:
+    """Rain against what the air pulls out of this ground, and how wet the soil is.
+
+    Answers "is this ground getting dry?". Per day for the last 14 days and the
+    next 7: rain, reference evapotranspiration (FAO-56 ET0, mm — what a short
+    grass crop would give up to the air), their difference, and the running
+    balance from the first day. `today.balance_mm` below zero means the air has
+    taken more than the sky gave over the fortnight; `ahead.balance_change_mm`
+    is where the coming week takes it.
+
+    Also the weather model's soil moisture (m³ of water per m³ of soil) per day
+    and at this hour, in two depths: `topsoil` (0–9 cm, where a seed sits) and
+    `root_zone` (9–81 cm), with the root zone's change over the past week.
+
+    Neither is measured on the ground: the balance knows nothing of this soil's
+    texture, runoff or drainage, and the model's soil sits on a grid kilometres
+    wide, read at the block's centre. A station's soil probe, where the plot
+    has one, is read with `plot_conditions`. Good Earth never says to irrigate.
+
+    Args:
+        block: The ground to answer for — its id, its name, or an alias.
+    """
+    parsed, _found = await _block_region(npub, block)
+
+    try:
+        return await water_impl(parsed)
+    except WaterWindowError as exc:
+        return {"success": False, "error": str(exc), "error_code": "upstream_unreadable"}
+    except (sources.UpstreamError, OSError) as exc:
+        logger.warning("water_balance failed: %s", exc)
+        return {
+            "success": False,
+            "error": f"The forecast did not answer: {exc}",
+            "error_code": "upstream_unavailable",
+        }
 
 
 @tool

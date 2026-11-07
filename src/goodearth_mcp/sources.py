@@ -680,6 +680,38 @@ async def fetch_wetness_forecast(
     return _stamp(results[0], "Open-Meteo forecast", FORECAST_RESOLUTION_M)
 
 
+#: The water balance: two weeks behind, one ahead. Rain and the air's pull are
+#: daily sums in mm, the provider's default unit; soil moisture is hourly
+#: volumetric water (m³ of water per m³ of soil) at five depths.
+WATER_PAST_DAYS = 14
+WATER_FORECAST_DAYS = 7
+_DAILY_WATER = "precipitation_sum,et0_fao_evapotranspiration"
+_HOURLY_SOIL_MOISTURE = (
+    "soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm,"
+    "soil_moisture_9_to_27cm,soil_moisture_27_to_81cm"
+)
+
+
+async def fetch_water(lat: float, lon: float) -> dict[str, Any]:
+    """Rain, evapotranspiration and modelled soil moisture around today, in one request."""
+    payload = await _get(
+        _FORECAST,
+        {
+            "latitude": lat,
+            "longitude": lon,
+            "daily": _DAILY_WATER,
+            "hourly": _HOURLY_SOIL_MOISTURE,
+            "past_days": WATER_PAST_DAYS,
+            "forecast_days": WATER_FORECAST_DAYS,
+            "timezone": "auto",
+        },
+    )
+    results = _as_list(payload)
+    if not results:
+        raise UpstreamError("water forecast returned no locations")
+    return _stamp(results[0], "Open-Meteo forecast", FORECAST_RESOLUTION_M)
+
+
 #: How far back and ahead the barometer is read. Two days back so a 24-hour
 #: change exists for every hour from now on; three ahead because a forecast's
 #: pressure tendency loses its skill beyond that.

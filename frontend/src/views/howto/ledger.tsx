@@ -117,6 +117,12 @@ export const ledger: Guide = {
           of the next ten days: its sky, a bar for its drying power, its rain
           or dew-off hour. The dry run is shaded as one stretch with ★ on its
           strongest day, and 🌀 marks a day a falling barometer crosses.</>],
+      ["💧 Water",
+        <>The last two weeks and the next one, a day at a time: rain above
+          the line, what the air pulled out below it, and the running balance
+          across both. Under it, the model&rsquo;s soil moisture in the topsoil
+          and the root zone, with your station&rsquo;s probe beside them when it
+          has one.</>],
       ["🍄 Diseases",
         <>Five published models against the crops on your ledger, each
           reading <b>forecast</b>, <b>recent</b> or <b>clear</b>. Wetness is
@@ -158,7 +164,8 @@ export const ledger: Guide = {
     ),
     tools: [
       "goodearth_gdd_season_curve", "goodearth_frost_window", "goodearth_soil_temp_projection",
-      "goodearth_disease_risk", "goodearth_drying_window", "goodearth_almanac",
+      "goodearth_disease_risk", "goodearth_drying_window", "goodearth_water_balance",
+      "goodearth_almanac",
     ],
   },
 };

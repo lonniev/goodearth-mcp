@@ -548,6 +548,40 @@ export interface DryingWindowResult {
   sources: { name: string; role: string; resolution_m: number; as_of?: string }[];
 }
 
+export interface WaterDay {
+  date: string;
+  /// Null when the feed left the day empty; the balance carries over it.
+  rain_mm: number | null;
+  et0_mm: number | null;
+  net_mm: number | null;
+  /// The running tally from the first day, in mm.
+  balance_mm: number;
+  forecast: boolean;
+  /// The model's volumetric water, m³/m³: 0–9 cm and 9–81 cm.
+  topsoil: number | null;
+  root_zone: number | null;
+}
+
+export interface WaterBalanceResult {
+  success: boolean;
+  error?: string;
+  error_code?: string;
+  as_of: string;
+  days: WaterDay[];
+  today: {
+    date: string; since: string; balance_mm: number; rain_mm: number; et0_mm: number;
+    topsoil: number | null; root_zone: number | null; root_zone_week_change: number | null;
+  };
+  ahead: { until: string; rain_mm: number; et0_mm: number; balance_change_mm: number };
+  note: string;
+  sources: { name: string; role: string; resolution_m: number; as_of?: string }[];
+}
+
+/// Rain against what the air pulls out of this ground, and the model's soil moisture.
+export async function waterBalance(block: string): Promise<WaterBalanceResult> {
+  return callTool<WaterBalanceResult>("water_balance", { block });
+}
+
 /// When the dew burns off this ground, the dry days ahead, and the next rain.
 export async function dryingWindow(block: string): Promise<DryingWindowResult> {
   return callTool<DryingWindowResult>("drying_window", { block });
