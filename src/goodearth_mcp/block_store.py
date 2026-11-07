@@ -70,6 +70,7 @@ from typing import Any
 
 from goodearth_mcp import calibration, crops
 from goodearth_mcp.companions import validate_look
+from goodearth_mcp.region import RegionError, parse_region
 
 logger = logging.getLogger(__name__)
 
@@ -163,7 +164,6 @@ _DDL: list[str] = [
     "geometry_enc TEXT NOT NULL, "
     "base_temp_f DOUBLE PRECISION DEFAULT 50, "
     "area_ha DOUBLE PRECISION, "
-    "sample_count INTEGER, "
     "retired_at TIMESTAMPTZ, "
     "created_at TIMESTAMPTZ DEFAULT NOW(), "
     "updated_at TIMESTAMPTZ DEFAULT NOW(), "
@@ -210,6 +210,9 @@ _MIGRATIONS: list[str] = [
     f"CREATE INDEX IF NOT EXISTS ge_items_starts_idx ON {ITEMS} (npub, block_id, kind, starts_on)",
     # The groups a block belongs to, sealed like its aliases.
     f"ALTER TABLE {BLOCKS} ADD COLUMN IF NOT EXISTS groups_enc TEXT",
+    # A block's sample count is worked out from its shape when it is read: a
+    # stored copy went stale the day the terrain grid went from 90 m to 30 m.
+    f"ALTER TABLE {BLOCKS} DROP COLUMN IF EXISTS sample_count",
 
 ]
 
@@ -563,7 +566,6 @@ class BlockSpec:
     aliases: Any = None
     base_temp_f: float = 50.0
     area_ha: float | None = None
-    sample_count: int | None = None
     retired: bool = False
     groups: Any = None
 
@@ -571,7 +573,7 @@ class BlockSpec:
 async def save_block(
     npub: str, *, name: str, geometry: dict[str, Any],
     block_id: str = "", aliases: Any = None, base_temp_f: float = 50.0,
-    area_ha: float | None = None, sample_count: int | None = None,
+    area_ha: float | None = None,
     retired: bool = False, groups: Any = None,
 ) -> dict[str, Any]:
     """Create or update one block. Returns the stored row, decrypted.
@@ -583,7 +585,7 @@ async def save_block(
     """
     (stored,) = await save_blocks(npub, [BlockSpec(
         name=name, geometry=geometry, block_id=block_id, aliases=aliases,
-        base_temp_f=base_temp_f, area_ha=area_ha, sample_count=sample_count,
+        base_temp_f=base_temp_f, area_ha=area_ha,
         retired=retired, groups=groups,
     )])
     return stored
@@ -690,25 +692,25 @@ async def save_blocks(npub: str, specs: list[BlockSpec]) -> list[dict[str, Any]]
     args: list[Any] = []
     for bid, clean, alias_list, key, spec, group_list in plan:
         n = len(args)
-        values.append("(" + ", ".join(f"${n + j + 1}" for j in range(11)) + ")")
+        values.append("(" + ", ".join(f"${n + j + 1}" for j in range(10)) + ")")
         args.extend([
             npub, bid, key,
             _seal(clean, npub, bid), _seal(alias_list, npub, bid),
             _seal(spec.geometry, npub, bid),
-            float(spec.base_temp_f or 50.0), spec.area_ha, spec.sample_count,
+            float(spec.base_temp_f or 50.0), spec.area_ha,
             datetime.now(UTC).isoformat() if spec.retired else None,
             _seal(group_list, npub, bid),
         ])
     r = await v._execute(
         _t(
             f"INSERT INTO {BLOCKS} (npub, block_id, lookup_key, name_enc, aliases_enc, "
-            "geometry_enc, base_temp_f, area_ha, sample_count, retired_at, groups_enc) "
+            "geometry_enc, base_temp_f, area_ha, retired_at, groups_enc) "
             f"VALUES {', '.join(values)} "
             "ON CONFLICT (npub, block_id) DO UPDATE SET "
             "lookup_key = EXCLUDED.lookup_key, name_enc = EXCLUDED.name_enc, "
             "aliases_enc = EXCLUDED.aliases_enc, geometry_enc = EXCLUDED.geometry_enc, "
             "base_temp_f = EXCLUDED.base_temp_f, area_ha = EXCLUDED.area_ha, "
-            "sample_count = EXCLUDED.sample_count, retired_at = EXCLUDED.retired_at, "
+            "retired_at = EXCLUDED.retired_at, "
             "groups_enc = EXCLUDED.groups_enc, "
             f"updated_at = NOW() WHERE {BLOCKS}.npub = EXCLUDED.npub "
             f"RETURNING {_BLOCK_COLS}"
@@ -722,19 +724,28 @@ async def save_blocks(npub: str, specs: list[BlockSpec]) -> list[dict[str, Any]]
     return [stored[bid] for bid, *_ in plan]
 
 
+def _sample_count(geometry: Any) -> int | None:
+    """How many terrain points the season tools read on this ground, today."""
+    try:
+        return parse_region(geometry).sample_count
+    except RegionError:
+        return None
+
+
 def _hydrate(row: dict[str, Any], npub: str) -> dict[str, Any]:
     bid = row.get("block_id") or ""
+    geometry = _open(row.get("geometry_enc"), npub, bid, default={}) or {}
     return {
         "block_id": bid,
         "name": _open(row.get("name_enc"), npub, bid, default=""),
         "aliases": _open(row.get("aliases_enc"), npub, bid, default=[]) or [],
         "groups": _open(row.get("groups_enc"), npub, bid, default=[]) or [],
-        "geometry": _open(row.get("geometry_enc"), npub, bid, default={}) or {},
+        "geometry": geometry,
         "base_temp_f": row.get("base_temp_f") or 50.0,
         "area_ha": row.get("area_ha"),
         # The exact area, for bed-sized blocks: `area_ha` reads 0 under 0.05 ha.
         "area_m2": round(row["area_ha"] * 10_000, 1) if row.get("area_ha") is not None else None,
-        "sample_count": row.get("sample_count"),
+        "sample_count": _sample_count(geometry),
         "retired": bool(row.get("retired_at")),
         "created_at": row.get("created_at"),
         "updated_at": row.get("updated_at"),
@@ -743,7 +754,7 @@ def _hydrate(row: dict[str, Any], npub: str) -> dict[str, Any]:
 
 _BLOCK_COLS = (
     "npub, block_id, lookup_key, name_enc, aliases_enc, geometry_enc, "
-    "base_temp_f, area_ha, sample_count, retired_at, created_at, updated_at, groups_enc"
+    "base_temp_f, area_ha, retired_at, created_at, updated_at, groups_enc"
 )
 
 
