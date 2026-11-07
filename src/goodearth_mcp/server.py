@@ -2446,7 +2446,6 @@ async def block_save(
             npub, name=name, geometry=geometry, block_id=block,
             aliases=aliases, base_temp_f=base_temp,
             area_ha=round(described.get("area_km2", 0.0) * 100.0, 4),
-            sample_count=parsed.sample_count,
             retired=retired, groups=groups,
         )
     except OSError as exc:
@@ -2516,7 +2515,7 @@ async def _save_many_blocks(npub: str, blocks: Any, *, single_given: bool) -> di
             name=name, geometry=geometry, block_id=block_id, aliases=aliases,
             base_temp_f=float(base_temp),
             area_ha=round(described.get("area_km2", 0.0) * 100.0, 4),
-            sample_count=parsed.sample_count, retired=retired, groups=groups,
+            retired=retired, groups=groups,
         ))
     if problems:
         raise block_store.BlockError("; ".join(problems) + ". Nothing was saved.")

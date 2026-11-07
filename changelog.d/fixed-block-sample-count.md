@@ -1,0 +1,1 @@
+- My Plots and the plot picker show each plot's sample count as the season tools read it today. The count is worked out from the plot's shape and no longer stored, so the 30 m grid shows on plots saved before it.
