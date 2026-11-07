@@ -1,0 +1,1 @@
+- The Almanac's "Now at <station>" report is fetched from the Dashboard ahead of time, along with the rest of the Almanac, so it is on screen when you open the page. A plot with no station asks only whether it has one.

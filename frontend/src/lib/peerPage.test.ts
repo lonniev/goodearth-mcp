@@ -2,7 +2,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { pageKey, peerOf, WARM_AFTER_MS } from "./peerPage.ts";
+import { conditionsKey, pageKey, peerOf, stationKey, WARM_AFTER_MS } from "./peerPage.ts";
 
 describe("the page a reader is most likely to open next", () => {
   it("pairs the two readings of the same week", () => {
@@ -46,5 +46,14 @@ describe("the key a warm fills and a view reads", () => {
       pageKey("almanac", { id: "blk_1", baseTempF: 50 }),
       pageKey("almanac", { id: "blk_1", baseTempF: 40 }),
     );
+  });
+});
+
+describe("the keys a plot's station is held under", () => {
+  it("are per plot and never collide with a page's", () => {
+    const ground = { id: "blk_1", baseTempF: 50 };
+    const keys = [stationKey("blk_1"), conditionsKey("blk_1"), pageKey("almanac", ground), pageKey("ledger", ground)];
+    assert.equal(new Set(keys).size, keys.length);
+    assert.notEqual(conditionsKey("blk_1"), conditionsKey("blk_2"));
   });
 });
