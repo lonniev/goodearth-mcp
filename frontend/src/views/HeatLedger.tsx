@@ -17,6 +17,8 @@ import { bands } from "../lib/diseaseBands";
 import { dryingLine } from "../lib/dryingLine";
 import PulseTile, { type Gauge } from "../components/PulseTile";
 import DryingStrip from "../components/DryingStrip";
+import WaterStrip from "../components/WaterStrip";
+import { waterLine } from "../lib/waterLine";
 import { FACE, onFace, stormWords, tendencyArrow } from "../lib/storm";
 import Term from "../components/Term";
 import Provenance from "../components/Provenance";
@@ -32,7 +34,7 @@ import { useBlockItems } from "../lib/blockItems";
 import { useShare } from "../components/Share";
 import { ledgerSheet } from "../lib/exports";
 import { type AlmanacResult, type MeasureKey,
-  diseaseRisk, dryingWindow, frostWindow, soilTempProjection, taskList, type PlotRef, type TaskRow, type DiseaseRiskResult, type DryingWindowResult, type FrostWindowResult, type SeasonCurveResult, type SoilWindowResult } from "../lib/mcp";
+  diseaseRisk, dryingWindow, frostWindow, soilTempProjection, taskList, waterBalance, type WaterBalanceResult, type PlotRef, type TaskRow, type DiseaseRiskResult, type DryingWindowResult, type FrostWindowResult, type SeasonCurveResult, type SoilWindowResult } from "../lib/mcp";
 import type { SavedRegion } from "../lib/regions";
 import { loadAlmanac, loadLedger } from "../lib/pageLoads";
 import { useTour } from "@tollbooth-dpyc/web/react";
@@ -162,6 +164,18 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
     } catch { setDrying(null); }
   }, [region]);
 
+  // Rain against what the air pulls out, and the model's soil. Hidden, like
+  // drying, until the tool is priced and answers.
+  const [water, setWater] = useState<WaterBalanceResult | null>(null);
+  const [waterAt, setWaterAt] = useState<Date | null>(null);
+  const runWater = useCallback(async () => {
+    try {
+      const r = await waterBalance(region.id);
+      if (!r.success) { setWater(null); return; }
+      setWater(r); setWaterAt(new Date());
+    } catch { setWater(null); }
+  }, [region]);
+
   // Re-read whenever the active region changes — the whole app is scoped by it.
   //
   // The curve first, alone, and the trends after it lands. These five calls
@@ -174,10 +188,10 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
     void (async () => {
       await run();
       if (!live) return;
-      await Promise.all([runFrost(), runSoil(), runDisease(), runDrying()]);
+      await Promise.all([runFrost(), runSoil(), runDisease(), runDrying(), runWater()]);
     })();
     return () => { live = false; };
-  }, [run, runFrost, runSoil, runDisease, runDrying]);
+  }, [run, runFrost, runSoil, runDisease, runDrying, runWater]);
 
   // Every threshold the grower has entered is a GDD number, and where it meets
   // this curve is a date. The curve is already on the page, so this needs no
@@ -443,6 +457,21 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
               <Term of="drying" />
             </p>
             <DryingStrip data={drying} />
+          </div>
+        </>
+      )}
+
+      {water && (
+        <>
+          <TrendLabel emoji="💧" label="Water">
+            <Provenance tool="goodearth_water_balance" at={waterAt} onCost={onCost} from={readingTime(water)} />
+          </TrendLabel>
+          <div className="mb-3 rounded-md border border-rule bg-panel px-3 pt-2.5 pb-3">
+            <p className="mb-2.5 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[12.5px] text-ink-soft">
+              <span>{waterLine(water, u.unit)}</span>
+              <Term of="water" />
+            </p>
+            <WaterStrip data={water} blockId={region.id} />
           </div>
         </>
       )}

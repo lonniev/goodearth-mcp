@@ -1,0 +1,2 @@
+- `goodearth_water_balance`: rain against what the air pulls out (FAO-56 ET0), day by day for two weeks back and one ahead, with the running balance and the weather model's soil moisture in the topsoil and the root zone.
+- The Dashboard's Water panel draws it: rain above the line, evapotranspiration below, the balance across both, and gauges for the model's soil beside your station's probe when it has one. Hidden until the tool is priced.

@@ -228,6 +228,18 @@ export const GLOSSARY: Entry[] = [
       + "a leaf.",
   },
   {
+    key: "water", term: "Water balance", group: "sky",
+    aka: ["water", "soil moisture", "evapotranspiration", "ET0", "dry soil", "irrigation", "drought"],
+    said: "The Dashboard's water panel. Above the line, each day's rain; below "
+      + "it, what the air pulled out (FAO-56 reference evapotranspiration, a short "
+      + "grass crop). The running balance adds the two up from two weeks ago, so "
+      + "\"30 mm short\" means the air took that much more than the sky gave. It "
+      + "is a tally, not a soil bucket: it knows nothing of your soil's texture, "
+      + "runoff or drainage. The gauges are the weather model's soil at 0–9 cm "
+      + "and 9–81 cm, on a grid kilometres wide, and your station's probe beside "
+      + "them when it has one. Whether to water is yours to judge.",
+  },
+  {
     key: "drying", term: "Dry by, dry days", group: "sky",
     aka: ["dew off", "dry day", "drying", "mowing", "harvest", "hay"],
     said: "The Dashboard's drying panel: a line, and a card per day with a "
