@@ -30,8 +30,8 @@ def test_its_version_is_the_services_own():
 
 def test_it_points_at_the_endpoint_the_site_names():
     assert ENTRY["remotes"] == [{"type": "streamable-http", "url": ENDPOINT}]
-    llms = (ROOT / "frontend" / "public" / "llms.txt").read_text()
-    assert ENDPOINT in llms
+    guide = (ROOT / "frontend" / "src" / "lib" / "agentGuideOptions.ts").read_text()
+    assert f'mcpUrl: "{ENDPOINT}"' in guide
 
 
 def test_its_description_fits_the_registrys_limit():
