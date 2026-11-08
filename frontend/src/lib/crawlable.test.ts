@@ -14,7 +14,12 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { describe, it } from "node:test";
 
+import { renderAgentGuide } from "@tollbooth-dpyc/web/agent-guide";
+import { agentGuideOptions } from "./agentGuideOptions.ts";
+
 const html = await readFile("index.html", "utf8");
+// /llms.txt is built from agent-guide.md by the shared plugin; read what it builds.
+const llms = renderAgentGuide(agentGuideOptions, await readFile(agentGuideOptions.body, "utf8"));
 const words = (s: string) => s.replace(/<!--[\s\S]*?-->/g, " ").replace(/<[^>]+>/g, " ")
   .split(/\s+/).filter(Boolean);
 
@@ -66,14 +71,14 @@ describe("the plain files a crawler asks for first", () => {
   });
 
   it("llms.txt follows the format: a title, a one-line summary, sections", async () => {
-    const t = await readFile("public/llms.txt", "utf8");
+    const t = llms;
     assert.match(t, /^# Good Earth\n\n> .*garden/);
     assert.match(t, /^## What it deliberately does not do$/m);
   });
 
   it("llms.txt leads with how an agent connects, before the product detail", async () => {
-    const t = await readFile("public/llms.txt", "utf8");
-    const connect = t.indexOf("## For AI agents");
+    const t = llms;
+    const connect = t.indexOf("## Connecting an agent");
     assert.ok(connect > 0 && connect < t.indexOf("## What it answers"),
       "the agent section should come before the feature list");
     assert.match(t, /https:\/\/goodearth-mcp\.fastmcp\.app\/mcp/);
@@ -105,7 +110,7 @@ describe("the plain files a crawler asks for first", () => {
   });
 
   it("names no one's own plot or town in anything a stranger reads", async () => {
-    const all = html + await readFile("public/llms.txt", "utf8") + await readFile("public/robots.txt", "utf8");
+    const all = html + llms + await readFile("public/robots.txt", "utf8");
     for (const place of ["frogdale", "panton", "addison"]) {
       assert.ok(!all.toLowerCase().includes(place), `${place} is on the public front door`);
     }
