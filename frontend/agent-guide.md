@@ -1,28 +1,4 @@
-# Good Earth
-
-> Climate timing for cottage gardens and small specialty-crop and flower farms. A grower draws their plot on a map, and Good Earth works out the weather on that ground — growing degree days, first and last frost, soil temperature, planting windows, disease weather and drying days — including how much it varies across the plot, from its terrain.
-
 Good Earth is a working web app at https://goodearth.tollbooth-dpyc.com and an MCP server that AI assistants can call. It is for people who plan beds and plantings by the season rather than by a zone map. Many weather services answer for one station miles away; Good Earth answers for the grower's own plot, and says how much a bench and a hollow on the same acreage differ.
-
-## For AI agents: it is agent-ready
-
-The web app is one client of an MCP server. An agent can call the same tools directly.
-
-- MCP endpoint (streamable HTTP, no account, no API key): https://goodearth-mcp.fastmcp.app/mcp
-- Claude.ai or Claude Desktop: Customize → Connectors → Add custom connector → paste the endpoint; leave the OAuth fields blank
-- Claude Code: `claude mcp add --transport http goodearth https://goodearth-mcp.fastmcp.app/mcp`, or a project `.mcp.json`: `{"mcpServers": {"goodearth": {"type": "http", "url": "https://goodearth-mcp.fastmcp.app/mcp"}}}`
-- Cursor (`.cursor/mcp.json`): `{"mcpServers": {"goodearth": {"url": "https://goodearth-mcp.fastmcp.app/mcp"}}}`
-- VS Code (`.vscode/mcp.json`): `{"servers": {"goodearth": {"type": "http", "url": "https://goodearth-mcp.fastmcp.app/mcp"}}}`
-- Machine-readable: the MCP Registry name `io.github.lonniev/goodearth-mcp`, and an AI catalog at https://goodearth.tollbooth-dpyc.com/.well-known/ai-catalog.json
-
-First connection:
-
-1. Ask the grower for their Nostr npub (npub1…). Never ask for an nsec.
-2. `goodearth_request_npub_proof(patron_npub=…)` sends them a Nostr direct message. They reply from their Nostr client; then call `goodearth_receive_npub_proof(patron_npub=…, nonce=…)` once with the nonce the request returned. Your connection then holds the npub: pass only `npub` on every paid call.
-3. `goodearth_check_balance`. If it is empty, `goodearth_purchase_credits` returns a Lightning invoice for the grower to pay; `goodearth_check_payment` confirms it.
-4. `goodearth_block_list` — the grower's saved ground, or a worked example to start from.
-
-Callable with no proof: `goodearth_service_status` and the `goodearth_oracle_*` tools. `goodearth_check_price` previews a fare. The server's own MCP `instructions` repeat these steps.
 
 ## What it answers
 
@@ -53,7 +29,3 @@ There is no account, card or email. A grower signs in with a Nostr key and keeps
 - [Glossary](https://goodearth.tollbooth-dpyc.com/#/glossary): what the words mean
 - [Sources and models](https://goodearth.tollbooth-dpyc.com/#/references): every feed, its resolution, and the assumption inside every model
 - [About](https://goodearth.tollbooth-dpyc.com/#/about)
-
-## Source
-
-- Source code, Apache-2.0: https://github.com/lonniev/goodearth-mcp

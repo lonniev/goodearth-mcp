@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { execSync } from 'child_process'
 import { readFileSync } from 'fs'
+import { agentGuide } from '@tollbooth-dpyc/web/agent-guide'
+import { agentGuideOptions } from './src/lib/agentGuideOptions'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
 
@@ -23,7 +25,7 @@ function resolveCommit(): string {
 }
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), agentGuide(agentGuideOptions)],
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __BUILD_COMMIT__: JSON.stringify(resolveCommit()),
