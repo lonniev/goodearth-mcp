@@ -238,7 +238,7 @@ export default function FieldMap({ value, onChange, others = [], centreOn }: Pro
 
       {/* Layer toggle — satellite is the default because a grower recognises
           fields from the air, not from a road map. */}
-      <div className="absolute right-2 top-2 z-[400] flex overflow-hidden rounded-md border border-ink/30 bg-panel/95 text-[11.5px] shadow">
+      <div className="absolute right-2 top-2 z-[400] flex overflow-hidden rounded-md border border-ink/30 bg-panel/95 text-[0.71875rem] shadow">
         {(Object.keys(BASEMAPS) as (keyof typeof BASEMAPS)[]).map((k) => (
           <button key={k} onClick={() => setLayer(k)}
             className={`min-h-11 px-4 font-medium ${layer === k ? "bg-ink text-paper" : "text-ink active:bg-band"}`}>
@@ -269,7 +269,7 @@ function MapReadout({ value, onFit }: { value: MapValue; onFit: () => void }) {
 
   if (!m2) {
     return (
-      <div className="absolute bottom-2 left-2 z-[400] rounded-md border border-ink/25 bg-panel/95 px-3 py-1.5 text-[12px] text-ink-soft shadow">
+      <div className="absolute bottom-2 left-2 z-[400] rounded-md border border-ink/25 bg-panel/95 px-3 py-1.5 text-[0.75rem] text-ink-soft shadow">
         {value.mode === "polygon"
           ? "Click each corner of your field. Three corners and it has an area."
           : "Click the middle of your field, then set the radius."}
@@ -279,8 +279,8 @@ function MapReadout({ value, onFit }: { value: MapValue; onFit: () => void }) {
 
   return (
     <div className="absolute bottom-2 left-2 z-[400] rounded-md border border-ink/25 bg-panel/95 px-3 py-2 shadow">
-      <div className="figure text-[17px] leading-none">{formatArea(m2)}</div>
-      <div className="data mt-1 text-[10px] text-ink-soft">
+      <div className="figure text-[1.0625rem] leading-none">{formatArea(m2)}</div>
+      <div className="data mt-1 text-[0.625rem] text-ink-soft">
         {value.mode === "polygon"
           ? `${value.ring.length} corners · ${Math.round(perimeter).toLocaleString()} m around`
           : `${value.radiusM.toLocaleString()} m radius`}

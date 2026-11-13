@@ -58,18 +58,18 @@ export default function DueSoon({
           const date = row.projected_date ?? row.reached_on;
           return (
             <li key={id} className="border-b border-rule pb-2.5 last:border-b-0 last:pb-0">
-              <div className="flex flex-wrap items-baseline gap-x-1.5 text-[13px]">
+              <div className="flex flex-wrap items-baseline gap-x-1.5 text-[0.8125rem]">
                 <SpeciesMark emoji={row.emoji} photo={photos.get(row.species)} />
                 <b>{row.species}</b>
                 <span>— {row.event}</span>
-                <span className={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${
+                <span className={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-[0.65625rem] font-semibold ${
                   settled ? "bg-growth/12 text-growth"
                     : daysAway < 0 ? "bg-clay/12 text-clay" : "bg-band text-ink-soft"}`}>
                   {settled ? "seen" : when(daysAway)}
                 </span>
               </div>
 
-              <p className="data mt-0.5 text-[11px] text-ink-soft">
+              <p className="data mt-0.5 text-[0.6875rem] text-ink-soft">
                 {date && day(date)}
                 {/* The window, not the day. Gestation and incubation both
                     vary, and this is the service saying by how much. */}
@@ -79,7 +79,7 @@ export default function DueSoon({
 
               {open === id ? (
                 <div className="mt-1.5 flex flex-wrap items-end gap-2">
-                  <label className="block text-[11px] text-ink-soft">
+                  <label className="block text-[0.6875rem] text-ink-soft">
                     What day did you see it?
                     <input type="date" value={on} max={today}
                       onChange={(e) => setOn(e.target.value)} className={FIELD} />

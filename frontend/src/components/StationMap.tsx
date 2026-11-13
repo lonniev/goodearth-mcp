@@ -78,9 +78,9 @@ export default function StationMap({ block, currentId, onPick }: {
         <div ref={host} className="h-full w-full" />
         <EnlargeButton big={size.big} onClick={size.toggle} label="the map" />
         {tapped && (
-          <div className="absolute inset-x-2 bottom-6 z-[500] flex flex-wrap items-center gap-2 rounded-md bg-panel px-3 py-2 text-[12.5px] shadow">
+          <div className="absolute inset-x-2 bottom-6 z-[500] flex flex-wrap items-center gap-2 rounded-md bg-panel px-3 py-2 text-[0.78125rem] shadow">
             <span className="min-w-0 flex-1">
-              <b>{tapped.name}</b> <span className="data text-[10.5px] text-ink-soft">{tapped.distance_km.toFixed(1)} km</span>
+              <b>{tapped.name}</b> <span className="data text-[0.65625rem] text-ink-soft">{tapped.distance_km.toFixed(1)} km</span>
             </span>
             {tapped.station_id === currentId
               ? <span className="text-ink-soft">This plot's station</span>
@@ -88,9 +88,9 @@ export default function StationMap({ block, currentId, onPick }: {
           </div>
         )}
       </div>
-      {count === null && !problem && <p role="status" className="animate-pulse text-[12px] text-ink-soft motion-reduce:animate-none">Finding stations…</p>}
-      {count === 0 && <p className="text-[12px] text-ink-soft">No published station stands within {REACH_KM} km of {placeName}.</p>}
-      {problem && <p role="alert" className="text-[12px] text-clay">{problem}</p>}
+      {count === null && !problem && <p role="status" className="animate-pulse text-[0.75rem] text-ink-soft motion-reduce:animate-none">Finding stations…</p>}
+      {count === 0 && <p className="text-[0.75rem] text-ink-soft">No published station stands within {REACH_KM} km of {placeName}.</p>}
+      {problem && <p role="alert" className="text-[0.75rem] text-clay">{problem}</p>}
     </div>
   );
 }

@@ -54,9 +54,9 @@ export default function FirstRun({ onSaved, onDraw, onExample }: {
 
   return (
     <div>
-      <h1 className="figure mb-1 text-[26px] font-bold">Where do you farm?</h1>
+      <h1 className="figure mb-1 text-[1.625rem] font-bold">Where do you farm?</h1>
       <Claim>Every answer here is about a piece of ground, so it needs one.</Claim>
-      <p className="text-[13.5px] leading-relaxed">
+      <p className="text-[0.84375rem] leading-relaxed">
         Heat, frost, soil and daylight are all answered for the block you name,
         with the spread across it. Nothing is computed until there is ground to
         compute it for.
@@ -65,11 +65,11 @@ export default function FirstRun({ onSaved, onDraw, onExample }: {
       <div className="mt-5 grid gap-2.5 sm:grid-cols-2">
         <button onClick={here} disabled={busy} {...tour("firstrun.here")}
           className="rounded-md border-[1.5px] border-ink bg-ink p-4 text-left text-paper disabled:opacity-50">
-          <span className="text-[24px]" aria-hidden="true">📍</span>
-          <span className="figure mt-1 block text-[15px] font-semibold">
+          <span className="text-[1.5rem]" aria-hidden="true">📍</span>
+          <span className="figure mt-1 block text-[0.9375rem] font-semibold">
             {busy ? "Finding you…" : "Start where I am"}
           </span>
-          <span className="mt-1 block text-[12.5px] leading-relaxed opacity-80">
+          <span className="mt-1 block text-[0.78125rem] leading-relaxed opacity-80">
             About {HOME_ACRES} acres around this device, to move and reshape.
             Your location is used here and not stored.
           </span>
@@ -77,18 +77,18 @@ export default function FirstRun({ onSaved, onDraw, onExample }: {
 
         <button onClick={onDraw} {...tour("firstrun.draw")}
           className="rounded-md border border-rule bg-panel p-4 text-left active:border-ink">
-          <span className="text-[24px]" aria-hidden="true">✏️</span>
-          <span className="figure mt-1 block text-[15px] font-semibold">Draw it on the map</span>
-          <span className="mt-1 block text-[12.5px] leading-relaxed text-ink-soft">
+          <span className="text-[1.5rem]" aria-hidden="true">✏️</span>
+          <span className="figure mt-1 block text-[0.9375rem] font-semibold">Draw it on the map</span>
+          <span className="mt-1 block text-[0.78125rem] leading-relaxed text-ink-soft">
             Trace the field, or drop a pin with a radius. A polygon is worth the
             minute — the spread is measured across whatever you draw.
           </span>
         </button>
       </div>
 
-      {msg && <p className="mt-3 text-[12.5px] text-clay">{msg}</p>}
+      {msg && <p className="mt-3 text-[0.78125rem] text-clay">{msg}</p>}
 
-      <p className="mt-6 text-[13px] leading-relaxed text-ink-soft">
+      <p className="mt-6 text-[0.8125rem] leading-relaxed text-ink-soft">
         Not ready to say where you are?{" "}
         <button onClick={onExample}
           className="underline decoration-dotted underline-offset-2">

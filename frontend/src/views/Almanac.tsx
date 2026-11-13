@@ -161,13 +161,13 @@ export default function Almanac({
   return (
     <>
       <div className="mb-3.5 flex items-baseline gap-3">
-        <h1 className="figure text-[26px] font-bold">Almanac</h1>
-        <span className="text-[13px] text-ink-soft">{region.name}</span>
+        <h1 className="figure text-[1.625rem] font-bold">Almanac</h1>
+        <span className="text-[0.8125rem] text-ink-soft">{region.name}</span>
         <button onClick={toggleRadar} aria-pressed={radar}
           title="Rain on the radar"
           aria-label="Rain on the radar"
           {...tour("almanac.radar")}
-          className={`ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center self-center rounded border text-[18px] ${
+          className={`ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center self-center rounded border text-[1.125rem] ${
             radar ? "border-ink bg-ink" : "border-rule active:bg-band"}`}>
           🌧️
         </button>
@@ -176,7 +176,7 @@ export default function Almanac({
       <StationNow block={region.id} />
 
       {error && (
-        <div className="mb-4 rounded-md border border-clay/30 bg-clay/10 p-3 text-[13px] text-clay">{error}</div>
+        <div className="mb-4 rounded-md border border-clay/30 bg-clay/10 p-3 text-[0.8125rem] text-clay">{error}</div>
       )}
 
       {/* ── The barometer's warning ────────────────────────────────────── */}
@@ -262,11 +262,11 @@ export default function Almanac({
               title="The day's forecast, to read or paste"
               style={{ transform: `translateY(${-lift[i]}px)` }}
               className="flex flex-col items-center gap-0.5 rounded-md border border-rule bg-panel px-1 py-2.5 active:bg-band">
-              <span className="data text-[10.5px] text-ink-soft">
+              <span className="data text-[0.65625rem] text-ink-soft">
                 {new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" })}
               </span>
-              <span className="text-[24px] leading-none">{u.sky.emoji}</span>
-              <span className="figure text-[15px]">
+              <span className="text-[1.5rem] leading-none">{u.sky.emoji}</span>
+              <span className="figure text-[0.9375rem]">
                 {u.high_f != null ? Math.round(u.high_f) : "—"}°
                 <span className="text-ink-soft">/{u.low_f != null ? Math.round(u.low_f) : "—"}°</span>
               </span>
@@ -276,22 +276,22 @@ export default function Almanac({
                   put their rain, and fourteen cells stopped lining up. A
                   reserved line costs nothing and keeps the strip readable
                   across. */}
-              <span className="data text-[10.5px] text-frost" title="Chance of rain">
+              <span className="data text-[0.65625rem] text-frost" title="Chance of rain">
                 {u.precip_chance_pct ? `🌧️${Math.round(u.precip_chance_pct)}%` : "\u00A0"}
               </span>
-              <span className="data text-[10.5px] text-ink-soft"
+              <span className="data text-[0.65625rem] text-ink-soft"
                 title="Average relative humidity">
                 {u.humidity_pct != null ? `💦${Math.round(u.humidity_pct)}%` : "\u00A0"}
               </span>
               {/* The day's mean pressure, with which way it moved from the day
                   before. Always drawn, for the same reason as the rain row. */}
-              <span className="data text-[10.5px] text-ink-soft"
+              <span className="data text-[0.65625rem] text-ink-soft"
                 title="Average sea-level pressure, and its change from the day before">
                 {u.pressure_hpa != null
                   ? `${dayArrow(u.pressure_hpa, data.upcoming[i - 1]?.pressure_hpa)}${baro(u.pressure_hpa).toFixed(decimals)}`
                   : "\u00A0"}
               </span>
-              <span className="data text-[10.5px] text-ink-soft">{u.wind.emoji}{u.wind.from ?? ""}</span>
+              <span className="data text-[0.65625rem] text-ink-soft">{u.wind.emoji}{u.wind.from ?? ""}</span>
             </button>
             ));
           })()}
@@ -305,7 +305,7 @@ export default function Almanac({
       )}
 
       {/* ── Measures ───────────────────────────────────────────────────── */}
-      <h2 className="figure mb-2 flex items-baseline gap-2.5 text-[18px] font-semibold">
+      <h2 className="figure mb-2 flex items-baseline gap-2.5 text-[1.125rem] font-semibold">
         The season so far
         <Provenance tool="goodearth_almanac" at={ranAt} onCost={onCost} from={readingTime(data)} />
       </h2>
@@ -322,14 +322,14 @@ export default function Almanac({
             onPointerUp={(e) => onUp(e, s.key)}
             onPointerCancel={() => { grab.current = null; setDragging(null); }}
             title={`${s.label} — drag to move its chart up or down`}
-            className={`min-h-11 cursor-grab touch-none rounded-full border px-3.5 text-[12.5px] ${
+            className={`min-h-11 cursor-grab touch-none rounded-full border px-3.5 text-[0.78125rem] ${
               dragging === i ? "scale-105 cursor-grabbing shadow-md" : ""} ${
               shown.has(s.key) ? "border-ink bg-ink text-paper" : "border-rule active:bg-band"}`}>
             {s.emoji} {s.label}
           </button>
         ))}
       </div>
-      <p className="data mb-3 text-[10.5px] text-ink-soft">
+      <p className="data mb-3 text-[0.65625rem] text-ink-soft">
         Tap to show or hide · drag to reorder
       </p>
 
@@ -347,7 +347,7 @@ export default function Almanac({
                 skill={skillChip(data.skill, s.key, skillScale)} />
             </ChartFrame>
           ))}
-          <p className="data text-[10.5px] text-ink-soft">
+          <p className="data text-[0.65625rem] text-ink-soft">
             Grey band is the range across the last {data.normals_span_years} seasons ·
             solid is this season · dashed is the forecast
           </p>
@@ -393,13 +393,13 @@ function StormBanner({ storm }: { storm: StormSignal }) {
         <Term of="pressure_tendency" />
       </span>
       {w && (
-        <p className="mt-1 text-[13px]">
+        <p className="mt-1 text-[0.8125rem]">
           Pressure falls {u.showPressure(w.fall_3h_hpa, u.unit === "F" ? 2 : 1)} in three hours {when}
           {w.change_24h_hpa != null && w.change_24h_hpa < 0
             && `, ${u.showPressure(-w.change_24h_hpa, u.unit === "F" ? 2 : 1)} over the day`}.
         </p>
       )}
-      <p className="data mt-1 text-[10.5px] text-ink-soft">
+      <p className="data mt-1 text-[0.65625rem] text-ink-soft">
         From the forecast&rsquo;s hourly pressure, {storm.horizon_h} hours ahead.
       </p>
     </div>

@@ -59,7 +59,7 @@ export default function DiseaseCard({ data, plantings = [] }: {
           the card already had: the strips cost no height on a wide screen. */}
       <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-[max-content_minmax(0,1fr)_max-content]">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 sm:col-span-3 sm:grid sm:grid-cols-subgrid">
-        <h3 className="figure text-[15.5px] font-semibold">
+        <h3 className="figure text-[0.96875rem] font-semibold">
           Disease Estimates
           <Term>
             {estimatesInfo(data, plantings)}. An hour counts as wet when {w.estimator.wet_when} —
@@ -70,7 +70,7 @@ export default function DiseaseCard({ data, plantings = [] }: {
         </h3>
         {axis ? <Months axis={axis} /> : <span />}
         {w.forecast_note && (
-          <span className="data text-[10.5px] text-clay">record only — the forecast did not answer</span>
+          <span className="data text-[0.65625rem] text-clay">record only — the forecast did not answer</span>
         )}
       </div>
 
@@ -99,7 +99,7 @@ export default function DiseaseCard({ data, plantings = [] }: {
       </div>
 
       {data.skipped.length > 0 && (
-        <p className="data mt-2 text-[10.5px] text-clay">
+        <p className="data mt-2 text-[0.65625rem] text-clay">
           {data.skipped.map((s) => `${s.name}: ${s.reason}`).join(" · ")}
         </p>
       )}
@@ -122,24 +122,24 @@ function Row({ v, axis, open, onOpen, plantings }: {
         className="flex min-h-11 w-full flex-wrap items-center gap-x-2.5 gap-y-1 rounded px-1 text-left active:bg-band sm:col-span-3 sm:grid sm:grid-cols-subgrid"
       >
         <span className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
-        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${CHIP[tone]}`}>
+        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold ${CHIP[tone]}`}>
           {TONE_WORD[tone]}
         </span>
-        <span className="figure text-[13.5px] font-semibold">{v.disease}</span>
-        <span className="data text-[11px] text-ink-soft">{v.about.name}</span>
+        <span className="figure text-[0.84375rem] font-semibold">{v.disease}</span>
+        <span className="data text-[0.6875rem] text-ink-soft">{v.about.name}</span>
         {/* A falling barometer's window crosses the period this model
             projects. The model is unchanged — it has no pressure term — but
             these are the wet hours likeliest to come, perhaps sooner or
             heavier than forecast. */}
         {v.next_period?.front_due && (
-          <span className="text-[13px]"
+          <span className="text-[0.8125rem]"
             title="A front is due: the barometer falls fast across this projected period, so its wet hours are the likeliest to come — perhaps sooner or heavier than forecast. The model itself is unchanged.">
             🌀
           </span>
         )}
         </span>
         {axis ? <Season v={v} axis={axis} /> : <span className="hidden sm:block" />}
-        <span className="ml-auto data text-[12px] sm:text-right">
+        <span className="ml-auto data text-[0.75rem] sm:text-right">
           {(() => {
             const r = rowDate(v);
             if (!r) return <span className="text-ink-soft">none this season</span>;
@@ -151,7 +151,7 @@ function Row({ v, axis, open, onOpen, plantings }: {
       </button>
 
       {open && (
-        <div className="mt-0.5 rounded bg-band/60 sm:col-span-3 px-3 py-2 text-[12.5px] leading-relaxed">
+        <div className="mt-0.5 rounded bg-band/60 sm:col-span-3 px-3 py-2 text-[0.78125rem] leading-relaxed">
           {/* `now` is not repeated here. The row above already carries the
               date, in the app's own format — the server writes ISO, correctly
               for an API, and printing both put "Sep 17" and "2026-09-17" one
@@ -175,7 +175,7 @@ function Row({ v, axis, open, onOpen, plantings }: {
               What to decide is your extension service's to say.
             </p>
           )}
-          <p className="data mt-1.5 text-[10.5px] text-ink-soft">
+          <p className="data mt-1.5 text-[0.65625rem] text-ink-soft">
             {v.about.asks}. {v.about.citation}.
           </p>
         </div>
@@ -191,7 +191,7 @@ function Months({ axis }: { axis: StripAxis }) {
   return (
     <span className="relative mr-9 hidden h-4 self-end sm:block" aria-hidden>
       {ms.map((m) => (
-        <span key={m.label} className="data absolute top-0 -translate-x-1/2 text-[9.5px] text-ink-soft"
+        <span key={m.label} className="data absolute top-0 -translate-x-1/2 text-[0.59375rem] text-ink-soft"
           style={{ left: `${m.at * 100}%` }}>{m.label}</span>
       ))}
     </span>
@@ -225,7 +225,7 @@ function Season({ v, axis }: { v: DiseaseVerdict; axis: StripAxis }) {
         ))}
         <span className="absolute inset-y-0 w-0.5 bg-ink" style={{ left: `${now * 100}%` }} />
       </span>
-      <span className="data w-7 shrink-0 text-right text-[10.5px] text-ink-soft">{n ? `${n}×` : "—"}</span>
+      <span className="data w-7 shrink-0 text-right text-[0.65625rem] text-ink-soft">{n ? `${n}×` : "—"}</span>
     </span>
   );
 }

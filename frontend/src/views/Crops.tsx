@@ -915,7 +915,7 @@ export default function Crops({
               </select>
             </span>
           </Field>
-          <span className="flex flex-wrap items-center gap-x-4 pt-3.5 text-[12px]">
+          <span className="flex flex-wrap items-center gap-x-4 pt-3.5 text-[0.75rem]">
             <label className="flex min-h-11 items-center gap-2">
               <input type="checkbox" name="hardy" className="size-4" {...tour("crops.hardy")}
                 defaultChecked={!!repeating?.frostHardy} />
@@ -934,9 +934,9 @@ export default function Crops({
         </div>
         {/* A first lookup has its sources read and edited; a kept one fills
             the form before this line could be read. */}
-        {looking && <p role="status" className="mt-2 text-[12px] text-ink-soft">{RESEARCH_WAIT}</p>}
-        {formErr && <p className="mt-2 text-[12px] text-clay">{formErr}</p>}
-        {added && !formErr && <p className="mt-2 text-[12px] text-growth">{added}</p>}
+        {looking && <p role="status" className="mt-2 text-[0.75rem] text-ink-soft">{RESEARCH_WAIT}</p>}
+        {formErr && <p className="mt-2 text-[0.75rem] text-clay">{formErr}</p>}
+        {added && !formErr && <p className="mt-2 text-[0.75rem] text-growth">{added}</p>}
       </form>
       {/* Its year, looked up. A plant's ticked stages ride on the planting Add
           saves. A fungus fruits when the weather says, never from a set-out,
@@ -1055,7 +1055,7 @@ export default function Crops({
               so the pager stands down rather than counting past a list it is
               not describing. */}
           {narrowed ? (
-            <p className="data mt-1 text-[11px] text-ink-soft">
+            <p className="data mt-1 text-[0.6875rem] text-ink-soft">
               {shown.length} of {plantings.length}
               {total > plantings.length ? ` · filtering the first ${plantings.length} of ${total}` : ""}
             </p>
@@ -1064,7 +1064,7 @@ export default function Crops({
               onPage={setPageNo} />
           )}
           {orphans.length > 0 && (
-            <p className="data mt-1 flex flex-wrap items-center gap-x-1.5 text-[11px] text-ink-soft">
+            <p className="data mt-1 flex flex-wrap items-center gap-x-1.5 text-[0.6875rem] text-ink-soft">
               <span>Seed with no plant here:</span>
               {orphans.map((l) => (
                 <button key={l.id} onClick={() => void plantForLot(l)}
@@ -1076,7 +1076,7 @@ export default function Crops({
             </p>
           )}
           {seenTotal > seen.length && (
-            <p className="data mt-1 text-[11px] text-ink-soft">
+            <p className="data mt-1 text-[0.6875rem] text-ink-soft">
               Harvest totals count your latest {seen.length} field observations of
               the {seenTotal} this season.
             </p>
@@ -1111,7 +1111,7 @@ export default function Crops({
         <RotationPanel rows={rotationRows} more={rotationMore}
           onRepeat={(p, season) => void plantAgain(p, season)} />
       ) : (
-        <p className="mb-3 text-[12.5px] leading-relaxed text-ink-soft">
+        <p className="mb-3 text-[0.78125rem] leading-relaxed text-ink-soft">
           Every planting on this plot, season by season and grouped by plant
           family — the ones since cleared from the ledger included. What grew
           where, as your record has it.
@@ -1152,16 +1152,16 @@ export default function Crops({
           not a paragraph about the Spring Index. */}
       {year && (
         <div className="mb-3 rounded-md border border-rule border-l-4 border-l-honey bg-panel px-4 py-3">
-          <p className="text-[13px]">{year.summary}</p>
+          <p className="text-[0.8125rem]">{year.summary}</p>
           <div className="mt-2 flex flex-wrap gap-x-6 gap-y-2">
             {year.spring && ([
               ["🌱", "first leaf", year.spring.first_leaf],
               ["🌸", "first bloom", year.spring.first_bloom],
             ] as const).map(([emoji, label, s]) => s?.on && (
-              <span key={label} className="text-[12.5px]">
+              <span key={label} className="text-[0.78125rem]">
                 <span className="mr-1">{emoji}</span>
-                <b className="figure text-[14px]">{short(s.on)}</b>
-                <span className="data ml-1.5 text-[11px] text-ink-soft">
+                <b className="figure text-[0.875rem]">{short(s.on)}</b>
+                <span className="data ml-1.5 text-[0.6875rem] text-ink-soft">
                   {label}
                   {s.days_from_normal != null && (
                     <> · {s.days_from_normal === 0 ? "on its normal"
@@ -1171,10 +1171,10 @@ export default function Crops({
               </span>
             ))}
             {year.sap && year.sap.cycles > 0 && (
-              <span className="text-[12.5px]">
+              <span className="text-[0.78125rem]">
                 <span className="mr-1">🍁</span>
-                <b className="figure text-[14px]">{year.sap.cycles}</b>
-                <span className="data ml-1.5 text-[11px] text-ink-soft">
+                <b className="figure text-[0.875rem]">{year.sap.cycles}</b>
+                <span className="data ml-1.5 text-[0.6875rem] text-ink-soft">
                   sap days{year.sap.started_on && <> from {short(year.sap.started_on)}</>}
                   {year.sap.state === "over" && " · run over"}
                   {year.sap.state === "paused" && " · paused by the cold"}
@@ -1184,7 +1184,7 @@ export default function Crops({
             {/* An open window with no sap day yet is an answer, and a tapped
                 block used to show nothing at all until the first thaw. */}
             {year.sap && year.sap.cycles === 0 && year.sap.state === "not_started" && (
-              <span className="data text-[11px] text-ink-soft">
+              <span className="data text-[0.6875rem] text-ink-soft">
                 🍁 the sap window is open — no freeze-and-thaw day yet
               </span>
             )}
@@ -1192,7 +1192,7 @@ export default function Crops({
           {/* Which trees brought the sap section up, so it is obvious why it
               is here and why a neighbouring block has none. */}
           {year.tapped.length > 0 && (
-            <p className="data mt-1.5 text-[11px] text-ink-soft">
+            <p className="data mt-1.5 text-[0.6875rem] text-ink-soft">
               tapped: {year.tapped.join(" · ")}
             </p>
           )}
@@ -1201,9 +1201,9 @@ export default function Crops({
 
       {treeFit && (
         <div className="mb-3 rounded-md border border-rule border-l-4 border-l-growth bg-panel px-4 py-3">
-          <p className="text-[13px]">{treeFit.summary}</p>
+          <p className="text-[0.8125rem]">{treeFit.summary}</p>
           {treeFit.chill && (
-            <p className="data mt-1 text-[11.5px] text-ink-soft">
+            <p className="data mt-1 text-[0.71875rem] text-ink-soft">
               {treeFit.chill.median_hours} h median chill · lowest{" "}
               {treeFit.chill.lowest_hours} h · {treeFit.chill.winters_on_record} winters ·{" "}
               {treeFit.chill.window}
@@ -1214,17 +1214,17 @@ export default function Crops({
 
       {fit ? (
         <div className="mb-3 rounded-md border border-rule border-l-4 border-l-growth bg-panel px-4 py-3">
-          <p className="text-[13px]">
-            <b className="figure text-[16px]">{fit.budget.frost_free_days} frost-free days</b>
+          <p className="text-[0.8125rem]">
+            <b className="figure text-[1rem]">{fit.budget.frost_free_days} frost-free days</b>
             {fit.budget.gdd_by_base["50"] != null && (
               <> · about <b>{Math.round(fit.budget.gdd_by_base["50"]).toLocaleString()} GDD₅₀</b> inside them</>
             )}
             , median over {fit.budget.seasons_on_record} seasons.
           </p>
-          <p className="mt-1 text-[12.5px] text-ink-soft">{fit.summary}</p>
+          <p className="mt-1 text-[0.78125rem] text-ink-soft">{fit.summary}</p>
         </div>
       ) : (
-        <p className="mb-3 text-[12.5px] leading-relaxed text-ink-soft">
+        <p className="mb-3 text-[0.78125rem] leading-relaxed text-ink-soft">
           Two farms in the same county — one on a bench, one in a hollow — do not
           grow the same things. Measuring your ground gives its own frost-free
           window and the heat inside it, then rates every plant below against it.
@@ -1253,15 +1253,15 @@ export default function Crops({
                   t?.hardiness.note, t?.chill.note, row?.note,
                   w && `out ${w.earliest_out ? short(w.earliest_out) : "—"}`,
                 ].filter(Boolean).join(" — ")}
-                className={`flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-[12.5px] ${tone}`}>
+                className={`flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-[0.78125rem] ${tone}`}>
                 {thumb
                   ? <img src={thumb} alt="" width={20} height={20}
                       className="size-5 rounded-full object-cover" />
                   : <span aria-hidden="true">{SEEDLING}</span>}
                 <span className="font-medium">{pl.crop}</span>
-                {mark && <span className={`text-[11px] ${mark.ink}`}>{mark.glyph}</span>}
+                {mark && <span className={`text-[0.6875rem] ${mark.ink}`}>{mark.glyph}</span>}
                 {w?.sow_now && (
-                  <span className="rounded-full bg-growth/15 px-1.5 text-[10px] font-semibold text-growth">now</span>
+                  <span className="rounded-full bg-growth/15 px-1.5 text-[0.625rem] font-semibold text-growth">now</span>
                 )}
               </span>
             );
@@ -1270,7 +1270,7 @@ export default function Crops({
       )}
 
       {fit && (
-        <p className="data mt-2 text-[10.5px] text-ink-soft">
+        <p className="data mt-2 text-[0.65625rem] text-ink-soft">
           <span className="text-growth">✓ finishes comfortably</span>{" · "}
           <span className="text-honey">⚠ tight — a cool year could take it</span>{" · "}
           <span className="text-clay">✕ will not finish outdoors here</span>
@@ -1291,7 +1291,7 @@ export default function Crops({
       {when ? (
         <>
           <div className="mb-2.5 rounded-md border border-rule border-l-4 border-l-frost bg-panel px-4 py-3">
-            <p className="text-[13px]">
+            <p className="text-[0.8125rem]">
               {when.season != null && when.season > new Date().getFullYear() && (
                 <b className="mr-1.5">Planning {when.season}:</b>
               )}
@@ -1300,7 +1300,7 @@ export default function Crops({
               {" — medians over "}{when.frost.seasons_on_record} seasons.
             </p>
             {Object.keys(when.soil_warming).length > 0 && (
-              <p className="mt-1 text-[12.5px] text-ink-soft">
+              <p className="mt-1 text-[0.78125rem] text-ink-soft">
                 Soil reaches{" "}
                 {Object.entries(when.soil_warming)
                   .sort(([a], [b]) => Number(a) - Number(b))
@@ -1309,16 +1309,16 @@ export default function Crops({
               </p>
             )}
             {when.sow_now.length > 0 && (
-              <p className="mt-1.5 text-[13px]">
+              <p className="mt-1.5 text-[0.8125rem]">
                 <b>In the window now:</b> {when.sow_now.join(", ")}
               </p>
             )}
           </div>
           <div className="mb-3 overflow-x-auto rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">
-            <table className="w-full text-[13px]">
+            <table className="w-full text-[0.8125rem]">
               <thead><tr>
                 {["Plant", "Seed indoors", "Out", "Last sowing", "Window", "Successions"].map((h) => (
-                  <th key={h} className="data border-b-[1.5px] border-ink px-3 py-2.5 text-left text-[10px] font-medium uppercase tracking-[.1em] text-ink-soft">{h}</th>
+                  <th key={h} className="data border-b-[1.5px] border-ink px-3 py-2.5 text-left text-[0.625rem] font-medium uppercase tracking-[.1em] text-ink-soft">{h}</th>
                 ))}
               </tr></thead>
               <tbody>
@@ -1338,7 +1338,7 @@ export default function Crops({
                           grower's to weigh. */}
                       {lotsFor(r.crop, plantings.find((p) => p.crop === r.crop)?.taxonId, lots)
                         .map((l) => lotLine(l)).filter(Boolean).slice(0, 2).map((line) => (
-                          <div key={line} className="data text-[10.5px] text-ink-soft">🌰 {line}</div>
+                          <div key={line} className="data text-[0.65625rem] text-ink-soft">🌰 {line}</div>
                         ))}
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap">{r.start_seed_indoors ? short(r.start_seed_indoors) : <span className="text-ink-soft">direct sow</span>}</td>
@@ -1346,13 +1346,13 @@ export default function Crops({
                     <td className="px-3 py-2.5 whitespace-nowrap">{r.latest_out ? short(r.latest_out) : "—"}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       {r.state === "will_not_fit"
-                        ? <span className="rounded-full bg-clay/15 px-2 py-0.5 text-[11px] font-semibold text-clay">won't fit</span>
+                        ? <span className="rounded-full bg-clay/15 px-2 py-0.5 text-[0.6875rem] font-semibold text-clay">won't fit</span>
                         : r.state === "year_round"
                           ? <span className="text-ink-soft">any time</span>
                         : r.state === "narrow"
-                          ? <span className="rounded-full bg-honey/15 px-2 py-0.5 text-[11px] font-semibold text-honey">{r.window_days}d — narrow</span>
+                          ? <span className="rounded-full bg-honey/15 px-2 py-0.5 text-[0.6875rem] font-semibold text-honey">{r.window_days}d — narrow</span>
                           : <span className="text-ink-soft">{r.window_days}d</span>}
-                      {r.sow_now && <span className="ml-1.5 rounded-full bg-growth/15 px-2 py-0.5 text-[11px] font-semibold text-growth">now</span>}
+                      {r.sow_now && <span className="ml-1.5 rounded-full bg-growth/15 px-2 py-0.5 text-[0.6875rem] font-semibold text-growth">now</span>}
                     </td>
                     <td className="px-3 py-2">
                       {/* A native select, so a phone shows its own picker. */}
@@ -1361,7 +1361,7 @@ export default function Crops({
                         value={plans[r.crop]?.every ?? 0}
                         disabled={r.state === "will_not_fit" || planning === r.crop}
                         onChange={(e) => void planSuccessions(r.crop, Number(e.target.value))}
-                        className="min-h-9 rounded-md border border-rule bg-white px-2 text-[12.5px] disabled:opacity-40"
+                        className="min-h-9 rounded-md border border-rule bg-white px-2 text-[0.78125rem] disabled:opacity-40"
                       >
                         <option value={0}>{planning === r.crop ? "Reading…" : "—"}</option>
                         {[7, 10, 14, 21, 28].map((d) => (
@@ -1386,11 +1386,11 @@ export default function Crops({
               </tbody>
             </table>
           </div>
-          <p className="mb-2 text-[12px] text-ink-soft">
+          <p className="mb-2 text-[0.75rem] text-ink-soft">
             Dates are this block&rsquo;s own frost and soil, against the figures
             on each planting.
           </p>
-          <p className="mb-4 text-[12px] leading-relaxed text-ink-soft">
+          <p className="mb-4 text-[0.75rem] leading-relaxed text-ink-soft">
             A tender plant's "out" date is the <b>median</b> last frost — half of
             seasons frost later than that, so it is a coin toss rather than a
             green light. The last-sowing date, and each succession&rsquo;s
@@ -1400,7 +1400,7 @@ export default function Crops({
           </p>
         </>
       ) : (
-        <p className="mb-3 text-[12.5px] leading-relaxed text-ink-soft">
+        <p className="mb-3 text-[0.78125rem] leading-relaxed text-ink-soft">
           Heat requirement says whether a plant <i>can</i> finish here. It says
           nothing about when to start — which is the decision you make with a
           seed packet in hand in February. Dating your ground gives three:

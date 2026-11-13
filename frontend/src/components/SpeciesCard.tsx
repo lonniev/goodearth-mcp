@@ -57,24 +57,24 @@ export default function SpeciesCard({
   return (
     <div className="mt-1.5 rounded-md border border-rule border-l-4 border-l-growth bg-panel px-3.5 py-3">
       <div className="flex flex-wrap items-baseline gap-2">
-        <b className="figure text-[15px]">{info?.commonName ?? fallbackName}</b>
+        <b className="figure text-[0.9375rem]">{info?.commonName ?? fallbackName}</b>
         {info?.scientificName && (
-          <i className="text-[12px] text-ink-soft">{info.scientificName}</i>
+          <i className="text-[0.75rem] text-ink-soft">{info.scientificName}</i>
         )}
         {info?.kingdom && (
-          <span className="data rounded-full border border-rule px-2 py-0.5 text-[10.5px] text-ink-soft">
+          <span className="data rounded-full border border-rule px-2 py-0.5 text-[0.65625rem] text-ink-soft">
             {info.rank && info.rank !== "species" ? `${info.rank} · ` : ""}
             {info.kingdom}
           </span>
         )}
         <button onClick={onClose} aria-label="Close"
-          className="ml-auto inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-ink">
+          className="ml-auto inline-flex h-11 w-11 items-center justify-center text-[1.125rem] text-ink-soft active:text-ink">
           ×
         </button>
       </div>
 
-      {err && <p className="mt-1 text-[12.5px] text-clay">{err}</p>}
-      {busy && !err && <p className="data mt-1 text-[11px] text-ink-soft">Reading…</p>}
+      {err && <p className="mt-1 text-[0.78125rem] text-clay">{err}</p>}
+      {busy && !err && <p className="data mt-1 text-[0.6875rem] text-ink-soft">Reading…</p>}
 
       {info && (
         <>
@@ -86,11 +86,11 @@ export default function SpeciesCard({
             <div className="min-w-0 flex-1">
               {/* The lineage is the answer to "which box elder is this". */}
               {info.lineage.length > 0 && (
-                <p className="data text-[10.5px] leading-relaxed text-ink-soft">
+                <p className="data text-[0.65625rem] leading-relaxed text-ink-soft">
                   {info.lineage.join(" › ")}
                 </p>
               )}
-              <p className="mt-1 data text-[10.5px] text-ink-soft">
+              <p className="mt-1 data text-[0.65625rem] text-ink-soft">
                 <Term
                   label={nearby != null
                     ? `${nearby.toLocaleString()} near here`
@@ -104,28 +104,28 @@ export default function SpeciesCard({
           </div>
 
           {info.summary && (
-            <p className="mt-2 text-[12.5px] leading-relaxed">{info.summary}</p>
+            <p className="mt-2 text-[0.78125rem] leading-relaxed">{info.summary}</p>
           )}
 
           <div className="mt-2.5 flex flex-wrap items-center gap-2">
             {onToggle && <button onClick={onToggle}
-              className={`min-h-11 rounded-full border px-4 text-[12.5px] font-semibold ${
+              className={`min-h-11 rounded-full border px-4 text-[0.78125rem] font-semibold ${
                 chosen ? "border-ink bg-ink text-paper" : "border-ink"}`}>
               {chosen ? "Chosen — tap to drop" : "Choose this one"}
             </button>}
             <a href={info.inatUrl} target="_blank" rel="noreferrer"
-              className="text-[12px] underline decoration-dotted underline-offset-2 text-ink-soft">
+              className="text-[0.75rem] underline decoration-dotted underline-offset-2 text-ink-soft">
               iNaturalist
             </a>
             {info.wikipediaUrl && (
               <a href={info.wikipediaUrl} target="_blank" rel="noreferrer"
-                className="text-[12px] underline decoration-dotted underline-offset-2 text-ink-soft">
+                className="text-[0.75rem] underline decoration-dotted underline-offset-2 text-ink-soft">
                 Wikipedia
               </a>
             )}
           </div>
           {info.photoBy && (
-            <p className="data mt-1.5 text-[10px] text-ink-soft">{info.photoBy}</p>
+            <p className="data mt-1.5 text-[0.625rem] text-ink-soft">{info.photoBy}</p>
           )}
         </>
       )}

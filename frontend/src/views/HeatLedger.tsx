@@ -271,7 +271,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
           the ground, so neither is repeated here. What is left is the two
           dials a grower actually set, and the way to the sources. */}
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1.5">
-        <h1 className="figure text-[22px] font-bold leading-none">Dashboard</h1>
+        <h1 className="figure text-[1.375rem] font-bold leading-none">Dashboard</h1>
         {data && (
           <div className="flex flex-wrap items-center gap-1.5" {...tour("ledger.chips")}>
             <Tag>base {u.showTemp(data.base_temp_f)}</Tag>
@@ -280,7 +280,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
               <Tag>{data.region.sample_count} samples · {Math.round(data.region.grid_spacing_m)} m</Tag>
             )}
             <button onClick={() => onView?.("references")}
-              className="data rounded-full border border-rule px-2.5 py-1 text-[10px] text-ink-soft active:bg-band">
+              className="data rounded-full border border-rule px-2.5 py-1 text-[0.625rem] text-ink-soft active:bg-band">
               sources ↗
             </button>
           </div>
@@ -288,7 +288,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-md border border-clay/30 bg-clay/10 p-3 text-[13px] text-clay">
+        <div className="mb-4 rounded-md border border-clay/30 bg-clay/10 p-3 text-[0.8125rem] text-clay">
           {error}
           <button onClick={run} className="ml-3 underline">Try again</button>
         </div>
@@ -367,21 +367,21 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
       <div className="mb-2.5 flex flex-wrap items-center gap-2">
         <button onClick={() => setShowGround((v) => !v)} {...tour("ledger.ground")}
           title="Ghost your ground's satellite still behind the curve"
-          className={`min-h-11 rounded-full border px-3.5 text-[12px] font-medium ${
+          className={`min-h-11 rounded-full border px-3.5 text-[0.75rem] font-medium ${
             showGround ? "border-ink bg-ink text-paper" : "border-rule text-ink-soft active:bg-band"}`}>
           🛰️ Ground
         </button>
         {flags.length > 0 && (
           <button onClick={() => setShowFlags((v) => !v)} {...tour("ledger.events")}
             title="Your crops, pests and watches, placed where they meet this curve"
-            className={`min-h-11 rounded-full border px-3.5 text-[12px] font-medium ${
+            className={`min-h-11 rounded-full border px-3.5 text-[0.75rem] font-medium ${
               showFlags ? "border-ink bg-ink text-paper" : "border-rule text-ink-soft active:bg-band"}`}>
             🔔 Events
           </button>
         )}
         <button onClick={cycleWeather} disabled={wxBusy} {...tour("ledger.weather")}
           title="Tap to cycle a weather reading behind the curve; tap past the last to clear it"
-          className={`min-h-11 rounded-full border px-3.5 text-[12px] font-medium ${
+          className={`min-h-11 rounded-full border px-3.5 text-[0.75rem] font-medium ${
             wx > 0 ? "border-ink bg-ink text-paper" : "border-rule text-ink-soft active:bg-band"}`}>
           {wxBusy ? "…" : wx === 0 ? "🌦️ Weather" : `${WEATHER[wx - 1].emoji} ${WEATHER[wx - 1].label}`}
         </button>
@@ -390,9 +390,9 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
             <label className="flex items-center gap-1.5">
               <input type="search" value={find} onChange={(e) => onFind(e.target.value)}
                 placeholder="find an event" aria-label="Find an event on the chart"
-                className={`h-9 w-44 rounded-full border bg-white px-3 text-[13px] focus:outline-none ${
+                className={`h-9 w-44 rounded-full border bg-white px-3 text-[0.8125rem] focus:outline-none ${
                   findMiss ? "border-clay" : "border-rule focus:border-honey"}`} />
-              {findMiss && <span className="data text-[10.5px] text-clay">no match</span>}
+              {findMiss && <span className="data text-[0.65625rem] text-clay">no match</span>}
             </label>
           )}
           {almanacAt && (
@@ -420,7 +420,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
           re-declared inside each block, guarded by which blocks came before
           it; one heading shown when any trend is, is the same thing plainly. */}
       {(frost || soil || dryLine || sick) && (
-        <h2 className="figure mt-6 mb-1 text-[18px] font-semibold" {...tour("ledger.trends")}>
+        <h2 className="figure mt-6 mb-1 text-[1.125rem] font-semibold" {...tour("ledger.trends")}>
           <span className="mr-0.5">🔔</span>Trends
         </h2>
       )}
@@ -452,7 +452,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
             <Provenance tool="goodearth_drying_window" at={dryingAt} onCost={onCost} from={readingTime(drying)} />
           </TrendLabel>
           <div className="mb-3 rounded-md border border-rule bg-panel px-3 pt-2.5 pb-3">
-            <p className="mb-2.5 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[12.5px] text-ink-soft">
+            <p className="mb-2.5 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[0.78125rem] text-ink-soft">
               <span>{dryLine}</span>
               <Term of="drying" />
             </p>
@@ -467,7 +467,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
             <Provenance tool="goodearth_water_balance" at={waterAt} onCost={onCost} from={readingTime(water)} />
           </TrendLabel>
           <div className="mb-3 rounded-md border border-rule bg-panel px-3 pt-2.5 pb-3">
-            <p className="mb-2.5 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[12.5px] text-ink-soft">
+            <p className="mb-2.5 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[0.78125rem] text-ink-soft">
               <span>{waterLine(water, u.unit)}</span>
               <Term of="water" />
             </p>
@@ -492,7 +492,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
         <EventDetail flag={openFlag} curve={data} onClose={() => setOpenFlag(null)} />
       )}
 
-      <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold" {...tour("ledger.doors")}>🧭 More Views</h2>
+      <h2 className="figure mt-7 mb-2.5 text-[1.125rem] font-semibold" {...tour("ledger.doors")}>🧭 More Views</h2>
       <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
         {[
           { to: "almanac" as const, emoji: "🌤️", title: "Almanac",
@@ -510,10 +510,10 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
         ].map((c) => (
           <button key={c.to} onClick={() => onView?.(c.to)}
             className="rounded-md border border-rule bg-panel px-3.5 py-3 text-left active:border-ink">
-            <div className="figure text-[14.5px] font-semibold">
+            <div className="figure text-[0.90625rem] font-semibold">
               <span className="mr-1.5">{c.emoji}</span>{c.title}
             </div>
-            <p className="mt-0.5 text-[12.5px] leading-snug text-ink-soft">{c.line}</p>
+            <p className="mt-0.5 text-[0.78125rem] leading-snug text-ink-soft">{c.line}</p>
           </button>
         ))}
       </div>
@@ -523,7 +523,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
 
 function Tag({ children }: { children: ReactNode }) {
   return (
-    <span className="data rounded-full bg-band px-2.5 py-1 text-[10px] text-ink-soft">{children}</span>
+    <span className="data rounded-full bg-band px-2.5 py-1 text-[0.625rem] text-ink-soft">{children}</span>
   );
 }
 
@@ -533,7 +533,7 @@ function TrendLabel({ emoji, label, children }: {
 }) {
   return (
     <div className="mt-4 mb-1.5 flex items-baseline gap-2.5">
-      <h3 className="figure text-[15px] font-semibold">
+      <h3 className="figure text-[0.9375rem] font-semibold">
         <span className="mr-1" aria-hidden="true">{emoji}</span>{label}
       </h3>
       <span className="ml-auto">{children}</span>

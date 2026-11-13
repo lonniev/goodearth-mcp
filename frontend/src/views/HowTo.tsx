@@ -41,7 +41,7 @@ export default function HowTo({ page, onView }: {
     <article>
       <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="figure mb-1 text-[24px] font-bold">
+          <h1 className="figure mb-1 text-[1.5rem] font-bold">
             <span className="mr-1.5" aria-hidden="true">{meta.emoji}</span>
             How {meta.title} works
           </h1>
@@ -58,28 +58,28 @@ export default function HowTo({ page, onView }: {
       </div>
 
       <Claim>{g.claim}</Claim>
-      <div className="space-y-3 text-[13.5px] leading-relaxed">{g.phenomenon}</div>
+      <div className="space-y-3 text-[0.84375rem] leading-relaxed">{g.phenomenon}</div>
       {g.facts && <Facts items={g.facts} />}
 
       {/* ── Using the page ───────────────────────────────────────────── */}
-      <h2 className="figure mt-7 mb-1 text-[18px] font-semibold">
+      <h2 className="figure mt-7 mb-1 text-[1.125rem] font-semibold">
         <span className="mr-0.5">🧭</span>Using the page
       </h2>
-      <p className="mb-3 text-[12.5px] text-ink-soft">
+      <p className="mb-3 text-[0.78125rem] text-ink-soft">
         The control on the left, what it does on the right. Everything saved
         goes to your record under your npub, so the phone and the laptop show
         the same ground.
       </p>
       {g.using.map((u) => (
         <section key={u.heading} className="mb-4">
-          <h3 className="figure mb-1.5 text-[15px] font-semibold">
+          <h3 className="figure mb-1.5 text-[0.9375rem] font-semibold">
             <span className="mr-1" aria-hidden="true">{u.emoji}</span>{u.heading}
           </h3>
           <dl className="divide-y divide-rule rounded-md border border-rule bg-panel">
             {u.steps.map(([control, does], i) => (
               <div key={i} className="grid gap-x-4 gap-y-1 px-3.5 py-2.5 sm:grid-cols-[11rem_1fr]">
-                <dt className="text-[13px] font-semibold">{control}</dt>
-                <dd className="text-[13px] leading-relaxed text-ink">{does}</dd>
+                <dt className="text-[0.8125rem] font-semibold">{control}</dt>
+                <dd className="text-[0.8125rem] leading-relaxed text-ink">{does}</dd>
               </div>
             ))}
           </dl>
@@ -87,29 +87,29 @@ export default function HowTo({ page, onView }: {
       ))}
 
       {/* ── From an agent ────────────────────────────────────────────── */}
-      <h2 className="figure mt-7 mb-1 text-[18px] font-semibold">
+      <h2 className="figure mt-7 mb-1 text-[1.125rem] font-semibold">
         <span className="mr-0.5">🤖</span>From an agent
       </h2>
-      <p className="mb-3 text-[13.5px] leading-relaxed">{g.agent.lead}</p>
+      <p className="mb-3 text-[0.84375rem] leading-relaxed">{g.agent.lead}</p>
       <div className="rounded-md border border-rule border-l-4 border-l-honey bg-panel px-4 py-3">
         <p className="eyebrow">You say</p>
-        <p className="mt-1 text-[13.5px] italic leading-relaxed">“{g.agent.say}”</p>
+        <p className="mt-1 text-[0.84375rem] italic leading-relaxed">“{g.agent.say}”</p>
         <p className="eyebrow mt-3">The agent</p>
-        <p className="mt-1 text-[13.5px] leading-relaxed">{g.agent.does}</p>
+        <p className="mt-1 text-[0.84375rem] leading-relaxed">{g.agent.does}</p>
         <p className="mt-2.5 flex flex-wrap gap-1.5">
           {g.agent.tools.map((t) => (
-            <code key={t} className="data rounded-full border border-rule bg-paper px-2 py-0.5 text-[10.5px]">
+            <code key={t} className="data rounded-full border border-rule bg-paper px-2 py-0.5 text-[0.65625rem]">
               {t}
             </code>
           ))}
         </p>
       </div>
-      <p className="mt-3 text-[12.5px] leading-relaxed text-ink-soft">
+      <p className="mt-3 text-[0.78125rem] leading-relaxed text-ink-soft">
         The share button beside the (?) in the top bar shows this page's
         table — braces copy it as JSON for an agent, the two pages copy it as
         text for a note or a mail.
       </p>
-      <p className="mt-3 text-[12.5px] leading-relaxed text-ink-soft">
+      <p className="mt-3 text-[0.78125rem] leading-relaxed text-ink-soft">
         Connecting is on the About page: the MCP endpoint goes into Claude.ai
         or Claude Desktop under Connectors, and the first call asks for your
         npub and a Nostr reply to prove it. The same record answers either way

@@ -379,28 +379,28 @@ export default function EventComposer({
               className={FIELD} />
             {open && !animal && (
               <div className="mt-1 max-h-64 overflow-y-auto rounded-md border border-rule bg-paper">
-                {catBusy && <p className="px-3 py-2 text-[12px] text-ink-soft">Reading what is recorded here…</p>}
+                {catBusy && <p className="px-3 py-2 text-[0.75rem] text-ink-soft">Reading what is recorded here…</p>}
                 {shown.map((p) => (
                   <button key={p.name} type="button"
                     onClick={() => { setAnimal(p); setSupersedes([]); setOpen(false); setQ(""); }}
                     className="flex w-full items-center gap-2.5 border-b border-rule px-2.5 py-2 text-left last:border-b-0 active:bg-band">
                     <SpeciesMark emoji={p.emoji} photo={p.photo ?? photos?.get(p.name)} />
                     <span className="min-w-0 flex-1 leading-tight">
-                      <b className="block truncate text-[13px]">{p.name}</b>
+                      <b className="block truncate text-[0.8125rem]">{p.name}</b>
                       {p.scientificName && (
-                        <i className="block truncate text-[11px] text-ink-soft">{p.scientificName}</i>
+                        <i className="block truncate text-[0.6875rem] text-ink-soft">{p.scientificName}</i>
                       )}
                       {/* Why a red-tailed hawk answers "chicken": the name that
                           matched, when it is not one already on the row. */}
                       {p.matched
                         && !`${p.name} ${p.scientificName ?? ""}`.toLowerCase()
                           .includes(p.matched.toLowerCase()) && (
-                        <span className="data block truncate text-[10.5px] text-ink-soft">
+                        <span className="data block truncate text-[0.65625rem] text-ink-soft">
                           matched “{p.matched}”
                         </span>
                       )}
                     </span>
-                    <span className="data shrink-0 text-right text-[10.5px] text-ink-soft">
+                    <span className="data shrink-0 text-right text-[0.65625rem] text-ink-soft">
                       {/* Something the grower already tracks has no sighting
                           count of its own — nobody submits observations of a
                           laying flock — and "0 nearby" about it would be
@@ -416,10 +416,10 @@ export default function EventComposer({
                   </button>
                 ))}
                 {finding && !shown.length && (
-                  <p className="px-3 py-2 text-[12px] text-ink-soft">Looking…</p>
+                  <p className="px-3 py-2 text-[0.75rem] text-ink-soft">Looking…</p>
                 )}
                 {findError && (
-                  <p className="px-3 py-2 text-[12px] text-clay">
+                  <p className="px-3 py-2 text-[0.75rem] text-clay">
                     iNaturalist could not be searched just now ({findError}) — these
                     are only the animals recorded near here.
                   </p>
@@ -427,7 +427,7 @@ export default function EventComposer({
                 {!catBusy && !finding && !listed(shown, q) && (
                   <button type="button"
                     onClick={() => { setAnimal({ name: q.trim() }); setOpen(false); }}
-                    className="w-full px-3 py-2.5 text-left text-[13px]">
+                    className="w-full px-3 py-2.5 text-left text-[0.8125rem]">
                     {/* The escape hatch, and it stays open under a full list. A
                         search of everything finds something for nearly any word,
                         and a grower whose flock is "Layers" must not have to pick
@@ -436,7 +436,7 @@ export default function EventComposer({
                   </button>
                 )}
                 {!catBusy && !finding && !shown.length && !q.trim() && (
-                  <p className="px-3 py-2 text-[12px] text-ink-soft">
+                  <p className="px-3 py-2 text-[0.75rem] text-ink-soft">
                     Type a name to search for an animal.
                   </p>
                 )}
@@ -485,12 +485,12 @@ export default function EventComposer({
           >
             <div className="flex items-start gap-3">
               {animal && <SpeciesMark emoji={animal.emoji} photo={animal.photo ?? photos?.get(animal.name)} />}
-              <h2 className="figure min-w-0 flex-1 text-[20px] font-semibold leading-tight">
+              <h2 className="figure min-w-0 flex-1 text-[1.25rem] font-semibold leading-tight">
                 {animal?.name || "Which animal?"}
                 {label.trim() && <span className="text-ink-soft"> · {label.trim()}</span>}
               </h2>
               <button type="button" onClick={() => onComposing(false)} aria-label="Close"
-                className="-mt-1 -mr-1 flex h-11 w-11 shrink-0 items-center justify-center rounded text-[20px] text-ink-soft active:bg-band">
+                className="-mt-1 -mr-1 flex h-11 w-11 shrink-0 items-center justify-center rounded text-[1.25rem] text-ink-soft active:bg-band">
                 ×
               </button>
             </div>
@@ -502,7 +502,7 @@ export default function EventComposer({
                   </Pill>
                 ))}
                 <button type="button" onClick={reset}
-                  className="ml-auto min-h-11 text-[12px] text-ink-soft underline">
+                  className="ml-auto min-h-11 text-[0.75rem] text-ink-soft underline">
                   start over
                 </button>
               </div>
@@ -512,7 +512,7 @@ export default function EventComposer({
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {[...new Set([...habits, ...mine])].slice(0, 12).map((h) => (
                   <button key={h} type="button" onClick={() => setLabel(h)}
-                    className="min-h-11 rounded-full border border-rule bg-paper px-3.5 text-[12px] active:border-ink">
+                    className="min-h-11 rounded-full border border-rule bg-paper px-3.5 text-[0.75rem] active:border-ink">
                     {h}
                   </button>
                 ))}
@@ -531,13 +531,13 @@ export default function EventComposer({
                 </Pill>
               ))}
             </div>
-            <p className="mt-1.5 text-[12px] text-ink-soft">{HELP[driver]}</p>
+            <p className="mt-1.5 text-[0.75rem] text-ink-soft">{HELP[driver]}</p>
 
             {/* ── The clock's own question ───────────────────────────────── */}
             <div className="mt-3 grid gap-3 sm:grid-cols-2" {...tour("wildlife.figures")}>
               {driver === "interval" && (
                 <>
-                  <label className="block text-[11px] text-ink-soft">
+                  <label className="block text-[0.6875rem] text-ink-soft">
                     The day it happened
                     <input type="date" value={startOn} max={today()}
                       onChange={(e) => setStartOn(e.target.value)} className={FIELD} />
@@ -546,7 +546,7 @@ export default function EventComposer({
                     <span className="eyebrow">And then, counting from that day</span>
                     {steps.map((s, i) => (
                       <div key={i} className="mt-1.5 grid gap-2 sm:grid-cols-[1fr_auto]">
-                        <label className="block text-[11px] text-ink-soft">
+                        <label className="block text-[0.6875rem] text-ink-soft">
                           What follows
                           <input value={s.label} placeholder="eggs hatch" className={FIELD}
                             list="goodearth-labels"
@@ -588,14 +588,14 @@ export default function EventComposer({
 
               {driver === "daylight" && (
                 <>
-                  <label className="block text-[11px] text-ink-soft sm:col-span-2">
+                  <label className="block text-[0.6875rem] text-ink-soft sm:col-span-2">
                     Day length — {typeof hours === "number" ? hours.toFixed(1) : "—"} h
                     <input type="range" min={daylight ? Math.floor(daylight.low * 10) / 10 : 8}
                       max={daylight ? Math.ceil(daylight.high * 10) / 10 : 16}
                       step={0.1} value={hours === "" ? 12 : hours}
                       onChange={(e) => setHours(Number(e.target.value))}
                       className="mt-1.5 w-full accent-honey" />
-                    <span className="data mt-0.5 block text-[10.5px] text-ink-soft">
+                    <span className="data mt-0.5 block text-[0.65625rem] text-ink-soft">
                       {daylight
                         ? `${region.name} runs ${daylight.low.toFixed(1)}–${daylight.high.toFixed(1)} h this season`
                         : "reading this block's day length…"}
@@ -614,7 +614,7 @@ export default function EventComposer({
                     onChange={setGdd} />
                   <Stepper label={`Base${u.tempUnit}`} value={base} min={Math.round(u.temp(20))}
                     max={Math.round(u.temp(80))} onChange={setBase} />
-                  <p className="data text-[11px] text-ink-soft sm:col-span-2">
+                  <p className="data text-[0.6875rem] text-ink-soft sm:col-span-2">
                     {curve?.accumulated_gdd
                       ? `${region.name} has ${Math.round(u.degreeDays(curve.accumulated_gdd.mean)).toLocaleString()} `
                         + `${u.ddUnit.trim()} on the season so far.`
@@ -671,9 +671,9 @@ export default function EventComposer({
               * draft is valid, so they render then and take no room before.
               */}
             {ready && (previewBusy || (preview && !stale)) && (
-              <div className="mt-3 text-[13px]">
+              <div className="mt-3 text-[0.8125rem]">
                 {previewBusy ? (
-                  <p className="text-[12.5px] text-ink-soft">Working out the dates…</p>
+                  <p className="text-[0.78125rem] text-ink-soft">Working out the dates…</p>
                 ) : (
                   <ul className="space-y-1">
                     {preview!.events.map((e) => {
@@ -683,18 +683,18 @@ export default function EventComposer({
                           <b>{e.event}</b>{" — "}
                           {when ? day(when) : "not this season"}
                           {e.window && (
-                            <span className="data text-[11px] text-ink-soft">
+                            <span className="data text-[0.6875rem] text-ink-soft">
                               {" "}({day(e.window.from)}–{day(e.window.to)})
                             </span>
                           )}
                           {e.days_away != null && (
-                            <span className="data text-[11px] text-ink-soft"> · in {e.days_away} days</span>
+                            <span className="data text-[0.6875rem] text-ink-soft"> · in {e.days_away} days</span>
                           )}
                         </li>
                       );
                     })}
                     {preview!.events.length === 0 && (
-                      <li className="text-[12.5px] text-ink-soft">
+                      <li className="text-[0.78125rem] text-ink-soft">
                         Nothing to date from this yet — it is recorded all the same.
                       </li>
                     )}
@@ -702,7 +702,7 @@ export default function EventComposer({
                 )}
                 {previewAt && !stale && (
                   <>
-                    <p className="data mt-1 text-[10.5px] text-ink-soft">
+                    <p className="data mt-1 text-[0.65625rem] text-ink-soft">
                       Good Earth worked these out on your ground, not this browser.
                     </p>
                     {/* The preview is a paid read like any other, so it says so and
@@ -733,16 +733,16 @@ export default function EventComposer({
                   messages worth showing are the ones a glance does not answer: a
                   count that will not parse, a day that is not a day. */}
               {!ready && !obvious && (
-                <span className="text-[12px] text-ink-soft">{rows as string}</span>
+                <span className="text-[0.75rem] text-ink-soft">{rows as string}</span>
               )}
               {supersedes.length > 0 && (
-                <span className="data text-[11px] text-ink-soft">
+                <span className="data text-[0.6875rem] text-ink-soft">
                   The previous {supersedes.length}-row cycle is kept as history and
                   comes off the calendar.
                 </span>
               )}
               {ready && (
-                <span className="data text-[11px] text-ink-soft">
+                <span className="data text-[0.6875rem] text-ink-soft">
                   {(rows as SavedWildlife[]).length} row
                   {(rows as SavedWildlife[]).length === 1 ? "" : "s"}, one write
                 </span>

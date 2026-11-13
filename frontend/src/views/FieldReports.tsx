@@ -256,7 +256,7 @@ export default function FieldReports({
 
   return (
     <>
-      <h1 className="figure mb-3.5 text-[22px] font-bold">Field Reports</h1>
+      <h1 className="figure mb-3.5 text-[1.375rem] font-bold">Field Reports</h1>
 
       {/* ── File one ───────────────────────────────────────────────────── */}
       <AddPanel label="New observation" open={addOpen} onOpen={setAddOpen}>
@@ -269,7 +269,7 @@ export default function FieldReports({
           <span className="flex flex-wrap items-center gap-1.5" {...tour("reports.tags")}>
           {TAGS.filter((t) => t.pick !== false).map((t) => (
             <button key={t.key} type="button" onClick={() => setTag(t.key)}
-              className={`min-h-11 rounded-full border px-4 text-[13px] font-medium ${
+              className={`min-h-11 rounded-full border px-4 text-[0.8125rem] font-medium ${
                 tag === t.key ? "border-ink bg-ink text-paper" : "border-rule active:bg-band"}`}>
               {t.label}
             </button>
@@ -279,27 +279,27 @@ export default function FieldReports({
             value={TAGS.some((t) => t.key === tag) ? "" : tag}
             onChange={(e) => setTag(e.target.value)}
             placeholder="or type what you saw" {...tour("reports.custom")}
-            className="h-11 min-w-[12rem] flex-1 rounded-full border border-rule bg-white px-4 text-[13px] focus:border-honey focus:outline-none"
+            className="h-11 min-w-[12rem] flex-1 rounded-full border border-rule bg-white px-4 text-[0.8125rem] focus:border-honey focus:outline-none"
           />
         </div>
 
         <div className="mt-3 flex flex-wrap items-end gap-3">
           <div className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="block text-[11px] text-ink-soft" {...tour("reports.on")}>Seen on
+          <label className="block text-[0.6875rem] text-ink-soft" {...tour("reports.on")}>Seen on
             <input name="on" type="date" defaultValue={today()}
               className={FIELD} /></label>
 
           {needsCrop && (
-            <label className="block text-[11px] text-ink-soft" {...tour("reports.crop")}>Crop
+            <label className="block text-[0.6875rem] text-ink-soft" {...tour("reports.crop")}>Crop
               <input name="crop" placeholder="Dahlia"
                 className={FIELD} /></label>
           )}
           {calibrating && (
             <>
-              <label className="block text-[11px] text-ink-soft" {...tour("reports.setout")}>Set out
+              <label className="block text-[0.6875rem] text-ink-soft" {...tour("reports.setout")}>Set out
                 <input name="setout" type="date"
                   className={FIELD} /></label>
-              <label className="block text-[11px] text-ink-soft" {...tour("reports.target")}>Expected at (GDD)
+              <label className="block text-[0.6875rem] text-ink-soft" {...tour("reports.target")}>Expected at (GDD)
                 <input name="target" inputMode="numeric" placeholder="1200"
                   className={FIELD} /></label>
             </>
@@ -307,14 +307,14 @@ export default function FieldReports({
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
             <button title="Add observation" disabled={submit.busy} {...tour("reports.add")}
-              className="flex min-h-11 items-center gap-1.5 rounded-full border-[1.5px] border-ink bg-ink px-3.5 text-[12.5px] font-semibold text-paper disabled:opacity-40">
+              className="flex min-h-11 items-center gap-1.5 rounded-full border-[1.5px] border-ink bg-ink px-3.5 text-[0.78125rem] font-semibold text-paper disabled:opacity-40">
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
                 <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
               </svg>
               Observation
             </button>
             <button type="button" onClick={pin} title="Use my location" {...tour("reports.here")}
-              className={`flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-[12.5px] ${
+              className={`flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-[0.78125rem] ${
                 here ? "border-growth/50 bg-growth/8" : "border-rule text-ink-soft active:bg-band"}`}>
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
                 <path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z" />
@@ -324,16 +324,16 @@ export default function FieldReports({
           </div>
         </div>
 
-        <label className="mt-3 block text-[11px] text-ink-soft">Note
+        <label className="mt-3 block text-[0.6875rem] text-ink-soft">Note
           <textarea name="note" rows={2} placeholder="Patchy in the hollow, bench untouched"
-            className="mt-0.5 w-full rounded border border-rule bg-white px-2.5 py-2 text-[16px] focus:border-honey focus:outline-none" /></label>
+            className="mt-0.5 w-full rounded border border-rule bg-white px-2.5 py-2 text-[1rem] focus:border-honey focus:outline-none" /></label>
 
-        {msg && <p className="mt-2 text-[12.5px] text-ink-soft">{msg}</p>}
+        {msg && <p className="mt-2 text-[0.78125rem] text-ink-soft">{msg}</p>}
       </form>
       </AddPanel>
 
       {/* ── Your observations ────────────────────────────────────────── */}
-      <h2 className="figure mb-2.5 flex items-baseline gap-2.5 text-[18px] font-semibold">
+      <h2 className="figure mb-2.5 flex items-baseline gap-2.5 text-[1.125rem] font-semibold">
         Your Observations
         {usable > 0 && <Provenance tool="goodearth_calibration" at={ranAt} onCost={onCost} />}
       </h2>
@@ -345,7 +345,7 @@ export default function FieldReports({
           <Bias title="Heat" s={cal.heat} unit="%" />
           <Bias title="First frost" s={cal.first_frost} unit=" days" />
           {Object.keys(cal.corrections).length > 0 && (
-            <p className="sm:col-span-2 rounded-md border border-rule border-l-4 border-l-growth bg-panel px-3.5 py-2.5 text-[13px]">
+            <p className="sm:col-span-2 rounded-md border border-rule border-l-4 border-l-growth bg-panel px-3.5 py-2.5 text-[0.8125rem]">
               Applied to your ground:{" "}
               {cal.corrections.heat_multiplier != null && (
                 <b>heat × {cal.corrections.heat_multiplier}</b>
@@ -359,21 +359,21 @@ export default function FieldReports({
           )}
         </div>
       ) : (
-        <div className="rounded-md border border-dashed border-rule bg-panel/60 p-5 text-[13px] leading-relaxed text-ink-soft">
+        <div className="rounded-md border border-dashed border-rule bg-panel/60 p-5 text-[0.8125rem] leading-relaxed text-ink-soft">
           Nothing yet.
         </div>
       )}
 
-      {err && <p className="mt-3 rounded-md border border-clay/30 bg-clay/10 p-3 text-[13px] text-clay">{err}</p>}
+      {err && <p className="mt-3 rounded-md border border-clay/30 bg-clay/10 p-3 text-[0.8125rem] text-clay">{err}</p>}
 
 
       {/* ── Import ─────────────────────────────────────────────────────── */}
-      <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold">🔭 Import from iNaturalist</h2>
+      <h2 className="figure mt-7 mb-2.5 text-[1.125rem] font-semibold">🔭 Import from iNaturalist</h2>
       <div className="rounded-md border border-rule bg-panel p-4" {...tour("reports.inat")}>
         <div className="flex flex-wrap items-end gap-2">
           {/* A div, not a label element: the suggestions below are buttons, and a
               tap inside a label can be handed to its input instead. */}
-          <div className="relative block flex-1 text-[11px] text-ink-soft" style={{ minWidth: 180 }}>
+          <div className="relative block flex-1 text-[0.6875rem] text-ink-soft" style={{ minWidth: 180 }}>
             iNaturalist handle <span className="opacity-60">(not your email)</span>
             {/* `autoComplete="off"` and a name that says nothing about email,
                 because the browser will otherwise offer one — and iNaturalist
@@ -390,9 +390,9 @@ export default function FieldReports({
                   <button key={h.login} type="button"
                     onClick={() => { setInatUser(h.login); setHandles([]); }}
                     className="flex w-full items-center gap-2 border-b border-rule px-2.5 py-2 text-left last:border-b-0 active:bg-band">
-                    <b className="text-[13px] text-ink">{h.login}</b>
-                    {h.name && <span className="truncate text-[11px]">{h.name}</span>}
-                    <span className="data ml-auto shrink-0 text-[10.5px]">
+                    <b className="text-[0.8125rem] text-ink">{h.login}</b>
+                    {h.name && <span className="truncate text-[0.6875rem]">{h.name}</span>}
+                    <span className="data ml-auto shrink-0 text-[0.65625rem]">
                       {h.observations.toLocaleString()}
                     </span>
                   </button>
@@ -407,7 +407,7 @@ export default function FieldReports({
           <IconButton path={ICON.search} label={inatBusy ? "Searching…" : "Search"}
             onClick={pullINat} disabled={inatBusy || !inatUser.trim()} />
         </div>
-        <p className="mt-2 text-[12px] leading-relaxed text-ink-soft">
+        <p className="mt-2 text-[0.75rem] leading-relaxed text-ink-soft">
           iNaturalist observations that are within the current boundaries.
         </p>
 
@@ -424,16 +424,16 @@ export default function FieldReports({
                       return n;
                     })}
                     className="h-5 w-5 shrink-0 accent-[color:var(--color-growth)]" />
-                  <span className="min-w-0 flex-1 text-[13px]">
+                  <span className="min-w-0 flex-1 text-[0.8125rem]">
                     {o.species}
-                    {o.flowering && <span className="ml-1.5 rounded-full bg-growth/12 px-2 py-0.5 text-[10.5px] font-semibold text-growth">flowering</span>}
-                    <span className="data ml-2 text-[11px] text-ink-soft">{o.observed_on}</span>
+                    {o.flowering && <span className="ml-1.5 rounded-full bg-growth/12 px-2 py-0.5 text-[0.65625rem] font-semibold text-growth">flowering</span>}
+                    <span className="data ml-2 text-[0.6875rem] text-ink-soft">{o.observed_on}</span>
                   </span>
                 </label>
               ))}
             </div>
             <button onClick={importPicked}
-              className="mt-3 min-h-11 rounded border-[1.5px] border-ink bg-ink px-5 text-[13px] font-semibold text-paper">
+              className="mt-3 min-h-11 rounded border-[1.5px] border-ink bg-ink px-5 text-[0.8125rem] font-semibold text-paper">
               Import {picked.size} selected
             </button>
           </>
@@ -452,8 +452,8 @@ export default function FieldReports({
       )}
       {reports.length > 0 && (
         <>
-          <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold" {...tour("reports.log")}>
-            Log <span className="text-[13px] font-normal text-ink-soft">
+          <h2 className="figure mt-7 mb-2.5 text-[1.125rem] font-semibold" {...tour("reports.log")}>
+            Log <span className="text-[0.8125rem] font-normal text-ink-soft">
               {reports.length} report{reports.length === 1 ? "" : "s"} · {usable} teaching the model
             </span>
           </h2>
@@ -463,21 +463,21 @@ export default function FieldReports({
               return (
                 <li key={r.id} className="flex items-start gap-3 rounded-md border border-rule bg-panel px-3.5 py-2.5">
                   <div className="min-w-0 flex-1">
-                    <span className="text-[13px] font-semibold">{t?.label}</span>
-                    {r.crop && <span className="text-[13px]"> · {r.crop}</span>}
+                    <span className="text-[0.8125rem] font-semibold">{t?.label}</span>
+                    {r.crop && <span className="text-[0.8125rem]"> · {r.crop}</span>}
                     {r.amount != null && (
-                      <span className="text-[13px]"> · {r.amount}{r.unit ? ` ${r.unit}` : ""}</span>
+                      <span className="text-[0.8125rem]"> · {r.amount}{r.unit ? ` ${r.unit}` : ""}</span>
                     )}
-                    <span className="data ml-2 text-[11px] text-ink-soft">{nice(r.observedOn)}</span>
+                    <span className="data ml-2 text-[0.6875rem] text-ink-soft">{nice(r.observedOn)}</span>
                     {reportsWaiting.has(r.id) && (
-                      <span className="ml-2 text-[10.5px] text-ink-soft">⇡ waiting for signal</span>
+                      <span className="ml-2 text-[0.65625rem] text-ink-soft">⇡ waiting for signal</span>
                     )}
                     {r.lat != null && (
-                      <span className="data ml-2 text-[10px] text-ink-soft">
+                      <span className="data ml-2 text-[0.625rem] text-ink-soft">
                         {r.lat.toFixed(4)}, {r.lng!.toFixed(4)}
                       </span>
                     )}
-                    {r.note && <p className="mt-0.5 text-[12.5px] text-ink-soft">{r.note}</p>}
+                    {r.note && <p className="mt-0.5 text-[0.78125rem] text-ink-soft">{r.note}</p>}
                   </div>
                   <button onClick={() => void retireReport(r.id)}
                     aria-label="Delete report" title="Remove"
@@ -505,18 +505,18 @@ function Bias({ title, s, unit }: {
       <div className="flex items-baseline gap-2">
         <span className="eyebrow">{title}</span>
         {s.confidence && (
-          <span className={`rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${
+          <span className={`rounded-full px-2 py-0.5 text-[0.65625rem] font-semibold ${
             CONFIDENCE[s.confidence] ?? "bg-band text-ink-soft"}`}>
             {s.confidence}
           </span>
         )}
       </div>
-      <div className={`figure mt-1 text-[24px] ${s.applicable ? "" : "opacity-45"}`}>
+      <div className={`figure mt-1 text-[1.5rem] ${s.applicable ? "" : "opacity-45"}`}>
         {pct == null ? "—" : `${pct > 0 ? "+" : ""}${Math.abs(pct) < 10 ? pct.toFixed(1) : pct.toFixed(0)}${unit}`}
       </div>
-      <p className="mt-1 text-[12.5px] leading-relaxed text-ink-soft">{s.reading}</p>
+      <p className="mt-1 text-[0.78125rem] leading-relaxed text-ink-soft">{s.reading}</p>
       {!!s.rejected_as_implausible && (
-        <p className="data mt-1 text-[10px] text-ink-soft">
+        <p className="data mt-1 text-[0.625rem] text-ink-soft">
           {s.rejected_as_implausible} set aside as implausible
         </p>
       )}

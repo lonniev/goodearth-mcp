@@ -89,10 +89,10 @@ export default function GestureHint({ isZoomed, children }: {
           onPointerUp={(e) => { e.stopPropagation(); setOpen(false); }}
           onClick={() => setOpen(false)}
           className="absolute inset-x-2 bottom-2 z-10 rounded-md border border-rule bg-paper/95 px-3 py-2 text-left shadow-lg">
-          <span className="data text-[11px] leading-relaxed text-ink">
+          <span className="data text-[0.6875rem] leading-relaxed text-ink">
             {gestureText(isZoomed)}
           </span>
-          <span className="data mt-0.5 block text-[10px] text-ink-soft">tap to dismiss</span>
+          <span className="data mt-0.5 block text-[0.625rem] text-ink-soft">tap to dismiss</span>
         </button>
       )}
     </div>

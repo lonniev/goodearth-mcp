@@ -27,13 +27,13 @@ export default function Preferences({
           not a dark mode. "Follow the season" is the default because a farm
           calendar that did not would be a strange thing. */}
       <div {...tour("account.season")}>
-        <div className="mb-1 text-[13.5px]">🍂 Season</div>
+        <div className="mb-1 text-[0.84375rem]">🍂 Season</div>
         <div className="flex flex-wrap gap-1.5">
           {(["follow", ...SEASONS] as ThemeChoice[]).map((s) => (
             <button
               key={s}
               onClick={() => onChange({ ...prefs, theme: s })}
-              className={`min-h-11 shrink-0 rounded-full border px-4 text-[12.5px] font-medium capitalize ${
+              className={`min-h-11 shrink-0 rounded-full border px-4 text-[0.78125rem] font-medium capitalize ${
                 prefs.theme === s
                   ? "border-ink bg-ink text-paper"
                   : "border-rule text-ink-soft active:bg-band"
@@ -49,13 +49,13 @@ export default function Preferences({
           not rewrite it — a threshold entered as 50 °F is still 50 °F, shown
           as 10 °C. */}
       <div {...tour("account.degrees")}>
-        <div className="mb-1 text-[13.5px]">🌡️ Degrees</div>
+        <div className="mb-1 text-[0.84375rem]">🌡️ Degrees</div>
         <div className="flex gap-1.5">
           {(["F", "C"] as Unit[]).map((u) => (
             <button
               key={u}
               onClick={() => onChange({ ...prefs, units: u })}
-              className={`min-h-11 shrink-0 rounded-full border px-4 text-[12.5px] font-medium ${
+              className={`min-h-11 shrink-0 rounded-full border px-4 text-[0.78125rem] font-medium ${
                 prefs.units === u
                   ? "border-ink bg-ink text-paper"
                   : "border-rule text-ink-soft active:bg-band"
@@ -73,8 +73,8 @@ export default function Preferences({
       <TimezonePicker
         label="🕐 Time zone"
         classNames={{
-          label: "mb-1 block text-[13.5px]",
-          select: "min-h-11 max-w-full rounded-full border border-rule bg-panel px-4 text-[12.5px] font-medium text-ink",
+          label: "mb-1 block text-[0.84375rem]",
+          select: "min-h-11 max-w-full rounded-full border border-rule bg-panel px-4 text-[0.78125rem] font-medium text-ink",
         }}
       />
       </div>
@@ -88,9 +88,9 @@ export default function Preferences({
           onChange={(e) => tutorial.setOn(e.target.checked)}
           className="h-5 w-5 accent-[color:var(--color-honey)]"
         />
-        <span className="text-[13.5px]">
+        <span className="text-[0.84375rem]">
           🧭 Live tutorial
-          <span className="block text-[12px] leading-snug text-ink-soft">
+          <span className="block text-[0.75rem] leading-snug text-ink-soft">
             A short walk around each page, offered the first time it sits quiet
             a moment, pointing at what to do. Any popover can stop it; this
             switch starts it again.
@@ -105,9 +105,9 @@ export default function Preferences({
           onChange={(e) => onChange({ ...prefs, bees: e.target.checked })}
           className="h-5 w-5 accent-[color:var(--color-honey)]"
         />
-        <span className="text-[13.5px]">
+        <span className="text-[0.84375rem]">
           🐝 Foraging bees
-          <span className="block text-[12px] leading-snug text-ink-soft">
+          <span className="block text-[0.75rem] leading-snug text-ink-soft">
             They read the day&rsquo;s high against the{" "}
             {showTemp(55, prefs.units)} flight threshold — more of them the
             warmer it is, none during a frost watch. Turn them off if you would

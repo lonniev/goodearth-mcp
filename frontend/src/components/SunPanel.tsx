@@ -31,7 +31,7 @@ export default function SunPanel({
   return (
     <div className="mt-2 rounded-md border border-rule bg-panel px-3 py-2">
       {error ? (
-        <p className="text-[12px] text-clay">{error}</p>
+        <p className="text-[0.75rem] text-clay">{error}</p>
       ) : loading ? (
         <QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Casting the sky over this plot" intervalMs={6500} classNames={quoteStyles} />
       ) : (
@@ -60,15 +60,15 @@ export default function SunPanel({
 
           {view === "garden" ? (
             <div className="flex min-w-[14rem] flex-1 items-center gap-2">
-              <label htmlFor="sun-month" className="text-[11px] text-ink-soft">Month</label>
+              <label htmlFor="sun-month" className="text-[0.6875rem] text-ink-soft">Month</label>
               <input id="sun-month" type="range" min={0} max={11} step={1} value={month}
                 onChange={(e) => onMonth(Number(e.target.value))}
                 aria-label="Month"
                 className="h-11 flex-1 accent-[color:var(--color-honey)]" />
-              <span className="data w-[2.5rem] shrink-0 text-[12px]">{MONTHS[month]}</span>
+              <span className="data w-[2.5rem] shrink-0 text-[0.75rem]">{MONTHS[month]}</span>
             </div>
           ) : (
-            <p className="min-w-[14rem] flex-1 text-[12px] text-ink-soft">
+            <p className="min-w-[14rem] flex-1 text-[0.75rem] text-ink-soft">
               Fixed panels{tilt !== null && <>, tilted <b className="data text-ink">{tilt}°</b></>}
               {azimuth !== null && <>, facing <b className="text-ink">{facing(azimuth)}</b></>} · whole year
             </p>
@@ -76,7 +76,7 @@ export default function SunPanel({
 
           {bare && (
             <button onClick={() => onLeaf(!fullLeaf)} aria-pressed={!fullLeaf}
-              className={`min-h-9 shrink-0 rounded-full border px-3 text-[12px] font-medium ${
+              className={`min-h-9 shrink-0 rounded-full border px-3 text-[0.75rem] font-medium ${
                 fullLeaf ? "border-rule text-ink-soft" : "border-growth bg-growth/10 text-growth"
               }`}>
               {fullLeaf ? "🌳 Full leaf all year" : `🍂 ${bare}`}
@@ -86,17 +86,17 @@ export default function SunPanel({
           <div className="min-w-[16rem] flex-1">
             {view === "garden" ? (
               <>
-                <p className="text-[10.5px] text-ink-soft">Hours of direct sun a day in {MONTHS[month]}</p>
+                <p className="text-[0.65625rem] text-ink-soft">Hours of direct sun a day in {MONTHS[month]}</p>
                 <div className="mt-0.5 h-2.5 rounded-sm" style={{ background: RAMP }} />
-                <div className="mt-0.5 flex justify-between text-[10.5px] text-ink-soft">
+                <div className="mt-0.5 flex justify-between text-[0.65625rem] text-ink-soft">
                   <span>Full shade · under 3 h</span><span>Part shade · 3–6 h</span><span>Full sun · 6 h+</span>
                 </div>
               </>
             ) : (
               <>
-                <p className="text-[10.5px] text-ink-soft">kWh a year for each kW of panels installed here · ◆ marks the best spot</p>
+                <p className="text-[0.65625rem] text-ink-soft">kWh a year for each kW of panels installed here · ◆ marks the best spot</p>
                 <div className="mt-0.5 h-2.5 rounded-sm" style={{ background: RAMP }} />
-                <div className="data relative mt-0.5 h-3.5 text-[10px] text-ink-soft">
+                <div className="data relative mt-0.5 h-3.5 text-[0.625rem] text-ink-soft">
                   {[0, 1, 2, 3, 4].map((i) => (
                     <span key={i} className={`absolute ${i === 0 ? "" : i === 4 ? "-translate-x-full" : "-translate-x-1/2"}`} style={{ left: `${i * 25}%` }}>
                       {(KWH_RAMP.lo + ((KWH_RAMP.hi - KWH_RAMP.lo) * i) / 4).toLocaleString()}

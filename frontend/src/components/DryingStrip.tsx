@@ -71,13 +71,13 @@ export default function DryingStrip({ data }: { data: DryingWindowResult }) {
               inRun(d.date) ? "border-growth/40 bg-growth/8" : "border-rule bg-panel"} ${
               d.dry == null ? "opacity-45" : ""}`}>
             {d.front_due && (
-              <span className="absolute -top-1.5 -right-1 text-[14px] leading-none" aria-label="front due">🌀</span>
+              <span className="absolute -top-1.5 -right-1 text-[0.875rem] leading-none" aria-label="front due">🌀</span>
             )}
-            <span className="data text-[10px] text-ink-soft">
+            <span className="data text-[0.625rem] text-ink-soft">
               {d.date === data.today.date ? "today" : weekday(d.date)}
               {best && <span className="ml-0.5 text-honey" aria-label="strongest drying day">★</span>}
             </span>
-            <span className="text-[26px] leading-none" aria-label={g.words}>{g.emoji}</span>
+            <span className="text-[1.625rem] leading-none" aria-label={g.words}>{g.emoji}</span>
 
             {/* Drying power: the day's reference evapotranspiration against
                 the strongest day in view. Taller dries harder. */}
@@ -88,7 +88,7 @@ export default function DryingStrip({ data }: { data: DryingWindowResult }) {
 
             {/* One footer line, always drawn so the row lines up: the rain if
                 there is any, otherwise the morning's dew-off where it is known. */}
-            <span className={`data h-3 text-[9.5px] leading-3 ${d.rain_mm > 0 ? "text-frost" : "text-ink-soft"}`}>
+            <span className={`data h-3 text-[0.59375rem] leading-3 ${d.rain_mm > 0 ? "text-frost" : "text-ink-soft"}`}>
               {d.rain_mm > 0 ? `💧${rain(d.rain_mm)}` : dew ?? " "}
             </span>
           </div>
@@ -96,7 +96,7 @@ export default function DryingStrip({ data }: { data: DryingWindowResult }) {
       })}
     </div>
     {/* The key, once, in the strip's own glyphs. */}
-    <p className="data mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[9.5px] text-ink-soft">
+    <p className="data mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[0.59375rem] text-ink-soft">
       <span><span className="mr-1 inline-block h-2 w-1.5 rounded-full bg-growth align-middle" />drying power (ET₀)</span>
       <span><span className="mr-1 inline-block h-2 w-3 rounded-sm border border-growth/40 bg-growth/8 align-middle" />dry run</span>
       {run?.strongest && <span><span className="text-honey">★</span> strongest drying</span>}

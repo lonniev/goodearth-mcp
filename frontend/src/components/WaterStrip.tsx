@@ -61,9 +61,9 @@ function Gauge({ label, sub, value, tone }: {
           style={{ height: `${fill * 100}%` }} />
       </span>
       <span className="leading-tight">
-        <b className="figure block text-[17px]">{percent(value)}</b>
-        <span className="block text-[11.5px] text-ink-soft">{label}</span>
-        {sub && <span className="data block text-[10px] text-ink-soft">{sub}</span>}
+        <b className="figure block text-[1.0625rem]">{percent(value)}</b>
+        <span className="block text-[0.71875rem] text-ink-soft">{label}</span>
+        {sub && <span className="data block text-[0.625rem] text-ink-soft">{sub}</span>}
       </span>
     </div>
   );
@@ -133,7 +133,7 @@ export default function WaterStrip({ data, blockId }: { data: WaterBalanceResult
       </div>
 
       {/* The key, once, in the chart's own marks. */}
-      <p className="data mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[9.5px] text-ink-soft">
+      <p className="data mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[0.59375rem] text-ink-soft">
         <span><span className="mr-1 inline-block h-2 w-1.5 rounded-sm bg-frost align-middle" />rain</span>
         <span><span className="mr-1 inline-block h-2 w-1.5 rounded-sm bg-honey/70 align-middle" />to the air (ET₀)</span>
         <span><span className="mr-1 inline-block h-0.5 w-3 bg-ink align-middle" />running balance</span>

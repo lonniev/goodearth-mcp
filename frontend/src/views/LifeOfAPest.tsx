@@ -17,12 +17,12 @@ const STAGES = [
 export default function LifeOfAPest() {
   return (
     <article>
-      <h1 className="figure mb-1 text-[24px] font-bold">The life of an insect</h1>
+      <h1 className="figure mb-1 text-[1.5rem] font-bold">The life of an insect</h1>
       <p className="eyebrow mb-4">and why it is worth counting</p>
 
       <Claim>The pest is on the same clock as the crop.</Claim>
 
-      <p className="text-[13.5px] leading-relaxed">
+      <p className="text-[0.84375rem] leading-relaxed">
         An insect develops on accumulated warmth too, from its own base. So its
         stages arrive at heat totals rather than on dates — and a stage that
         arrives at a number can be seen coming.
@@ -33,7 +33,7 @@ export default function LifeOfAPest() {
           sustained catch in a trap, sometimes simply the first of January.</>} />
 
       <div className="rounded-md border border-rule border-l-4 border-l-honey bg-panel px-4 py-3">
-        <p className="text-[13.5px] leading-relaxed">
+        <p className="text-[0.84375rem] leading-relaxed">
           <b>The useful moment is before the damage, not after it.</b> Larvae
           are what eats the crop, and by the time you find them the decision
           you had is gone. Counting from the Biofix tells you which week to

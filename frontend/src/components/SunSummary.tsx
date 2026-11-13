@@ -22,14 +22,14 @@ export default function SunSummary({ name, summary, result, month, onMonth, onSh
   return (
     <div className="mt-3 grid gap-3 sm:grid-cols-3">
       <div className="rounded-md border border-rule bg-panel px-4 py-3.5">
-        <h3 className="figure text-[15.5px]">{name} in {FULL_MONTH[month]}</h3>
+        <h3 className="figure text-[0.96875rem]">{name} in {FULL_MONTH[month]}</h3>
         <div className="mt-2 flex h-3.5 overflow-hidden rounded-sm" role="img"
           aria-label={`${pc(s.full_sun)}% full sun, ${pc(s.part_shade)}% part shade, ${pc(s.full_shade)}% full shade`}>
           <div style={{ width: `${s.full_sun * 100}%`, background: CLASS_COLOUR.full_sun }} />
           <div style={{ width: `${s.part_shade * 100}%`, background: CLASS_COLOUR.part_shade }} />
           <div style={{ width: `${s.full_shade * 100}%`, background: CLASS_COLOUR.full_shade }} />
         </div>
-        <div className="mt-1.5 flex flex-wrap gap-x-3 text-[12px] text-ink-soft">
+        <div className="mt-1.5 flex flex-wrap gap-x-3 text-[0.75rem] text-ink-soft">
           <span><b className="text-ink">{pc(s.full_sun)}%</b> full sun</span>
           <span><b className="text-ink">{pc(s.part_shade)}%</b> part shade</span>
           <span><b className="text-ink">{pc(s.full_shade)}%</b> full shade</span>
@@ -37,7 +37,7 @@ export default function SunSummary({ name, summary, result, month, onMonth, onSh
       </div>
 
       <div className="rounded-md border border-rule bg-panel px-4 py-3.5">
-        <h3 className="figure text-[15.5px]">Share in full sun, by month</h3>
+        <h3 className="figure text-[0.96875rem]">Share in full sun, by month</h3>
         <div className="mt-2 grid h-20 grid-cols-12 items-end gap-1" role="img"
           aria-label={summary.fullSunByMonth.map((v, m) => `${MONTHS[m]} ${pc(v)}%`).join(", ")}>
           {summary.fullSunByMonth.map((v, m) => (
@@ -46,28 +46,28 @@ export default function SunSummary({ name, summary, result, month, onMonth, onSh
               style={{ height: `${Math.max(4, v * 100)}%`, background: CLASS_COLOUR.full_sun }} />
           ))}
         </div>
-        <div className="data mt-1 grid grid-cols-12 text-center text-[8.5px] text-ink-soft">
+        <div className="data mt-1 grid grid-cols-12 text-center text-[0.53125rem] text-ink-soft">
           {MONTHS.map((n) => <span key={n}>{n[0]}</span>)}
         </div>
       </div>
 
       <div className="rounded-md border border-rule bg-panel px-4 py-3.5">
-        <h3 className="figure text-[15.5px]">Best place for panels</h3>
+        <h3 className="figure text-[0.96875rem]">Best place for panels</h3>
         {solar && summary.best >= 0 && summary.bestKwh !== null ? (
           <>
-            <div className="mt-1"><span className="figure text-[26px] leading-none">{Math.round(summary.bestKwh).toLocaleString()}</span>
-              <span className="ml-1 text-[12px] text-ink-soft">kWh per kW a year</span></div>
-            <p className="mt-1 text-[12px] text-ink-soft">
+            <div className="mt-1"><span className="figure text-[1.625rem] leading-none">{Math.round(summary.bestKwh).toLocaleString()}</span>
+              <span className="ml-1 text-[0.75rem] text-ink-soft">kWh per kW a year</span></div>
+            <p className="mt-1 text-[0.75rem] text-ink-soft">
               {summary.bestAccess !== null && `${Math.round(summary.bestAccess)}% of open-sky yield · `}
               tilted {solar.panel.tilt_deg}° facing {facing(solar.panel.azimuth_deg)}
             </p>
             <button onClick={onShowBest}
-              className="mt-2 min-h-11 rounded-md border border-ink bg-ink px-4 text-[12.5px] font-medium text-paper">
+              className="mt-2 min-h-11 rounded-md border border-ink bg-ink px-4 text-[0.78125rem] font-medium text-paper">
               Show it
             </button>
           </>
         ) : (
-          <p className="mt-1 text-[12px] text-ink-soft">No solar figure this time — the radiation archive did not answer.</p>
+          <p className="mt-1 text-[0.75rem] text-ink-soft">No solar figure this time — the radiation archive did not answer.</p>
         )}
       </div>
     </div>

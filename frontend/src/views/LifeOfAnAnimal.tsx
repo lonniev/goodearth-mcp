@@ -24,12 +24,12 @@ const YEAR = [
 export default function LifeOfAnAnimal() {
   return (
     <article>
-      <h1 className="figure mb-1 text-[24px] font-bold">The life of an animal</h1>
+      <h1 className="figure mb-1 text-[1.5rem] font-bold">The life of an animal</h1>
       <p className="eyebrow mb-4">migration, and the winter sleep</p>
 
       <Claim>A bird does not read a thermometer.</Claim>
 
-      <p className="text-[13.5px] leading-relaxed">
+      <p className="text-[0.84375rem] leading-relaxed">
         Almost everything else on this site runs on heat. Animals are the
         exception. A migrating bird leaves on day length. Day length is the
         same on the same date every year, whatever the weather did. The insects
@@ -46,7 +46,7 @@ export default function LifeOfAnAnimal() {
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-md border border-rule border-l-4 border-l-honey bg-panel px-4 py-3">
           <p className="eyebrow">Migration keeps a calendar</p>
-          <p className="mt-1 text-[13.5px] leading-relaxed">
+          <p className="mt-1 text-[0.84375rem] leading-relaxed">
             Day length is astronomy. The 13-hour day falls on the same date at
             your latitude every year. Birds that time departure by light are
             reliable to within about a week, and a warm spring does not move
@@ -55,7 +55,7 @@ export default function LifeOfAnAnimal() {
         </div>
         <div className="rounded-md border border-rule border-l-4 border-l-frost bg-panel px-4 py-3">
           <p className="eyebrow">Hibernation is two questions</p>
-          <p className="mt-1 text-[13.5px] leading-relaxed">
+          <p className="mt-1 text-[0.84375rem] leading-relaxed">
             Going under has to do with cold and with food running out. Coming
             back out has to do with warmth. The two ends of a winter sleep
             answer to different things, so a mild autumn and a mild spring do

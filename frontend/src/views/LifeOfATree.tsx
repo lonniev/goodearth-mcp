@@ -21,12 +21,12 @@ const YEAR = [
 export default function LifeOfATree() {
   return (
     <article>
-      <h1 className="figure mb-1 text-[24px] font-bold">The life of a tree</h1>
+      <h1 className="figure mb-1 text-[1.5rem] font-bold">The life of a tree</h1>
       <p className="eyebrow mb-4">a year that closes rather than ends</p>
 
       <Claim>A tree is not asked whether it finishes before frost.</Claim>
 
-      <p className="text-[13.5px] leading-relaxed">
+      <p className="text-[0.84375rem] leading-relaxed">
         A crop has one season to get from seed to harvest, so heat against
         frost is the whole question. A tree has as many seasons as it lives.
         It is asked two others, and both are settled before it goes in the
@@ -41,7 +41,7 @@ export default function LifeOfATree() {
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-md border border-rule border-l-4 border-l-frost bg-panel px-4 py-3">
           <p className="eyebrow">Will it survive here?</p>
-          <p className="mt-1 text-[13.5px] leading-relaxed">
+          <p className="mt-1 text-[0.84375rem] leading-relaxed">
             Every winter on record has a coldest night, and a cultivar has a
             limit. The answer is how often the first went below the second —
             nine winters in ten is a different proposition from five.
@@ -49,7 +49,7 @@ export default function LifeOfATree() {
         </div>
         <div className="rounded-md border border-rule border-l-4 border-l-honey bg-panel px-4 py-3">
           <p className="eyebrow">Will it fruit here?</p>
-          <p className="mt-1 text-[13.5px] leading-relaxed">
+          <p className="mt-1 text-[0.84375rem] leading-relaxed">
             Hours at or below 45&nbsp;°F over the winter — the{" "}
             <b>chill</b> on the nursery tag. Too few and the tree wakes
             unevenly. Vermont has chill to spare; Georgia is where it decides.

@@ -103,7 +103,7 @@ export default function SpeciesFinder({
   return (
     <div>
       <div className="flex flex-wrap items-end gap-2">
-        <label className="block flex-1 text-[11px] text-ink-soft" style={{ minWidth: 180 }}>
+        <label className="block flex-1 text-[0.6875rem] text-ink-soft" style={{ minWidth: 180 }}>
           Search what is recorded near {blockName}
           <input value={q} onChange={(e) => setQ(e.target.value)}
             placeholder="bumble, maple, chanterelle…" autoComplete="off"
@@ -115,7 +115,7 @@ export default function SpeciesFinder({
           disabled={!basket.length || adding} />
       </div>
 
-      {hint && <p className="mt-1.5 text-[12px] leading-relaxed text-ink-soft">{hint}</p>}
+      {hint && <p className="mt-1.5 text-[0.75rem] leading-relaxed text-ink-soft">{hint}</p>}
       {/* One row of controls, above what they control.
         *
         * The legend that used to sit here — "Tap a name to read what it is ·
@@ -133,7 +133,7 @@ export default function SpeciesFinder({
           {LIFECYCLE} With Lifecycle
         </Pill>
       </div>
-      {err && <p className="mt-2 text-[12.5px] text-clay">{err}</p>}
+      {err && <p className="mt-2 text-[0.78125rem] text-clay">{err}</p>}
 
       {/* The count is the point. "20 of 3,542" is what the old catalogue never
           said — it showed forty and left the rest unmentioned.
@@ -143,7 +143,7 @@ export default function SpeciesFinder({
           that name near here" under its own error. Nothing was found because
           nothing was asked. */}
       {state.kind !== "failed" && (
-        <p className="data mt-2 text-[11px] text-ink-soft">
+        <p className="data mt-2 text-[0.6875rem] text-ink-soft">
           {state.kind === "busy" ? "Looking…"
             : state.kind === "empty" ? "Nothing recorded by that name near here."
             : `${state.shown} of ${state.total.toLocaleString()} · page ${state.page} of ${state.pages}`}
@@ -180,14 +180,14 @@ export default function SpeciesFinder({
                         className="size-8 shrink-0 rounded object-cover" />
                     : <span className="size-8 shrink-0 rounded bg-band" aria-hidden="true" />}
                   <span className="min-w-0 flex-1 leading-tight">
-                    <b className="block truncate text-[13px]">{r.name}</b>
+                    <b className="block truncate text-[0.8125rem]">{r.name}</b>
                     {r.scientific_name && (
-                      <i className="block truncate text-[11px] text-ink-soft">
+                      <i className="block truncate text-[0.6875rem] text-ink-soft">
                         {r.scientific_name}
                       </i>
                     )}
                   </span>
-                  <span className="data shrink-0 text-right text-[10.5px] text-ink-soft">
+                  <span className="data shrink-0 text-right text-[0.65625rem] text-ink-soft">
                     {(r.observations ?? 0).toLocaleString()}
                     {/* The glyph, not the sentence. It carries the glossary's
                         own words, so it can be asked what it means wherever it
@@ -215,7 +215,7 @@ export default function SpeciesFinder({
           );
         })}
         {state.kind === "empty" && (
-          <li className="px-3 py-4 text-[12.5px] text-ink-soft">
+          <li className="px-3 py-4 text-[0.78125rem] text-ink-soft">
             Nothing here. Try a shorter word, or clear the search to see what is
             most recorded.
           </li>
@@ -226,11 +226,11 @@ export default function SpeciesFinder({
       {state.kind === "results" && pages > 1 && (
         <div className="mt-2 flex items-center gap-2">
           <button onClick={() => go(page - 1)} disabled={page <= 1}
-            className="min-h-11 rounded-full border border-rule px-3.5 text-[12.5px] disabled:opacity-40">
+            className="min-h-11 rounded-full border border-rule px-3.5 text-[0.78125rem] disabled:opacity-40">
             ‹ Back
           </button>
           <button onClick={() => go(page + 1)} disabled={page >= pages}
-            className="min-h-11 rounded-full border border-rule px-3.5 text-[12.5px] disabled:opacity-40">
+            className="min-h-11 rounded-full border border-rule px-3.5 text-[0.78125rem] disabled:opacity-40">
             More ›
           </button>
 

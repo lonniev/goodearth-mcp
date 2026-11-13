@@ -98,7 +98,7 @@ function conditions(f: FrostWindowResult | null, unit: Unit) {
     <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-0.5">
       <span>
         <span className="mr-1">{cold ? "🥶" : "🌡️"}</span>
-        Tonight <b className="figure text-[15px] text-ink">{showTemp(n.low_ground_f, unit)}</b>
+        Tonight <b className="figure text-[0.9375rem] text-ink">{showTemp(n.low_ground_f, unit)}</b>
         <span className="text-ink-soft"> on low ground</span>
       </span>
       {wind && (
@@ -414,7 +414,7 @@ export default function App() {
             before={
               <div className="grid gap-3" {...tour("account.summary")}>
                 {spent > 0 && (
-                  <span className="data justify-self-start rounded-full bg-band px-2.5 py-1 text-[10.5px] text-ink-soft">
+                  <span className="data justify-self-start rounded-full bg-band px-2.5 py-1 text-[0.65625rem] text-ink-soft">
                     {spent.toLocaleString()} drawn today
                   </span>
                 )}
@@ -450,9 +450,9 @@ export default function App() {
             signOutLabel="Sign out"
             classNames={{
               root: "gap-3 lg:columns-2 [&>*]:mb-3 [&>*]:break-inside-avoid",
-              heading: "figure mb-3 text-[26px] font-bold [column-span:all]",
+              heading: "figure mb-3 text-[1.625rem] font-bold [column-span:all]",
               actions: "flex justify-end",
-              signOut: "min-h-11 rounded-full border border-rule px-3.5 text-[12px] text-ink-soft active:bg-band",
+              signOut: "min-h-11 rounded-full border border-rule px-3.5 text-[0.75rem] text-ink-soft active:bg-band",
             }}
           />
         )}

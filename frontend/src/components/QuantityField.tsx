@@ -34,7 +34,7 @@ export default function QuantityField({
   onKeyDown?: (e: React.KeyboardEvent) => void;
 }) {
   const listId = `${id}-units`;
-  const inner = "min-w-0 bg-transparent text-[16px] text-ink outline-none placeholder:text-ink-soft/60";
+  const inner = "min-w-0 bg-transparent text-[1rem] text-ink outline-none placeholder:text-ink-soft/60";
   return (
     <Field label={label} htmlFor={id} width={width}>
       {/* The border is on the group and the two inputs inside it are bare.

@@ -21,7 +21,7 @@ export default function CommunityObservations({ blockName, tour, children }: {
   const [open, setOpen] = useState(false);
   return (
     <section className="mt-7">
-      <h2 data-tour={tour} className="figure text-[18px] font-semibold">
+      <h2 data-tour={tour} className="figure text-[1.125rem] font-semibold">
         <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
           className="flex min-h-11 items-center gap-2.5 text-left">
           <span className="mr-0.5" aria-hidden="true">🔭</span>
@@ -32,7 +32,7 @@ export default function CommunityObservations({ blockName, tour, children }: {
           </span>
         </button>
       </h2>
-      <p className="mb-2.5 text-[12.5px] text-ink-soft">
+      <p className="mb-2.5 text-[0.78125rem] text-ink-soft">
         What people have recorded near {blockName}, ready to add.
       </p>
       {open && children}

@@ -152,22 +152,22 @@ export default function EventDetail({
         className="max-h-[88vh] w-full max-w-lg overflow-auto rounded-t-xl border border-rule bg-panel p-5 shadow-xl outline-none sm:rounded-xl"
       >
         <div className="flex items-start gap-3">
-          <span className="text-[30px] leading-none">{flag.emoji ?? "•"}</span>
+          <span className="text-[1.875rem] leading-none">{flag.emoji ?? "•"}</span>
           <div className="min-w-0 flex-1">
             <div className={`eyebrow ${k.tone}`}>{k.label}</div>
-            <h2 className="figure text-[20px] font-semibold leading-tight">{flag.label}</h2>
+            <h2 className="figure text-[1.25rem] font-semibold leading-tight">{flag.label}</h2>
           </div>
           <button onClick={onClose} aria-label="Close"
-            className="-mt-1 -mr-1 flex h-11 w-11 shrink-0 items-center justify-center rounded text-[20px] text-ink-soft active:bg-band">
+            className="-mt-1 -mr-1 flex h-11 w-11 shrink-0 items-center justify-center rounded text-[1.25rem] text-ink-soft active:bg-band">
             ×
           </button>
         </div>
 
         <div className="mt-4 rounded-md border border-rule bg-paper/60 px-3.5 py-3">
-          <div className="figure text-[17px]">
+          <div className="figure text-[1.0625rem]">
             {flag.date ? nice(flag.date) : "Further out than we can project"}
           </div>
-          <div className="mt-0.5 text-[12.5px] text-ink-soft">
+          <div className="mt-0.5 text-[0.78125rem] text-ink-soft">
             {isTask ? (overdue ? "due · not done yet" : "due")
               : flag.reached ? "already passed" : "expected"}
             {flag.gdd != null && ` · at ${Math.round(flag.gdd).toLocaleString()} GDD accumulated`}
@@ -186,20 +186,20 @@ export default function EventDetail({
                   className="h-20 w-20 shrink-0 rounded-md border border-rule object-cover" />
               )}
               <div className="min-w-0">
-                <div className="text-[13px]">
+                <div className="text-[0.8125rem]">
                   <b>{info.commonName ?? info.scientificName}</b>
                   {info.commonName && (
                     <span className="ml-1.5 italic text-ink-soft">{info.scientificName}</span>
                   )}
                 </div>
                 {info.summary && (
-                  <p className="mt-1 text-[12.5px] leading-relaxed">
+                  <p className="mt-1 text-[0.78125rem] leading-relaxed">
                     {info.summary.length > 420 ? info.summary.slice(0, 419) + "…" : info.summary}
                   </p>
                 )}
               </div>
             </div>
-            <p className="data mt-1.5 flex flex-wrap gap-x-3 text-[10.5px]">
+            <p className="data mt-1.5 flex flex-wrap gap-x-3 text-[0.65625rem]">
               {info.wikipediaUrl && (
                 <a href={info.wikipediaUrl} target="_blank" rel="noreferrer"
                   className="text-frost underline">Wikipedia</a>
@@ -241,13 +241,13 @@ export default function EventDetail({
         {links.length > 0 && (
           <div className="mt-3.5">
             <div className="eyebrow">Treatment advice</div>
-            <p className="mt-1 text-[13px] leading-relaxed">
+            <p className="mt-1 text-[0.8125rem] leading-relaxed">
               Follow the bulletin below: treatment rules vary by state, and the label is the law.
             </p>
             <div className="mt-2 flex flex-col gap-1.5">
               {links.map((l) => (
                 <a key={l.url} href={l.url} target="_blank" rel="noreferrer"
-                  className="flex min-h-11 items-center rounded-md border border-rule bg-paper/60 px-3 text-[12.5px] font-medium text-ink active:border-ink">
+                  className="flex min-h-11 items-center rounded-md border border-rule bg-paper/60 px-3 text-[0.78125rem] font-medium text-ink active:border-ink">
                   🔗 {l.label}
                   {l.note && <span className="ml-2 hidden font-normal text-ink-soft sm:inline">— {l.note}</span>}
                 </a>
@@ -272,7 +272,7 @@ function Row({ label, children, tone }: {
   return (
     <div className="mt-3.5">
       <div className={`eyebrow ${tone ?? ""}`}>{label}</div>
-      <p className="mt-1 text-[13px] leading-relaxed">{children}</p>
+      <p className="mt-1 text-[0.8125rem] leading-relaxed">{children}</p>
     </div>
   );
 }

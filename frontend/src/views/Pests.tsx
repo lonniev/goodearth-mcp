@@ -300,7 +300,7 @@ export default function Pests({
       {data && data.scout_now.length > 0 && (
         <div className="mb-5 rounded-md border border-rule border-l-4 border-l-honey bg-panel px-4 py-3" {...tour("pests.active")}>
           <span className="eyebrow">Active now</span>
-          <ul className="mt-1.5 space-y-1 text-[13px]">
+          <ul className="mt-1.5 space-y-1 text-[0.8125rem]">
             {data.scout_now.map((s) => <li key={s}>{s}</li>)}
           </ul>
         </div>
@@ -386,8 +386,8 @@ export default function Pests({
               title="Watch a pest" disabled={submit.busy} />
           </span>
         </div>
-        {formErr && <p className="mt-2 text-[12px] text-clay">{formErr}</p>}
-        {savedNote && !formErr && <p className="mt-2 text-[12px] text-growth">{savedNote}</p>}
+        {formErr && <p className="mt-2 text-[0.75rem] text-clay">{formErr}</p>}
+        {savedNote && !formErr && <p className="mt-2 text-[0.75rem] text-growth">{savedNote}</p>}
       </form>
       {/* Its stages, looked up: tick what to watch for and save them at once.
           The stages field above stays for figures of the grower's own. */}
@@ -464,7 +464,7 @@ export default function Pests({
       ) : models.length ? (
         <>
           <div className="overflow-x-auto overscroll-x-contain rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">
-            <table className="w-full border-collapse text-[13px]">
+            <table className="w-full border-collapse text-[0.8125rem]">
               <thead>
                 <SortHeaders cols={columns(`${u.ddUnit.trim()} to date`)}
                   sort={sort} dir={dir} onSort={sortBy} />
@@ -480,7 +480,7 @@ export default function Pests({
                     <tr className="border-b border-rule last:border-b-0">
                       <td onClick={() => { setEditing(m.id); setDraft(m); }}
                         className="cursor-text px-3 py-2.5 font-semibold">
-                        <span className="mr-1.5 text-[15px]" aria-hidden="true">
+                        <span className="mr-1.5 text-[0.9375rem]" aria-hidden="true">
                           {m.watch ? "👁️"
                             : (a?.stages ?? []).some((x) => !x.reached) ? "🥚" : "🐛"}
                         </span>
@@ -489,7 +489,7 @@ export default function Pests({
                             given one. Printing "base 50 °F" under a creature
                             with no heat model states a fact that isn't. */}
                         {!m.watch && (
-                          <small className="block text-[11px] font-normal text-ink-soft">
+                          <small className="block text-[0.6875rem] font-normal text-ink-soft">
                             base {u.showTemp(m.base_temp ?? region.baseTempF)}
                           </small>
                         )}
@@ -498,7 +498,7 @@ export default function Pests({
                         className="cursor-text px-3 py-2.5 whitespace-nowrap">
                         {m.watch ? "—" : m.biofix ? d(m.biofix) : "Jan 1"}
                       </td>
-                      <td className="data px-3 py-2.5 whitespace-nowrap text-[12px] text-ink-soft">
+                      <td className="data px-3 py-2.5 whitespace-nowrap text-[0.75rem] text-ink-soft">
                         {a && !m.watch && a.gdd_accumulated != null
                           ? u.showDD(a.gdd_accumulated, 1) : "—"}
                       </td>
@@ -509,21 +509,21 @@ export default function Pests({
                               <StatusChip key={st.stage} tone={st.reached ? "reached" : "pending"}>
                                 {/* The remaining-GDD figure was in a title
                                     attribute, which is unreachable with a finger. */}
-                                <span>{st.stage} <span className="data text-[10.5px] text-ink-soft">{u.degreeDays(st.gdd).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></span>
+                                <span>{st.stage} <span className="data text-[0.65625rem] text-ink-soft">{u.degreeDays(st.gdd).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></span>
                                 {st.reached
                                   ? <span className="text-honey">
                                       {st.crossed_on ? d(st.crossed_on) : "✓"}
                                     </span>
-                                  : <span className="data text-[10.5px] text-ink-soft">
+                                  : <span className="data text-[0.65625rem] text-ink-soft">
                                       · {st.projected_date ? d(st.projected_date) : `${Math.round(u.degreeDays(st.gdd_remaining))} to go`}
                                     </span>}
                               </StatusChip>
                             ))}
                           </div>
                         ) : m.watch ? (
-                          <span className="data text-[11px] text-ink-soft">watched all season</span>
+                          <span className="data text-[0.6875rem] text-ink-soft">watched all season</span>
                         ) : m.model ? (
-                          <span className="data text-[11px] text-ink-soft">
+                          <span className="data text-[0.6875rem] text-ink-soft">
                             {m.model.toUpperCase()} model · no dated stage for this ground yet
                           </span>
                         ) : (
@@ -533,7 +533,7 @@ export default function Pests({
                              pest with nothing to compute against. */
                           <button
                             onClick={() => { setEditing(m.id); setDraft(m); }}
-                            className="data text-left text-[11px] text-clay underline decoration-dotted underline-offset-2"
+                            className="data text-left text-[0.6875rem] text-clay underline decoration-dotted underline-offset-2"
                           >
                             {skipped.get(m.pest) ? "no thresholds — tap to set" : "not yet read"}
                           </button>
@@ -569,7 +569,7 @@ export default function Pests({
               that matters is what answered, so the pager stands down rather
               than counting past a list it is not describing. */}
           {narrowed ? (
-            <p className="data mt-1 text-[11px] text-ink-soft">
+            <p className="data mt-1 text-[0.6875rem] text-ink-soft">
               {shown.length} of {models.length}
               {total > models.length ? ` · filtering the first ${models.length} of ${total}` : ""}
             </p>

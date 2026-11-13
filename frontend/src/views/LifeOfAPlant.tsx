@@ -21,12 +21,12 @@ const STAGES = [
 export default function LifeOfAPlant() {
   return (
     <article>
-      <h1 className="figure mb-1 text-[24px] font-bold">The life of a plant</h1>
+      <h1 className="figure mb-1 text-[1.5rem] font-bold">The life of a plant</h1>
       <p className="eyebrow mb-4">and what a Growing Degree Day is</p>
 
       <Claim>A crop does not count days. It counts warmth.</Claim>
 
-      <p className="text-[13.5px] leading-relaxed">
+      <p className="text-[0.84375rem] leading-relaxed">
         Every plant has a temperature below which it does no growing — its{" "}
         <b>base</b>. Above that, each day adds the degrees it spent there. Add
         them up and you have <b>Growing Degree Days</b>: the season measured in
@@ -39,7 +39,7 @@ export default function LifeOfAPlant() {
           are the ones that count.</>} />
 
       <div className="rounded-md border border-rule border-l-4 border-l-growth bg-panel px-4 py-3">
-        <p className="text-[13.5px] leading-relaxed">
+        <p className="text-[0.84375rem] leading-relaxed">
           <b>Which is why the dates move.</b> A warm spring and a cold one reach
           900&nbsp;GDD weeks apart, and the plant flowers at 900 in both. Count
           days and you are early one year and late the next; count heat and you

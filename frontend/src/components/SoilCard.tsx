@@ -24,23 +24,23 @@ export default function SoilCard({ data }: { data: SoilWindowResult }) {
   return (
     <div className="mb-3 rounded-md border border-rule bg-panel px-4 py-3.5">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h3 className="figure text-[15.5px] font-semibold">
+        <h3 className="figure text-[0.96875rem] font-semibold">
           Soil {data.direction === "cooling" ? "cooling through" : "warming through"}{" "}
           {u.showTemp(data.threshold_f)}
         </h3>
         {data.current_soil_f != null && (
-          <span className="data text-[12px] text-ink-soft">
+          <span className="data text-[0.75rem] text-ink-soft">
             now <b className="text-ink">{u.showTemp(data.current_soil_f)}</b>
           </span>
         )}
-        <span className="data ml-auto text-[10px] text-ink-soft">{data.band.label}</span>
+        <span className="data ml-auto text-[0.625rem] text-ink-soft">{data.band.label}</span>
       </div>
 
       {track
         ? <Track track={track} threshold={data.threshold_f} />
         : (
           // No line to draw is not a reason to say nothing.
-          <p className="mt-1.5 text-[13px] leading-relaxed text-ink-soft">
+          <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-ink-soft">
             {data.near_term?.note ?? data.note}
           </p>
         )}
@@ -152,7 +152,7 @@ function Track({ track, threshold }: { track: SoilTrack; threshold: number }) {
         )}
       </svg>
 
-      <p className="data mt-0.5 flex flex-wrap items-center gap-x-3 text-[10.5px] text-ink-soft">
+      <p className="data mt-0.5 flex flex-wrap items-center gap-x-3 text-[0.65625rem] text-ink-soft">
         <span>
           <i className="mr-1.5 inline-block w-4 border-t-[3px] border-growth align-middle" />
           forecast{crossing ? "" : " — no crossing in it"}

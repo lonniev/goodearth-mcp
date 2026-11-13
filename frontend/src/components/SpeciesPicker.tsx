@@ -131,23 +131,23 @@ export default function SpeciesPicker({
           <button type="button" onClick={onRead}
             title={`About ${value.commonName ?? value.scientificName}`}
             className="min-w-0 flex-1 rounded text-left leading-tight active:bg-band">
-            <b className="block truncate text-[13px] underline decoration-dotted underline-offset-2">
+            <b className="block truncate text-[0.8125rem] underline decoration-dotted underline-offset-2">
               {value.commonName ?? value.scientificName}</b>
             {value.scientificName && value.commonName && (
-              <i className="block truncate text-[11px] text-ink-soft">{value.scientificName}</i>
+              <i className="block truncate text-[0.6875rem] text-ink-soft">{value.scientificName}</i>
             )}
           </button>
         ) : (
           <span className="min-w-0 flex-1 leading-tight">
-            <b className="block truncate text-[13px]">{value.commonName ?? value.scientificName}</b>
+            <b className="block truncate text-[0.8125rem]">{value.commonName ?? value.scientificName}</b>
             {value.scientificName && value.commonName && (
-              <i className="block truncate text-[11px] text-ink-soft">{value.scientificName}</i>
+              <i className="block truncate text-[0.6875rem] text-ink-soft">{value.scientificName}</i>
             )}
           </span>
         )}
         {onClear && (
           <button type="button" onClick={onClear}
-            className="min-h-9 shrink-0 rounded-full px-2.5 text-[12px] text-ink-soft active:bg-band">
+            className="min-h-9 shrink-0 rounded-full px-2.5 text-[0.75rem] text-ink-soft active:bg-band">
             Change
           </button>
         )}
@@ -170,9 +170,9 @@ export default function SpeciesPicker({
 
       {open && text.trim().length >= 2 && (
         <div className="absolute z-20 mt-1 max-h-80 w-full overflow-y-auto rounded-md border border-rule bg-panel shadow-lg">
-          {err && <p className="px-3 py-2 text-[12px] text-clay">{err}</p>}
+          {err && <p className="px-3 py-2 text-[0.75rem] text-clay">{err}</p>}
           {!err && !hits.length && (
-            <p className="px-3 py-2 text-[12px] text-ink-soft">
+            <p className="px-3 py-2 text-[0.75rem] text-ink-soft">
               {busy ? "Looking…" : "Nothing by that name."}
             </p>
           )}
@@ -204,10 +204,10 @@ export default function SpeciesPicker({
                     className="size-8 shrink-0 rounded object-cover" />
                 : <span className="size-8 shrink-0 rounded bg-band" aria-hidden="true" />}
               <span className="min-w-0 flex-1 leading-tight">
-                <b className="block truncate text-[13px]">
+                <b className="block truncate text-[0.8125rem]">
                   {h.commonName ?? h.scientificName}
                 </b>
-                <i className="block truncate text-[11px] text-ink-soft">
+                <i className="block truncate text-[0.6875rem] text-ink-soft">
                   {h.scientificName}
                   {h.rank && h.rank !== "species" && (
                     <span className="not-italic">{" · "}{h.rank}</span>
@@ -219,7 +219,7 @@ export default function SpeciesPicker({
                     sugar maple" matched on "sugar maple", and saying so under
                     a row that already reads "sugar maple" is noise. */}
                 {h.matched && !shown(h).includes(h.matched.toLowerCase()) && (
-                  <span className="data block truncate text-[10.5px] text-ink-soft">
+                  <span className="data block truncate text-[0.65625rem] text-ink-soft">
                     matched “{h.matched}”
                   </span>
                 )}
@@ -227,7 +227,7 @@ export default function SpeciesPicker({
             </button>
           ))}
           {!err && hits.length > 0 && (
-            <p className="data px-2.5 py-1.5 text-[10.5px] text-ink-soft">
+            <p className="data px-2.5 py-1.5 text-[0.65625rem] text-ink-soft">
               iNaturalist · most-recorded first
             </p>
           )}

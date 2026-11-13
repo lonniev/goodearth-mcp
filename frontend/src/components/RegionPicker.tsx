@@ -93,17 +93,17 @@ export default function RegionPicker({
           role="option"
           aria-selected={r.id === active.id}
           onClick={() => { onPick(r); setOpen(false); }}
-          className={`min-h-11 flex-1 truncate rounded px-2 text-left text-[13px] active:bg-band ${
+          className={`min-h-11 flex-1 truncate rounded px-2 text-left text-[0.8125rem] active:bg-band ${
             r.id === active.id ? "font-semibold" : ""
           }`}
         >
           {r.name}
           {r.id === EXAMPLE_ID && (
-            <span className="ml-2 rounded-full bg-band px-1.5 py-0.5 text-[10px] font-semibold text-ink-soft">
+            <span className="ml-2 rounded-full bg-band px-1.5 py-0.5 text-[0.625rem] font-semibold text-ink-soft">
               example
             </span>
           )}
-          <span className="data ml-2 text-[10px] text-ink-soft">
+          <span className="data ml-2 text-[0.625rem] text-ink-soft">
             {withGroups && r.groups?.length ? r.groups.join(" · ")
               : "lat" in r.region ? `pin ${r.region.radius_m} m` : "polygon"}
           </span>
@@ -112,7 +112,7 @@ export default function RegionPicker({
           <button
             onClick={() => setRegions(deleteRegion(r.id))}
             aria-label={`Forget ${r.name}`}
-            className="flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-clay"
+            className="flex h-11 w-11 items-center justify-center text-[1.125rem] text-ink-soft active:text-clay"
           >
             ×
           </button>
@@ -128,11 +128,11 @@ export default function RegionPicker({
         aria-haspopup="listbox"
         aria-expanded={open}
         {...tour("shell.plot")}
-        className="flex min-h-11 items-center gap-2 rounded-md border-[1.5px] border-ink bg-panel px-3 text-[13.5px] font-semibold"
+        className="flex min-h-11 items-center gap-2 rounded-md border-[1.5px] border-ink bg-panel px-3 text-[0.84375rem] font-semibold"
       >
         {active.name}
-        <small className="data text-[10.5px] font-normal text-ink-soft">{detail}</small>
-        <span className="text-[10px] text-ink-soft">▼</span>
+        <small className="data text-[0.65625rem] font-normal text-ink-soft">{detail}</small>
+        <span className="text-[0.625rem] text-ink-soft">▼</span>
       </button>
 
       {/* Above Leaflet: its panes sit at 400 and its controls at 1000, and
@@ -143,7 +143,7 @@ export default function RegionPicker({
           {regions.length > 7 && (
             <input value={query} onChange={(e) => setQuery(e.target.value)} type="search"
               placeholder="Find a plot or group" aria-label="Find a plot or group"
-              className="mb-1 min-h-11 w-full rounded border border-rule bg-white px-2 text-[16px] text-ink focus:border-honey focus:outline-none" />
+              className="mb-1 min-h-11 w-full rounded border border-rule bg-white px-2 text-[1rem] text-ink focus:border-honey focus:outline-none" />
           )}
           <div role="listbox" className="max-h-80 overflow-auto overscroll-contain">
             {query.trim() ? (
@@ -160,11 +160,11 @@ export default function RegionPicker({
 
           <div className="mt-2 flex gap-2 border-t border-rule pt-2">
             <button onClick={() => { setAdding("pin"); setErr(""); }}
-              className="min-h-11 flex-1 rounded border-[1.5px] border-ink px-3 text-[12.5px] font-semibold active:bg-ink active:text-paper">
+              className="min-h-11 flex-1 rounded border-[1.5px] border-ink px-3 text-[0.78125rem] font-semibold active:bg-ink active:text-paper">
               Add a pin
             </button>
             <button onClick={() => { setAdding("poly"); setErr(""); }}
-              className="min-h-11 flex-1 rounded border-[1.5px] border-ink px-3 text-[12.5px] font-semibold active:bg-ink active:text-paper">
+              className="min-h-11 flex-1 rounded border-[1.5px] border-ink px-3 text-[0.78125rem] font-semibold active:bg-ink active:text-paper">
               Paste a polygon
             </button>
           </div>
@@ -193,7 +193,7 @@ export default function RegionPicker({
                   placeholder={String(Math.round(u.temp(50)))} />
               </div>
               <button disabled={saving}
-                className="min-h-11 w-full rounded bg-ink text-[13px] font-semibold text-paper disabled:opacity-40">
+                className="min-h-11 w-full rounded bg-ink text-[0.8125rem] font-semibold text-paper disabled:opacity-40">
                 {saving ? "Saving…" : "Save block"}</button>
             </form>
           )}
@@ -211,21 +211,21 @@ export default function RegionPicker({
               }}
             >
               <Field name="name" label="Name" placeholder="East Bench" />
-              <label className="block text-[11px] text-ink-soft">
+              <label className="block text-[0.6875rem] text-ink-soft">
                 GeoJSON Polygon
                 <textarea name="json" rows={4}
                   placeholder='{"type":"Polygon","coordinates":[[[-73.24,44.44], …]]}'
-                  className="data mt-0.5 w-full rounded border border-rule bg-white px-2 py-2 text-[16px] focus:border-honey focus:outline-none" />
+                  className="data mt-0.5 w-full rounded border border-rule bg-white px-2 py-2 text-[1rem] focus:border-honey focus:outline-none" />
               </label>
               <Field name="base" label={`Base${u.tempUnit}`}
                   placeholder={String(Math.round(u.temp(50)))} />
               <button disabled={saving}
-                className="min-h-11 w-full rounded bg-ink text-[13px] font-semibold text-paper disabled:opacity-40">
+                className="min-h-11 w-full rounded bg-ink text-[0.8125rem] font-semibold text-paper disabled:opacity-40">
                 {saving ? "Saving…" : "Save block"}</button>
             </form>
           )}
 
-          {err && <div className="mt-2 rounded border border-clay/30 bg-clay/10 p-2 text-[11.5px] text-clay">{err}</div>}
+          {err && <div className="mt-2 rounded border border-clay/30 bg-clay/10 p-2 text-[0.71875rem] text-clay">{err}</div>}
         </div>
       )}
     </div>
@@ -234,10 +234,10 @@ export default function RegionPicker({
 
 function Field({ name, label, placeholder }: { name: string; label: string; placeholder: string }) {
   return (
-    <label className="block flex-1 text-[11px] text-ink-soft">
+    <label className="block flex-1 text-[0.6875rem] text-ink-soft">
       {label}
       <input name={name} placeholder={placeholder}
-        className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2 text-[16px] text-ink focus:border-honey focus:outline-none" />
+        className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2 text-[1rem] text-ink focus:border-honey focus:outline-none" />
     </label>
   );
 }

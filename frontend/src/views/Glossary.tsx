@@ -30,10 +30,10 @@ export default function Glossary() {
 
   return (
     <div>
-      <h1 className="figure text-[26px] leading-tight font-bold">
+      <h1 className="figure text-[1.625rem] leading-tight font-bold">
         What the words mean
       </h1>
-      <p className="mt-1.5 text-[13.5px] leading-relaxed text-ink-soft">
+      <p className="mt-1.5 text-[0.84375rem] leading-relaxed text-ink-soft">
         Every term this site uses. Several of them are figures you supply
         rather than ones it knows — those say so.
       </p>
@@ -49,7 +49,7 @@ export default function Glossary() {
       </div>
 
       {searching && (
-        <p className="data mb-2 text-[11px] text-ink-soft">
+        <p className="data mb-2 text-[0.6875rem] text-ink-soft">
           {hits.length === 0
             ? "Nothing by that name."
             : `${hits.length} of ${GLOSSARY.length}`}
@@ -68,7 +68,7 @@ export default function Glossary() {
           if (!rows.length) return null;
           return (
             <section key={g.key}>
-              <h2 className="figure mt-6 mb-2 text-[16px] font-semibold">{g.label}</h2>
+              <h2 className="figure mt-6 mb-2 text-[1rem] font-semibold">{g.label}</h2>
               <dl className={GRID}>
                 {rows.map((e) => (
                   <Definition key={e.key} term={e.term} said={e.said} aka={e.aka} />
@@ -87,15 +87,15 @@ function Definition({ term, said, aka }: {
 }) {
   return (
     <div className="rounded-md border border-rule bg-panel px-3.5 py-3">
-      <dt className="figure text-[14.5px] font-semibold">
+      <dt className="figure text-[0.90625rem] font-semibold">
         {term}
         {aka && aka.length > 0 && (
-          <span className="data ml-2 text-[10.5px] font-normal text-ink-soft">
+          <span className="data ml-2 text-[0.65625rem] font-normal text-ink-soft">
             {aka.join(" · ")}
           </span>
         )}
       </dt>
-      <dd className="mt-1 text-[13px] leading-relaxed text-ink-soft">{said}</dd>
+      <dd className="mt-1 text-[0.8125rem] leading-relaxed text-ink-soft">{said}</dd>
     </div>
   );
 }

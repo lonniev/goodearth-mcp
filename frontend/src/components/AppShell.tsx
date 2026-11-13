@@ -140,15 +140,15 @@ export default function AppShell({
         <div className="hidden items-center justify-between pl-2 pt-1 pb-4 md:flex">
           {!collapsed && (
             <span>
-              <span className="figure text-[21px] font-bold text-paper">Good </span>
-              <span className="figure text-[21px] font-normal italic text-honey">Earth</span>
+              <span className="figure text-[1.3125rem] font-bold text-paper">Good </span>
+              <span className="figure text-[1.3125rem] font-normal italic text-honey">Earth</span>
             </span>
           )}
           <button
             onClick={() => { setCollapsed((c) => !c); setEditing(false); }}
             aria-label={collapsed ? "Expand the rail" : "Collapse the rail"}
             title={collapsed ? "Expand" : "Collapse"}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-[15px] text-rail-ink hover:bg-white/10"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-[0.9375rem] text-rail-ink hover:bg-white/10"
           >
             {collapsed ? "»" : "«"}
           </button>
@@ -164,8 +164,8 @@ export default function AppShell({
                 title={it.ready ? it.label : it.soon}
                 aria-current={active ? "page" : undefined}
                 className={[
-                  "flex min-h-11 flex-1 shrink-0 items-center gap-2.5 rounded-md px-2.5 py-2 text-[13.5px] font-medium",
-                  "flex-col gap-1 text-[10px] md:flex-row md:gap-2.5 md:text-[13.5px]",
+                  "flex min-h-11 flex-1 shrink-0 items-center gap-2.5 rounded-md px-2.5 py-2 text-[0.84375rem] font-medium",
+                  "flex-col gap-1 text-[0.625rem] md:flex-row md:gap-2.5 md:text-[0.84375rem]",
                   collapsed ? "md:justify-center md:px-0" : "",
                   active ? "bg-paper text-ink" : "text-rail-ink",
                   it.ready ? "hover:bg-white/10" : "cursor-default opacity-40",
@@ -183,10 +183,10 @@ export default function AppShell({
                 <span className="hidden shrink-0 flex-col md:flex">
                   <button onClick={() => reorder(i, i - 1)} disabled={i === 0}
                     aria-label={`Move ${it.label} up`}
-                    className="flex h-5 w-6 items-center justify-center text-[11px] text-rail-ink hover:bg-white/10 disabled:opacity-25">▲</button>
+                    className="flex h-5 w-6 items-center justify-center text-[0.6875rem] text-rail-ink hover:bg-white/10 disabled:opacity-25">▲</button>
                   <button onClick={() => reorder(i, i + 1)} disabled={i === items.length - 1}
                     aria-label={`Move ${it.label} down`}
-                    className="flex h-5 w-6 items-center justify-center text-[11px] text-rail-ink hover:bg-white/10 disabled:opacity-25">▼</button>
+                    className="flex h-5 w-6 items-center justify-center text-[0.6875rem] text-rail-ink hover:bg-white/10 disabled:opacity-25">▼</button>
                 </span>
               )}
             </div>
@@ -198,7 +198,7 @@ export default function AppShell({
         {!collapsed && (
           <button
             onClick={() => setEditing((e) => !e)}
-            className="hidden min-h-11 items-center gap-2 rounded-md px-2.5 text-[12px] text-rail-ink/70 hover:bg-white/10 md:flex"
+            className="hidden min-h-11 items-center gap-2 rounded-md px-2.5 text-[0.75rem] text-rail-ink/70 hover:bg-white/10 md:flex"
           >
             {editing ? "✓ Done" : "⇅ Reorder"}
           </button>
@@ -210,7 +210,7 @@ export default function AppShell({
 
       <header className="col-start-1 row-start-1 flex items-center gap-3.5 border-b border-rule bg-paper px-4 md:col-start-2 md:px-5">
         <RegionPicker active={region} onPick={onRegion} />
-        <div {...tour("shell.conditions")} className="hidden text-[12.5px] text-ink-soft lg:block">{conditions}</div>
+        <div {...tour("shell.conditions")} className="hidden text-[0.78125rem] text-ink-soft lg:block">{conditions}</div>
 
         {/* Balance and sign-out live on the account page now. Two persistent
             chrome elements for things a grower touches rarely cost more room
@@ -232,7 +232,7 @@ export default function AppShell({
           {...tour("shell.account")}
           aria-current={view === "account" ? "page" : undefined}
           title={displayName || "Your account"}
-          className={`flex min-h-11 shrink-0 items-center gap-2 rounded-full border-[1.5px] px-2 py-1 text-[12px] ${
+          className={`flex min-h-11 shrink-0 items-center gap-2 rounded-full border-[1.5px] px-2 py-1 text-[0.75rem] ${
             view === "account" ? "border-ink bg-ink text-paper" : "border-rule text-ink-soft active:bg-band"
           }`}
         >

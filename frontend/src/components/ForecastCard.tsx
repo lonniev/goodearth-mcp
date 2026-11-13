@@ -49,7 +49,7 @@ export default function ForecastCard({ days, index, onIndex, place, issued, stor
   const step = (to: number, label: string, glyph: string) => (
     <button onClick={() => onIndex(to)} disabled={to < 0 || to >= days.length}
       aria-label={label} title={label}
-      className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded border border-rule text-[18px] text-ink-soft active:bg-band disabled:opacity-30">
+      className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded border border-rule text-[1.125rem] text-ink-soft active:bg-band disabled:opacity-30">
       {glyph}
     </button>
   );
@@ -69,10 +69,10 @@ export default function ForecastCard({ days, index, onIndex, place, issued, stor
         className="max-h-[88vh] w-full max-w-xl overflow-auto rounded-t-xl border border-rule bg-panel p-5 shadow-xl outline-none sm:rounded-xl"
       >
         <div className="flex items-center gap-2">
-          <span className="text-[30px] leading-none" aria-hidden="true">{day.sky.emoji}</span>
+          <span className="text-[1.875rem] leading-none" aria-hidden="true">{day.sky.emoji}</span>
           <div className="min-w-0 flex-1">
             <div className="eyebrow">Forecast</div>
-            <h2 className="figure text-[20px] font-semibold leading-tight">
+            <h2 className="figure text-[1.25rem] font-semibold leading-tight">
               {new Date(day.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
             </h2>
           </div>
@@ -81,13 +81,13 @@ export default function ForecastCard({ days, index, onIndex, place, issued, stor
           <button onClick={() => void copy()} title="Copy the forecast" aria-label="Copy the forecast"
             className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded border border-rule text-ink-soft active:bg-band">
             {copied
-              ? <span className="text-[16px] text-growth" aria-hidden="true">✓</span>
+              ? <span className="text-[1rem] text-growth" aria-hidden="true">✓</span>
               : <Glyph path={ICON.copy} size={20} />}
           </button>
           <button onClick={onClose} aria-label="Close"
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-[18px] text-ink-soft active:text-ink">×</button>
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-[1.125rem] text-ink-soft active:text-ink">×</button>
         </div>
-        <pre className="data mt-4 whitespace-pre-wrap break-words rounded border border-rule bg-paper p-3.5 text-[12.5px] leading-relaxed">
+        <pre className="data mt-4 whitespace-pre-wrap break-words rounded border border-rule bg-paper p-3.5 text-[0.78125rem] leading-relaxed">
           {text}
         </pre>
       </div>

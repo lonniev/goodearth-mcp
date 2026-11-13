@@ -107,17 +107,17 @@ export default function UndoChip({ blockId }: {
                 <button
                   onClick={() => void put(e)}
                   disabled={!!busy}
-                  className="flex min-h-11 w-full items-center gap-2 rounded px-2 text-left text-[13px] disabled:opacity-40 active:bg-band"
+                  className="flex min-h-11 w-full items-center gap-2 rounded px-2 text-left text-[0.8125rem] disabled:opacity-40 active:bg-band"
                 >
                   <span className="flex-1 truncate">{e.label}</span>
-                  <span className="data shrink-0 text-[11px] text-ink-soft">
+                  <span className="data shrink-0 text-[0.6875rem] text-ink-soft">
                     {busy === e.id ? "…" : since(e.at)}
                   </span>
                 </button>
               </li>
             ))}
           </ul>
-          {failed && <p className="px-2 pt-1 text-[12px] text-clay">{failed}</p>}
+          {failed && <p className="px-2 pt-1 text-[0.75rem] text-clay">{failed}</p>}
         </div>
       )}
     </div>

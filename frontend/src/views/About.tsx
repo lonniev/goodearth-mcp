@@ -12,7 +12,7 @@ import { BuildInfoPanel, useTimezone, type BuildInfoPanelClassNames } from "@tol
 // The build panel in the page's own dress: a ruled card, soft labels, the
 // values in the data face. The package draws the rows; the look is ours.
 const BUILD: BuildInfoPanelClassNames = {
-  root: "rounded-md border border-rule bg-panel px-4 py-2 text-[13px]",
+  root: "rounded-md border border-rule bg-panel px-4 py-2 text-[0.8125rem]",
   section: "eyebrow mt-3 mb-0.5 first:mt-1",
   row: "grid grid-cols-[7rem_1fr] gap-x-3 border-b border-rule py-2 last:border-b-0 sm:grid-cols-[11rem_1fr]",
   label: "text-ink-soft",
@@ -34,16 +34,16 @@ export default function About() {
   return (
     <>
       <div className="mb-3.5 flex items-baseline gap-3">
-        <h1 className="figure text-[26px] font-bold">About</h1>
-        <span className="text-[13px] text-ink-soft">Good Earth, and the tollbooth behind it</span>
+        <h1 className="figure text-[1.625rem] font-bold">About</h1>
+        <span className="text-[0.8125rem] text-ink-soft">Good Earth, and the tollbooth behind it</span>
       </div>
 
       {/* ── What it is ─────────────────────────────────────────────────── */}
       <div className="mb-5 rounded-md border border-rule border-l-4 border-l-growth bg-panel px-4 py-3.5">
         {/* The same correction as the welcome page: name the thing this is
             better THAN, rather than denying a claim nobody made. */}
-        <p className="text-[14px] leading-relaxed">
-          <b className="figure text-[16px]">
+        <p className="text-[0.875rem] leading-relaxed">
+          <b className="figure text-[1rem]">
             Many weather services provide a climate prediction for a single
             weather station that may be miles from your fields.
           </b>{" "}
@@ -57,7 +57,7 @@ export default function About() {
             walked a field in April already knows, and which would make this a
             poor thing to pay for. The spread is a PROPERTY of the answers. The
             answers are the product. */}
-        <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">
+        <p className="mt-2 text-[0.8125rem] leading-relaxed text-ink-soft">
           The spread is a property of the answers rather than the service
           itself. What Good Earth does is the arithmetic a walk cannot: it reads
           public scientific feeds against the shape you drew and returns dates.
@@ -65,7 +65,7 @@ export default function About() {
           finishes before it closes. Which week a pest&rsquo;s stages arrive.
           Whether a tree banks the chill it needs on this ground.
         </p>
-        <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">
+        <p className="mt-2 text-[0.8125rem] leading-relaxed text-ink-soft">
           A grower already knows the hollow is colder. What this adds is how
           many days colder, from which feed, with the assumption inside the
           model written down beside the number.
@@ -73,8 +73,8 @@ export default function About() {
       </div>
 
       {/* ── What it costs ──────────────────────────────────────────────── */}
-      <h2 className="figure mb-2.5 text-[18px] font-semibold">⚡ How paying works</h2>
-      <div className="rounded-md border border-rule bg-panel px-4 py-3.5 text-[13px] leading-relaxed">
+      <h2 className="figure mb-2.5 text-[1.125rem] font-semibold">⚡ How paying works</h2>
+      <div className="rounded-md border border-rule bg-panel px-4 py-3.5 text-[0.8125rem] leading-relaxed">
         <p>
           Answers draw from a pre-funded balance of satoshis — Bitcoin's
           smallest unit — over the Lightning network. You top up when you
@@ -100,14 +100,14 @@ export default function About() {
       {/* An assistant asked about Good Earth could not find how to use it,
           and said so: the page was built for a person, and the address its
           own tools answer on was written nowhere a reader would look. */}
-      <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold">🤖 Use it from your AI assistant</h2>
-      <div className="rounded-md border border-rule bg-panel px-4 py-3.5 text-[13px] leading-relaxed">
+      <h2 className="figure mt-7 mb-2.5 text-[1.125rem] font-semibold">🤖 Use it from your AI assistant</h2>
+      <div className="rounded-md border border-rule bg-panel px-4 py-3.5 text-[0.8125rem] leading-relaxed">
         <p>
           Everything on this site is also an MCP server, so an assistant such as
           Claude or Cursor can ask Good Earth the same questions for you — same
           answers, same balance, same Nostr key.
         </p>
-        <p className="data mt-2 break-all rounded bg-band px-2.5 py-1.5 text-[12.5px]">
+        <p className="data mt-2 break-all rounded bg-band px-2.5 py-1.5 text-[0.78125rem]">
           https://goodearth-mcp.fastmcp.app/mcp
         </p>
         <ul className="mt-2 list-disc space-y-1 pl-5">
@@ -123,9 +123,9 @@ export default function About() {
       </div>
 
       {/* ── What is running ────────────────────────────────────────────── */}
-      <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold">🔧 What is running</h2>
+      <h2 className="figure mt-7 mb-2.5 text-[1.125rem] font-semibold">🔧 What is running</h2>
       {err ? (
-        <div className="rounded-md border border-clay/30 bg-clay/10 p-3 text-[13px] text-clay">
+        <div className="rounded-md border border-clay/30 bg-clay/10 p-3 text-[0.8125rem] text-clay">
           Could not reach the service: {err}
         </div>
       ) : (
@@ -144,7 +144,7 @@ export default function About() {
             <span className={BUILD.label}>Operator fingerprint</span>{" "}
             <span className={BUILD.value}>
               {status?.operator_npub_hash ?? "—"}
-              <span className="mt-0.5 block text-[11.5px] text-ink-soft">
+              <span className="mt-0.5 block text-[0.71875rem] text-ink-soft">
                 Verify this matches the fingerprint on any direct message claiming to be Good Earth.
               </span>
             </span>
@@ -159,7 +159,7 @@ export default function About() {
       )}
 
       {/* ── The network ────────────────────────────────────────────────── */}
-      <h2 className="figure mt-7 mb-2.5 text-[18px] font-semibold">🌐 The wider network</h2>
+      <h2 className="figure mt-7 mb-2.5 text-[1.125rem] font-semibold">🌐 The wider network</h2>
       <div className="grid gap-2.5 sm:grid-cols-2">
         {[
           { name: "Good Brew", url: "https://cafe.tollbooth-dpyc.com",
@@ -173,13 +173,13 @@ export default function About() {
         ].map((l) => (
           <a key={l.url} href={l.url} target="_blank" rel="noreferrer"
             className="rounded-md border border-rule bg-panel px-3.5 py-3 active:border-ink">
-            <div className="figure text-[14.5px] font-semibold">🔗 {l.name}</div>
-            <p className="mt-0.5 text-[12.5px] leading-snug text-ink-soft">{l.line}</p>
+            <div className="figure text-[0.90625rem] font-semibold">🔗 {l.name}</div>
+            <p className="mt-0.5 text-[0.78125rem] leading-snug text-ink-soft">{l.line}</p>
           </a>
         ))}
       </div>
 
-      <p className="mt-6 text-[12px] leading-relaxed text-ink-soft">
+      <p className="mt-6 text-[0.75rem] leading-relaxed text-ink-soft">
         Good Earth is open source under Apache-2.0. If an answer here disagrees
         with your own record, the References page shows exactly which feed and
         which assumption produced it — and a field report turns that

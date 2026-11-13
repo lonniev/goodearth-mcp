@@ -95,8 +95,8 @@ export default function PlotStation({ block, opened = false, onChosen, onKeep }:
 
   return (
     <div className="mt-3" {...tour("plots.station")}>
-      <p className="text-[11px] text-ink-soft">Station</p>
-      <div className="mt-1 flex flex-wrap items-center gap-2 text-[12.5px]">
+      <p className="text-[0.6875rem] text-ink-soft">Station</p>
+      <div className="mt-1 flex flex-wrap items-center gap-2 text-[0.78125rem]">
         {step.kind !== "choose" && <span>{current ? current.name : "None"}</span>}
         {step.kind === "rest" && (
           <Pill onClick={() => void begin()}>{current ? "Change" : "Choose from FieldData"}</Pill>
@@ -110,7 +110,7 @@ export default function PlotStation({ block, opened = false, onChosen, onKeep }:
               aria-label="Station"
               value={current?.station_id ?? ""}
               onChange={(e) => void pick(step, e.target.value, e.target.selectedOptions[0]?.text ?? "")}
-              className="min-h-11 rounded border border-rule bg-panel px-2 text-[16px]"
+              className="min-h-11 rounded border border-rule bg-panel px-2 text-[1rem]"
             >
               <option value="">None</option>
               {step.stations.map((s) => <option key={s.station_id} value={s.station_id}>{s.name}</option>)}
@@ -126,10 +126,10 @@ export default function PlotStation({ block, opened = false, onChosen, onKeep }:
           onPick={(s) => void pick(step, s.station_id, s.name, s.choice)} />
       )}
       {step.kind === "reply" && (
-        <div className="mt-1.5 rounded-md bg-band p-2.5 text-[12.5px]">
+        <div className="mt-1.5 rounded-md bg-band p-2.5 text-[0.78125rem]">
           <p>FieldData sent you a Nostr message marked <b className="data">{step.phrase}</b>.</p>
           <p className="mt-0.5">Reply to it, then tap below.</p>
-          {step.relay && <p className="data mt-1 text-[10.5px] text-ink-soft">Reply on {step.relay}</p>}
+          {step.relay && <p className="data mt-1 text-[0.65625rem] text-ink-soft">Reply on {step.relay}</p>}
           <div className="mt-2 flex flex-wrap gap-2">
             <Pill active onClick={() => void replied(step)}>I replied</Pill>
             <Pill onClick={() => void run(step, sendMessage)}>Send a new message</Pill>
@@ -138,7 +138,7 @@ export default function PlotStation({ block, opened = false, onChosen, onKeep }:
         </div>
       )}
       {problem && (
-        <div role="alert" className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-clay">
+        <div role="alert" className="mt-1 flex flex-wrap items-center gap-2 text-[0.75rem] text-clay">
           <span>{problem}</span>
           {needsConnect(problem) && step.kind === "rest" && (
             <Pill active onClick={() => void run({ kind: "rest" }, sendMessage)}>Connect FieldData</Pill>

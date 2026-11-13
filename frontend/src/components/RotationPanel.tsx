@@ -37,16 +37,16 @@ export default function RotationPanel({ rows, more, onRepeat }: {
   };
 
   return (
-    <div className="mb-3 rounded-md border border-rule bg-panel px-4 py-3 text-[13px] leading-relaxed">
+    <div className="mb-3 rounded-md border border-rule bg-panel px-4 py-3 text-[0.8125rem] leading-relaxed">
       {onRepeat && (
-        <p className="mb-2 text-[12px] text-ink-soft">
+        <p className="mb-2 text-[0.75rem] text-ink-soft">
           Tap a plant to grow it again — the form above fills in, and you choose the day.
         </p>
       )}
       <ul className="space-y-3">
         {rows.map((r) => (
           <li key={r.season}>
-            <b className="figure text-[15px]">{r.season}</b>
+            <b className="figure text-[0.9375rem]">{r.season}</b>
             <ul className="mt-1 space-y-1 pl-3">
               {r.families.map((g) => (
                 <li key={g.family}>
@@ -54,7 +54,7 @@ export default function RotationPanel({ rows, more, onRepeat }: {
                   {g.common && <span className="text-ink-soft"> ({g.common})</span>}
                   {" — "}{g.crops.map((c, i) => crop(c, r, i))}
                   {g.alsoIn.length > 0 && (
-                    <span className="data ml-2 text-[11px] text-ink-soft">also here {g.alsoIn.join(", ")}</span>
+                    <span className="data ml-2 text-[0.6875rem] text-ink-soft">also here {g.alsoIn.join(", ")}</span>
                   )}
                 </li>
               ))}
@@ -65,7 +65,7 @@ export default function RotationPanel({ rows, more, onRepeat }: {
           </li>
         ))}
       </ul>
-      {more && <p className="data mt-2 text-[11px] text-ink-soft">{more}</p>}
+      {more && <p className="data mt-2 text-[0.6875rem] text-ink-soft">{more}</p>}
     </div>
   );
 }
