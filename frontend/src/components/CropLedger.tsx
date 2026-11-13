@@ -180,7 +180,7 @@ export default function CropLedger({
   const u = useUnits();
   return (
     <div data-tour={tour} className="overflow-x-auto overscroll-x-contain rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">
-      <table className="w-full border-collapse text-[13px]">
+      <table className="w-full border-collapse text-[0.8125rem]">
         <thead>
           <SortHeaders cols={COLS} sort={sort} dir={dir} onSort={onSort} />
         </thead>
@@ -195,13 +195,13 @@ export default function CropLedger({
                 <td onClick={() => onEdit(p)} className="cursor-text px-3 py-2.5 font-semibold">
                   {/* The same icon the chiclet carried, so a row and the
                       chiclet that created it read as the one crop. */}
-                  <span className="mr-1.5 text-[15px]" aria-hidden="true">{SEEDLING}</span>
+                  <span className="mr-1.5 text-[0.9375rem]" aria-hidden="true">{SEEDLING}</span>
                   {p.crop}
                   {/* Under the name rather than in a seventh column. The table
                       already carries six, and this is a fact ABOUT the crop
                       rather than another measurement of it. */}
                   {(watch?.length ?? 0) > 0 && (
-                    <span className="data mt-0.5 block text-[10.5px] font-normal text-clay">
+                    <span className="data mt-0.5 block text-[0.65625rem] font-normal text-clay">
                       {watch!.map((w) => (
                         <span key={w.model} className="mr-2 inline-block">
                           🍄 {w.label} {w.lead} {shortDate(w.date)}
@@ -222,13 +222,13 @@ export default function CropLedger({
                          p.baseTempF != null && `base ${u.showTemp(p.baseTempF)}`]
                     ).filter(Boolean).join(" · ");
                     return facts
-                      ? <small className="block text-[11px] font-normal text-ink-soft">{facts}</small>
+                      ? <small className="block text-[0.6875rem] font-normal text-ink-soft">{facts}</small>
                       : null;
                   })()}
                   {/* What it gave, under what it was asked to do. The heat
                       target is "usually harvest"; this is when harvest was. */}
                   {harvest && (
-                    <span className="data mt-0.5 block text-[10.5px] font-normal text-growth">
+                    <span className="data mt-0.5 block text-[0.65625rem] font-normal text-growth">
                       {describeHarvest(harvest, shortDate)}
                     </span>
                   )}
@@ -253,12 +253,12 @@ export default function CropLedger({
                   // Not tracked: one cell across the computed columns, saying
                   // what it would need rather than showing three dashes.
                   <td className="px-3 py-2.5" colSpan={3}>
-                    <span className="data text-[11px]">{reason ?? "nothing to count from"}</span>
+                    <span className="data text-[0.6875rem]">{reason ?? "nothing to count from"}</span>
                   </td>
                 )}
 
                 <td className="px-2 py-2.5 text-right whitespace-nowrap">
-                  <span className={`mr-2 whitespace-nowrap rounded-full px-2 py-[3px] text-[11px] font-semibold ${
+                  <span className={`mr-2 whitespace-nowrap rounded-full px-2 py-[3px] text-[0.6875rem] font-semibold ${
                     r ? (STATUS[r.state] ?? STATUS.on_pace).cls : "bg-band text-ink-soft"
                   }`}>
                     {/* "Not tracked" is wrong for a tree: it is tracked, on a
@@ -347,7 +347,7 @@ function HeatBar({ r }: { r: PlantingStatus }) {
             style={{ left: `${t.at}%` }} />
         ))}
       </div>
-      <span className="data mt-1 block text-[11px] text-ink-soft">
+      <span className="data mt-1 block text-[0.6875rem] text-ink-soft">
         {r.gdd_accumulated != null
           ? `${Math.round(r.gdd_accumulated).toLocaleString()} / ${r.gdd_target.toLocaleString()}`
           : r.note}
@@ -361,25 +361,25 @@ function Verdict({ r }: { r: PlantingStatus }) {
   const vd = VERDICT[r.finish.verdict] ?? VERDICT.unknown;
   return (
     <>
-      <span className={`inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-[11.5px] font-semibold ${vd.cls}`}>
+      <span className={`inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-[0.71875rem] font-semibold ${vd.cls}`}>
         {vd.label}
       </span>
       {/* The verdict's reasoning was tooltip-only. On a tablet that is the
           same as not shipping it. */}
       {r.finish.margin_days != null && r.finish.verdict !== "finished" && (
-        <span className="data mt-1 block text-[10px] text-ink-soft">
+        <span className="data mt-1 block text-[0.625rem] text-ink-soft">
           {r.finish.margin_days >= 0
             ? `${r.finish.margin_days} days of margin`
             : `${Math.abs(r.finish.margin_days)} days late`}
         </span>
       )}
       {r.finish.at_risk_of_early_frost && r.finish.verdict === "finishes" && (
-        <span className="data mt-1 block text-[10px] text-frost">
+        <span className="data mt-1 block text-[0.625rem] text-frost">
           past the earliest frost on record
         </span>
       )}
       {r.finish.verdict === "wont_finish" && r.finish.gdd_shortfall != null && (
-        <span className="data mt-1 block text-[10px] text-clay">
+        <span className="data mt-1 block text-[0.625rem] text-clay">
           ~{Math.round(r.finish.gdd_shortfall)} GDD short
         </span>
       )}
@@ -440,32 +440,32 @@ function CompanionsRow({ planting, ask, onPick, onCost, onCancel }: {
             <span className="ml-auto flex items-center gap-2">
               {at && <Provenance tool="goodearth_companions" at={at} onCost={onCost} />}
               <button onClick={onCancel} aria-label="Close companions"
-                className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft">×</button>
+                className="inline-flex h-11 w-11 items-center justify-center text-[1.125rem] text-ink-soft">×</button>
             </span>
           </div>
 
-          {busy && <p className="data mt-2 text-[11px] text-ink-soft">Reading…</p>}
-          {err && <p className="mt-1.5 text-[12px] text-clay">{err}</p>}
+          {busy && <p className="data mt-2 text-[0.6875rem] text-ink-soft">Reading…</p>}
+          {err && <p className="mt-1.5 text-[0.75rem] text-clay">{err}</p>}
           {result && !result.success && (
-            <p className="mt-1.5 text-[12px] text-clay">{result.error}</p>
+            <p className="mt-1.5 text-[0.75rem] text-clay">{result.error}</p>
           )}
 
           {result?.success && (
             <>
               {kind === "design" && result.subject && (
-                <p className="data mt-2 text-[11px] text-ink-soft">
+                <p className="data mt-2 text-[0.6875rem] text-ink-soft">
                   {result.subject.color && <>{HUE_GLYPH[result.subject.color]} {result.subject.color}</>}
                   {result.subject.band && <> · {result.subject.band}</>}
                   {planting.bloomMonths?.length ? <> · {monthSpan(planting.bloomMonths)}</> : null}
                 </p>
               )}
               {kind === "synergy" && result.subject?.family && (
-                <p className="data mt-2 text-[11px] text-ink-soft">
+                <p className="data mt-2 text-[0.6875rem] text-ink-soft">
                   {result.subject.family}{result.subject.genus && <> · <i>{result.subject.genus}</i></>}
                 </p>
               )}
               {groups.length === 0 && (
-                <p className="mt-2 text-[12.5px] text-ink-soft">Nothing on the record pairs with this yet.</p>
+                <p className="mt-2 text-[0.78125rem] text-ink-soft">Nothing on the record pairs with this yet.</p>
               )}
               {groups.map((g) => (
                 <div key={g.where} className="mt-2.5">
@@ -481,10 +481,10 @@ function CompanionsRow({ planting, ask, onPick, onCost, onCancel }: {
                             onClick={row.where === "this_plot" ? undefined : () => onPick(row)} />
                           {/* The plant on the left, its reason against the right edge: two
                               columns the eye can run down, whatever each name's length. */}
-                          <span className="min-w-[12rem] flex-1 text-right text-[12px] leading-snug text-ink-soft">
+                          <span className="min-w-[12rem] flex-1 text-right text-[0.75rem] leading-snug text-ink-soft">
                             {row.why}
                             {row.basis !== "grower" && (
-                              <span className="data ml-1.5 rounded-full border border-rule px-1.5 py-px text-[10px]" title={row.cite}>{row.basis}</span>
+                              <span className="data ml-1.5 rounded-full border border-rule px-1.5 py-px text-[0.625rem]" title={row.cite}>{row.basis}</span>
                             )}
                           </span>
                         </li>
@@ -494,7 +494,7 @@ function CompanionsRow({ planting, ask, onPick, onCost, onCancel }: {
                 </div>
               ))}
               {!!result.unplaced?.length && (
-                <p className="mt-2 text-[11.5px] text-ink-soft">
+                <p className="mt-2 text-[0.71875rem] text-ink-soft">
                   Not placed: {result.unplaced.map((u) => u.name).join(", ")} — {result.unplaced[0].reason}.
                 </p>
               )}
@@ -595,7 +595,7 @@ function SeedRow({ planting, lots, saving, onBind, onSaveLot, onRetireLot, onCan
                 onClick={adding ? undefined : () => void commit()} disabled={busy || saving}
                 aria-label={adding ? "Add seed lot" : "Save seed"}
                 title={adding ? "Add" : "Save"}
-                className="inline-flex h-11 w-11 items-center justify-center text-[18px]
+                className="inline-flex h-11 w-11 items-center justify-center text-[1.125rem]
                   text-growth disabled:opacity-40">✓</button>
             </div>
           </div>
@@ -618,7 +618,7 @@ function SeedRow({ planting, lots, saving, onBind, onSaveLot, onRetireLot, onCan
                 return null;
               }} />
           )}
-          {err && <p className="mt-1.5 text-[12px] text-clay">{err}</p>}
+          {err && <p className="mt-1.5 text-[0.75rem] text-clay">{err}</p>}
         </div>
       </td>
     </tr>
@@ -672,7 +672,7 @@ function HarvestRow({ planting, unit, onSave, onCancel }: {
               {/* The plant's name stays here, unlike the seed row's: a cut can
                   be open while the reader has scrolled sideways, and this is
                   the only thing saying which plant the amount belongs to. */}
-              <span className="flex items-center gap-1.5 pt-3.5 text-[12.5px] font-semibold">
+              <span className="flex items-center gap-1.5 pt-3.5 text-[0.78125rem] font-semibold">
                 <Glyph path={ICON.shears} size={20} grid={512} />A cut of {planting.crop}
               </span>
               <Field label="Cut on" htmlFor={`cut-on-${planting.id}`} width="w-[10rem]">
@@ -694,7 +694,7 @@ function HarvestRow({ planting, unit, onSave, onCancel }: {
               <RowActions onCommit={() => void commit()} onCancel={onCancel} saving={saving} what="harvest" />
             </span>
           </div>
-          {err && <p className="mt-1.5 text-[12px] text-clay">{err}</p>}
+          {err && <p className="mt-1.5 text-[0.75rem] text-clay">{err}</p>}
         </div>
       </td>
     </tr>

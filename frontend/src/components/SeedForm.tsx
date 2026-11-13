@@ -136,7 +136,7 @@ export default function SeedForm({ crop, taxonId, varieties, units, onSave }: {
           <input id="seed-lot" name="lot" placeholder="Z-114" className={FIELD} />
         </Field>
       </div>
-      {err && <p className="mt-2 text-[12px] text-clay">{err}</p>}
+      {err && <p className="mt-2 text-[0.75rem] text-clay">{err}</p>}
     </form>
   );
 }

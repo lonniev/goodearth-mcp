@@ -63,7 +63,7 @@ export default function PlotEditor({ plot, onDone }: {
   return (
     <div>
       <div className="flex items-center gap-1">
-        <label className="flex-1 text-[11px] text-ink-soft">
+        <label className="flex-1 text-[0.6875rem] text-ink-soft">
           Name
           <input autoFocus value={name} onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => keys(e, () => void commit())}
@@ -74,11 +74,11 @@ export default function PlotEditor({ plot, onDone }: {
         </div>
       </div>
 
-      <p className="mt-2.5 text-[11px] text-ink-soft">Also called</p>
+      <p className="mt-2.5 text-[0.6875rem] text-ink-soft">Also called</p>
       {aliases.length > 0 && (
         <ul className="mt-1 flex flex-wrap gap-1.5">
           {aliases.map((a) => (
-            <li key={a} className="flex items-center rounded-full bg-band pl-3 text-[12.5px]">
+            <li key={a} className="flex items-center rounded-full bg-band pl-3 text-[0.78125rem]">
               {a}
               <button onClick={() => setAliases(aliases.filter((x) => x !== a))}
                 aria-label={`Remove ${a}`}
@@ -94,17 +94,17 @@ export default function PlotEditor({ plot, onDone }: {
           className={`min-h-11 flex-1 ${CELL}`} />
         <IconButton path={ICON.add} label="Add name" tone="quiet" hideLabel onClick={add} disabled={!entry.trim()} />
       </div>
-      <p className="data mt-1.5 text-[10.5px] text-ink-soft">
+      <p className="data mt-1.5 text-[0.65625rem] text-ink-soft">
         Any part of the name already works. Add one only for a name that shares no words with it.
       </p>
 
       <PlotStation block={plot.id} />
 
-      <p className="mt-3 text-[11px] text-ink-soft">Groups</p>
+      <p className="mt-3 text-[0.6875rem] text-ink-soft">Groups</p>
       {groups.length > 0 && (
         <ul className="mt-1 flex flex-wrap gap-1.5">
           {groups.map((g) => (
-            <li key={g} className="flex items-center rounded-full bg-band pl-3 text-[12.5px]">
+            <li key={g} className="flex items-center rounded-full bg-band pl-3 text-[0.78125rem]">
               {g}
               <button onClick={() => setGroups(groups.filter((x) => x !== g))}
                 aria-label={`Take it out of ${g}`}
@@ -118,7 +118,7 @@ export default function PlotEditor({ plot, onDone }: {
           {known.map((g) => (
             <li key={g}>
               <button onClick={() => addGroup(g)}
-                className="min-h-9 rounded-full border border-dashed border-rule px-3 text-[12px] text-ink-soft active:bg-band">
+                className="min-h-9 rounded-full border border-dashed border-rule px-3 text-[0.75rem] text-ink-soft active:bg-band">
                 + {g}
               </button>
             </li>
@@ -133,10 +133,10 @@ export default function PlotEditor({ plot, onDone }: {
         <IconButton path={ICON.add} label="Add group" tone="quiet" hideLabel
           onClick={() => addGroup(groupEntry)} disabled={!cleanPath(groupEntry)} />
       </div>
-      <p className="data mt-1.5 text-[10.5px] text-ink-soft">
+      <p className="data mt-1.5 text-[0.65625rem] text-ink-soft">
         A slash puts a group inside another.
       </p>
-      {err && <p className="mt-1.5 text-[12.5px] text-clay">{err}</p>}
+      {err && <p className="mt-1.5 text-[0.78125rem] text-clay">{err}</p>}
     </div>
   );
 }

@@ -75,13 +75,13 @@ export default function SunSpotCard({ grid, result, cell, month, fullLeaf, onCos
     <div className="mt-3 grid gap-3 sm:grid-cols-3">
       <div className="rounded-md border border-rule bg-panel px-4 py-3.5">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <h3 className="figure text-[15.5px]">This spot</h3>
-          <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${CLASS_CHIP[cls]}`}>{CLASS_NAME[cls]}</span>
+          <h3 className="figure text-[0.96875rem]">This spot</h3>
+          <span className={`rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold ${CLASS_CHIP[cls]}`}>{CLASS_NAME[cls]}</span>
         </div>
-        <p className="mt-1"><span className="figure text-[26px] leading-none">{hours.toFixed(1)}</span>
-          <span className="ml-1 text-[12px] text-ink-soft">h of direct sun a day in {FULL_MONTH[month]}</span></p>
+        <p className="mt-1"><span className="figure text-[1.625rem] leading-none">{hours.toFixed(1)}</span>
+          <span className="ml-1 text-[0.75rem] text-ink-soft">h of direct sun a day in {FULL_MONTH[month]}</span></p>
         <SkyDome grid={grid} cell={cell} paths={result.sun_paths} fullLeaf={fullLeaf} leafOn={result.light.leaf_on_months.includes(month + 1)} />
-        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10.5px] text-ink-soft">
+        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[0.65625rem] text-ink-soft">
           <Key colour={HILLS}>Hills</Key>
           <Key colour={TREES} faint>Trees</Key>
           {pathsAt(cellCentre(grid, cell).lat).map(({ colour, label }) => <Key key={label} colour={colour}>{label}</Key>)}
@@ -90,35 +90,35 @@ export default function SunSpotCard({ grid, result, cell, month, fullLeaf, onCos
       </div>
 
       <div className="rounded-md border border-rule bg-panel px-4 py-3.5">
-        <h3 className="figure text-[15.5px]">Direct sun, month by month</h3>
+        <h3 className="figure text-[0.96875rem]">Direct sun, month by month</h3>
         <MonthBars grid={grid} cell={cell} month={month} fullLeaf={fullLeaf} />
-        <p className="mt-2 text-[12px] text-ink-soft">
+        <p className="mt-2 text-[0.75rem] text-ink-soft">
           Least light in {FULL_MONTH[low]}: {hoursOf(grid, cell, low, fullLeaf).toFixed(1)} h a day.
         </p>
       </div>
 
       <div className="rounded-md border border-rule bg-panel px-4 py-3.5">
-        <h3 className="figure text-[15.5px]">Panels here</h3>
+        <h3 className="figure text-[0.96875rem]">Panels here</h3>
         {kwh !== null && access !== null ? (
           <>
             <div className="mt-2 grid grid-cols-2 gap-2">
               <div className="rounded border border-rule px-3 py-2">
-                <div className="figure text-[20px] leading-tight">{Math.round(kwh).toLocaleString()}</div>
-                <div className="text-[11px] text-ink-soft">kWh per kW a year</div>
+                <div className="figure text-[1.25rem] leading-tight">{Math.round(kwh).toLocaleString()}</div>
+                <div className="text-[0.6875rem] text-ink-soft">kWh per kW a year</div>
               </div>
               <div className="rounded border border-rule px-3 py-2">
-                <div className="figure text-[20px] leading-tight">{Math.round(access)}%</div>
-                <div className="text-[11px] text-ink-soft">of open-sky yield</div>
+                <div className="figure text-[1.25rem] leading-tight">{Math.round(access)}%</div>
+                <div className="text-[0.6875rem] text-ink-soft">of open-sky yield</div>
               </div>
             </div>
             <ArrayRows perKw={kwh} prices={result.kw_prices} array={array} onArray={onArray} />
-            <p className="mt-2 text-[12px] text-ink-soft">A screening estimate, not a site survey.</p>
+            <p className="mt-2 text-[0.75rem] text-ink-soft">A screening estimate, not a site survey.</p>
           </>
         ) : (
-          <p className="mt-1 text-[12px] text-ink-soft">No solar figures for this plot.</p>
+          <p className="mt-1 text-[0.75rem] text-ink-soft">No solar figures for this plot.</p>
         )}
         <div className="mt-2 flex items-baseline gap-2">
-          <span className="data text-[10.5px] text-ink-soft">{sourcesLine}</span>
+          <span className="data text-[0.65625rem] text-ink-soft">{sourcesLine}</span>
           <Provenance tool="goodearth_sunlight" at={at} from={readingTime(result)} onCost={onCost} />
         </div>
       </div>
@@ -305,7 +305,7 @@ function ArrayRows({ perKw, prices, array, onArray }: {
 
   return (
     <>
-      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px]">
+      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.78125rem]">
         <span className="text-ink-soft">Array</span>
         <Metres value={array.w} glyph="⟷" label="Width, metres east to west" onChange={(w) => onArray({ ...array, w })} />
         <Metres value={array.l} glyph="↕" label="Length, metres north to south" onChange={(l) => onArray({ ...array, l })} />
@@ -320,7 +320,7 @@ function ArrayRows({ perKw, prices, array, onArray }: {
             <Fig big={made == null ? "—" : Math.round(made).toLocaleString()} small="kWh a day" />
             <Fig big={net == null ? "—" : usd(roughly(net), 2)} small="a day, net" why={rate ? prices.reasons.install : prices.reasons.sell} />
           </div>
-          <div className="data mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10.5px] text-ink-soft">
+          <div className="data mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[0.65625rem] text-ink-soft">
             {prices.install
               ? <span>DOE benchmark {prices.install.quarter}</span>
               : <span title={prices.reasons.install}>no benchmark read</span>}
@@ -345,7 +345,7 @@ function ArrayRows({ perKw, prices, array, onArray }: {
           </div>
         </>
       ) : (
-        <p className="mt-2 text-[12px] text-ink-soft">No prices came with this reading.</p>
+        <p className="mt-2 text-[0.75rem] text-ink-soft">No prices came with this reading.</p>
       )}
     </>
   );
@@ -354,8 +354,8 @@ function ArrayRows({ perKw, prices, array, onArray }: {
 function Fig({ big, small, why }: { big: string; small: string; why?: string }) {
   return (
     <div className="rounded border border-rule px-2 py-1.5" title={why}>
-      <div className="figure text-[17px] leading-tight">{big}</div>
-      <div className="text-[10.5px] text-ink-soft">{small}</div>
+      <div className="figure text-[1.0625rem] leading-tight">{big}</div>
+      <div className="text-[0.65625rem] text-ink-soft">{small}</div>
     </div>
   );
 }
@@ -383,7 +383,7 @@ function Metres({ value, glyph, label, onChange }: {
         }}
         onBlur={commit}
         onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-        className="data h-8 w-14 rounded border border-rule bg-paper px-1.5 text-right text-[12.5px]" />
+        className="data h-8 w-14 rounded border border-rule bg-paper px-1.5 text-right text-[0.78125rem]" />
       <span className="text-ink-soft">m</span>
     </label>
   );
@@ -402,7 +402,7 @@ function RateInput({ initial, onDone }: { initial: number | null; onDone: (v: nu
         aria-label="Cents per kWh your utility pays"
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => { if (e.key === "Enter") done(); if (e.key === "Escape") onDone(initial); }}
-        className="data h-7 w-16 rounded border border-rule bg-paper px-1.5 text-right text-[11px]" />
+        className="data h-7 w-16 rounded border border-rule bg-paper px-1.5 text-right text-[0.6875rem]" />
       <span>¢/kWh</span>
       <button type="button" onClick={done} aria-label="Keep this rate"
         className="inline-flex h-7 w-7 items-center justify-center rounded text-growth">✓</button>

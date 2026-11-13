@@ -20,19 +20,19 @@ export default function SuccessionRows({ crop, every, rows, onAdd, adding }: {
 }) {
   if (!rows.length) {
     return (
-      <p className="text-[12.5px] text-ink-soft">
+      <p className="text-[0.78125rem] text-ink-soft">
         No sowing of {crop} left this season still finishes before the frost.
       </p>
     );
   }
   return (
     <div>
-      <p className="mb-1.5 text-[12px] text-ink-soft">
+      <p className="mb-1.5 text-[0.75rem] text-ink-soft">
         {crop} every {every} days — {rows.length} sowing{rows.length === 1 ? "" : "s"} still finish here.
       </p>
       <ol className="space-y-1">
         {rows.map((s) => (
-          <li key={s.n} className="flex flex-wrap items-baseline gap-x-2.5 text-[12.5px]">
+          <li key={s.n} className="flex flex-wrap items-baseline gap-x-2.5 text-[0.78125rem]">
             <span className="data w-7 text-ink-soft">#{s.n}</span>
             <span>out <b>{short(s.out)}</b></span>
             {s.start_seed_indoors && (
@@ -43,7 +43,7 @@ export default function SuccessionRows({ crop, every, rows, onAdd, adding }: {
               <span className="text-ink-soft">{s.margin_days} days before the frost</span>
             )}
             {s.at_risk_of_early_frost && (
-              <span className="rounded-full bg-honey/15 px-2 py-0.5 text-[11px] font-semibold text-honey">
+              <span className="rounded-full bg-honey/15 px-2 py-0.5 text-[0.6875rem] font-semibold text-honey">
                 after the earliest frost on record
               </span>
             )}

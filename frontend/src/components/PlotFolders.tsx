@@ -23,7 +23,7 @@ type Sheet =
   | { kind: "members"; group: string; fresh: boolean }
   | { kind: "rename"; group: string };
 
-const PILL = "flex min-h-11 items-center gap-1.5 rounded-full border border-rule px-3.5 text-[12.5px] font-medium active:bg-band";
+const PILL = "flex min-h-11 items-center gap-1.5 rounded-full border border-rule px-3.5 text-[0.78125rem] font-medium active:bg-band";
 
 export default function PlotFolders({ plots, hidden, onHidden, onSaved, synced, chip, actions }: {
   plots: SavedRegion[];
@@ -69,7 +69,7 @@ export default function PlotFolders({ plots, hidden, onHidden, onSaved, synced, 
             </>
           )}
           <button onClick={() => setSheet(null)} aria-label="Close"
-            className="ml-auto inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft">×</button>
+            className="ml-auto inline-flex h-11 w-11 items-center justify-center text-[1.125rem] text-ink-soft">×</button>
         </div>
       );
     }
@@ -101,7 +101,7 @@ export default function PlotFolders({ plots, hidden, onHidden, onSaved, synced, 
         {synced && own.length > 0 && (
           <button onClick={() => setSheet(sheet?.group === "" ? null : { kind: "members", group: "", fresh: true })}
             aria-label="New group" title="Group plots"
-            className="flex min-h-11 items-center gap-1.5 rounded-full border-[1.5px] border-dashed border-rule bg-panel px-3 text-[13px] font-medium text-ink-soft active:bg-band">
+            className="flex min-h-11 items-center gap-1.5 rounded-full border-[1.5px] border-dashed border-rule bg-panel px-3 text-[0.8125rem] font-medium text-ink-soft active:bg-band">
             <Glyph path={ICON.add} size={16} /> Group
           </button>
         )}
@@ -164,14 +164,14 @@ function Members({ plots, group, fresh, onDone }: {
     <div className="mb-2 rounded-md border border-rule bg-panel p-3.5">
       <div className="flex items-center gap-1">
         {fresh ? (
-          <label className="flex-1 text-[11px] text-ink-soft">
+          <label className="flex-1 text-[0.6875rem] text-ink-soft">
             {group ? `New group inside ${leaf(group)}` : "New group"}
             <input autoFocus value={name} onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") void commit(); if (e.key === "Escape") onDone([], ""); }}
               placeholder="Orchard" className={`mt-0.5 min-h-11 ${CELL}`} />
           </label>
         ) : (
-          <p className="flex-1 text-[13px] font-semibold">{leaf(group)}</p>
+          <p className="flex-1 text-[0.8125rem] font-semibold">{leaf(group)}</p>
         )}
         <div className="self-end">
           <RowActions onCommit={() => void commit()} onCancel={() => onDone([], "")} saving={saving} what={leaf(path) || "group"} />
@@ -180,7 +180,7 @@ function Members({ plots, group, fresh, onDone }: {
       <ul className="mt-2 divide-y divide-rule">
         {plots.map((p) => (
           <li key={p.id}>
-            <label className="flex min-h-11 items-center gap-2.5 text-[13px]">
+            <label className="flex min-h-11 items-center gap-2.5 text-[0.8125rem]">
               <input type="checkbox" className="h-4 w-4 accent-growth" checked={picked.includes(p.id)}
                 onChange={(e) => setPicked(e.target.checked ? [...picked, p.id] : picked.filter((x) => x !== p.id))} />
               {p.name}
@@ -188,10 +188,10 @@ function Members({ plots, group, fresh, onDone }: {
           </li>
         ))}
       </ul>
-      <p className="data mt-1.5 text-[10.5px] text-ink-soft">
+      <p className="data mt-1.5 text-[0.65625rem] text-ink-soft">
         A slash puts a group inside another: North Farm / Orchard.
       </p>
-      {err && <p className="mt-1.5 text-[12.5px] text-clay">{err}</p>}
+      {err && <p className="mt-1.5 text-[0.78125rem] text-clay">{err}</p>}
     </div>
   );
 }
@@ -223,7 +223,7 @@ function Rename({ plots, group, onDone }: {
   return (
     <div className="mb-2 rounded-md border border-rule bg-panel p-3.5">
       <div className="flex items-center gap-1">
-        <label className="flex-1 text-[11px] text-ink-soft">
+        <label className="flex-1 text-[0.6875rem] text-ink-soft">
           Group
           <input autoFocus value={to} onChange={(e) => setTo(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") void commit(); if (e.key === "Escape") onDone([], ""); }}
@@ -233,10 +233,10 @@ function Rename({ plots, group, onDone }: {
           <RowActions onCommit={() => void commit()} onCancel={() => onDone([], "")} saving={saving} what={leaf(group)} />
         </div>
       </div>
-      <p className="data mt-1.5 text-[10.5px] text-ink-soft">
+      <p className="data mt-1.5 text-[0.65625rem] text-ink-soft">
         Type another path to move it, with every group and plot inside: South Farm / Orchard.
       </p>
-      {err && <p className="mt-1.5 text-[12.5px] text-clay">{err}</p>}
+      {err && <p className="mt-1.5 text-[0.78125rem] text-clay">{err}</p>}
     </div>
   );
 }

@@ -94,7 +94,7 @@ function ShareSheet({ sheet, onClose }: { sheet: Sheet; onClose: () => void }) {
     <button onClick={() => void copy(kind)} title={label} aria-label={label}
       className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded border border-rule text-ink-soft active:bg-band">
       {done === kind
-        ? <span className="text-[16px] text-growth" aria-hidden="true">✓</span>
+        ? <span className="text-[1rem] text-growth" aria-hidden="true">✓</span>
         : <Glyph path={path} size={20} />}
     </button>
   );
@@ -114,15 +114,15 @@ function ShareSheet({ sheet, onClose }: { sheet: Sheet; onClose: () => void }) {
         className="flex max-h-[88vh] w-full max-w-2xl flex-col rounded-t-xl border border-rule bg-panel p-5 shadow-xl outline-none sm:rounded-xl"
       >
         <div className="flex items-start gap-3">
-          <span className="text-[30px] leading-none" aria-hidden="true">{sheet.emoji}</span>
+          <span className="text-[1.875rem] leading-none" aria-hidden="true">{sheet.emoji}</span>
           <div className="min-w-0 flex-1">
             <div className="eyebrow">{sheet.eyebrow}</div>
-            <h2 className="figure text-[20px] font-semibold leading-tight">{sheet.title}</h2>
+            <h2 className="figure text-[1.25rem] font-semibold leading-tight">{sheet.title}</h2>
           </div>
           {copyButton("json", ICON.braces, "Copy as JSON")}
           {copyButton("text", ICON.copy, "Copy the table")}
           <button onClick={onClose} aria-label="Close"
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-[18px] text-ink-soft active:text-ink">×</button>
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-[1.125rem] text-ink-soft active:text-ink">×</button>
         </div>
 
         {/* The preview is the table, as the copy will read. On a phone a
@@ -134,21 +134,21 @@ function ShareSheet({ sheet, onClose }: { sheet: Sheet; onClose: () => void }) {
             <ul className="divide-y divide-rule sm:hidden">
               {sheet.rows.map((r, i) => (
                 <li key={i} className="py-2.5">
-                  <b className="text-[13.5px]">{String(r[0] ?? "")}</b>
+                  <b className="text-[0.84375rem]">{String(r[0] ?? "")}</b>
                   {r.slice(1).map((c, j) => (c == null || c === "" ? null : (
-                    <div key={j} className="mt-1 flex gap-2 text-[12.5px] leading-snug">
-                      <span className="data w-[5.5rem] shrink-0 pt-0.5 text-[10px] uppercase tracking-[.1em] text-ink-soft">{sheet.head[j + 1]}</span>
+                    <div key={j} className="mt-1 flex gap-2 text-[0.78125rem] leading-snug">
+                      <span className="data w-[5.5rem] shrink-0 pt-0.5 text-[0.625rem] uppercase tracking-[.1em] text-ink-soft">{sheet.head[j + 1]}</span>
                       <span className={`min-w-0 text-ink-soft ${String(c).length > 40 ? "" : "data"}`}>{String(c)}</span>
                     </div>
                   )))}
                 </li>
               ))}
             </ul>
-            <table className="hidden w-full border-collapse text-[12.5px] sm:table">
+            <table className="hidden w-full border-collapse text-[0.78125rem] sm:table">
               <thead>
                 <tr>
                   {sheet.head.map((h) => (
-                    <th key={h} className="data sticky top-0 border-b-[1.5px] border-ink bg-panel px-2 py-1.5 text-left text-[10px] font-medium uppercase tracking-[.1em] whitespace-nowrap text-ink-soft">
+                    <th key={h} className="data sticky top-0 border-b-[1.5px] border-ink bg-panel px-2 py-1.5 text-left text-[0.625rem] font-medium uppercase tracking-[.1em] whitespace-nowrap text-ink-soft">
                       {h}
                     </th>
                   ))}
@@ -169,11 +169,11 @@ function ShareSheet({ sheet, onClose }: { sheet: Sheet; onClose: () => void }) {
             </table>
           </div>
         ) : (
-          <p className="mt-4 text-[13px] text-ink-soft">Nothing on this page yet.</p>
+          <p className="mt-4 text-[0.8125rem] text-ink-soft">Nothing on this page yet.</p>
         )}
 
         {sheet.foot && (
-          <p className="mt-3 shrink-0 text-[11.5px] text-ink-soft">{sheet.foot}</p>
+          <p className="mt-3 shrink-0 text-[0.71875rem] text-ink-soft">{sheet.foot}</p>
         )}
       </div>
     </div>

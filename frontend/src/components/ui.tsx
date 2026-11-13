@@ -24,7 +24,7 @@ import type { Target } from "../lib/tour/targets";
 /// there is one definition to put them in.
 export const FIELD = [
   "mt-0.5 h-11 w-full appearance-none rounded border border-rule bg-white px-2.5",
-  "text-[16px] text-ink focus:border-honey focus:outline-none",
+  "text-[1rem] text-ink focus:border-honey focus:outline-none",
   "[&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:h-full",
   "[&::-webkit-date-and-time-value]:text-left",
   "[&::-webkit-calendar-picker-indicator]:opacity-50",
@@ -33,7 +33,7 @@ export const FIELD = [
 /// The page's name. The rail says which view this is and the region picker
 /// says which ground, so neither is repeated here.
 export function PageTitle({ children }: { children: ReactNode }) {
-  return <h1 className="figure mb-3.5 text-[22px] font-bold">{children}</h1>;
+  return <h1 className="figure mb-3.5 text-[1.375rem] font-bold">{children}</h1>;
 }
 
 /// A section heading, with room for the action that fills it and the
@@ -45,7 +45,7 @@ export function Section({ emoji, title, first, tour, children }: {
   children?: ReactNode;
 }) {
   return (
-    <h2 data-tour={tour} className={`figure mb-2.5 flex flex-wrap items-baseline gap-2.5 text-[18px] font-semibold ${
+    <h2 data-tour={tour} className={`figure mb-2.5 flex flex-wrap items-baseline gap-2.5 text-[1.125rem] font-semibold ${
       first ? "" : "mt-7"
     }`}>
       <span className="mr-0.5">{emoji}</span>{title}
@@ -66,7 +66,7 @@ export function Pill({ active, onClick, disabled, title, tour, children }: {
       disabled={disabled}
       title={title}
       data-tour={tour}
-      className={`min-h-11 shrink-0 rounded-full border px-3.5 text-[12.5px] font-medium disabled:opacity-40 ${
+      className={`min-h-11 shrink-0 rounded-full border px-3.5 text-[0.78125rem] font-medium disabled:opacity-40 ${
         active ? "border-ink bg-ink text-paper" : "border-rule text-ink-soft active:bg-band"
       }`}
     >
@@ -86,13 +86,13 @@ export function Chiclet({ emoji, name, figure, tone, title, onClick, children }:
     <button
       onClick={onClick}
       title={title}
-      className={`flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-[12.5px] active:border-ink ${
+      className={`flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-[0.78125rem] active:border-ink ${
         tone || "border-rule bg-panel"
       }`}
     >
       <span>{emoji}</span>
       <span className="font-medium">{name}</span>
-      {figure != null && <span className="data text-[10.5px] text-ink-soft">{figure}</span>}
+      {figure != null && <span className="data text-[0.65625rem] text-ink-soft">{figure}</span>}
       {children}
     </button>
   );
@@ -101,7 +101,7 @@ export function Chiclet({ emoji, name, figure, tone, title, onClick, children }:
 /// Nothing here yet — said without implying anything is broken.
 export function Empty({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-md border border-dashed border-rule bg-panel/60 p-6 text-[13px] text-ink-soft">
+    <div className="rounded-md border border-dashed border-rule bg-panel/60 p-6 text-[0.8125rem] text-ink-soft">
       {children}
     </div>
   );
@@ -109,13 +109,13 @@ export function Empty({ children }: { children: ReactNode }) {
 
 /// The standing caveat under a catalogue. Spans the width it is given.
 export function Note({ children }: { children: ReactNode }) {
-  return <p className="mt-2 text-[12px] leading-relaxed text-ink-soft">{children}</p>;
+  return <p className="mt-2 text-[0.75rem] leading-relaxed text-ink-soft">{children}</p>;
 }
 
 /// A failed call, said in the page rather than in a console.
 export function ErrorBox({ children }: { children: ReactNode }) {
   return (
-    <div className="mb-4 rounded-md border border-clay/30 bg-clay/10 p-3 text-[13px] text-clay">
+    <div className="mb-4 rounded-md border border-clay/30 bg-clay/10 p-3 text-[0.8125rem] text-clay">
       {children}
     </div>
   );
@@ -137,7 +137,7 @@ export function SpeciesChiclet({
     <button
       onClick={onClick}
       title={title}
-      className={`flex min-h-11 items-center gap-2 rounded-full border py-1 pl-1 pr-3.5 text-[12.5px] active:border-ink ${
+      className={`flex min-h-11 items-center gap-2 rounded-full border py-1 pl-1 pr-3.5 text-[0.78125rem] active:border-ink ${
         marked ? "border-growth/45 bg-growth/8" : "border-rule bg-panel"
       }`}
     >
@@ -155,7 +155,7 @@ export function SpeciesChiclet({
         <span className="flex h-7 w-7 shrink-0 items-center justify-center">{emoji}</span>
       )}
       <span className="font-medium">{name}</span>
-      {figure != null && <span className="data text-[10.5px] text-ink-soft">{figure}</span>}
+      {figure != null && <span className="data text-[0.65625rem] text-ink-soft">{figure}</span>}
     </button>
   );
 }
@@ -267,8 +267,8 @@ export function ChartFrame({ label, tour, children }: {
       : "relative"}>
       {open && (
         <div className="flex shrink-0 items-center gap-2">
-          <span className="figure text-[15px] font-semibold">{label}</span>
-          <span className="data text-[10.5px] text-ink-soft">Esc to close</span>
+          <span className="figure text-[0.9375rem] font-semibold">{label}</span>
+          <span className="data text-[0.65625rem] text-ink-soft">Esc to close</span>
           {/* Beside the title, not at the foot of the page. A close control
               parked below a short chart sat alone in half a screen of nothing,
               nowhere near where the eye goes to leave. */}
@@ -314,7 +314,7 @@ export function SpeciesMark({ emoji, photo }: {
   emoji?: string | null; photo?: string | null;
 }) {
   if (emoji) {
-    return <span className="mr-1.5 text-[15px]" aria-hidden="true">{emoji}</span>;
+    return <span className="mr-1.5 text-[0.9375rem]" aria-hidden="true">{emoji}</span>;
   }
   if (photo) {
     return (
@@ -323,7 +323,7 @@ export function SpeciesMark({ emoji, photo }: {
         onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
     );
   }
-  return <span className="mr-1.5 text-[15px]" aria-hidden="true">{"\u{1F43E}"}</span>;
+  return <span className="mr-1.5 text-[0.9375rem]" aria-hidden="true">{"\u{1F43E}"}</span>;
 }
 
 /// A standalone chip that reports a state rather than inviting a tap.
@@ -343,7 +343,7 @@ export function StatusChip({ tone, children }: {
 }) {
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11.5px] ${
+      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[0.71875rem] ${
         tone === "reached" ? "border-honey/50 bg-honey/8" : "border-rule bg-paper text-ink-soft"
       }`}
     >
@@ -392,7 +392,7 @@ export function IconButton({
       disabled={disabled}
       title={title ?? label}
       aria-label={hideLabel ? label : undefined}
-      className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-full text-[12.5px] font-semibold disabled:opacity-40 ${
+      className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-full text-[0.78125rem] font-semibold disabled:opacity-40 ${
         hideLabel ? "w-11 justify-center px-0" : "px-3.5"
       } ${
         solid
@@ -415,15 +415,15 @@ export function IconButton({
 /// and its panel hangs below it. The package draws nothing of its own.
 export const TABLE_FILTER: TableFilterClassNames = {
   root: "flex items-center gap-2",
-  chip: "flex min-h-11 items-center gap-1.5 rounded-full border-[1.5px] border-rule px-3 text-[12px] text-ink-soft active:bg-band",
+  chip: "flex min-h-11 items-center gap-1.5 rounded-full border-[1.5px] border-rule px-3 text-[0.75rem] text-ink-soft active:bg-band",
   chipActive: "border-ink! bg-ink! text-paper!",
   questions: "relative",
   summary: "data max-w-[12rem] truncate",
   panel: "absolute right-0 top-full z-20 mt-1.5 w-[min(20rem,calc(100vw-2rem))] rounded-md border border-rule bg-panel p-2 shadow-lg",
-  question: "flex min-h-11 items-center gap-2 px-2 text-[13px] [&>label]:flex-1",
+  question: "flex min-h-11 items-center gap-2 px-2 text-[0.8125rem] [&>label]:flex-1",
   checkbox: "h-4 w-4 accent-growth",
   number: `${FIELD} w-20`,
-  unit: "data w-12 text-[11px] text-ink-soft",
+  unit: "data w-12 text-[0.6875rem] text-ink-soft",
 };
 
 export const ICON = {
@@ -565,7 +565,7 @@ export function RowActions({ onCommit, onCancel, saving, what }: {
   return (
     <>
       <button onClick={onCommit} disabled={saving} aria-label={`Save ${what}`}
-        className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-growth disabled:opacity-40">✓</button>
+        className="inline-flex h-11 w-11 items-center justify-center text-[1.125rem] text-growth disabled:opacity-40">✓</button>
       <button onClick={onCancel} aria-label="Cancel edit" title="Cancel edit"
         className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-ink">
         <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="currentColor" aria-hidden="true">
@@ -603,7 +603,7 @@ export function Field({ label, htmlFor, width, hint, tour, children }: {
 }) {
   return (
     <span data-tour={tour} className={`flex flex-col ${width ?? "flex-1"}`}>
-      <span className="flex h-4 items-center gap-2 text-[11px] leading-none text-ink-soft">
+      <span className="flex h-4 items-center gap-2 text-[0.6875rem] leading-none text-ink-soft">
         {htmlFor ? <label htmlFor={htmlFor}>{label}</label> : <span>{label}</span>}
         {hint}
       </span>
@@ -614,7 +614,7 @@ export function Field({ label, htmlFor, width, hint, tour, children }: {
 
 /// The cell style inside a row being edited. One definition, four editors.
 export const CELL =
-  "w-full rounded border border-rule bg-white px-2 py-1 text-[16px] focus:border-honey focus:outline-none";
+  "w-full rounded border border-rule bg-white px-2 py-1 text-[1rem] focus:border-honey focus:outline-none";
 
 /// A number the grower steps to rather than types.
 ///
@@ -638,11 +638,11 @@ export function Stepper({
   // label can be handed to its input instead — the thumb meant "one more" and
   // got a keyboard.
   return (
-    <div className="block text-[11px] text-ink-soft">
+    <div className="block text-[0.6875rem] text-ink-soft">
       <label htmlFor={id}>{label}</label>
       <span className="mt-0.5 flex items-stretch overflow-hidden rounded border border-rule bg-white">
         <button type="button" onClick={() => nudge(-step)} aria-label={`${label} down`}
-          className="w-11 shrink-0 text-[18px] text-ink-soft active:bg-band">−</button>
+          className="w-11 shrink-0 text-[1.125rem] text-ink-soft active:bg-band">−</button>
         <input id={id} value={value} inputMode="numeric" aria-label={id ? undefined : label}
           onChange={(e) => {
             const raw = e.target.value.trim();
@@ -651,11 +651,11 @@ export function Stepper({
             if (Number.isFinite(n)) onChange(n);
           }}
           onBlur={() => { if (typeof value === "number") onChange(clamp(value)); }}
-          className="data min-w-0 flex-1 border-x border-rule px-2 py-2 text-center text-[16px] focus:outline-none" />
+          className="data min-w-0 flex-1 border-x border-rule px-2 py-2 text-center text-[1rem] focus:outline-none" />
         <button type="button" onClick={() => nudge(step)} aria-label={`${label} up`}
-          className="w-11 shrink-0 text-[18px] text-ink-soft active:bg-band">+</button>
+          className="w-11 shrink-0 text-[1.125rem] text-ink-soft active:bg-band">+</button>
       </span>
-      {unit && <span className="mt-0.5 block text-[10.5px] text-ink-soft">{unit}</span>}
+      {unit && <span className="mt-0.5 block text-[0.65625rem] text-ink-soft">{unit}</span>}
     </div>
   );
 }
@@ -682,7 +682,7 @@ export function MonthDay({ value, onChange, label }: {
     onChange(`${String(m).padStart(2, "0")}-${String(Math.min(d, DAYS_IN[m - 1])).padStart(2, "0")}`);
   };
   return (
-    <span className="block text-[11px] text-ink-soft">
+    <span className="block text-[0.6875rem] text-ink-soft">
       {label}
       <span className="mt-0.5 flex gap-1.5">
         <select value={mm || ""} onChange={(e) => set(Number(e.target.value), dd || 1)}

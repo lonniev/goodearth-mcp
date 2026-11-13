@@ -1,0 +1,1 @@
+- Text now follows the reader's text size (Profile → Appearance): every page size moved from px to the equal rem, so the standard size looks exactly as before.

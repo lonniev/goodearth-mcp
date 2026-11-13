@@ -378,7 +378,7 @@ export default function Wildlife({
       ) : models.length ? (
         <>
           <div className="overflow-x-auto overscroll-x-contain rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">
-            <table className="w-full border-collapse text-[13px]">
+            <table className="w-full border-collapse text-[0.8125rem]">
               <thead>
                 <SortHeaders cols={COLS} sort={sort} dir={dir} onSort={sortBy} />
               </thead>
@@ -419,12 +419,12 @@ export default function Wildlife({
                           things the grower chose to track. */}
                       <td onClick={open} className="cursor-text px-3 py-2.5">{m.event}</td>
                       <td className="px-3 py-2.5 whitespace-nowrap">
-                        <span className={`rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${clock.cls}`}>
+                        <span className={`rounded-full px-2 py-0.5 text-[0.65625rem] font-semibold ${clock.cls}`}>
                           {clock.label}
                         </span>
                       </td>
                       <td className="px-3 py-2.5">
-                        <span className="data text-[11px] text-ink-soft">
+                        <span className="data text-[0.6875rem] text-ink-soft">
                           {e ? (
                             <>
                               {e.threshold}
@@ -434,10 +434,10 @@ export default function Wildlife({
                             </>
                           ) : "not yet read"}
                         </span>
-                        {m.note && <p className="mt-0.5 text-[12px] text-ink-soft">{m.note}</p>}
+                        {m.note && <p className="mt-0.5 text-[0.75rem] text-ink-soft">{m.note}</p>}
                       </td>
                       <td className="px-2 py-2.5 text-right whitespace-nowrap">
-                        <span className={`mr-2 shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold ${
+                        <span className={`mr-2 shrink-0 rounded-full px-2 py-1 text-[0.6875rem] font-semibold ${
                           past ? "bg-growth/12 text-growth" : "bg-band text-ink-soft"}`}>
                           {past ? "seen" : "ahead"}
                         </span>
@@ -470,7 +470,7 @@ export default function Wildlife({
           {/* While a filter is on the block is already all here, so the
               pager stands down rather than counting past the list it shows. */}
           {narrowed ? (
-            <p className="data mt-1 text-[11px] text-ink-soft">
+            <p className="data mt-1 text-[0.6875rem] text-ink-soft">
               {shown.length} of {models.length}
               {total > models.length ? ` · filtering the first ${models.length} of ${total}` : ""}
             </p>
@@ -513,31 +513,31 @@ export default function Wildlife({
       {habitsOf && (
         <div className="mb-3 rounded-md border border-rule border-l-4 border-l-growth bg-panel px-4 py-3">
               <div className="flex flex-wrap items-baseline gap-2">
-                <b className="figure text-[15px]">{habitsOf.name}</b>
-                <span className="data text-[10.5px] text-ink-soft">
+                <b className="figure text-[0.9375rem]">{habitsOf.name}</b>
+                <span className="data text-[0.65625rem] text-ink-soft">
                   {habitsBusy ? "reading…" : habits?.tracked ? "tracked by USA-NPN" : "not tracked"}
                 </span>
                 <button onClick={() => { setHabitsOf(null); setHabits(null); }}
-                  aria-label="Close" className="ml-auto inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft active:text-ink">×</button>
+                  aria-label="Close" className="ml-auto inline-flex h-11 w-11 items-center justify-center text-[1.125rem] text-ink-soft active:text-ink">×</button>
               </div>
               {habits && (habits.habits ?? []).length > 0 ? (
                 <>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {(habits.habits ?? []).map((h) => (
                       <span key={h}
-                        className="rounded-full border border-rule bg-paper px-3.5 py-1.5 text-[12px]">
+                        className="rounded-full border border-rule bg-paper px-3.5 py-1.5 text-[0.75rem]">
                         {h}
                       </span>
                     ))}
                   </div>
-                  <p className="mt-2 text-[11.5px] leading-relaxed text-ink-soft">
+                  <p className="mt-2 text-[0.71875rem] leading-relaxed text-ink-soft">
                     What USA-NPN tracks this animal doing in a year. The composer
                     offers these as labels once you choose the animal; the clock
                     that says when it happens on your ground stays yours.
                   </p>
                 </>
               ) : habits && !habitsBusy ? (
-                <p className="mt-1.5 text-[12px] leading-relaxed text-ink-soft">{habits.note}</p>
+                <p className="mt-1.5 text-[0.75rem] leading-relaxed text-ink-soft">{habits.note}</p>
               ) : null}
         </div>
       )}

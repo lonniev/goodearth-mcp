@@ -65,7 +65,7 @@ export default function OutboxChip() {
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         title="Recorded without signal. It is sent when the signal is back."
-        className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-[1.5px] border-honey px-3 text-[12px] text-ink active:bg-band"
+        className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-[1.5px] border-honey px-3 text-[0.75rem] text-ink active:bg-band"
       >
         {waitingN > 0 && (
           <span>⇡ {waitingN}<span className="hidden sm:inline"> waiting for signal</span></span>
@@ -73,7 +73,7 @@ export default function OutboxChip() {
         {refusedN > 0 && <span className="text-clay">{refusedN} not saved</span>}
       </button>
       {open && (
-        <div className="absolute right-0 top-12 z-30 w-72 max-w-[calc(100vw-2rem)] rounded-md border border-rule bg-panel p-3 text-[12.5px] shadow-lg">
+        <div className="absolute right-0 top-12 z-30 w-72 max-w-[calc(100vw-2rem)] rounded-md border border-rule bg-panel p-3 text-[0.78125rem] shadow-lg">
           <p className="mb-2 text-ink-soft">
             Recorded here without signal. Each one is sent, in order, when the
             signal is back.
@@ -88,7 +88,7 @@ export default function OutboxChip() {
                 </span>
                 {p.refused && (
                   <button onClick={() => discard(p.id)}
-                    className="shrink-0 rounded border border-rule px-2 py-0.5 text-[11.5px] active:bg-band">
+                    className="shrink-0 rounded border border-rule px-2 py-0.5 text-[0.71875rem] active:bg-band">
                     Discard
                   </button>
                 )}
@@ -97,7 +97,7 @@ export default function OutboxChip() {
           </ul>
           {waitingN > 0 && (
             <button onClick={() => void flushOutbox()}
-              className="mt-3 min-h-9 w-full rounded-md bg-ink px-3 text-[12.5px] text-paper">
+              className="mt-3 min-h-9 w-full rounded-md bg-ink px-3 text-[0.78125rem] text-paper">
               Send now
             </button>
           )}

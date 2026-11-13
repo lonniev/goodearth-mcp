@@ -691,7 +691,7 @@ export default function SeasonChart({
         const vals = overlay.values.filter((v): v is number => typeof v === "number");
         if (!vals.length) return null;
         return (
-          <p className="data px-2 pt-1 text-[10.5px]" style={{ color: overlay.colour }}>
+          <p className="data px-2 pt-1 text-[0.65625rem]" style={{ color: overlay.colour }}>
             {overlay.emoji} {overlay.label} behind the curve ·{" "}
             {Math.min(...vals).toFixed(overlay.unit === "in" ? 2 : 0)}–
             {Math.max(...vals).toFixed(overlay.unit === "in" ? 2 : 0)} {overlay.unit}
@@ -702,7 +702,7 @@ export default function SeasonChart({
 
       <div
         style={{ paddingLeft: `${(L / W) * 100}%`, paddingRight: `${((W - R) / W) * 100}%` }}
-        className={`flex flex-wrap justify-center gap-x-3.5 gap-y-0.5 text-[11.5px] text-ink-soft ${
+        className={`flex flex-wrap justify-center gap-x-3.5 gap-y-0.5 text-[0.71875rem] text-ink-soft ${
           full ? "pt-0.5 pb-0" : "pt-1 pb-0"}`}>
         {data.normals && (
           <span className="inline-flex items-center gap-1.5">

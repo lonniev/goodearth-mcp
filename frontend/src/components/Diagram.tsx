@@ -79,7 +79,7 @@ export function StageRun({ stages, axis, foot }: {
           })}
         </svg>
       </div>
-      {foot && <p className="mt-1 text-[12px] text-ink-soft">{foot}</p>}
+      {foot && <p className="mt-1 text-[0.75rem] text-ink-soft">{foot}</p>}
     </div>
   );
 }
@@ -130,7 +130,7 @@ export function YearWheel({ stages, centre, foot }: {
           {centre}
         </text>
       </svg>
-      {foot && <p className="max-w-sm text-[13px] leading-relaxed text-ink-soft">{foot}</p>}
+      {foot && <p className="max-w-sm text-[0.8125rem] leading-relaxed text-ink-soft">{foot}</p>}
     </div>
   );
 }
@@ -138,7 +138,7 @@ export function YearWheel({ stages, centre, foot }: {
 /// The claim a page is making, before the picture that makes it.
 export function Claim({ children }: { children: ReactNode }) {
   return (
-    <p className="figure mb-3 text-[17px] leading-snug font-semibold text-ink">
+    <p className="figure mb-3 text-[1.0625rem] leading-snug font-semibold text-ink">
       {children}
     </p>
   );
@@ -151,7 +151,7 @@ export function Facts({ items }: { items: [string, ReactNode][] }) {
       {items.map(([term, said]) => (
         <div key={term}>
           <dt className="eyebrow">{term}</dt>
-          <dd className="mt-0.5 text-[13px] leading-relaxed">{said}</dd>
+          <dd className="mt-0.5 text-[0.8125rem] leading-relaxed">{said}</dd>
         </div>
       ))}
     </dl>

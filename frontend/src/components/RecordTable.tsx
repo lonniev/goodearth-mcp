@@ -52,7 +52,7 @@ export function SortHeaders<K extends string>({
             aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : undefined}
             // One line: a header wrapped away from its own ⓘ, leaving the
             // mark alone on the line below. The tables scroll sideways.
-            className={`data whitespace-nowrap border-b-[1.5px] border-ink px-3 py-2.5 text-left text-[10px] font-medium uppercase tracking-[.1em] select-none ${
+            className={`data whitespace-nowrap border-b-[1.5px] border-ink px-3 py-2.5 text-left text-[0.625rem] font-medium uppercase tracking-[.1em] select-none ${
               sortable ? "cursor-pointer text-ink-soft" : "text-ink-soft"
             } ${active ? "text-ink" : ""}`}
             style={c.width ? { width: c.width } : undefined}
@@ -88,7 +88,7 @@ export function Pager({
       <PagerButton onClick={() => onPage(Math.max(0, page - 1))} disabled={page <= 0}>
         ← Back
       </PagerButton>
-      <span className="data text-[11.5px] text-ink-soft">
+      <span className="data text-[0.71875rem] text-ink-soft">
         page {page + 1} of {pages} · {total} {noun}{total === 1 ? "" : "s"}
       </span>
       <PagerButton onClick={() => onPage(page + 1)} disabled={page + 1 >= pages}>
@@ -105,7 +105,7 @@ function PagerButton({ onClick, disabled, children }: {
     <button
       onClick={onClick}
       disabled={disabled}
-      className="min-h-11 shrink-0 rounded-full border border-rule px-3.5 text-[12.5px] font-medium text-ink-soft disabled:opacity-40 active:bg-band"
+      className="min-h-11 shrink-0 rounded-full border border-rule px-3.5 text-[0.78125rem] font-medium text-ink-soft disabled:opacity-40 active:bg-band"
     >
       {children}
     </button>

@@ -41,12 +41,12 @@ const STATUS: { word: string; tone: string; means: string }[] = [
 export default function LifeOfADisease() {
   return (
     <article>
-      <h1 className="figure mb-1 text-[24px] font-bold">The life of a fungus</h1>
+      <h1 className="figure mb-1 text-[1.5rem] font-bold">The life of a fungus</h1>
       <p className="eyebrow mb-4">and why it counts wet hours</p>
 
       <Claim>A fungus does not count warmth. It counts how long the leaf stays wet.</Claim>
 
-      <p className="text-[13.5px] leading-relaxed">
+      <p className="text-[0.84375rem] leading-relaxed">
         A spore on a dry leaf waits. It needs a film of water, or air near
         saturation, for long enough to germinate and get in — and the warmer it
         is, the fewer hours that takes. So disease weather is measured in hours
@@ -57,24 +57,24 @@ export default function LifeOfADisease() {
         foot={<>A dry break can reset the count, which is why the length of one
           unbroken wet stretch matters more than the day's total rain.</>} />
 
-      <h2 className="figure mt-6 mb-2.5 text-[18px] font-semibold">The five it watches</h2>
+      <h2 className="figure mt-6 mb-2.5 text-[1.125rem] font-semibold">The five it watches</h2>
       <ul className="space-y-2">
         {DISEASES.map((d) => (
           <li key={d.disease} className="flex gap-3 rounded-md border border-rule bg-panel px-3.5 py-2.5">
-            <span className="text-[22px]" aria-hidden="true">{d.emoji}</span>
+            <span className="text-[1.375rem]" aria-hidden="true">{d.emoji}</span>
             <div>
-              <p className="text-[13.5px]">
+              <p className="text-[0.84375rem]">
                 <b>{d.disease}</b>{" "}
-                <span className="text-[12px] text-ink-soft">· {d.crops}</span>
+                <span className="text-[0.75rem] text-ink-soft">· {d.crops}</span>
               </p>
-              <p className="mt-0.5 text-[12.5px] leading-relaxed text-ink-soft">{d.watches}</p>
+              <p className="mt-0.5 text-[0.78125rem] leading-relaxed text-ink-soft">{d.watches}</p>
             </div>
           </li>
         ))}
       </ul>
 
-      <h2 className="figure mt-6 mb-2.5 text-[18px] font-semibold">How it is predicted</h2>
-      <p className="text-[13.5px] leading-relaxed">
+      <h2 className="figure mt-6 mb-2.5 text-[1.125rem] font-semibold">How it is predicted</h2>
+      <p className="text-[0.84375rem] leading-relaxed">
         Every hour since the season began, and every hour of the next ten days,
         is read for the middle of your plot: temperature, humidity, dew point and
         rain, from a weather model run on a 2 km grid. An hour counts as wet when
@@ -82,25 +82,25 @@ export default function LifeOfADisease() {
         its dew point. Each of the five models then reads those hours by its own
         published rule.
       </p>
-      <p className="mt-2 text-[13.5px] leading-relaxed">
+      <p className="mt-2 text-[0.84375rem] leading-relaxed">
         It runs on every plot whether or not you have entered anything. Once
         you record your crops, the card shows only the diseases of those crops.
       </p>
 
-      <h2 className="figure mt-6 mb-2.5 text-[18px] font-semibold">What the card is telling you</h2>
+      <h2 className="figure mt-6 mb-2.5 text-[1.125rem] font-semibold">What the card is telling you</h2>
       <dl className="space-y-2">
         {STATUS.map((s) => (
           <div key={s.word} className="flex items-baseline gap-3">
-            <dt className={`w-20 shrink-0 rounded-full px-2 py-0.5 text-center text-[11px] font-semibold ${s.tone}`}>
+            <dt className={`w-20 shrink-0 rounded-full px-2 py-0.5 text-center text-[0.6875rem] font-semibold ${s.tone}`}>
               {s.word}
             </dt>
-            <dd className="text-[13px] leading-relaxed">{s.means}</dd>
+            <dd className="text-[0.8125rem] leading-relaxed">{s.means}</dd>
           </div>
         ))}
       </dl>
 
       <div className="mt-4 rounded-md border border-rule border-l-4 border-l-honey bg-panel px-4 py-3">
-        <p className="text-[13.5px] leading-relaxed">
+        <p className="text-[0.84375rem] leading-relaxed">
           <b>Clear is an answer, not a blank.</b> A dry fortnight is the ordinary
           result, and it is as useful to know as a warning. Open a row to see the
           last time that disease's weather did happen this season.
@@ -120,7 +120,7 @@ export default function LifeOfADisease() {
             when the weather was right for it.</>],
       ]} />
 
-      <p className="mt-5 text-[12.5px] leading-relaxed text-ink-soft">
+      <p className="mt-5 text-[0.78125rem] leading-relaxed text-ink-soft">
         Every feed and every model rule, with its citation, is on the References
         page; the words are in Words.
       </p>

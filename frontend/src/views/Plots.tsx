@@ -333,7 +333,7 @@ export default function Plots({
   return (
     <>
       <div className="mb-3.5 flex items-center justify-between gap-2">
-        <h1 className="figure text-[26px] font-bold">My Plots</h1>
+        <h1 className="figure text-[1.625rem] font-bold">My Plots</h1>
         {/* A plot someone shared, opened as a plot of your own. Waits for the
             record, like rename: the new plot's name is chosen against the
             plots the record says you have. */}
@@ -349,7 +349,7 @@ export default function Plots({
         <input ref={fileRef} type="file" accept="application/json,.json" hidden
           onChange={(e) => void openFile(e)} />
       </div>
-      {bundleMsg && <p className="-mt-2 mb-2.5 text-[12.5px] text-ink">{bundleMsg}</p>}
+      {bundleMsg && <p className="-mt-2 mb-2.5 text-[0.78125rem] text-ink">{bundleMsg}</p>}
 
       {/* ── The ground already saved ───────────────────────────────────── */}
       {/* One chip per plot, in folders for its groups, the map right under
@@ -384,11 +384,11 @@ export default function Plots({
                 isHidden ? "border-dashed border-rule bg-panel text-ink-soft opacity-60"
                   : isActive ? "border-ink bg-ink text-paper" : "border-rule bg-panel text-ink active:bg-band"
               }`}>
-              <span className="figure text-[14px] font-semibold">{r.name}</span>
+              <span className="figure text-[0.875rem] font-semibold">{r.name}</span>
               {/* The area under the name, not beside it, keeps the chip as
                   narrow as its name; the active chip adds a small eye, since
                   its tap frames the plot on the map. */}
-              <span className={`data mt-0.5 flex items-center gap-1 text-[10.5px] ${isActive ? "text-paper/75" : "text-ink-soft"}`}>
+              <span className={`data mt-0.5 flex items-center gap-1 text-[0.65625rem] ${isActive ? "text-paper/75" : "text-ink-soft"}`}>
                 {r.areaHa != null ? `${r.areaHa.toFixed(1)} ha` : "unmeasured"}
                 {(isActive || isHidden) && (
                   <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor" aria-hidden="true">
@@ -427,19 +427,19 @@ export default function Plots({
         )} />
       {asking === active.id && (
         <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-rule bg-panel px-3.5 py-2">
-          <span className="text-[13px]">{active.name}</span>
+          <span className="text-[0.8125rem]">{active.name}</span>
           <button onClick={() => { setHidden(hide(hiddenNow, active.id)); setAsking(null); setFramedId(null); }}
-            className="flex min-h-11 items-center gap-1.5 rounded-full border border-rule px-3.5 text-[12.5px] font-medium active:bg-band">
+            className="flex min-h-11 items-center gap-1.5 rounded-full border border-rule px-3.5 text-[0.78125rem] font-medium active:bg-band">
             <Glyph path={ICON.eyeOff} size={16} /> Hide
           </button>
           {active.id !== EXAMPLE_ID && (
             <button onClick={() => { setAsking(null); setConfirming(active); setErr(""); }}
-              className="flex min-h-11 items-center gap-1.5 rounded-full border border-clay/50 px-3.5 text-[12.5px] font-medium text-clay active:bg-band">
+              className="flex min-h-11 items-center gap-1.5 rounded-full border border-clay/50 px-3.5 text-[0.78125rem] font-medium text-clay active:bg-band">
               <Glyph path={ICON.delete} size={16} /> Forget
             </button>
           )}
           <button onClick={() => setAsking(null)} aria-label="Close"
-            className="ml-auto inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft">×</button>
+            className="ml-auto inline-flex h-11 w-11 items-center justify-center text-[1.125rem] text-ink-soft">×</button>
         </div>
       )}
       {editing === active.id && (
@@ -454,7 +454,7 @@ export default function Plots({
         </div>
       )}
       {cardMsg && (
-        <p className="mt-2 text-[12px] text-ink-soft" role="status">{cardMsg.text}</p>
+        <p className="mt-2 text-[0.75rem] text-ink-soft" role="status">{cardMsg.text}</p>
       )}
 
       {/* ── All of it, on one map ──────────────────────────────────────── */}
@@ -468,7 +468,7 @@ export default function Plots({
       </div>
       {/* The plot being worked, in its numbers — what the cards used to
           say three times over, said once, under the map. */}
-      <p className="data mt-1 text-[10.5px] text-ink-soft">
+      <p className="data mt-1 text-[0.65625rem] text-ink-soft">
         {describe(active, u)}
         {" — "}
         {sun.on && sun.grid ? "tap inside the plot for that spot's light" : "tap a plot to work it, its chip again to frame it"}
@@ -497,7 +497,7 @@ export default function Plots({
 
       {adding && (<>
       <div className="mt-6 flex items-center justify-between gap-2">
-        <h2 className="figure text-[18px] font-semibold">Add a plot</h2>
+        <h2 className="figure text-[1.125rem] font-semibold">Add a plot</h2>
         <IconButton path={ICON.collapse} label="Close" tone="quiet" hideLabel
           title="Put the finder away" onClick={() => setAdding(false)} />
       </div>
@@ -510,18 +510,18 @@ export default function Plots({
           <input
             value={query} onChange={(e) => setQuery(e.target.value)}
             placeholder="Find a town, road or address"
-            className="min-h-11 flex-1 rounded border border-rule bg-white px-3 text-[16px] focus:border-honey focus:outline-none"
+            className="min-h-11 flex-1 rounded border border-rule bg-white px-3 text-[1rem] focus:border-honey focus:outline-none"
           />
-          <button className="min-h-11 rounded border-[1.5px] border-ink px-4 text-[13px] font-semibold active:bg-ink active:text-paper">
+          <button className="min-h-11 rounded border-[1.5px] border-ink px-4 text-[0.8125rem] font-semibold active:bg-ink active:text-paper">
             {searching ? "…" : "Search"}
           </button>
         </form>
         <button onClick={locate} {...tour("plots.locate")}
-          className="min-h-11 rounded border-[1.5px] border-ink px-4 text-[13px] font-semibold active:bg-ink active:text-paper">
+          className="min-h-11 rounded border-[1.5px] border-ink px-4 text-[0.8125rem] font-semibold active:bg-ink active:text-paper">
           Use my location
         </button>
 
-        <div className="ml-auto flex overflow-hidden rounded-md border-[1.5px] border-ink text-[12.5px] font-semibold" {...tour("plots.shape")}>
+        <div className="ml-auto flex overflow-hidden rounded-md border-[1.5px] border-ink text-[0.78125rem] font-semibold" {...tour("plots.shape")}>
           {(["polygon", "pin"] as const).map((mo) => (
             <button key={mo}
               onClick={() => setValue({ ...EMPTY, mode: mo, radiusM: value.radiusM })}
@@ -533,7 +533,7 @@ export default function Plots({
       </div>
 
       {places.length > 0 && (
-        <ul className="mb-2.5 divide-y divide-rule overflow-hidden rounded-md border border-rule bg-panel text-[12.5px]">
+        <ul className="mb-2.5 divide-y divide-rule overflow-hidden rounded-md border border-rule bg-panel text-[0.78125rem]">
           {places.map((p) => (
             <li key={`${p.lat},${p.lng}`}>
               <button onClick={() => { setCentreOn({ lat: p.lat, lng: p.lng }); setPlaces([]); }}
@@ -549,31 +549,31 @@ export default function Plots({
       {/* ── Name the new block, and save it ────────────────────────────── */}
       <div className="mt-4 rounded-md border border-rule bg-panel p-4">
         <div className="grid gap-3 sm:grid-cols-[2fr_1fr_auto] sm:items-end">
-          <label className="block text-[11px] text-ink-soft" {...tour("plots.name")}>
+          <label className="block text-[0.6875rem] text-ink-soft" {...tour("plots.name")}>
             Name
             <input value={name} onChange={(e) => setName(e.target.value)}
               placeholder="East Bench"
-              className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" />
+              className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[1rem] focus:border-honey focus:outline-none" />
           </label>
-          <label className="block text-[11px] text-ink-soft" {...tour("plots.base")}>
+          <label className="block text-[0.6875rem] text-ink-soft" {...tour("plots.base")}>
             Base{u.tempUnit}
             {/* Shown in the reader's scale, stored in the Fahrenheit the
                 service validates against. */}
             <input defaultValue={Math.round(u.temp(baseTemp))} type="number" inputMode="decimal"
               step="1" min={baseBounds(u).min} max={baseBounds(u).max}
               onChange={(e) => setBaseTemp(u.toF(Number(e.target.value)) || 50)}
-              className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none" />
+              className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[1rem] focus:border-honey focus:outline-none" />
           </label>
           <IconButton path={ICON.save} label="Save" onClick={save} disabled={!ready} tour="plots.save"
             title="Save this ground and work it" />
         </div>
 
         {ready && (
-          <p className="mt-2 text-[12.5px] text-ink-soft">
+          <p className="mt-2 text-[0.78125rem] text-ink-soft">
             {formatArea(m2)} — saving switches every view to it.
           </p>
         )}
-        {msg && <p className="mt-2 text-[12.5px] text-ink">{msg}</p>}
+        {msg && <p className="mt-2 text-[0.78125rem] text-ink">{msg}</p>}
       </div>
 
       {/* ── Draw it ────────────────────────────────────────────────────── */}
@@ -581,7 +581,7 @@ export default function Plots({
         <FieldMap value={value} onChange={setValue} others={others} centreOn={centreOn} />
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-2 text-[12.5px]">
+      <div className="mt-2 flex flex-wrap items-center gap-2 text-[0.78125rem]">
         {value.mode === "polygon" ? (
           <>
             <button
@@ -617,20 +617,20 @@ export default function Plots({
       {incoming && (
         <div className="fixed inset-0 z-[900] flex items-center justify-center bg-ink/40 px-5">
           <div className="w-full max-w-sm rounded-xl border border-rule bg-paper p-5 shadow-xl">
-            <h2 className="figure text-[17px] font-semibold">
+            <h2 className="figure text-[1.0625rem] font-semibold">
               Import {incoming.bundle.plot.name}?
             </h2>
-            <p className="mt-2 text-[13px] leading-relaxed">
+            <p className="mt-2 text-[0.8125rem] leading-relaxed">
               {countLine(incoming.bundle)}. It becomes a new plot of yours, on
               the same ground; none of your plots are changed.
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button onClick={() => setIncoming(null)} disabled={importing}
-                className="min-h-11 rounded-full border border-rule px-4 text-[13px] font-medium text-ink-soft disabled:opacity-40 active:bg-band">
+                className="min-h-11 rounded-full border border-rule px-4 text-[0.8125rem] font-medium text-ink-soft disabled:opacity-40 active:bg-band">
                 Not now
               </button>
               <button onClick={() => void accept()} disabled={importing}
-                className="min-h-11 rounded-full border-[1.5px] border-ink bg-ink px-4 text-[13px] font-semibold text-paper disabled:opacity-40">
+                className="min-h-11 rounded-full border-[1.5px] border-ink bg-ink px-4 text-[0.8125rem] font-semibold text-paper disabled:opacity-40">
                 {importing
                   ? (progress && progress.total ? `Importing… ${progress.done} of ${progress.total}` : "Importing…")
                   : "Import it"}
@@ -643,20 +643,20 @@ export default function Plots({
       {bigFile && (
         <div className="fixed inset-0 z-[900] flex items-center justify-center bg-ink/40 px-5">
           <div className="w-full max-w-sm rounded-xl border border-rule bg-paper p-5 shadow-xl">
-            <h2 className="figure text-[17px] font-semibold">Open a large bundle?</h2>
+            <h2 className="figure text-[1.0625rem] font-semibold">Open a large bundle?</h2>
             {/* Asked, not refused. A big farm makes a big bundle, and the
                 point of sharing one is to share all of it. */}
-            <p className="mt-2 text-[13px] leading-relaxed">
+            <p className="mt-2 text-[0.8125rem] leading-relaxed">
               {bigFile.name} is {(bigFile.size / 1_000_000).toFixed(1)} MB, larger than most
               farm bundles. It may take a while to open and import.
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button onClick={() => setBigFile(null)}
-                className="min-h-11 rounded-full border border-rule px-4 text-[13px] font-medium text-ink-soft active:bg-band">
+                className="min-h-11 rounded-full border border-rule px-4 text-[0.8125rem] font-medium text-ink-soft active:bg-band">
                 Not now
               </button>
               <button onClick={() => void stage(bigFile)}
-                className="min-h-11 rounded-full border-[1.5px] border-ink bg-ink px-4 text-[13px] font-semibold text-paper">
+                className="min-h-11 rounded-full border-[1.5px] border-ink bg-ink px-4 text-[0.8125rem] font-semibold text-paper">
                 Open it
               </button>
             </div>
@@ -667,30 +667,30 @@ export default function Plots({
       {confirming && (
         <div className="fixed inset-0 z-[900] flex items-center justify-center bg-ink/40 px-5">
           <div className="w-full max-w-sm rounded-xl border border-rule bg-paper p-5 shadow-xl">
-            <h2 className="figure text-[17px] font-semibold">
+            <h2 className="figure text-[1.0625rem] font-semibold">
               Forget {confirming.name}?
             </h2>
             {/* What actually happens, in the order it matters. A row can be
                 undone from the bar on its page; a block cannot, which is the
                 whole reason this asks first. */}
-            <p className="mt-2 text-[13px] leading-relaxed">
+            <p className="mt-2 text-[0.8125rem] leading-relaxed">
               The plot and everything recorded on it — crops, pests, watches,
               reports — stop appearing anywhere. Nothing is deleted: the record
               keeps it, and saving the plot again brings it back.
             </p>
-            {err && <p className="mt-2 text-[12.5px] text-clay">{err}</p>}
+            {err && <p className="mt-2 text-[0.78125rem] text-clay">{err}</p>}
             <div className="mt-4 flex justify-end gap-2">
               <button
                 onClick={() => setConfirming(null)}
                 disabled={forgetting}
-                className="min-h-11 rounded-full border border-rule px-4 text-[13px] font-medium text-ink-soft disabled:opacity-40 active:bg-band"
+                className="min-h-11 rounded-full border border-rule px-4 text-[0.8125rem] font-medium text-ink-soft disabled:opacity-40 active:bg-band"
               >
                 Keep it
               </button>
               <button
                 onClick={() => void forget(confirming)}
                 disabled={forgetting}
-                className="min-h-11 rounded-full border-[1.5px] border-clay bg-clay px-4 text-[13px] font-semibold text-paper disabled:opacity-40"
+                className="min-h-11 rounded-full border-[1.5px] border-clay bg-clay px-4 text-[0.8125rem] font-semibold text-paper disabled:opacity-40"
               >
                 {forgetting ? "Forgetting…" : "Forget it"}
               </button>

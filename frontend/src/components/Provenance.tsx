@@ -54,7 +54,7 @@ export default function Provenance({
       : `${clockDay(d, zone)} ${clockTime(d, zone)}`;
 
   return (
-    <span className="data ml-auto text-right text-[10.5px] font-normal text-ink-soft"
+    <span className="data ml-auto text-right text-[0.65625rem] font-normal text-ink-soft"
       title={from
         ? "The weather service was busy, so this is the last reading taken of this ground"
         : "When this answer was read"}>

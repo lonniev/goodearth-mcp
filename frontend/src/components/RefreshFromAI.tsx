@@ -18,7 +18,7 @@ export function RefreshButton({ name, open, onClick }: {
   return (
     <button onClick={onClick}
       aria-label={`Refresh ${name} from AI`} title="Refresh from AI"
-      className={`inline-flex h-11 w-11 items-center justify-center text-[17px] ${
+      className={`inline-flex h-11 w-11 items-center justify-center text-[1.0625rem] ${
         open ? "" : "opacity-60 grayscale active:opacity-100 active:grayscale-0"}`}>
       🧠</button>
   );
@@ -68,7 +68,7 @@ export default function RefreshFromAI<T>({ colSpan, tool, ask, onSave, onCancel,
   }
 
   const cell = (on: boolean) =>
-    `min-h-11 rounded-md border px-2.5 text-left text-[12.5px] ${
+    `min-h-11 rounded-md border px-2.5 text-left text-[0.78125rem] ${
       on ? "border-growth bg-growth/10 font-semibold text-ink" : "border-rule text-ink-soft active:bg-band"}`;
 
   return (
@@ -82,17 +82,17 @@ export default function RefreshFromAI<T>({ colSpan, tool, ask, onSave, onCancel,
             </div>
           ) : (
             <>
-              {err && <p className="mb-1.5 text-[12px] text-clay">{err}</p>}
-              {diffs === null && <p className="text-[12.5px] text-ink-soft">{missing}</p>}
-              {diffs?.length === 0 && <p className="text-[12.5px] text-growth">✓ Matches the reference.</p>}
+              {err && <p className="mb-1.5 text-[0.75rem] text-clay">{err}</p>}
+              {diffs === null && <p className="text-[0.78125rem] text-ink-soft">{missing}</p>}
+              {diffs?.length === 0 && <p className="text-[0.78125rem] text-growth">✓ Matches the reference.</p>}
               {!!diffs?.length && (
                 <div className="grid grid-cols-[auto_1fr_1fr] items-center gap-x-2 gap-y-1.5">
                   <span />
-                  <span className="data text-[10.5px] text-ink-soft">✍️ Yours</span>
-                  <span className="data text-[10.5px] text-ink-soft">🧠 AI</span>
+                  <span className="data text-[0.65625rem] text-ink-soft">✍️ Yours</span>
+                  <span className="data text-[0.65625rem] text-ink-soft">🧠 AI</span>
                   {diffs.map((d) => (
                     <div key={d.field} className="contents">
-                      <span className="pr-1 text-[12px] font-semibold">{d.label}</span>
+                      <span className="pr-1 text-[0.75rem] font-semibold">{d.label}</span>
                       <button onClick={() => pick(d.field, false)} aria-pressed={!taken.has(d.field)}
                         className={cell(!taken.has(d.field))}>{d.yours}</button>
                       <button onClick={() => pick(d.field, true)} aria-pressed={taken.has(d.field)}
@@ -106,7 +106,7 @@ export default function RefreshFromAI<T>({ colSpan, tool, ask, onSave, onCancel,
                 {diffs?.length
                   ? <RowActions onCommit={save} onCancel={onCancel} saving={saving} what="the picked figures" />
                   : <button onClick={onCancel} aria-label="Close"
-                      className="inline-flex h-11 w-11 items-center justify-center text-[18px] text-ink-soft">×</button>}
+                      className="inline-flex h-11 w-11 items-center justify-center text-[1.125rem] text-ink-soft">×</button>}
               </div>
             </>
           )}

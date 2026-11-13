@@ -53,32 +53,32 @@ export default function CalendarFeed({ region }: { region: SavedRegion }) {
       {err && <ErrorBox>{err}</ErrorBox>}
         {url ? (
           <>
-            <p className="text-[13px]">
+            <p className="text-[0.8125rem]">
               <b>{region.name}</b> is published.
               {fresh?.entries != null && ` ${fresh.entries} entries.`}
             </p>
             <div className="mt-2.5 flex flex-wrap gap-1.5">
               <a href={webcal}
-                className="inline-flex min-h-11 items-center rounded-full border-[1.5px] border-ink bg-ink px-4 text-[12.5px] font-semibold text-paper">
+                className="inline-flex min-h-11 items-center rounded-full border-[1.5px] border-ink bg-ink px-4 text-[0.78125rem] font-semibold text-paper">
                 Subscribe on this device
               </a>
               <button onClick={() => { void navigator.clipboard?.writeText(url); setMsg("Link copied."); }}
-                className="min-h-11 rounded-full border-[1.5px] border-ink px-4 text-[12.5px] font-semibold active:bg-ink active:text-paper">
+                className="min-h-11 rounded-full border-[1.5px] border-ink px-4 text-[0.78125rem] font-semibold active:bg-ink active:text-paper">
                 Copy link for Google Calendar
               </button>
               <button onClick={() => void publish(mine?.token ?? fresh?.token)} disabled={busy}
-                className="min-h-11 rounded-full border border-rule px-4 text-[12.5px] text-ink-soft active:bg-band disabled:opacity-40">
+                className="min-h-11 rounded-full border border-rule px-4 text-[0.78125rem] text-ink-soft active:bg-band disabled:opacity-40">
                 {busy ? "Recomputing…" : "Recompute"}
               </button>
               {mine && (
                 <button onClick={async () => { await calendarRevoke(mine.token); setFresh(null); void refreshFeeds(); }}
-                  className="min-h-11 rounded-full px-4 text-[12.5px] text-ink-soft active:text-clay">
+                  className="min-h-11 rounded-full px-4 text-[0.78125rem] text-ink-soft active:text-clay">
                   Stop publishing
                 </button>
               )}
             </div>
-            <p className="data mt-2.5 break-all text-[10.5px] text-ink-soft">{url}</p>
-            <p className="mt-2 text-[12px] leading-relaxed text-ink-soft">
+            <p className="data mt-2.5 break-all text-[0.65625rem] text-ink-soft">{url}</p>
+            <p className="mt-2 text-[0.75rem] leading-relaxed text-ink-soft">
               Your client re-reads this on its own schedule. <b>Recompute</b> rebuilds it
               against current weather and rewrites the same feed in place, so subscribers
               update rather than ending up with two of everything.
@@ -86,17 +86,17 @@ export default function CalendarFeed({ region }: { region: SavedRegion }) {
           </>
         ) : (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <p className="min-w-[14rem] flex-1 text-[13px] leading-snug">
+            <p className="min-w-[14rem] flex-1 text-[0.8125rem] leading-snug">
               Publish <b>{region.name}</b> once and its season events and reminders arrive
               in whatever calendar you already read.
             </p>
             <button onClick={() => void publish()} disabled={busy}
-              className="min-h-11 shrink-0 rounded-full border-[1.5px] border-ink bg-ink px-4 text-[12.5px] font-semibold text-paper disabled:opacity-40">
+              className="min-h-11 shrink-0 rounded-full border-[1.5px] border-ink bg-ink px-4 text-[0.78125rem] font-semibold text-paper disabled:opacity-40">
               {busy ? "Publishing…" : "Publish this region"}
             </button>
           </div>
         )}
-        {msg && <p className="mt-2 text-[12px] text-growth">{msg}</p>}
+        {msg && <p className="mt-2 text-[0.75rem] text-growth">{msg}</p>}
 
         {/* What the feed could not date, in the service's own words.
             The builder has always returned this list — it validates each row
@@ -108,14 +108,14 @@ export default function CalendarFeed({ region }: { region: SavedRegion }) {
         {(fresh?.skipped?.length ?? 0) > 0 && (
           <div className="mt-3 border-t border-rule pt-2.5">
             <span className="eyebrow">Not on the calendar</span>
-            <ul className="mt-1 space-y-1 text-[12px] text-ink-soft">
+            <ul className="mt-1 space-y-1 text-[0.75rem] text-ink-soft">
               {fresh!.skipped!.map((sk, i) => (
                 <li key={`${sk.name}-${i}`}>
                   <b className="text-ink">{sk.name}</b> — {sk.reason}
                 </li>
               ))}
             </ul>
-            <p className="mt-1.5 text-[11.5px] leading-relaxed text-ink-soft">
+            <p className="mt-1.5 text-[0.71875rem] leading-relaxed text-ink-soft">
               Everything else published. A row with nothing to date is still on
               your record; it just has no day to put on a calendar.
             </p>

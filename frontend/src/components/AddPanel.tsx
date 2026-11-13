@@ -31,7 +31,7 @@ export default function AddPanel({ label, open, onOpen, aside, children }: {
               <path d={open ? "M5 11h14v2H5z" : "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"} />
             </svg>
           </span>
-          <span className="figure text-[17px] font-semibold">{label}</span>
+          <span className="figure text-[1.0625rem] font-semibold">{label}</span>
         </button>
         {aside}
       </div>

@@ -69,7 +69,7 @@ export default function PulseTile({ emoji, value, unit, label, tone, muted, gaug
       className={`flex min-w-0 flex-col gap-2 border-l border-rule px-3 py-2.5 first:border-l-0 ${muted ? "opacity-45" : ""}`}>
       <div className="flex items-center gap-2.5 lg:gap-2">
         <span aria-hidden
-          className={`flex size-11 shrink-0 items-center justify-center rounded-full text-[26px] leading-none sm:size-12 sm:text-[28px] lg:size-10 lg:text-[23px] ${DISC[tone ?? "plain"]}`}>
+          className={`flex size-11 shrink-0 items-center justify-center rounded-full text-[1.625rem] leading-none sm:size-12 sm:text-[1.75rem] lg:size-10 lg:text-[1.4375rem] ${DISC[tone ?? "plain"]}`}>
           {emoji}
         </span>
         <div className="min-w-0">
@@ -77,7 +77,7 @@ export default function PulseTile({ emoji, value, unit, label, tone, muted, gaug
             {value}
             {unit && <small className="ml-1 text-[0.6em] font-normal text-ink-soft">{unit}</small>}
           </div>
-          <div className="mt-1 text-[10.5px] leading-snug text-ink-soft">{label}</div>
+          <div className="mt-1 text-[0.65625rem] leading-snug text-ink-soft">{label}</div>
         </div>
       </div>
 
@@ -97,12 +97,12 @@ export default function PulseTile({ emoji, value, unit, label, tone, muted, gaug
               style={{ left: `${clamp(gauge.pos) * 100}%` }} />
           </div>
           {(gauge.lo != null || gauge.hi != null) && (
-            <div className="data mt-1 flex justify-between gap-2 text-[9.5px] text-ink-soft">
+            <div className="data mt-1 flex justify-between gap-2 text-[0.59375rem] text-ink-soft">
               <span className="truncate">{gauge.lo}</span><span className="truncate">{gauge.hi}</span>
             </div>
           )}
           {(gauge.ticks?.some((t) => t.mark) || gauge.labels?.length) && (
-            <div className="data relative mt-1 h-3 text-[9.5px] text-ink-soft">
+            <div className="data relative mt-1 h-3 text-[0.59375rem] text-ink-soft">
               {[...(gauge.ticks ?? []).filter((t) => t.mark).map((t) => ({ pos: t.pos, text: t.mark!, title: t.label })),
                 ...(gauge.labels ?? []).map((l) => ({ ...l, title: undefined }))].map((t, i) => (
                 <span key={i} title={t.title} className="absolute -translate-x-1/2 whitespace-nowrap"
@@ -122,7 +122,7 @@ export default function PulseTile({ emoji, value, unit, label, tone, muted, gaug
                 ? { left: "50%", width: `${clamp(gauge.value) * 50}%` }
                 : { right: "50%", width: `${clamp(-gauge.value) * 50}%` }} />
           </div>
-          <div className="data mt-1 flex justify-between gap-2 text-[9.5px] text-ink-soft">
+          <div className="data mt-1 flex justify-between gap-2 text-[0.59375rem] text-ink-soft">
             <span className="truncate">{gauge.lo}</span><span>normal</span><span className="truncate">{gauge.hi}</span>
           </div>
         </div>

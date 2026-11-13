@@ -46,14 +46,14 @@ export default class Boundary extends Component<Props, State> {
   render(): ReactNode {
     if (!this.state.message) return this.props.children;
     return (
-      <div className="rounded-md border border-clay/30 bg-clay/10 p-4 text-[13px] text-clay">
+      <div className="rounded-md border border-clay/30 bg-clay/10 p-4 text-[0.8125rem] text-clay">
         <p className="font-semibold">{this.props.what} could not be drawn.</p>
         <p className="mt-1">
           Your record is safe — this is a fault in the page, not in what you
           saved. The rest of Good Earth still works; pick another view and come
           back.
         </p>
-        <p className="mt-2 font-mono text-[11px] opacity-70">{this.state.message}</p>
+        <p className="mt-2 font-mono text-[0.6875rem] opacity-70">{this.state.message}</p>
       </div>
     );
   }

@@ -45,13 +45,13 @@ function Folder({ path, ...t }: FolderTreeProps & { path: string }) {
         <button onClick={() => t.onOpen(toggleOpen(t.open, path))}
           title={opened ? `Close ${leaf(path)}` : `Open ${leaf(path)}`}
           className={`flex min-h-11 flex-1 items-center gap-1.5 pr-2 text-left font-semibold ${
-            t.stacked ? "text-[13px]" : "text-[14px]"} ${t.faint?.(path) ? "text-ink-soft opacity-60" : "text-ink"}`}>
+            t.stacked ? "text-[0.8125rem]" : "text-[0.875rem]"} ${t.faint?.(path) ? "text-ink-soft opacity-60" : "text-ink"}`}>
           <span className={`text-ink-soft transition-transform ${opened ? "" : "-rotate-90"}`}>
             <Glyph path={ICON.chevron} size={18} />
           </span>
           <Glyph path={opened ? ICON.groupOpen : ICON.group} size={18} />
           <span className="truncate">{leaf(path)}</span>
-          <span className="data text-[10.5px] font-normal text-ink-soft">{memberIds(t.plots, path).length}</span>
+          <span className="data text-[0.65625rem] font-normal text-ink-soft">{memberIds(t.plots, path).length}</span>
         </button>
         {t.extra?.(path)}
       </div>

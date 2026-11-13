@@ -81,7 +81,7 @@ export default function Term({ label, of, children, align = "right" }: {
         }}
         className={label
           ? "cursor-help border-b border-dotted border-ink-soft/70 text-left"
-          : "ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full border border-rule text-[9px] leading-none text-ink-soft align-middle"}
+          : "ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full border border-rule text-[0.5625rem] leading-none text-ink-soft align-middle"}
       >
         {/* The content has to agree with the styling above, and it did not:
           * with no `label` the class is a 16px circle — the (i) badge every
@@ -103,7 +103,7 @@ export default function Term({ label, of, children, align = "right" }: {
           // whatever it explains. Inside a table header it took the header's
           // `whitespace-nowrap` and monospace, and ran as one line across the
           // table. So: wrap, the body face, and never wider than the screen.
-          className={`absolute top-full ${align === "left" ? "left-0" : "right-0"} z-30 mt-1 w-64 max-w-[calc(100vw-2rem)] whitespace-normal break-words rounded-md border border-rule bg-paper p-2.5 text-left text-[12px] leading-snug font-normal normal-case tracking-normal text-ink shadow-lg [font-family:var(--font-body)]`}
+          className={`absolute top-full ${align === "left" ? "left-0" : "right-0"} z-30 mt-1 w-64 max-w-[calc(100vw-2rem)] whitespace-normal break-words rounded-md border border-rule bg-paper p-2.5 text-left text-[0.75rem] leading-snug font-normal normal-case tracking-normal text-ink shadow-lg [font-family:var(--font-body)]`}
         >
           {entry && <span className="block">{entry.said}</span>}
           {children && (

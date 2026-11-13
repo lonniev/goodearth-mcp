@@ -34,16 +34,16 @@ export default function FrostCard({ data }: { data: FrostWindowResult }) {
   return (
     <div className={`mb-3 rounded-md border border-rule ${tone.border} border-l-4 bg-panel px-4 py-3.5`}>
       <div className="flex flex-wrap items-baseline gap-2">
-        <h3 className="figure text-[15.5px] font-semibold">
+        <h3 className="figure text-[0.96875rem] font-semibold">
           {w ? `${tone.word} · ${day(w.date)}` : "Frost outlook"}
         </h3>
-        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${tone.chip}`}>
+        <span className={`rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold ${tone.chip}`}>
           {data.nights.length}-night outlook
         </span>
       </div>
 
       {w && w.level !== "clear" ? (
-        <p className="mt-1.5 text-[13px] leading-relaxed">
+        <p className="mt-1.5 text-[0.8125rem] leading-relaxed">
           Forecast low <b>{u.showTemp(w.forecast_low_f)}</b>, but the coldest ground on your
           land sits near <b>{u.showTemp(w.low_ground_f)}</b> — {w.reason}.
           {/* An offset is a DIFFERENCE between two temperatures, so it converts
@@ -54,7 +54,7 @@ export default function FrostCard({ data }: { data: FrostWindowResult }) {
           )}
         </p>
       ) : (
-        <p className="mt-1.5 text-[13px] leading-relaxed">
+        <p className="mt-1.5 text-[0.8125rem] leading-relaxed">
           Nothing within reach of freezing in the next {data.nights.length} nights.
           {w && <> The coldest is {u.showTemp(w.low_ground_f)} on low ground, {day(w.date)}.</>}
         </p>
@@ -67,7 +67,7 @@ export default function FrostCard({ data }: { data: FrostWindowResult }) {
       {data.nights.length > 0 && <NightStrip nights={data.nights} />}
 
       {data.across_region.terrain_correction === "unavailable" && (
-        <p className="data mt-2 text-[10px] text-clay">
+        <p className="data mt-2 text-[0.625rem] text-clay">
           Terrain unavailable — this is the forecast low with no drainage applied.
         </p>
       )}
@@ -105,13 +105,13 @@ function FirstFrostDates({ first, daysOut }: {
               c.lead ? "" : "opacity-70"
             }`}>
             <span className="eyebrow text-ink-soft">{c.label}</span>
-            <span className={`figure ${c.lead ? "text-[17px] font-semibold" : "text-[13.5px]"}`}>
+            <span className={`figure ${c.lead ? "text-[1.0625rem] font-semibold" : "text-[0.84375rem]"}`}>
               {shortDay(c.date)}
             </span>
           </div>
         ))}
       </div>
-      <p className="data mt-1.5 text-[10.5px] text-ink-soft">
+      <p className="data mt-1.5 text-[0.65625rem] text-ink-soft">
         {first.years_on_record} seasons on record
         {daysOut != null && daysOut > 0 && ` · ${daysOut} days out`}
       </p>
@@ -153,9 +153,9 @@ function NightStrip({ nights }: { nights: FrostNight[] }) {
                 isOpen ? "bg-band" : "active:bg-band"
               }`}
             >
-              <span className="data text-[10px] text-ink-soft">{Math.round(n.low_ground_f)}</span>
+              <span className="data text-[0.625rem] text-ink-soft">{Math.round(n.low_ground_f)}</span>
               <div className={`w-full max-w-14 rounded-sm ${color}`} style={{ height: h(n.low_ground_f) }} />
-              <span className="data text-[10px] text-ink-soft">
+              <span className="data text-[0.625rem] text-ink-soft">
                 {new Date(n.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "narrow" })}
               </span>
             </button>
@@ -164,7 +164,7 @@ function NightStrip({ nights }: { nights: FrostNight[] }) {
       </div>
 
       {shown && (
-        <p className="mt-1.5 rounded bg-band/60 px-3 py-2 text-[12.5px] leading-relaxed">
+        <p className="mt-1.5 rounded bg-band/60 px-3 py-2 text-[0.78125rem] leading-relaxed">
           <b>{day(shown.date)}</b> — coldest ground {u.showTemp(shown.low_ground_f)},
           forecast {u.showTemp(shown.forecast_low_f)}. {shown.reason}.
           {shown.wind_mph != null && ` Wind ${Math.round(shown.wind_mph)} mph`}

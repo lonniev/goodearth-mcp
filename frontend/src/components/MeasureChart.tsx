@@ -114,7 +114,7 @@ export default function MeasureChart({
 
   if (!view) {
     return (
-      <div className="rounded-md border border-rule bg-panel p-4 text-[12.5px] text-ink-soft">
+      <div className="rounded-md border border-rule bg-panel p-4 text-[0.78125rem] text-ink-soft">
         {emoji} {label} — not enough on record yet.
       </div>
     );
@@ -137,14 +137,14 @@ export default function MeasureChart({
   return (
     <div ref={card} className="rounded-md border border-rule bg-panel px-2.5 pt-2.5 pb-1.5">
       <div className="mb-1 flex flex-wrap items-baseline gap-2 px-1">
-        <span className="figure text-[15px] font-semibold">
+        <span className="figure text-[0.9375rem] font-semibold">
           {emoji && <span className="mr-1.5">{emoji}</span>}{label}
         </span>
         {skill && (
           <Term
             align="left"
             label={
-              <span aria-label={skill.title} className="data rounded-full bg-band px-1.5 py-[1px] text-[10.5px] text-ink-soft">
+              <span aria-label={skill.title} className="data rounded-full bg-band px-1.5 py-[1px] text-[0.65625rem] text-ink-soft">
                 🎯 {skill.pct}%
               </span>
             }
@@ -153,12 +153,12 @@ export default function MeasureChart({
           </Term>
         )}
         {measure.accumulates ? (
-          <span className="text-[12.5px] text-ink-soft">
+          <span className="text-[0.78125rem] text-ink-soft">
             <b className="figure text-ink">{measure.actual_total?.toFixed(2)} {unitLabel}</b> so far
             {measure.normal_total != null && ` · normally ${measure.normal_total.toFixed(2)} by now`}
           </span>
         ) : (
-          <span className="text-[12.5px] text-ink-soft">
+          <span className="text-[0.78125rem] text-ink-soft">
             <b className="figure text-ink">{measure.latest != null ? show(measure.latest) : "—"} {unitLabel}</b> latest
             {measure.normal_today && ` · normal ${show(measure.normal_today.mean)}`}
           </span>

@@ -98,7 +98,7 @@ export function AxisZoom({ onZoom, label, short }: {
         <Glass kind="in" />
       </button>
       <span title={label}
-        className="eyebrow text-[9px] leading-none [writing-mode:vertical-rl] [text-orientation:mixed]">
+        className="eyebrow text-[0.5625rem] leading-none [writing-mode:vertical-rl] [text-orientation:mixed]">
         {short ? <><span className="hidden sm:inline">{label}</span><span className="sm:hidden">{short}</span></> : label}
       </span>
       <button className={BTN} onClick={() => onZoom(1.4)}
@@ -114,14 +114,14 @@ export default function ZoomControls({
   spanIcons, compact,
 }: Props) {
   return (
-    <div className={`flex flex-wrap items-center justify-center gap-3 px-2 text-[11px] text-ink-soft ${
+    <div className={`flex flex-wrap items-center justify-center gap-3 px-2 text-[0.6875rem] text-ink-soft ${
       compact ? "pt-1" : "pt-1.5"}`}>
       {onSpan && (
         <span className="flex flex-wrap items-center justify-center gap-1.5">
           {TIMESCALES.map((t) => (
             <button key={t.key} onClick={() => onSpan(t.key)}
               title={spanTitles?.[t.key]}
-              className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-[12px] font-medium ${
+              className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-[0.75rem] font-medium ${
                 activeSpan === t.key
                   ? "border-ink bg-ink text-paper"
                   : "border-rule text-ink active:bg-band"}`}>
@@ -150,7 +150,7 @@ export default function ZoomControls({
       {isZoomed && !onSpan && (
         <button
           onClick={onReset}
-          className="min-h-11 rounded border border-rule px-3 text-[12px] active:bg-band focus-visible:outline-2 focus-visible:outline-honey"
+          className="min-h-11 rounded border border-rule px-3 text-[0.75rem] active:bg-band focus-visible:outline-2 focus-visible:outline-honey"
         >
           Whole season
         </button>

@@ -39,7 +39,7 @@ export default function GuestShell({ view, onView, onSignIn, children }: {
       <header className="border-b border-rule bg-panel">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 md:px-6">
           <button onClick={() => onView("welcome")}
-            className="figure shrink-0 text-[18px] font-bold">
+            className="figure shrink-0 text-[1.125rem] font-bold">
             Good<span className="ml-1 text-honey italic">Earth</span>
           </button>
 
@@ -52,7 +52,7 @@ export default function GuestShell({ view, onView, onSignIn, children }: {
             {PUBLIC_VIEWS.filter((k) => k in LABEL).map((k) => (
               <button key={k} onClick={() => onView(k)}
                 aria-current={view === k ? "page" : undefined}
-                className={`min-h-9 rounded-full px-3 text-[12.5px] font-medium ${
+                className={`min-h-9 rounded-full px-3 text-[0.78125rem] font-medium ${
                   view === k ? "bg-ink text-paper" : "text-ink-soft active:bg-band"
                 }`}>
                 {LABEL[k]}
@@ -65,7 +65,7 @@ export default function GuestShell({ view, onView, onSignIn, children }: {
                 for a grower: nothing here needs an npub. */}
             <ShareButton />
             <button onClick={onSignIn}
-              className="min-h-9 shrink-0 rounded-full border-[1.5px] border-ink px-4 text-[12.5px] font-semibold">
+              className="min-h-9 shrink-0 rounded-full border-[1.5px] border-ink px-4 text-[0.78125rem] font-semibold">
               Sign in
             </button>
           </div>
@@ -77,7 +77,7 @@ export default function GuestShell({ view, onView, onSignIn, children }: {
           with empty margins either side. */}
       <main className="px-4 py-6 md:px-6">{children}</main>
 
-      <footer className="px-4 pt-2 pb-8 text-[12px] text-ink-soft md:px-6">
+      <footer className="px-4 pt-2 pb-8 text-[0.75rem] text-ink-soft md:px-6">
         Good Earth is an operator on the DPYC network. Identity is a Nostr
         keypair; answers are paid for in Bitcoin Lightning, per call.
       </footer>

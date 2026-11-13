@@ -243,15 +243,15 @@ export default function TodoView({
         }>
       <form id="new-task" onSubmit={add} className="mb-4 rounded-md border border-rule bg-panel p-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="block text-[11px] text-ink-soft lg:col-span-2" {...tour("todo.title")}>
+          <label className="block text-[0.6875rem] text-ink-soft lg:col-span-2" {...tour("todo.title")}>
             What needs doing
             <input name="title" placeholder="Cover the east beds" className={FIELD} />
           </label>
-          <label className="block text-[11px] text-ink-soft" {...tour("todo.due")}>
+          <label className="block text-[0.6875rem] text-ink-soft" {...tour("todo.due")}>
             Due
             <input name="due" type="date" className={FIELD} />
           </label>
-          <label className="flex min-h-11 items-center gap-2 self-end text-[12.5px]" {...tour("todo.reminder")}>
+          <label className="flex min-h-11 items-center gap-2 self-end text-[0.78125rem]" {...tour("todo.reminder")}>
             <input type="checkbox" checked={reminderOnly}
               onChange={(e) => setReminderOnly(e.target.checked)}
               className="h-5 w-5 accent-[var(--color-ink)]" />
@@ -263,11 +263,11 @@ export default function TodoView({
             for a reminder keeps the form from asking for what it will ignore. */}
         {!reminderOnly && (
           <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" {...tour("todo.times")}>
-            <label className="block text-[11px] text-ink-soft">
+            <label className="block text-[0.6875rem] text-ink-soft">
               From
               <input name="starts" type="time" className={FIELD} />
             </label>
-            <label className="block text-[11px] text-ink-soft">
+            <label className="block text-[0.6875rem] text-ink-soft">
               To
               <input name="ends" type="time" className={FIELD} />
             </label>
@@ -279,7 +279,7 @@ export default function TodoView({
           * Note's row rather than a row of its own, so the list below gets
           * that height back. */}
         <div className="mt-3 flex items-end gap-3">
-          <label className="block min-w-0 flex-1 text-[11px] text-ink-soft">
+          <label className="block min-w-0 flex-1 text-[0.6875rem] text-ink-soft">
             Note
             <input name="note" placeholder="Row cover is in the east barn" className={FIELD} {...tour("todo.note")} />
           </label>
@@ -316,7 +316,7 @@ export default function TodoView({
       ) : shown && shown.rows.length ? (
         <>
           <div className="overflow-x-auto rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">
-            <table className="w-full text-[13px]">
+            <table className="w-full text-[0.8125rem]">
               <thead>
                 <SortHeaders cols={COLS} sort={sortCol} dir={sortDir} onSort={sortBy} />
               </thead>
@@ -336,14 +336,14 @@ export default function TodoView({
                       className={`cursor-text px-3 py-2.5 ${t.done ? "text-ink-soft line-through" : "font-medium"}`}>
                       {t.title}
                       {shown.pending.has(t.id) && (
-                        <small className="ml-1.5 text-[10.5px] font-normal text-ink-soft">⇡ waiting for signal</small>
+                        <small className="ml-1.5 text-[0.65625rem] font-normal text-ink-soft">⇡ waiting for signal</small>
                       )}
-                      {t.note &&<small className="block text-[11px] font-normal text-ink-soft">{t.note}</small>}
+                      {t.note &&<small className="block text-[0.6875rem] font-normal text-ink-soft">{t.note}</small>}
                     </td>
                     <td onClick={() => startEdit(t)}
-                      className="data cursor-text px-3 py-2.5 whitespace-nowrap text-[12px]">{nice(t.due)}</td>
+                      className="data cursor-text px-3 py-2.5 whitespace-nowrap text-[0.75rem]">{nice(t.due)}</td>
                     <td onClick={() => startEdit(t)}
-                      className="data cursor-text px-3 py-2.5 whitespace-nowrap text-[12px] text-ink-soft">
+                      className="data cursor-text px-3 py-2.5 whitespace-nowrap text-[0.75rem] text-ink-soft">
                       {t.reminder_only ? "reminder" : `${hhmm(t.starts_at)}–${hhmm(t.ends_at)}`}
                     </td>
                     <td className="px-3 py-2.5 text-right">
@@ -419,7 +419,7 @@ function Editor({ draft, onChange, onCommit, onCancel, saving }: {
             if (e.key === "Enter") { e.preventDefault(); onCommit(); }
             if (e.key === "Escape") onCancel();
           }} />
-        <input value={draft.note ?? ""} className={`${cell} mt-1 text-[12px]`}
+        <input value={draft.note ?? ""} className={`${cell} mt-1 text-[0.75rem]`}
           placeholder="Row cover is in the east barn"
           onChange={(e) => set({ note: e.target.value })} />
       </td>
@@ -428,7 +428,7 @@ function Editor({ draft, onChange, onCommit, onCancel, saving }: {
           onChange={(e) => set({ due: e.target.value })} />
       </td>
       <td className="px-3 py-2 align-top">
-        <label className="flex items-center gap-1.5 text-[12px] whitespace-nowrap">
+        <label className="flex items-center gap-1.5 text-[0.75rem] whitespace-nowrap">
           <input type="checkbox" checked={draft.reminder_only ?? true}
             onChange={(e) => set({ reminder_only: e.target.checked })}
             className="h-4 w-4 accent-[var(--color-ink)]" />

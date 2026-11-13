@@ -68,7 +68,7 @@ export const quoteStyles: QuoteScrollerClassNames = {
   root: "px-4 py-6 text-center",
   heading: "eyebrow mb-5",
   figure: "m-0 mx-auto flex min-h-[124px] max-w-[520px] flex-col justify-center gap-3",
-  text: "m-0 figure text-[17px] font-normal italic leading-relaxed text-ink",
+  text: "m-0 figure text-[1.0625rem] font-normal italic leading-relaxed text-ink",
   mark: "mx-0.5 not-italic text-honey",
-  author: "data text-[10.5px] uppercase tracking-[0.22em] text-ink-soft",
+  author: "data text-[0.65625rem] uppercase tracking-[0.22em] text-ink-soft",
 };

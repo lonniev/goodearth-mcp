@@ -117,14 +117,14 @@ export default function RadarMap({ region }: { region: SavedRegion }) {
       </div>
       <div className={`border-rule bg-panel px-3 py-2 ${size.big ? "border-t" : "mt-2 rounded-md border"}`}>
         {err ? (
-          <p className="text-[12px] text-clay">{err}</p>
+          <p className="text-[0.75rem] text-clay">{err}</p>
         ) : !radar ? (
-          <p className="text-[12px] text-ink-soft">Loading radar…</p>
+          <p className="text-[0.75rem] text-ink-soft">Loading radar…</p>
         ) : (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <button onClick={() => setPlaying((p) => !p)}
               aria-label={playing ? "Pause radar" : "Play radar"}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded border border-rule text-[15px] active:bg-band">
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded border border-rule text-[0.9375rem] active:bg-band">
               {playing ? "⏸" : "▶"}
             </button>
             <input
@@ -133,10 +133,10 @@ export default function RadarMap({ region }: { region: SavedRegion }) {
               aria-label="Radar time"
               className="h-11 min-w-[12rem] flex-1 accent-[color:var(--color-frost)]"
             />
-            <span className="data w-[4.5rem] shrink-0 text-[12px]">
+            <span className="data w-[4.5rem] shrink-0 text-[0.75rem]">
               {frameLabel(radar.frames[Math.min(frame, radar.frames.length - 1)], zone)}
             </span>
-            <p className="data text-[10.5px] leading-snug text-ink-soft">{coverageLabel(radar)}</p>
+            <p className="data text-[0.65625rem] leading-snug text-ink-soft">{coverageLabel(radar)}</p>
           </div>
         )}
       </div>

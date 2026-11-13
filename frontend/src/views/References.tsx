@@ -283,55 +283,55 @@ export default function References() {
   useShare(useMemo(() => referencesSheet(SOURCES, MODELS, DISEASE_READING), []));
   return (
     <>
-      <h1 className="figure mb-3.5 text-[22px] font-bold">References</h1>
+      <h1 className="figure mb-3.5 text-[1.375rem] font-bold">References</h1>
 
-      <h2 className="figure mb-2.5 text-[18px] font-semibold">🛰️ Sources</h2>
+      <h2 className="figure mb-2.5 text-[1.125rem] font-semibold">🛰️ Sources</h2>
       <div className="space-y-2.5">
         {SOURCES.map((s) => (
           <div key={s.name} className="rounded-md border border-rule bg-panel px-4 py-3">
             <div className="flex flex-wrap items-baseline gap-2">
               <a href={s.url} target="_blank" rel="noreferrer"
-                className="figure text-[15px] font-semibold text-ink underline decoration-rule underline-offset-2">
+                className="figure text-[0.9375rem] font-semibold text-ink underline decoration-rule underline-offset-2">
                 {s.name}
               </a>
-              <span className="data rounded-full bg-band px-2 py-0.5 text-[10.5px] text-ink-soft">
+              <span className="data rounded-full bg-band px-2 py-0.5 text-[0.65625rem] text-ink-soft">
                 {s.resolution}
               </span>
             </div>
-            <p className="mt-1 text-[13px] leading-relaxed">{s.role}</p>
-            <p className="mt-1 text-[12.5px] leading-relaxed text-ink-soft">{s.note}</p>
+            <p className="mt-1 text-[0.8125rem] leading-relaxed">{s.role}</p>
+            <p className="mt-1 text-[0.78125rem] leading-relaxed text-ink-soft">{s.note}</p>
           </div>
         ))}
       </div>
 
-      <h2 className="figure mt-8 mb-2.5 text-[18px] font-semibold">📐 Models</h2>
+      <h2 className="figure mt-8 mb-2.5 text-[1.125rem] font-semibold">📐 Models</h2>
       <div className="space-y-2.5">
         {MODELS.map((m) => (
           <div key={m.title} className="rounded-md border border-rule border-l-4 border-l-growth bg-panel px-4 py-3">
-            <h3 className="figure text-[15px] font-semibold">{m.title}</h3>
-            <p className="mt-1 text-[13px] leading-relaxed">{m.body}</p>
-            <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-soft">
+            <h3 className="figure text-[0.9375rem] font-semibold">{m.title}</h3>
+            <p className="mt-1 text-[0.8125rem] leading-relaxed">{m.body}</p>
+            <p className="mt-1.5 text-[0.78125rem] leading-relaxed text-ink-soft">
               <span className="eyebrow mr-1.5">Assumption</span>{m.assumption}
             </p>
           </div>
         ))}
       </div>
 
-      <h2 className="figure mt-8 mb-2.5 text-[18px] font-semibold">🍄 Disease, elsewhere</h2>
+      <h2 className="figure mt-8 mb-2.5 text-[1.125rem] font-semibold">🍄 Disease, elsewhere</h2>
       <div className="space-y-2.5">
         {DISEASE_READING.map((s) => (
           <div key={s.name} className="rounded-md border border-rule bg-panel px-4 py-3">
             <a href={s.url} target="_blank" rel="noreferrer"
-              className="figure text-[15px] font-semibold text-ink underline decoration-rule underline-offset-2">
+              className="figure text-[0.9375rem] font-semibold text-ink underline decoration-rule underline-offset-2">
               {s.name}
             </a>
-            <p className="mt-1 text-[13px] leading-relaxed">{s.said}</p>
+            <p className="mt-1 text-[0.8125rem] leading-relaxed">{s.said}</p>
           </div>
         ))}
       </div>
 
-      <h2 className="figure mt-8 mb-2.5 text-[18px] font-semibold">🚫 Limits</h2>
-      <div className="rounded-md border border-rule border-l-4 border-l-clay bg-panel px-4 py-3.5 text-[13px] leading-relaxed">
+      <h2 className="figure mt-8 mb-2.5 text-[1.125rem] font-semibold">🚫 Limits</h2>
+      <div className="rounded-md border border-rule border-l-4 border-l-clay bg-panel px-4 py-3.5 text-[0.8125rem] leading-relaxed">
         <p><b>No agronomy, entomology or natural history.</b> The catalogues name
           what is modelled or recorded around your ground; the numbers that time
           it stay yours.</p>
@@ -343,7 +343,7 @@ export default function References() {
           everywhere it appears.</p>
       </div>
 
-      <p className="mt-6 text-[12px] leading-relaxed text-ink-soft">
+      <p className="mt-6 text-[0.75rem] leading-relaxed text-ink-soft">
         Disagrees with your own record? File a field report.
       </p>
     </>

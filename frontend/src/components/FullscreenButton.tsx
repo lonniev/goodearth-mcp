@@ -69,7 +69,7 @@ export default function FullscreenButton() {
       </button>
       {open && (
         <span role="tooltip"
-          className="absolute top-full right-0 z-30 mt-1 w-64 max-w-[calc(100vw-2rem)] whitespace-normal rounded-md border border-rule bg-paper p-2.5 text-left text-[12px] leading-snug text-ink shadow-lg">
+          className="absolute top-full right-0 z-30 mt-1 w-64 max-w-[calc(100vw-2rem)] whitespace-normal rounded-md border border-rule bg-paper p-2.5 text-left text-[0.75rem] leading-snug text-ink shadow-lg">
           {HOW}
         </span>
       )}

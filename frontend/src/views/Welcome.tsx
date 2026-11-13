@@ -40,7 +40,7 @@ export default function Welcome({ onView, onSignIn, signedIn }: {
   useTour("welcome", { ready: !signedIn });
   return (
     <div>
-      <h1 className="figure text-[30px] leading-tight font-bold">
+      <h1 className="figure text-[1.875rem] leading-tight font-bold">
         {signedIn ? "Guides" : "Natural phenomena for your Acreage."}
       </h1>
 
@@ -58,7 +58,7 @@ export default function Welcome({ onView, onSignIn, signedIn }: {
             you estimate the climate variation across the varied surface of your
             plots and fields.
           </Claim>
-          <p className="text-[14px] leading-relaxed">
+          <p className="text-[0.875rem] leading-relaxed">
             A bench and a hollow on the same acreage do not share a frost date.
             Draw your block, and every answer comes back with the spread across
             it — heat, frost, soil, daylight and rain, measured for that ground
@@ -67,10 +67,10 @@ export default function Welcome({ onView, onSignIn, signedIn }: {
 
           <div className="mt-5 flex flex-wrap items-center gap-2.5">
             <button onClick={onSignIn} {...tour("welcome.signin")}
-              className="min-h-11 rounded-full border-[1.5px] border-ink bg-ink px-5 text-[13.5px] font-semibold text-paper">
+              className="min-h-11 rounded-full border-[1.5px] border-ink bg-ink px-5 text-[0.84375rem] font-semibold text-paper">
               Sign in with a Nostr key
             </button>
-            <span className="text-[12.5px] text-ink-soft">
+            <span className="text-[0.78125rem] text-ink-soft">
               No email, no password, no KYC. Pay per answer in Bitcoin Lightning.
             </span>
           </div>
@@ -78,16 +78,16 @@ export default function Welcome({ onView, onSignIn, signedIn }: {
       )}
 
       {/* The teaching, free and unsigned. Five pages, one idea each. */}
-      <h2 className={`figure mb-2.5 text-[18px] font-semibold ${signedIn ? "mt-5" : "mt-8"}`}>
+      <h2 className={`figure mb-2.5 text-[1.125rem] font-semibold ${signedIn ? "mt-5" : "mt-8"}`}>
         How the season is counted
       </h2>
       <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3" {...tour("welcome.explainers")}>
         {EXPLAINERS.map((e) => (
           <button key={e.view} onClick={() => onView(e.view)}
             className="rounded-md border border-rule bg-panel p-4 text-left active:border-ink">
-            <span className="text-[26px]" aria-hidden="true">{e.emoji}</span>
-            <span className="figure mt-1 block text-[14.5px] font-semibold">{e.title}</span>
-            <span className="mt-1 block text-[12.5px] leading-relaxed text-ink-soft">
+            <span className="text-[1.625rem]" aria-hidden="true">{e.emoji}</span>
+            <span className="figure mt-1 block text-[0.90625rem] font-semibold">{e.title}</span>
+            <span className="mt-1 block text-[0.78125rem] leading-relaxed text-ink-soft">
               {e.said}
             </span>
           </button>
@@ -97,11 +97,11 @@ export default function Welcome({ onView, onSignIn, signedIn }: {
       {/* How each page is used: the (?) in the top bar lands here too. One
           card per working page, in the rail's order, so a grower finds the
           guide under the word the rail already uses. */}
-      <h2 className="figure mt-8 mb-2.5 text-[18px] font-semibold">
+      <h2 className="figure mt-8 mb-2.5 text-[1.125rem] font-semibold">
         How each page is used
       </h2>
       {signedIn && (
-        <p className="mb-2.5 text-[12.5px] text-ink-soft">
+        <p className="mb-2.5 text-[0.78125rem] text-ink-soft">
           Each guide's compass walks you through its page, popover by popover.
         </p>
       )}
@@ -111,9 +111,9 @@ export default function Welcome({ onView, onSignIn, signedIn }: {
           return (
             <button key={p} onClick={() => onView(`how-${p}`)}
               className="rounded-md border border-rule bg-panel p-4 text-left active:border-ink">
-              <span className="text-[26px]" aria-hidden="true">{m.emoji}</span>
-              <span className="figure mt-1 block text-[14.5px] font-semibold">{m.title}</span>
-              <span className="mt-1 block text-[12.5px] leading-relaxed text-ink-soft">
+              <span className="text-[1.625rem]" aria-hidden="true">{m.emoji}</span>
+              <span className="figure mt-1 block text-[0.90625rem] font-semibold">{m.title}</span>
+              <span className="mt-1 block text-[0.78125rem] leading-relaxed text-ink-soft">
                 {m.said}
               </span>
             </button>
@@ -123,8 +123,8 @@ export default function Welcome({ onView, onSignIn, signedIn }: {
 
       {!signedIn && (
         <>
-      <h2 className="figure mt-8 mb-2.5 text-[18px] font-semibold">What it answers</h2>
-      <ul className="grid gap-x-6 gap-y-2 text-[13.5px] leading-relaxed sm:grid-cols-2">
+      <h2 className="figure mt-8 mb-2.5 text-[1.125rem] font-semibold">What it answers</h2>
+      <ul className="grid gap-x-6 gap-y-2 text-[0.84375rem] leading-relaxed sm:grid-cols-2">
         {[
           ["🌡️", "Where the season stands, and the spread across your block"],
           // A tester read this as a requirement — ten years of records they would
@@ -144,7 +144,7 @@ export default function Welcome({ onView, onSignIn, signedIn }: {
 
       {/* Checkable, not "trust us" — the same argument References makes at
           length, in the one line that earns the click. */}
-      <p className="mt-8 text-[13px] leading-relaxed text-ink-soft">
+      <p className="mt-8 text-[0.8125rem] leading-relaxed text-ink-soft">
         Every number comes from a named feed with a stated resolution, and every
         model says the assumption inside it.{" "}
         <button onClick={() => onView("references")}

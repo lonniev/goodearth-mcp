@@ -103,7 +103,7 @@ export default function LifeCycleStory({
   return (
     <section className="mt-3 rounded-md border border-rule bg-band/40 p-4">
       {result.narrative && (
-        <p className="mb-3 text-[13px] leading-relaxed">{result.narrative}</p>
+        <p className="mb-3 text-[0.8125rem] leading-relaxed">{result.narrative}</p>
       )}
       <ol className="grid gap-1">
         {events.map((e) => {
@@ -117,21 +117,21 @@ export default function LifeCycleStory({
                 title={fixed ? "Already tracked" : undefined}>
                 <input type="checkbox" className="mt-1 size-4 shrink-0" checked={on}
                   disabled={fixed} onChange={() => toggle(e)} />
-                <span className="data w-[4.5rem] shrink-0 pt-0.5 text-[12px] text-ink-soft">
+                <span className="data w-[4.5rem] shrink-0 pt-0.5 text-[0.75rem] text-ink-soft">
                   {aboutDate(e.on_this_plot)}
                 </span>
-                <span className="w-6 shrink-0 text-center text-[17px] leading-none">{e.emoji ?? "•"}</span>
+                <span className="w-6 shrink-0 text-center text-[1.0625rem] leading-none">{e.emoji ?? "•"}</span>
                 <span className="min-w-0 flex-1">
-                  <span className="text-[13.5px] font-semibold">{e.name}</span>
+                  <span className="text-[0.84375rem] font-semibold">{e.name}</span>
                   {fixed && <span className="ml-1.5 text-ink-soft" aria-label="Already tracked">✓</span>}
                   {e.summary && (
-                    <span className="block text-[12px] leading-snug text-ink-soft">{e.summary}</span>
+                    <span className="block text-[0.75rem] leading-snug text-ink-soft">{e.summary}</span>
                   )}
                 </span>
                 {e.source_url && (
                   <a href={e.source_url} target="_blank" rel="noopener noreferrer"
                     onClick={(ev) => ev.stopPropagation()}
-                    className="shrink-0 pt-0.5 text-[12px] text-ink-soft underline underline-offset-2"
+                    className="shrink-0 pt-0.5 text-[0.75rem] text-ink-soft underline underline-offset-2"
                     title={e.source_url}>source</a>
                 )}
               </label>
@@ -148,7 +148,7 @@ export default function LifeCycleStory({
               catch (err) { setError((err as Error).message); }
               finally { setSaving(false); }
             }}
-            className="min-h-11 rounded-full bg-ink px-5 text-[13px] font-semibold text-paper disabled:opacity-40">
+            className="min-h-11 rounded-full bg-ink px-5 text-[0.8125rem] font-semibold text-paper disabled:opacity-40">
             {saving ? "Saving…" : trackLabel ? trackLabel(adding.length) : `Track these ${adding.length}`}
           </button>
         )}

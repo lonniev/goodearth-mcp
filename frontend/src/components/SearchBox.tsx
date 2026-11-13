@@ -45,14 +45,14 @@ export default function SearchBox({
         }}
         placeholder={placeholder ?? "search — regex ok"}
         aria-label="Search"
-        className="h-11 w-full max-w-[14rem] rounded border border-rule bg-white px-2.5 text-[16px] focus:border-honey focus:outline-none"
+        className="h-11 w-full max-w-[14rem] rounded border border-rule bg-white px-2.5 text-[1rem] focus:border-honey focus:outline-none"
       />
       <button
         onClick={submit}
         // Dark only when pressing it would change something, so the control
         // says whether there is an unrun search sitting in the box.
         title="Search"
-        className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-[12.5px] font-semibold ${
+        className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-[0.78125rem] font-semibold ${
           dirty ? "border-ink bg-ink text-paper" : "border-rule text-ink-soft active:bg-band"
         }`}
       >
@@ -65,7 +65,7 @@ export default function SearchBox({
         <button
           onClick={() => { setDraft(""); onSearch(""); }}
           aria-label="Clear search"
-          className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-[18px] text-ink-soft active:text-clay"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-[1.125rem] text-ink-soft active:text-clay"
         >
           ×
         </button>
