@@ -1,0 +1,2 @@
+- Connecting FieldData always moves forward: a lapsed FieldData sign-in is replaced and the Nostr message is sent, where before Connect itself answered "Connect your FieldData account first".
+- "Now at" on the Almanac says so once, with a Connect FieldData button that sends the message.

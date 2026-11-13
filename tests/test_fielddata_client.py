@@ -122,6 +122,33 @@ async def test_a_refused_refresh_means_connect_again(monkeypatch):
         await fc.FieldData(vault.load, vault.store).call(NPUB, "current")
 
 
+@respx.mock
+async def test_connect_replaces_a_lapsed_holder_and_sends_the_dm(monkeypatch):
+    vault = connected(expires_in=-10)
+    respx.post(f"{fc.BASE_URL}/register").mock(return_value=httpx.Response(201, json={"client_id": "c9"}))
+
+    def authorized(request):
+        q = parse_qs(urlparse(str(request.url)).query)
+        return httpx.Response(200, json={"redirect_uri": f"{fc.REDIRECT_URI}?code=C&state={q['state'][0]}"})
+
+    respx.get(f"{fc.BASE_URL}/authorize").mock(side_effect=authorized)
+
+    def token(request):
+        form = parse_qs(request.content.decode())
+        if form["grant_type"] == ["refresh_token"]:
+            return httpx.Response(400, json={"error": "invalid_grant"})
+        return httpx.Response(200, json={"access_token": "NEW-ACCESS", "refresh_token": "NEW-REFRESH", "expires_in": 3600})
+
+    respx.post(f"{fc.BASE_URL}/token").mock(side_effect=token)
+    seen = tool_answers(monkeypatch, {"nonce": "x", "rendezvous_relay": "wss://r"})
+
+    out = await fc.FieldData(vault.load, vault.store).connect(NPUB)
+
+    assert out["phrase"] == "x"
+    assert vault.stored["client_id"] == "c9"
+    assert seen[0][0] == "NEW-ACCESS" and seen[0][1] == "request_npub_proof"
+
+
 async def test_no_connection_yet_says_connect():
     vault = Vault()
     with pytest.raises(fc.FieldDataNotConnected):

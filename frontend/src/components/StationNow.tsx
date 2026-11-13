@@ -10,7 +10,7 @@ import { loadConditions, loadStation } from "../lib/pageLoads";
 import { readingLine, reportAge, tileReadings, windSpeed } from "../lib/stationNow";
 import { tour } from "../lib/tour/targets";
 import Barometer from "./Barometer";
-import PlotStation from "./PlotStation";
+import PlotStation, { needsConnect } from "./PlotStation";
 import { Pill } from "./ui";
 import { useUnits } from "./Units";
 
@@ -65,9 +65,14 @@ export default function StationNow({ block }: { block: string }) {
       {changing && (
         <PlotStation block={block} opened
           onChosen={() => { setChanging(false); setChosenCount((n) => n + 1); }}
-          onKeep={() => setChanging(false)} />
+          onKeep={() => { setChanging(false); if (problem) setChosenCount((n) => n + 1); }} />
       )}
-      {problem && <p className="mt-1 text-[12.5px] text-clay">{problem}</p>}
+      {problem && !changing && (
+        <div className="mt-1 flex flex-wrap items-center gap-2 text-[12.5px] text-clay">
+          <span>{problem}</span>
+          {needsConnect(problem) && <Pill active onClick={() => setChanging(true)}>Connect FieldData</Pill>}
+        </div>
+      )}
       {!report && !problem && <p className="mt-1 text-[12.5px] text-ink-soft" aria-busy="true">Reading the station…</p>}
       {report && (
         <div className="mt-2.5 grid grid-cols-2 gap-x-2 gap-y-3.5 sm:grid-cols-4 lg:grid-cols-8">
