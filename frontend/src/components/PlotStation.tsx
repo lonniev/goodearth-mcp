@@ -20,6 +20,9 @@ type Step =
 
 const NOT_CONNECTED = /connect your fielddata/i;
 
+/// FieldData needs this patron's one Nostr reply before it answers for them.
+export const needsConnect = (message: string) => NOT_CONNECTED.test(message);
+
 export default function PlotStation({ block, opened = false, onChosen, onKeep }: {
   block: string;
   /// Start at the chooser, for a shortcut that already said "change".
@@ -134,7 +137,14 @@ export default function PlotStation({ block, opened = false, onChosen, onKeep }:
           </div>
         </div>
       )}
-      {problem && <p role="alert" className="mt-1 text-[12px] text-clay">{problem}</p>}
+      {problem && (
+        <div role="alert" className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-clay">
+          <span>{problem}</span>
+          {needsConnect(problem) && step.kind === "rest" && (
+            <Pill active onClick={() => void run({ kind: "rest" }, sendMessage)}>Connect FieldData</Pill>
+          )}
+        </div>
+      )}
     </div>
   );
 }

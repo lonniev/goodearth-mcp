@@ -180,22 +180,35 @@ class FieldData:
             logger.warning("FieldData call %s failed: %s", tool, type(exc).__name__)
             raise FieldDataError("FieldData could not be reached. Try again shortly.") from None
 
-    async def connect(self, npub: str) -> dict[str, Any]:
-        """Make sure this patron has a holder, and send the DM that proves their npub into it."""
-        async with self._locks[npub]:
-            tokens = Tokens.from_stored(await self._load(npub))
-            if tokens is None:
-                async with httpx.AsyncClient(timeout=_TIMEOUT) as http:
-                    try:
-                        tokens = await _connect_holder(http)
-                    except httpx.HTTPError:
-                        raise FieldDataError("FieldData could not be reached. Try again shortly.") from None
-                await self._keep(npub, tokens)
-        tokens = await self._tokens(npub)
-        answer = await self._tool(tokens, "request_npub_proof", {
+    async def _new_holder(self, npub: str) -> Tokens:
+        """A fresh FieldData connection for this patron. Call under their lock."""
+        async with httpx.AsyncClient(timeout=_TIMEOUT) as http:
+            try:
+                tokens = await _connect_holder(http)
+            except httpx.HTTPError:
+                raise FieldDataError("FieldData could not be reached. Try again shortly.") from None
+        return await self._keep(npub, tokens)
+
+    async def _ask_proof(self, npub: str, tokens: Tokens) -> dict[str, Any]:
+        return await self._tool(tokens, "request_npub_proof", {
             "patron_npub": npub,
             "reason": "Good Earth is asking to read your chosen stations from FieldData for your Plots.",
         })
+
+    async def connect(self, npub: str) -> dict[str, Any]:
+        """Make sure this patron has a holder, and send the DM that proves their npub into it.
+
+        A holder FieldData no longer honours is replaced, so connecting always moves forward.
+        """
+        async with self._locks[npub]:
+            if Tokens.from_stored(await self._load(npub)) is None:
+                await self._new_holder(npub)
+        try:
+            answer = await self._ask_proof(npub, await self._tokens(npub))
+        except FieldDataNotConnected:
+            async with self._locks[npub]:
+                tokens = await self._new_holder(npub)
+            answer = await self._ask_proof(npub, tokens)
         if not answer.get("nonce"):
             raise FieldDataError(str(answer.get("error") or answer.get("message") or "FieldData sent no message."))
         return {"phrase": answer["nonce"], "relay": answer.get("rendezvous_relay", "")}
