@@ -1643,6 +1643,7 @@ export interface PlotConditions {
   station: PlotStationRow;
   readings: StationReading[];
   observed_at: string;
+  read_at: string;
   wind: { from: string | null; arrow: string | null; emoji: string } | null;
 }
 

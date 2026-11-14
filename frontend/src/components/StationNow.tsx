@@ -4,7 +4,8 @@
 // a plot with no station shows nothing at all.
 
 import { useEffect, useState, type ReactNode } from "react";
-import { getStoredNpub } from "@tollbooth-dpyc/web";
+import { formatDateTime, getStoredNpub } from "@tollbooth-dpyc/web";
+import { useTimezone } from "@tollbooth-dpyc/web/react";
 import { type PlotConditions } from "../lib/mcp";
 import { loadConditions, loadStation } from "../lib/pageLoads";
 import { readingLine, reportAge, tileReadings, windSpeed } from "../lib/stationNow";
@@ -29,6 +30,7 @@ export function Stat({ emoji, label, value, sub }: {
 
 export default function StationNow({ block }: { block: string }) {
   const u = useUnits();
+  const [, zone] = useTimezone();
   const [report, setReport] = useState<PlotConditions | null>(null);
   const [name, setName] = useState("");
   const [problem, setProblem] = useState("");
@@ -57,10 +59,15 @@ export default function StationNow({ block }: { block: string }) {
     <section className="mb-4 rounded-md border border-rule bg-panel px-4 py-3" {...tour("almanac.station")}>
       <div className="flex flex-wrap items-baseline gap-2">
         <h2 className="figure text-[0.9375rem] font-semibold">Now at {name}</h2>
-        {report?.observed_at && (
-          <span className="data text-[0.65625rem] text-ink-soft">{reportAge(report.observed_at, Date.now())}</span>
+        {!changing && <Pill onClick={() => setChanging(true)}>Change station</Pill>}
+        {report && (
+          <dl className="data ml-auto grid grid-cols-[auto_auto] gap-x-2 text-right text-[0.8125rem]">
+            <dt className="text-ink-soft">Read</dt>
+            <dd>{report.read_at ? formatDateTime(report.read_at, zone) : "—"}</dd>
+            <dt className="text-ink-soft">Observed</dt>
+            <dd>{report.observed_at ? `${formatDateTime(report.observed_at, zone)} · ${reportAge(report.observed_at, Date.now())}` : "—"}</dd>
+          </dl>
         )}
-        {!changing && <span className="ml-auto"><Pill onClick={() => setChanging(true)}>Change station</Pill></span>}
       </div>
       {changing && (
         <PlotStation block={block} opened
