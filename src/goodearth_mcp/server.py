@@ -3307,12 +3307,14 @@ async def plot_conditions(
     """What the plot's chosen FieldData station reports right now, named by station.
 
     Readings are as FieldData gives them: SI units and UTC.
+    `observed_at` is the station's newest sample; `read_at` is when Good Earth asked FieldData.
     """
     found = await block_store.resolve(_named_npub(npub), block)
     station = _station_of(await _plot_station_rows(npub, found["block_id"]))
     if station is None:
         raise ValueError(f"{found.get('name', 'This plot')} has no station. Choose one with plot_station.")
     answer = await fielddata.call(npub, "current", {"station": station["station_id"]})
+    read_at = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
     readings = answer.get("readings") or []
     return {
         "success": True,
@@ -3321,6 +3323,7 @@ async def plot_conditions(
         "readings": readings,
         "wind": _station_wind(readings),
         "observed_at": max((str(r.get("observed_at") or "") for r in readings), default=""),
+        "read_at": read_at,
         "source": "FieldData",
     }
 

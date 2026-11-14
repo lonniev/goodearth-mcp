@@ -87,6 +87,7 @@ async def test_conditions_read_the_saved_station_and_name_it(items, monkeypatch)
     assert asked == [(NPUB, "current", {"station": "s1"})]
     assert out["station"]["name"] == "TheDellie"
     assert out["observed_at"] == "2026-10-30T14:05:00Z"
+    assert out["read_at"].endswith("Z") and out["read_at"] > out["observed_at"]
     assert len(out["readings"]) == 2
 
 

@@ -1,0 +1,2 @@
+- "Now at <station>" shows two times: when Good Earth read the station, and when the station observed what it reports.
+- `plot_conditions` returns `read_at` beside `observed_at`.
