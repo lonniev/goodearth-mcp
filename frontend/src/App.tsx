@@ -5,44 +5,22 @@
 // specific to Good Earth is everything below the gate — the region scoping and
 // the views that read from it.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import AppShell, { type ViewKey } from "./components/AppShell";
 import { DEFAULT_VIEW, GUEST_VIEW, onRouteChange, viewFromHash, writeView } from "./lib/route";
 import { isPublic } from "./lib/views";
 import Hive, { hiveMood } from "./components/Hive";
 import Bees from "./components/Bees";
-import { AccountPage, DebugPanel, NostrProfilePanel, NpubGate, WalletFunds, WalletStatement } from "@tollbooth-dpyc/web/react";
-import { decorateTile } from "./lib/tiles";
-import { USAGE, USAGE_FIGURES, UsageRow } from "./components/usageDress";
-import Preferences from "./components/Preferences";
-import CalendarFeed from "./components/CalendarFeed";
+import { DebugPanel, NpubGate, QuoteScroller } from "@tollbooth-dpyc/web/react";
 import { themeOf } from "./lib/prefs";
 import { usePrefs } from "./lib/usePrefs";
 import FirstRun from "./components/FirstRun";
-import ForgetMe from "./components/ForgetMe";
 import GuestShell from "./components/GuestShell";
 import { UnitProvider } from "./components/Units";
 import { ShareProvider } from "./components/Share";
-import LifeOfAPest from "./views/LifeOfAPest";
-import LifeOfAPlant from "./views/LifeOfAPlant";
-import LifeOfAnAnimal from "./views/LifeOfAnAnimal";
-import LifeOfATree from "./views/LifeOfATree";
-import LifeOfADisease from "./views/LifeOfADisease";
 import Welcome from "./views/Welcome";
-import Glossary from "./views/Glossary";
-import HowTo from "./views/HowTo";
 import { showTemp, type Unit } from "./lib/units";
-import HeatLedger from "./views/HeatLedger";
-import Crops from "./views/Crops";
-import Pests from "./views/Pests";
-import FieldReports from "./views/FieldReports";
-import Almanac from "./views/Almanac";
-import Wildlife from "./views/Wildlife";
-import References from "./views/References";
-import Prices from "./views/Prices";
-import About from "./views/About";
-import TodoView from "./views/Todo";
-import Plots from "./views/Plots";
+import { AGRARIAN_QUOTES, AGRARIAN_SOURCE, quoteStyles } from "./lib/quotes";
 import {
   AVATAR_EVENT, avatarFor, fetchProfile, getStoredNpub, hydrateAvatarFromNostr,
   isLoggedIn, logOut, onProofExpired, syncProperties,
@@ -57,8 +35,31 @@ import { peerOf, WARM_AFTER_MS } from "./lib/peerPage";
 import { warmPage } from "./lib/pageLoads";
 import { forgetAll } from "./lib/pageCache";
 import { TourProvider, useTour } from "@tollbooth-dpyc/web/react";
-import { tour } from "./lib/tour/targets";
 import { TOURS } from "./lib/tour/copy";
+
+// Each page past the front door is its own chunk, fetched the first time it opens.
+const LifeOfAPest = lazy(() => import("./views/LifeOfAPest"));
+const LifeOfAPlant = lazy(() => import("./views/LifeOfAPlant"));
+const LifeOfAnAnimal = lazy(() => import("./views/LifeOfAnAnimal"));
+const LifeOfATree = lazy(() => import("./views/LifeOfATree"));
+const LifeOfADisease = lazy(() => import("./views/LifeOfADisease"));
+const Glossary = lazy(() => import("./views/Glossary"));
+const HowTo = lazy(() => import("./views/HowTo"));
+const HeatLedger = lazy(() => import("./views/HeatLedger"));
+const Crops = lazy(() => import("./views/Crops"));
+const Pests = lazy(() => import("./views/Pests"));
+const FieldReports = lazy(() => import("./views/FieldReports"));
+const Almanac = lazy(() => import("./views/Almanac"));
+const Wildlife = lazy(() => import("./views/Wildlife"));
+const References = lazy(() => import("./views/References"));
+const Prices = lazy(() => import("./views/Prices"));
+const About = lazy(() => import("./views/About"));
+const TodoView = lazy(() => import("./views/Todo"));
+const Plots = lazy(() => import("./views/Plots"));
+const Account = lazy(() => import("./views/Account"));
+
+/// What shows while a page's chunk arrives: the same agrarian quotes as a slow forecast.
+const pageLoading = <QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} intervalMs={6500} classNames={quoteStyles} />;
 
 /** Read by index.html before the app runs; keep the two in step. */
 const PAPER_KEY = "goodearth:paper:v1";
@@ -300,6 +301,7 @@ export default function App() {
       <TourProvider tours={TOURS}>
       <ShareProvider>
       <GuestShell view={view} onView={setView} onSignIn={() => setAsking(true)}>
+      <Suspense fallback={pageLoading}>
         {view === "welcome" && <Welcome onView={setView} onSignIn={() => setAsking(true)} />}
         {view === "plant" && <LifeOfAPlant />}
         {view === "pest" && <LifeOfAPest />}
@@ -322,6 +324,7 @@ export default function App() {
         {view === "how-wildlife" && <HowTo page="wildlife" onView={setView} />}
         {view === "how-todo" && <HowTo page="todo" onView={setView} />}
         {view === "how-reports" && <HowTo page="reports" onView={setView} />}
+      </Suspense>
       </GuestShell>
       </ShareProvider>
       </TourProvider>
@@ -349,6 +352,7 @@ export default function App() {
         conditions={conditions(frost, prefs.units)}
         hive={prefs.bees ? <Hive mood={hiveMood(todayHigh(frost), frostWatchLive(frost))} /> : undefined}
       >
+      <Suspense fallback={pageLoading}>
         {view === "ledger" && (
           // A patron with no ground of their own is asked for some. The
           // example is one tap away and says what it is; it used to be the
@@ -404,58 +408,16 @@ export default function App() {
         {view === "how-todo" && <HowTo page="todo" onView={setView} />}
         {view === "how-reports" && <HowTo page="reports" onView={setView} />}
         {view === "account" && (
-          // Two columns on a landscape screen: who you are on the left, how
-          // the app behaves for you on the right. The page is one flat list,
-          // so the columns are CSS columns with the settings forced to the
-          // second; one column on a phone, in the same order.
-          <AccountPage
-            npub={getStoredNpub()}
-            heading="Account"
-            before={
-              <div className="grid gap-3" {...tour("account.summary")}>
-                {spent > 0 && (
-                  <span className="data justify-self-start rounded-full bg-band px-2.5 py-1 text-[0.65625rem] text-ink-soft">
-                    {spent.toLocaleString()} drawn today
-                  </span>
-                )}
-                <WalletFunds decorateTile={decorateTile} />
-              </div>
-            }
-            profile={false}
-            between={{ usage: <WalletStatement /> }}
-            usage={{ figures: USAGE_FIGURES, classNames: USAGE, renderRow: (t) => <UsageRow tool={t} /> }}
-            // The time zone sits in Viewing with the season and degrees; the
-            // season is Good Earth's theme; the build panel is on About.
-            timezone={false}
-            theme={false}
-            build={false}
-            after={
-              <div className="grid gap-3 lg:break-before-column">
-                <NostrProfilePanel npub={getStoredNpub()} />
-                <Preferences prefs={prefs} lat={latOf(region.region)} onChange={setPrefs} />
-                {/* Publishing is a once-per-region setup step, so it sits with
-                    the other settings rather than at the top of the working page. */}
-                <CalendarFeed region={region} />
-                {/* Last, because it is the one control here that cannot be
-                    taken back. */}
-                <ForgetMe onForgotten={() => {
-                  setSignedIn(false);
-                  setRegion(listRegions()[0]);
-                  setView(GUEST_VIEW);
-                  setNotice("Your ground is forgotten. You are still a patron here.");
-                }} />
-              </div>
-            }
-            onSignOut={() => { logOut(); setSignedIn(false); }}
-            signOutLabel="Sign out"
-            classNames={{
-              root: "gap-3 lg:columns-2 [&>*]:mb-3 [&>*]:break-inside-avoid",
-              heading: "figure mb-3 text-[1.625rem] font-bold [column-span:all]",
-              actions: "flex justify-end",
-              signOut: "min-h-11 rounded-full border border-rule px-3.5 text-[0.75rem] text-ink-soft active:bg-band",
+          <Account spent={spent} prefs={prefs} onPrefs={setPrefs} region={region}
+            onForgotten={() => {
+              setSignedIn(false);
+              setRegion(listRegions()[0]);
+              setView(GUEST_VIEW);
+              setNotice("Your ground is forgotten. You are still a patron here.");
             }}
-          />
+            onSignOut={() => { logOut(); setSignedIn(false); }} />
         )}
+      </Suspense>
       </AppShell>
       </ShareProvider>
       </TourProvider>
