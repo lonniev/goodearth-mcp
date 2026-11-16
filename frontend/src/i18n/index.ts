@@ -14,7 +14,13 @@ export const WORDS = "goodearth";
 
 /** Hand Good Earth's English to the package, and say where each translation is fetched from. Once, before render. */
 export function registerGoodEarth(): Promise<void> {
-  return registerNamespace(WORDS, en, {});
+  return registerNamespace(WORDS, en, {
+    fr: () => import("./fr.ts"),
+    es: () => import("./es.ts"),
+    ja: () => import("./ja.ts"),
+    zh: () => import("./zh.ts"),
+    hi: () => import("./hi.ts"),
+  });
 }
 
 export type Translate = (key: MessageKey, vars?: Vars) => string;
