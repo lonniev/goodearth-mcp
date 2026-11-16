@@ -114,3 +114,13 @@ describe("the stages a row is edited through", () => {
     assert.match(editor(), /const kept = \(draft\.stages \?\? \[\]\)\.find/);
   });
 });
+
+describe("stages typed in another script", () => {
+  it("reads a Chinese or Japanese comma and colon as the English ones", () => {
+    for (const raw of ["初飞 375，二飞 1400", "初飛：375、二飛：1400"]) {
+      const made = makePest("Codling moth", 50, raw, "b1");
+      assert.ok(typeof made !== "string", `${raw}: ${made as string}`);
+      assert.deepEqual(made.stages?.map((s) => s.gdd), [375, 1400]);
+    }
+  });
+});

@@ -69,9 +69,10 @@ export function makePest(
   if (biofix && (!/^\d{4}-\d{2}-\d{2}$/.test(biofix) || Number.isNaN(Date.parse(biofix))))
     return tr("lib.pestModels.badBiofix");
 
-  // "first flight 375, second flight 1400" — one stage per comma.
-  const stages = stagesRaw.split(",").map((chunk) => {
-    const m = chunk.trim().match(/^(.*?)[\s:]+(\d+(?:\.\d+)?)$/);
+  // "first flight 375, second flight 1400" — one stage per comma, in any
+  // script's comma (Chinese "，", Japanese "、"), with any colon.
+  const stages = stagesRaw.split(/[,，、]/).map((chunk) => {
+    const m = chunk.trim().match(/^(.*?)[\s:：]+(\d+(?:\.\d+)?)$/);
     if (!m) return null;
     const g = Number(m[2]);
     if (!Number.isFinite(g) || g <= 0 || g > 20_000) return null;
