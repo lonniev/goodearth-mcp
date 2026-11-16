@@ -76,12 +76,16 @@ describe("the Plants guide gives Companions a group of its own", () => {
   // so a reader can find it, and the glyph is the one the ledger draws.
   it("names the group, its two kinds and the row's glyph", async () => {
     const { readFile } = await import("node:fs/promises");
+    // The guide's English is in the views catalog; the guide draws it by key.
     const guide = await readFile("src/views/howto/crops.tsx", "utf8");
+    const words = await readFile("src/i18n/en/views.ts", "utf8");
     const ledger = await readFile("src/components/CropLedger.tsx", "utf8");
-    assert.match(guide, /heading: "Companions"/);
-    assert.match(guide, /<Glyph path=\{ICON\.companions\} \/> on a row/);
-    assert.match(guide, /"🤝 Synergy"/);
-    assert.match(guide, /"🎨 Design"/);
+    assert.match(guide, /heading: t\("howto\.crops\.companions"\)/);
+    assert.match(words, /"howto\.crops\.companions": "Companions"/);
+    assert.match(guide, /glyph: <Glyph path=\{ICON\.companions\} \/>/);
+    assert.match(words, /"<glyph\/> on a row"/);
+    assert.match(words, /"🤝 Synergy"/);
+    assert.match(words, /"🎨 Design"/);
     assert.match(ledger, /<Glyph path=\{ICON\.companions\} \/>/);
   });
 });
@@ -89,7 +93,8 @@ describe("the Plants guide gives Companions a group of its own", () => {
 describe("the Plots guide tells of the array on a Sun spot", () => {
   it("names the drag, the three figures and where the prices come from", async () => {
     const { readFile } = await import("node:fs/promises");
-    const guide = await readFile("src/views/howto/plots.tsx", "utf8");
+    // The guide's English is in the views catalog; the guide draws it by key.
+    const guide = await readFile("src/i18n/en/views.ts", "utf8");
     assert.match(guide, /lays an\s+array on the spot/);
     assert.match(guide, /drag its corner/);
     assert.match(guide, /DOE benchmark/);

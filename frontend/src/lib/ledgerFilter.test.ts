@@ -142,7 +142,7 @@ describe("what the page does with it", () => {
   });
 
   it("stands the pager down rather than counting past the list it shows", () => {
-    assert.match(view(), /narrowed \? \([\s\S]{0,400}\{shown\.length\} of \{plantings\.length\}/);
+    assert.match(view(), /narrowed \? \([\s\S]{0,400}shownOf", \{ n: shown\.length, total: plantings\.length \}/);
   });
 
   it("asks the same seed question the plant's own row asks", () => {
@@ -156,7 +156,7 @@ describe("what the page does with it", () => {
   });
 
   it("puts the reading time in the heading, once", () => {
-    assert.match(view(), /Plants ledger\$\{ranAt/);
+    assert.match(view(), /title=\{ranAt\s*\?\s*t\("views\.crops\.ledgerAt"/);
     assert.match(view(), /<Provenance tool="goodearth_crop_gdd_status"[\s\S]{0,120}hideTime/);
   });
 });

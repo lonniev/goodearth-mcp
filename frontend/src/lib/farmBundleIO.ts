@@ -7,10 +7,11 @@
 import { blockItemList, blockItemSave, taskList, taskSave, type ItemRow, type TaskRow } from "./mcp";
 import { saveBlock } from "./saveBlock";
 import {
-  BUNDLE_KINDS, chunks, importName, ITEMS_PER_WRITE, makeBundle,
+  BUNDLE_KINDS, chunks, importName, ITEMS_PER_WRITE, kindWord, makeBundle,
   type BundleKind, type FarmBundle,
 } from "./farmBundle";
 import type { SavedRegion } from "./regions";
+import { tr } from "../i18n/index.ts";
 
 /// Every planting, pest and wildlife row on a plot that has not been removed,
 /// and all its tasks. It was this calendar year's rows only, so a bundle made
@@ -21,7 +22,7 @@ export async function exportPlot(plot: SavedRegion): Promise<FarmBundle> {
     const rows: ItemRow[] = [];
     for (let page = 0; ; page += 1) {
       const r = await blockItemList(plot.id, kind, { page, page_size: 200 });
-      if (!r.success) throw new Error(r.error || `The ${kind} list could not be read.`);
+      if (!r.success) throw new Error(r.error || tr("lib.farmBundleIO.listUnread", { kind: kindWord(kind) }));
       rows.push(...(r.items ?? []));
       if (page + 1 >= (r.pages ?? 1)) break;
     }
@@ -32,7 +33,7 @@ export async function exportPlot(plot: SavedRegion): Promise<FarmBundle> {
   const tasks: TaskRow[] = [];
   for (let page = 0; ; page += 1) {
     const r = await taskList(plot.id, { timeframe: "all", page, page_size: 200 });
-    if (!r.success) throw new Error(r.error || "The task list could not be read.");
+    if (!r.success) throw new Error(r.error || tr("lib.farmBundleIO.tasksUnread"));
     tasks.push(...(r.rows ?? []));
     if (page + 1 >= (r.pages ?? 1)) break;
   }
@@ -76,7 +77,8 @@ export async function importBundle(
     for (const batch of chunks(b.items[kind], ITEMS_PER_WRITE)) {
       const r = await blockItemSave(plot.id, kind, { items: batch });
       if (!r.success) {
-        return { plot, saved, tasks: 0, error: `Some ${kind} items could not be saved: ${r.error ?? "refused"}` };
+        return { plot, saved, tasks: 0, error: tr("lib.farmBundleIO.itemsUnsaved", {
+          kind: kindWord(kind), why: r.error ?? tr("lib.farmBundleIO.refused") }) };
       }
       saved += r.saved_count ?? batch.length;
       onProgress?.(saved, total);
@@ -97,6 +99,7 @@ export async function importBundle(
   }
   saved += tasks;
   return failed.length
-    ? { plot, saved, tasks, error: `${failed.length} task${failed.length === 1 ? "" : "s"} could not be saved: ${failed.slice(0, 3).join(", ")}${failed.length > 3 ? "…" : ""}.` }
+    ? { plot, saved, tasks, error: tr("lib.farmBundleIO.tasksUnsaved", {
+      count: failed.length, titles: `${failed.slice(0, 3).join(", ")}${failed.length > 3 ? "…" : ""}` }) }
     : { plot, saved, tasks };
 }

@@ -6,6 +6,9 @@ import {
 } from "./farmBundle.ts";
 import type { ItemRow, TaskRow } from "./mcp.ts";
 import type { SavedRegion } from "./regions.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 const PLOT: SavedRegion = {
   id: "map-abc", name: "North Field", baseTempF: 45, aliases: ["the top acre"],

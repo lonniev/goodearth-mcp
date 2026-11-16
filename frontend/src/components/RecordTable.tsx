@@ -15,6 +15,7 @@
 import type { ReactNode } from "react";
 
 import Term from "./Term";
+import { useT } from "../i18n";
 
 export interface Column<K extends string> {
   /// The sort key the server knows this column by, or undefined for a column
@@ -67,6 +68,9 @@ export function SortHeaders<K extends string>({
   );
 }
 
+/** The things a pager counts; each has its plural in the catalog (`ui.recordTable.count.<noun>`). */
+export type PagerNoun = "planting" | "task" | "pest" | "watch";
+
 /// Where this page sits in the record.
 ///
 /// `total` counts every matching row rather than the ones in hand, so "12
@@ -78,21 +82,22 @@ export function Pager({
   page: number;
   pages: number;
   total: number;
-  /// Singular. "planting" gives "12 plantings" and "1 planting".
-  noun: string;
+  /// What is counted: "planting" gives "12 plantings" and "1 planting", in the reader's language.
+  noun: PagerNoun;
   onPage: (p: number) => void;
 }) {
+  const t = useT();
   if (pages <= 1) return null;
   return (
     <div className="mt-2 flex items-center gap-2">
       <PagerButton onClick={() => onPage(Math.max(0, page - 1))} disabled={page <= 0}>
-        ← Back
+        {t("ui.recordTable.back")}
       </PagerButton>
       <span className="data text-[0.71875rem] text-ink-soft">
-        page {page + 1} of {pages} · {total} {noun}{total === 1 ? "" : "s"}
+        {t("ui.recordTable.page", { page: page + 1, pages })}{t("ui.recordTable.total", { counted: t(`ui.recordTable.count.${noun}`, { count: total }) })}
       </span>
       <PagerButton onClick={() => onPage(page + 1)} disabled={page + 1 >= pages}>
-        Next →
+        {t("ui.recordTable.next")}
       </PagerButton>
     </div>
   );

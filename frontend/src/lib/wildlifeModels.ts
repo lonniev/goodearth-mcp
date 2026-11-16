@@ -11,9 +11,18 @@
 
 import { newItemId } from "./submit.ts";
 import type { MoonPhase, WildlifeEventInput } from "./mcp";
+import { tr } from "../i18n/index.ts";
+import type { MessageKey } from "../i18n/en.ts";
 
 /// The moon's principal phases, as the server names them.
 export const MOON_PHASES: readonly MoonPhase[] = ["new", "first_quarter", "full", "last_quarter"];
+
+/// A phase in words: "first quarter". The phase itself is the server's name.
+export function phaseWord(phase: string): string {
+  return (MOON_PHASES as readonly string[]).includes(phase)
+    ? tr(`lib.wildlifeModels.phase.${phase}` as MessageKey)
+    : phase.replace("_", " ");
+}
 
 export interface SavedWildlife extends WildlifeEventInput {
   id: string;
@@ -31,12 +40,13 @@ export interface SavedWildlife extends WildlifeEventInput {
 // Wildlife page now reads what iNaturalist records around the region — see
 // `wildlifeCatalog` in lib/mcp.
 
+/// What each clock is, read from `lib.wildlifeModels.driver.<clock>` when shown.
 export const DRIVER_HELP: Record<string, string> = {
-  heat: "A degree-day threshold — moves with the season, like a crop.",
-  daylight: "A day-length threshold — astronomy, so it barely moves year to year.",
-  interval: "A count of days from a date you set — gestation, incubation, days to lay.",
-  calendar: "A date from your own record, for events with no clean driver.",
-  moon: "A new, quarter or full moon after a day of the year — astronomy, so it re-dates itself.",
+  get heat() { return tr("lib.wildlifeModels.driver.heat"); },
+  get daylight() { return tr("lib.wildlifeModels.driver.daylight"); },
+  get interval() { return tr("lib.wildlifeModels.driver.interval"); },
+  get calendar() { return tr("lib.wildlifeModels.driver.calendar"); },
+  get moon() { return tr("lib.wildlifeModels.driver.moon"); },
 };
 
 // ── No table of animals ──────────────────────────────────────────────────
@@ -63,7 +73,7 @@ export function makeRoster(
   species: string, regionId: string,
   extra?: { taxonId?: number; scientificName?: string },
 ): SavedWildlife | string {
-  if (!species.trim()) return "Which creature?";
+  if (!species.trim()) return tr("lib.wildlifeModels.which");
   return {
     id: newItemId("wl"),
     species: species.trim(), event: "", regionId,
@@ -76,35 +86,35 @@ export function makeRoster(
 export function makeWildlife(
   input: WildlifeEventInput, regionId: string,
 ): SavedWildlife | string {
-  if (!input.species?.trim()) return "Which creature?";
-  if (!input.event?.trim()) return "What does it do — 'first arrival', 'emergence'?";
+  if (!input.species?.trim()) return tr("lib.wildlifeModels.which");
+  if (!input.event?.trim()) return tr("lib.wildlifeModels.what");
   if (input.driver === "heat") {
     if (!Number.isFinite(input.gdd) || input.gdd! <= 0 || input.gdd! > 20_000)
-      return "A heat-driven event needs a realistic GDD threshold.";
+      return tr("lib.wildlifeModels.needGdd");
     if (input.base_temp != null && (input.base_temp < 20 || input.base_temp > 80))
-      return "Base temperature must be between 20 and 80 °F.";
+      return tr("lib.wildlifeModels.badBase");
   } else if (input.driver === "daylight") {
     if (!Number.isFinite(input.daylight_hours) || input.daylight_hours! <= 0 || input.daylight_hours! >= 24)
-      return "A daylight-driven event needs an hours figure between 0 and 24.";
+      return tr("lib.wildlifeModels.needHours");
   } else if (input.driver === "interval") {
     if (!Number.isFinite(input.days) || input.days! <= 0 || input.days! > 1000)
-      return "An interval needs a realistic number of days.";
+      return tr("lib.wildlifeModels.needDays");
     if (!input.from || Number.isNaN(Date.parse(input.from)))
-      return "An interval needs the date it counts from.";
+      return tr("lib.wildlifeModels.needFrom");
   } else if (input.driver === "condition") {
     const t = input.trigger;
     if (!t || (t.min_night_f == null && t.min_day_f == null && !t.wet))
-      return "A weather event needs a night or day temperature, or wet ground.";
+      return tr("lib.wildlifeModels.needTrigger");
   } else if (input.driver === "moon") {
     if (!input.phase || !MOON_PHASES.includes(input.phase))
-      return "A moon event needs a phase: new, first quarter, full or last quarter.";
+      return tr("lib.wildlifeModels.needPhase");
     if (input.after != null && !/^\d{2}-\d{2}$/.test(input.after))
-      return "A moon event's starting day is MM-DD.";
+      return tr("lib.wildlifeModels.badAfter");
     if (input.nth != null && ![1, 2, 3].includes(input.nth))
-      return "Count the first, second or third such moon.";
+      return tr("lib.wildlifeModels.badNth");
   } else {
     if (!/^\d{2}-\d{2}$/.test(input.typical_on ?? ""))
-      return "A calendar event needs a typical date as MM-DD.";
+      return tr("lib.wildlifeModels.needDate");
   }
   return {
     ...input,

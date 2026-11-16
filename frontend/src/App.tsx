@@ -34,7 +34,8 @@ import { migrateToBlocks } from "./lib/migrateBlocks";
 import { peerOf, WARM_AFTER_MS } from "./lib/peerPage";
 import { warmPage } from "./lib/pageLoads";
 import { forgetAll } from "./lib/pageCache";
-import { TourProvider, useTour } from "@tollbooth-dpyc/web/react";
+import { TourProvider, Tx, useTour } from "@tollbooth-dpyc/web/react";
+import { tr, useT, WORDS } from "./i18n";
 import { TOURS } from "./lib/tour/copy";
 
 // Each page past the front door is its own chunk, fetched the first time it opens.
@@ -64,8 +65,6 @@ const pageLoading = <QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOU
 /** Read by index.html before the app runs; keep the two in step. */
 const PAPER_KEY = "goodearth:paper:v1";
 
-/** The site's own words above the sign-in card. */
-const WELCOME = "Natural phenomena for your acreage. Frost, heat, rain and daylight, read for the ground you actually farm, season by season.";
 
 /// The day's high — the temperature that decides whether bees are working.
 ///
@@ -99,17 +98,19 @@ function conditions(f: FrostWindowResult | null, unit: Unit) {
     <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-0.5">
       <span>
         <span className="mr-1">{cold ? "🥶" : "🌡️"}</span>
-        Tonight <b className="figure text-[0.9375rem] text-ink">{showTemp(n.low_ground_f, unit)}</b>
-        <span className="text-ink-soft"> on low ground</span>
+        <Tx ns={WORDS} k="ui.app.tonight" components={{
+          temp: <b className="figure text-[0.9375rem] text-ink">{showTemp(n.low_ground_f, unit)}</b>,
+          soft: <span className="text-ink-soft" />,
+        }} />
       </span>
       {wind && (
         <span><span className="mr-1">{wind}</span>{Math.round(n.wind_mph!)} mph</span>
       )}
       {cloud && (
-        <span><span className="mr-1">{cloud}</span>{Math.round(n.cloud_pct!)}% cloud</span>
+        <span><span className="mr-1">{cloud}</span>{tr("ui.app.cloud", { n: Math.round(n.cloud_pct!) })}</span>
       )}
       {n.dew_point_f != null && (
-        <span><span className="mr-1">💧</span>{showTemp(n.dew_point_f, unit)} dew</span>
+        <span><span className="mr-1">💧</span>{tr("ui.app.dew", { temp: showTemp(n.dew_point_f, unit) })}</span>
       )}
     </span>
   );
@@ -117,6 +118,7 @@ function conditions(f: FrostWindowResult | null, unit: Unit) {
 
 export default function App() {
   const [signedIn, setSignedIn] = useState(isLoggedIn);
+  const t = useT();
   const [notice, setNotice] = useState<string | undefined>();
   // The URL owns the view, so a refresh keeps the tab the reader was on.
   // A hash that NAMES a view wins for everyone — a bookmark of `#/ledger`
@@ -292,7 +294,7 @@ export default function App() {
       return (
         <TourProvider tours={TOURS}>
           <SignInTour />
-          <NpubGate onLogin={login} notice={notice} welcome={WELCOME} />
+          <NpubGate onLogin={login} notice={notice} welcome={t("ui.app.welcome")} />
           <DebugPanel />
         </TourProvider>
       );
@@ -413,7 +415,7 @@ export default function App() {
               setSignedIn(false);
               setRegion(listRegions()[0]);
               setView(GUEST_VIEW);
-              setNotice("Your ground is forgotten. You are still a patron here.");
+              setNotice(t("ui.app.forgotten"));
             }}
             onSignOut={() => { logOut(); setSignedIn(false); }} />
         )}

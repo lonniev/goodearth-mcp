@@ -9,6 +9,9 @@ import {
 import type { SpeciesHit } from "./species.ts";
 import type { SavedWildlife } from "./wildlifeModels.ts";
 import type { WildlifeCatalogResult, WildlifeRow } from "./mcp.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 const CATALOG = {
   success: true,

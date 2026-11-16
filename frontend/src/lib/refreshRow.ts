@@ -12,6 +12,9 @@ import type { SavedPest } from "./pestModels";
 import type { SavedWildlife } from "./wildlifeModels";
 import { HUES, MONTHS, type Hue } from "./companions.ts";
 import { eventKey, heatStages, wildlifeRows } from "./lifeCycle.ts";
+import { tr } from "../i18n/index.ts";
+import type { MessageKey } from "../i18n/en.ts";
+import { phaseWord } from "./wildlifeModels.ts";
 
 /// One figure that differs: the row's, the reference's, and the change that
 /// takes the reference's.
@@ -37,7 +40,7 @@ const TEMP_SAME = 0.5;
 const none = "—";
 const months = (m: readonly number[] | undefined | null) =>
   m?.length ? m.map((n) => MONTHS[n - 1]).join(" ") : none;
-const yesNo = (b: boolean | undefined | null) => (b == null ? none : b ? "yes" : "no");
+const yesNo = (b: boolean | undefined | null) => (b == null ? none : tr(b ? "lib.refreshRow.yes" : "lib.refreshRow.no"));
 
 function normalMonths(m: readonly number[] | null | undefined): number[] {
   return [...new Set((m ?? []).filter((n) => Number.isInteger(n) && n >= 1 && n <= 12))].sort((a, b) => a - b);
@@ -56,48 +59,50 @@ export function plantingDiff(p: Planting, r: PlantProfileResult, show: Show): Fi
   const out: FieldDiff<Planting>[] = [];
   if (here.gdd_target != null && !near(p.gddTarget, here.gdd_target, DD_SAME)) {
     const v = here.gdd_target;
-    out.push({ field: "gddTarget", label: "Heat target", yours: p.gddTarget != null ? show.dd(p.gddTarget) : none,
+    out.push({ field: "gddTarget", label: tr("lib.refreshRow.heatTarget"), yours: p.gddTarget != null ? show.dd(p.gddTarget) : none,
       ai: show.dd(v), take: (x) => ({ ...x, gddTarget: v }) });
   }
   // The base belongs to the target: a base without the target it counts to
   // is not offered, as the add form does not fill one.
   if (here.gdd_target != null && here.base_temp_f != null && !near(p.baseTempF, here.base_temp_f, TEMP_SAME)) {
     const v = here.base_temp_f;
-    out.push({ field: "baseTempF", label: "Base", yours: p.baseTempF != null ? show.temp(p.baseTempF) : none,
+    out.push({ field: "baseTempF", label: tr("lib.refreshRow.base"), yours: p.baseTempF != null ? show.temp(p.baseTempF) : none,
       ai: show.temp(v), take: (x) => ({ ...x, baseTempF: v }) });
   }
   if (prof.flower_color && (HUES as readonly string[]).includes(prof.flower_color) && p.flowerColor !== prof.flower_color) {
     const v = prof.flower_color as Hue;
-    out.push({ field: "flowerColor", label: "Flower colour", yours: p.flowerColor ?? none, ai: v,
+    out.push({ field: "flowerColor", label: tr("lib.refreshRow.flowerColour"), yours: p.flowerColor ?? none, ai: v,
       take: (x) => ({ ...x, flowerColor: v }) });
   }
   if (prof.height_in?.typical != null) {
     const v = Math.round(prof.height_in.typical);
     if (p.heightIn == null || Math.round(p.heightIn) !== v) {
-      out.push({ field: "heightIn", label: "Height", yours: p.heightIn != null ? `${Math.round(p.heightIn)} in` : none,
-        ai: `${v} in`, take: (x) => ({ ...x, heightIn: v }) });
+      out.push({ field: "heightIn", label: tr("lib.refreshRow.height"),
+        yours: p.heightIn != null ? tr("lib.refreshRow.inches", { n: Math.round(p.heightIn) }) : none,
+        ai: tr("lib.refreshRow.inches", { n: v }), take: (x) => ({ ...x, heightIn: v }) });
     }
   }
   const bloom = normalMonths(here.bloom_months);
   if (bloom.length && bloom.join() !== normalMonths(p.bloomMonths).join()) {
-    out.push({ field: "bloomMonths", label: "In bloom", yours: months(normalMonths(p.bloomMonths)), ai: months(bloom),
+    out.push({ field: "bloomMonths", label: tr("lib.refreshRow.inBloom"), yours: months(normalMonths(p.bloomMonths)), ai: months(bloom),
       take: (x) => ({ ...x, bloomMonths: bloom }) });
   }
   if (prof.frost_hardy != null && !!p.frostHardy !== prof.frost_hardy) {
     const v = prof.frost_hardy;
-    out.push({ field: "frostHardy", label: "Frost hardy", yours: yesNo(p.frostHardy), ai: yesNo(v),
+    out.push({ field: "frostHardy", label: tr("lib.refreshRow.frostHardy"), yours: yesNo(p.frostHardy), ai: yesNo(v),
       take: (x) => ({ ...x, frostHardy: v }) });
   }
   // A perennial is judged on chill and hardiness; an annual has neither.
   if (p.perennial) {
     if (prof.chill_hours != null && p.chillHours !== prof.chill_hours) {
       const v = prof.chill_hours;
-      out.push({ field: "chillHours", label: "Chill", yours: p.chillHours != null ? `${p.chillHours} h` : none,
-        ai: `${v} h`, take: (x) => ({ ...x, chillHours: v }) });
+      out.push({ field: "chillHours", label: tr("lib.refreshRow.chill"),
+        yours: p.chillHours != null ? tr("lib.refreshRow.hours", { n: p.chillHours }) : none,
+        ai: tr("lib.refreshRow.hours", { n: v }), take: (x) => ({ ...x, chillHours: v }) });
     }
     if (prof.hardy_to_f != null && !near(p.hardyToF, prof.hardy_to_f, TEMP_SAME)) {
       const v = prof.hardy_to_f;
-      out.push({ field: "hardyToF", label: "Hardy to", yours: p.hardyToF != null ? show.temp(p.hardyToF) : none,
+      out.push({ field: "hardyToF", label: tr("lib.refreshRow.hardyTo"), yours: p.hardyToF != null ? show.temp(p.hardyToF) : none,
         ai: show.temp(v), take: (x) => ({ ...x, hardyToF: v }) });
     }
   }
@@ -114,7 +119,7 @@ export function pestDiff(p: SavedPest, r: LifeCycleResult, show: Show): FieldDif
   const out: FieldDiff<SavedPest>[] = [];
   if (r.base_temp_f != null && stages.length && !near(p.base_temp, r.base_temp_f, TEMP_SAME)) {
     const v = r.base_temp_f;
-    out.push({ field: "base_temp", label: "Base", yours: p.base_temp != null ? show.temp(p.base_temp) : none,
+    out.push({ field: "base_temp", label: tr("lib.refreshRow.base"), yours: p.base_temp != null ? show.temp(p.base_temp) : none,
       ai: show.temp(v), take: (x) => ({ ...x, base_temp: v }) });
   }
   const have = new Map((p.stages ?? []).map((s) => [eventKey(s.stage), s]));
@@ -154,23 +159,36 @@ export function matchingEvent(w: SavedWildlife, r: LifeCycleResult): LifeCycleEv
 const TIMING = ["driver", "gdd", "base_temp", "daylight_hours", "rising", "typical_on",
   "trigger", "phase", "after", "nth", "days", "from", "on"] as const;
 
-const CLOCK: Record<string, string> = {
-  heat: "heat", daylight: "day length", interval: "days from", calendar: "date",
-  condition: "weather", moon: "moon",
-};
+const CLOCKS = new Set(["heat", "daylight", "interval", "calendar", "condition", "moon"]);
+
+/// A clock's name in words, or the driver as it came when it is not one we know.
+const clockWord = (driver: string) =>
+  CLOCKS.has(driver) ? tr(`lib.refreshRow.clock.${driver}` as MessageKey) : driver;
 
 function timing(w: Partial<SavedWildlife>, show: Show): string {
   switch (w.driver) {
-    case "heat": return w.gdd != null ? `${show.dd(w.gdd)}${w.base_temp != null ? ` from ${show.temp(w.base_temp)}` : ""}` : none;
-    case "daylight": return w.daylight_hours != null ? `${w.daylight_hours} h ${w.rising === false ? "falling" : "rising"}` : none;
+    case "heat":
+      if (w.gdd == null) return none;
+      return w.base_temp != null
+        ? tr("lib.refreshRow.heatFrom", { gdd: show.dd(w.gdd), base: show.temp(w.base_temp) })
+        : show.dd(w.gdd);
+    case "daylight":
+      return w.daylight_hours != null
+        ? tr(w.rising === false ? "lib.refreshRow.daylightFalling" : "lib.refreshRow.daylightRising", { h: w.daylight_hours })
+        : none;
     case "calendar": return w.on ?? w.typical_on ?? none;
-    case "moon": return w.phase ? `${w.nth ?? 1}× ${w.phase.replace("_", " ")} after ${w.after ?? "Jan 1"}` : none;
-    case "interval": return w.days != null ? `${w.days} days from ${w.from ?? none}` : none;
+    case "moon":
+      return w.phase
+        ? tr("lib.refreshRow.moon", { nth: w.nth ?? 1, phase: phaseWord(w.phase), after: w.after ?? tr("lib.refreshRow.jan1") })
+        : none;
+    case "interval": return w.days != null ? tr("lib.refreshRow.daysFrom", { days: w.days, from: w.from ?? none }) : none;
     case "condition": {
       const t = w.trigger;
       if (!t) return none;
-      return [t.after && `after ${t.after}`, t.min_night_f != null && `nights ≥ ${show.temp(t.min_night_f)}`,
-        t.min_day_f != null && `days ≥ ${show.temp(t.min_day_f)}`, t.wet && "wet"].filter(Boolean).join(", ") || none;
+      return [t.after && tr("lib.refreshRow.after", { after: t.after }),
+        t.min_night_f != null && tr("lib.refreshRow.nights", { t: show.temp(t.min_night_f) }),
+        t.min_day_f != null && tr("lib.refreshRow.days", { t: show.temp(t.min_day_f) }),
+        t.wet && tr("lib.refreshRow.wet")].filter(Boolean).join(", ") || none;
     }
     default: return none;
   }
@@ -193,8 +211,8 @@ export function wildlifeDiff(w: SavedWildlife, r: LifeCycleResult, show: Show): 
   const out: FieldDiff<SavedWildlife>[] = [];
   if (!sameTiming(w, ai)) {
     out.push({
-      field: "timing", label: `When (${CLOCK[ai.driver] ?? ai.driver})`,
-      yours: w.driver === ai.driver ? timing(w, show) : `${CLOCK[w.driver] ?? w.driver}: ${timing(w, show)}`,
+      field: "timing", label: tr("lib.refreshRow.when", { clock: clockWord(ai.driver) }),
+      yours: w.driver === ai.driver ? timing(w, show) : `${clockWord(w.driver)}: ${timing(w, show)}`,
       ai: timing(ai, show),
       take: (x) => {
         const next = { ...x } as Record<string, unknown>;
@@ -206,7 +224,7 @@ export function wildlifeDiff(w: SavedWildlife, r: LifeCycleResult, show: Show): 
   }
   if (ai.note && ai.note !== w.note) {
     const v = ai.note;
-    out.push({ field: "note", label: "Note", yours: w.note || none, ai: v, take: (x) => ({ ...x, note: v }) });
+    out.push({ field: "note", label: tr("lib.refreshRow.note"), yours: w.note || none, ai: v, take: (x) => ({ ...x, note: v }) });
   }
   return out;
 }

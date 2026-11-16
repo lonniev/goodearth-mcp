@@ -21,7 +21,7 @@ import { combinedSeries, type LedgerFlag } from "../lib/ledgerFlags";
 import type { Band } from "../lib/diseaseBands";
 import { placeLabels } from "../lib/labelPlacement";
 import { dateFor, dayNumber, timelineDomain } from "../lib/seasonDays";
-import { seasonBounds } from "../lib/meteoSeason";
+import { seasonBounds, seasonWord } from "../lib/meteoSeason";
 import { SEASON_ICON } from "../lib/seasonIcon";
 import { useChartFrame } from "./ui";
 import { useFrameHeight } from "../lib/useFrameHeight";
@@ -32,6 +32,8 @@ import { spanTarget } from "../lib/chartSpan";
 import ZoomControls, { AxisZoom } from "./ZoomControls";
 import GestureHint from "./GestureHint";
 import { dateTicks, labelFits } from "../lib/dateTicks";
+import { useT, WORDS } from "../i18n";
+import { Tx, useLanguageLocale } from "@tollbooth-dpyc/web/react";
 
 const W = 740, L = 46, R = 716, T = 16;
 
@@ -130,10 +132,13 @@ function niceStep(span: number): number {
 }
 
 export default function SeasonChart({
-  data, frostDayIndex = null, frostTitle = "Median first frost", flags = [], onFlag, showGround = true, overlay = null,
+  data, frostDayIndex = null, frostTitle: frostTitleProp, flags = [], onFlag, showGround = true, overlay = null,
   bands = [], focus = null,
 }: Props) {
   const u = useUnits();
+  const t = useT();
+  const locale = useLanguageLocale();
+  const frostTitle = frostTitleProp ?? t("ui.seasonChart.frostTitle");
   // Full screen gets a taller box, so the height it buys is spent on the plot
   // rather than on margin above and below it. See useFrameHeight.
   const { full } = useChartFrame();
@@ -283,7 +288,7 @@ export default function SeasonChart({
   if (!view) {
     return (
       <div className="rounded-md border border-rule bg-panel p-6 text-sm text-ink-soft">
-        Not enough of the season on record yet to draw a curve.
+        {t("ui.seasonChart.notEnough")}
       </div>
     );
   }
@@ -363,7 +368,7 @@ export default function SeasonChart({
           Spelled out, because the column has the height for it and "GDD" is
           an abbreviation a first-time grower has to look up. */}
       <div className="flex items-stretch">
-      <AxisZoom onZoom={zoomY} label="Grow Degree Days" short={u.ddUnit.trim()} />
+      <AxisZoom onZoom={zoomY} label={t("ui.seasonChart.gddAxis")} short={u.ddUnit.trim()} />
       {/* One column, so the key lands under the PLOT rather than under the
           card. The gutters match the svg's own L and R as percentages of its
           box, which is what makes "10-season range" sit above "Sun 6" instead
@@ -376,7 +381,7 @@ export default function SeasonChart({
         viewBox={`0 0 ${W} ${H}`}
         className={`ge-chart block h-auto w-full min-w-[560px] touch-none select-none ${isZoomed ? "cursor-grab" : ""}`}
         role="img"
-        aria-label={`Cumulative growing degree days, base ${data.base_temp_f} degrees Fahrenheit, against the ${data.normals?.span_years ?? 0}-season range`}
+        aria-label={t("ui.seasonChart.aria", { base: data.base_temp_f, years: data.normals?.span_years ?? 0 })}
       >
         {/* Everything data-bearing is clipped to the plot, so a zoomed line
             cannot run out over the axis labels. */}
@@ -442,7 +447,7 @@ export default function SeasonChart({
             <line x1={L} x2={R} y1={y(g)} y2={y(g)} stroke="var(--color-rule)" strokeWidth={1} strokeDasharray="1 4" />
             <text x={L - 6} y={y(g) + 3} textAnchor="end" fontSize={9.5} fill="var(--color-ink-soft)" fontFamily="var(--font-data)"
               paintOrder="stroke" stroke="var(--color-paper)" strokeWidth={3} strokeLinejoin="round">
-              {Math.round(u.degreeDays(g)).toLocaleString()}
+              {Math.round(u.degreeDays(g)).toLocaleString(locale)}
             </text>
           </g>
         ))}
@@ -529,7 +534,7 @@ export default function SeasonChart({
                 onPointerUp={onFlag ? (e) => { e.stopPropagation(); onFlag(f); } : undefined}
                 style={onFlag ? { cursor: "pointer" } : undefined}
                 role={onFlag ? "button" : undefined}
-                aria-label={onFlag ? `${f.label} — details` : undefined}
+                aria-label={onFlag ? t("ui.seasonChart.flagDetails", { label: f.label }) : undefined}
                 {...(tourMark ? tour("ledger.marker") : {})}>
                 {/* Two finger targets, not one tall one. The dot is 7px so it
                     cannot hide the curve, and the tap area is 44 — but a single
@@ -610,13 +615,13 @@ export default function SeasonChart({
             cannot get from the picture is the figure, so that is all that is
             written. */}
         <circle cx={x(last)} cy={y(todayGdd)} r={4.5} fill="var(--color-ink)">
-          <title>Today</title>
+          <title>{t("ui.seasonChart.today")}</title>
         </circle>
           {(() => {
             // The figure is now the only thing written here, so it cannot be
             // allowed to run off the right edge and be clipped — which is
             // where today sits whenever the reader zooms in to a week.
-            const text = Math.round(u.degreeDays(todayGdd)).toLocaleString();
+            const text = Math.round(u.degreeDays(todayGdd)).toLocaleString(locale);
             const flip = x(last) + 7 + text.length * 6.5 > R;
             return (
               <text x={flip ? x(last) - 7 : x(last) + 7} y={y(todayGdd) + 3.5}
@@ -680,7 +685,7 @@ export default function SeasonChart({
         {x(last) >= L && x(last) <= R && (
           <line x1={x(last)} x2={x(last)} y1={B} y2={B + 9}
             stroke="var(--color-ink)" strokeWidth={2.5} strokeLinecap="round">
-            <title>Today</title>
+            <title>{t("ui.seasonChart.today")}</title>
           </line>
         )}
         <line x1={L} x2={R} y1={B} y2={B} stroke="var(--color-ink)" strokeWidth={1.5} />
@@ -692,10 +697,13 @@ export default function SeasonChart({
         if (!vals.length) return null;
         return (
           <p className="data px-2 pt-1 text-[0.65625rem]" style={{ color: overlay.colour }}>
-            {overlay.emoji} {overlay.label} behind the curve ·{" "}
-            {Math.min(...vals).toFixed(overlay.unit === "in" ? 2 : 0)}–
-            {Math.max(...vals).toFixed(overlay.unit === "in" ? 2 : 0)} {overlay.unit}
-            <span className="text-ink-soft"> · own scale, no axis</span>
+            <Tx ns={WORDS} k="ui.seasonChart.overlay"
+              vars={{
+                emoji: overlay.emoji, label: overlay.label, unit: overlay.unit,
+                min: Math.min(...vals).toFixed(overlay.unit === "in" ? 2 : 0),
+                max: Math.max(...vals).toFixed(overlay.unit === "in" ? 2 : 0),
+              }}
+              components={{ soft: <span className="text-ink-soft" /> }} />
           </p>
         );
       })()}
@@ -706,28 +714,28 @@ export default function SeasonChart({
           full ? "pt-0.5 pb-0" : "pt-1 pb-0"}`}>
         {data.normals && (
           <span className="inline-flex items-center gap-1.5">
-            <i className="inline-block h-2.5 w-4.5 bg-band" />{data.normals.span_years}-season range
+            <i className="inline-block h-2.5 w-4.5 bg-band" />{t("ui.seasonChart.legendRange", { years: data.normals.span_years })}
           </span>
         )}
         <span className="inline-flex items-center gap-1.5">
-          <i className="inline-block w-4.5 border-t-[3px] border-growth" />this season (mean)
+          <i className="inline-block w-4.5 border-t-[3px] border-growth" />{t("ui.seasonChart.legendMean")}
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <i className="inline-block h-2.5 w-4.5 bg-growth opacity-25" />across your ground
+          <i className="inline-block h-2.5 w-4.5 bg-growth opacity-25" />{t("ui.seasonChart.legendSpread")}
         </span>
         {data.forecast && (
           <span className="inline-flex items-center gap-1.5">
-            <i className="inline-block w-4.5 border-t-[3px] border-dashed border-growth" />7-day forecast
+            <i className="inline-block w-4.5 border-t-[3px] border-dashed border-growth" />{t("ui.seasonChart.legendForecast")}
           </span>
         )}
         {data.projection && (
           <span className="inline-flex items-center gap-1.5">
-            <i className="inline-block w-4.5 border-t-[3px] border-dotted border-ink-soft" />projection at the recent rate
+            <i className="inline-block w-4.5 border-t-[3px] border-dotted border-ink-soft" />{t("ui.seasonChart.legendProjection")}
           </span>
         )}
         {typPts.length > 1 && (
           <span className="inline-flex items-center gap-1.5">
-            <i className="inline-block w-4.5 border-t-[2px] border-dotted border-ink-soft opacity-70" />a typical year after that
+            <i className="inline-block w-4.5 border-t-[2px] border-dotted border-ink-soft opacity-70" />{t("ui.seasonChart.legendTypical")}
           </span>
         )}
         {bands.length > 0 && (
@@ -736,19 +744,19 @@ export default function SeasonChart({
             {bands.some((b) => b.forecast) && (
               <i className="-ml-1 inline-block h-2.5 w-4.5 border border-clay/50 bg-clay/10" />
             )}
-            wet{bands.some((b) => b.forecast) ? " · ahead" : ""}
+            {bands.some((b) => b.forecast) ? t("ui.seasonChart.legendWetAhead") : t("ui.seasonChart.legendWet")}
           </span>
         )}
         {flags.length > 0 && (
           <>
             <span className="inline-flex items-center gap-1.5">
-              <i className="inline-block h-2 w-2 rounded-full bg-growth" />crops
+              <i className="inline-block h-2 w-2 rounded-full bg-growth" />{t("ui.seasonChart.legendCrops")}
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <i className="inline-block h-2 w-2 rounded-full bg-honey" />pests
+              <i className="inline-block h-2 w-2 rounded-full bg-honey" />{t("ui.seasonChart.legendPests")}
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <i className="inline-block h-2 w-2 rounded-full bg-frost" />wildlife
+              <i className="inline-block h-2 w-2 rounded-full bg-frost" />{t("ui.seasonChart.legendWildlife")}
             </span>
           </>
         )}
@@ -772,11 +780,11 @@ export default function SeasonChart({
         compact={full}
         // The button says which season it will show. "Season" beside
         // "3 months" tells a reader nothing; "Fall" tells them everything.
-        spanLabels={thisSeason ? { season: thisSeason.name } : undefined}
+        spanLabels={thisSeason ? { season: seasonWord(thisSeason.name) } : undefined}
         spanIcons={thisSeason ? { season: SEASON_ICON[thisSeason.name] } : undefined}
         spanTitles={thisSeason
           ? { season: `${thisSeason.start} → ${thisSeason.end}`,
-              annual: "The whole timeline, however far your dated tasks reach" }
+              annual: t("ui.seasonChart.annualTitle") }
           : undefined}
       />
 

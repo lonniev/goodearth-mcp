@@ -10,12 +10,11 @@ import { dwellMs } from "../lib/dwell";
 import { fullscreenMode, isFullscreen, readEnv, toggleFullscreen } from "../lib/fullscreen";
 import { ICON } from "./ui";
 import { tour } from "../lib/tour/targets";
-
-const HOW = "iPhone Safari cannot hide its bars for a web page. Tap Share (the square "
-  + "with an arrow), then Add to Home Screen. Open Good Earth from that icon and it "
-  + "uses the whole screen — you sign in once more there.";
+import { useT } from "../i18n";
 
 export default function FullscreenButton() {
+  const t = useT();
+  const HOW = t("ui.fullscreenButton.how");
   const [mode] = useState(() => (typeof document === "undefined" ? "none" : fullscreenMode(readEnv())));
   const [full, setFull] = useState(false);
   const [open, setOpen] = useState(false);
@@ -38,15 +37,15 @@ export default function FullscreenButton() {
     if (!open) return;
     const away = (e: PointerEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-    const t = window.setTimeout(() => setOpen(false), dwellMs(HOW));
+    const timer = window.setTimeout(() => setOpen(false), dwellMs(HOW));
     document.addEventListener("pointerdown", away);
     document.addEventListener("keydown", esc);
     return () => {
-      window.clearTimeout(t);
+      window.clearTimeout(timer);
       document.removeEventListener("pointerdown", away);
       document.removeEventListener("keydown", esc);
     };
-  }, [open]);
+  }, [open, HOW]);
 
   if (mode === "none") return null;
 
@@ -54,7 +53,8 @@ export default function FullscreenButton() {
     if (mode === "toggle") void toggleFullscreen().catch(() => { /* the browser said no; nothing to undo */ });
     else setOpen((v) => !v);
   };
-  const label = mode === "install" ? "Use the whole screen" : full ? "Exit full screen" : "Full screen";
+  const label = mode === "install" ? t("ui.fullscreenButton.install")
+    : full ? t("ui.fullscreenButton.exit") : t("ui.fullscreenButton.enter");
 
   return (
     <span ref={box} className="relative">

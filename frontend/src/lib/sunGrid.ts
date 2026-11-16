@@ -8,6 +8,8 @@
 // here touches the DOM, so all of it runs under node's test runner.
 
 import { unzlibSync } from "fflate";
+import { tr } from "../i18n/index.ts";
+import { monthShort } from "./companions.ts";
 
 export type SunView = "garden" | "solar";
 export type LightClass = "full_sun" | "part_shade" | "full_shade";
@@ -54,9 +56,9 @@ export interface SunPath { june: number[][]; equinox: number[][]; december: numb
 export function pathsAt(lat: number): { key: keyof SunPath; colour: string; label: string; summer: boolean }[] {
   const south = lat < 0;
   return [
-    { key: "june", colour: south ? "#4A7394" : "#E09A3A", label: "Jun", summer: !south },
-    { key: "equinox", colour: "#8E6488", label: "Mar/Sep", summer: false },
-    { key: "december", colour: south ? "#E09A3A" : "#4A7394", label: "Dec", summer: south },
+    { key: "june", colour: south ? "#4A7394" : "#E09A3A", label: monthShort(5), summer: !south },
+    { key: "equinox", colour: "#8E6488", label: `${monthShort(2)}/${monthShort(8)}`, summer: false },
+    { key: "december", colour: south ? "#E09A3A" : "#4A7394", label: monthShort(11), summer: south },
   ];
 }
 
@@ -302,12 +304,12 @@ export function leastLightMonth(g: SunGrid, k: number, fullLeaf: boolean): numbe
 /// "Bare trees Nov–Apr" from the service's leaf-off months (1-based), or null when none.
 export function bareSpan(leafOff: number[], names: readonly string[]): string | null {
   if (!leafOff.length) return null;
-  if (leafOff.length === 12) return "Bare trees all year";
+  if (leafOff.length === 12) return tr("lib.sunGrid.bareAllYear");
   // The bare months wrap the new year; find the run that does not contain a leaf-on month.
   const set = new Set(leafOff);
   let start = leafOff[0];
   for (const m of leafOff) if (!set.has(m === 1 ? 12 : m - 1)) start = m;
   let end = start;
   while (set.has(end === 12 ? 1 : end + 1) && end !== (start === 1 ? 12 : start - 1)) end = end === 12 ? 1 : end + 1;
-  return `Bare trees ${names[start - 1]}–${names[end - 1]}`;
+  return tr("lib.sunGrid.bareSpan", { from: names[start - 1], to: names[end - 1] });
 }

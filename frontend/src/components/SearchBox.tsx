@@ -11,6 +11,7 @@
 // value. Let them key in what they want to search for and then click [Search]".
 
 import { useEffect, useState } from "react";
+import { useT } from "../i18n";
 
 export default function SearchBox({
   value, onSearch, placeholder,
@@ -21,6 +22,7 @@ export default function SearchBox({
   onSearch: (term: string) => void;
   placeholder?: string;
 }) {
+  const t = useT();
   const [draft, setDraft] = useState(value);
 
   // Follow the applied term when something else changes it (a cleared filter,
@@ -43,15 +45,15 @@ export default function SearchBox({
           // would be a search nobody asked for.
           if (e.key === "Escape") setDraft(value);
         }}
-        placeholder={placeholder ?? "search — regex ok"}
-        aria-label="Search"
+        placeholder={placeholder ?? t("ui.searchBox.placeholder")}
+        aria-label={t("ui.searchBox.search")}
         className="h-11 w-full max-w-[14rem] rounded border border-rule bg-white px-2.5 text-[1rem] focus:border-honey focus:outline-none"
       />
       <button
         onClick={submit}
         // Dark only when pressing it would change something, so the control
         // says whether there is an unrun search sitting in the box.
-        title="Search"
+        title={t("ui.searchBox.search")}
         className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-[0.78125rem] font-semibold ${
           dirty ? "border-ink bg-ink text-paper" : "border-rule text-ink-soft active:bg-band"
         }`}
@@ -59,12 +61,12 @@ export default function SearchBox({
         <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
           <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z" />
         </svg>
-        Search
+        {t("ui.searchBox.search")}
       </button>
       {value && (
         <button
           onClick={() => { setDraft(""); onSearch(""); }}
-          aria-label="Clear search"
+          aria-label={t("ui.searchBox.clear")}
           className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-[1.125rem] text-ink-soft active:text-clay"
         >
           ×

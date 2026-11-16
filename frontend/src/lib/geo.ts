@@ -5,6 +5,9 @@
 // so area is computed properly — spherical excess on the WGS-84 sphere, not a
 // flat shoelace that drifts with latitude.
 
+import { languageLocale } from "@tollbooth-dpyc/web";
+import { tr } from "../i18n/index.ts";
+
 const R = 6_378_137; // WGS-84 equatorial radius, metres
 const RAD = Math.PI / 180;
 
@@ -32,8 +35,8 @@ export function hectares(m2: number): number { return m2 / M2_PER_HA; }
 /// data grid uses the other.
 export function formatArea(m2: number): string {
   const a = acres(m2), h = hectares(m2);
-  if (m2 < 400) return `${Math.round(m2).toLocaleString()} m²`;
-  return `${a < 10 ? a.toFixed(2) : a.toFixed(1)} acres · ${h < 10 ? h.toFixed(2) : h.toFixed(1)} ha`;
+  if (m2 < 400) return `${Math.round(m2).toLocaleString(languageLocale())} m²`;
+  return tr("lib.geo.area", { acres: a < 10 ? a.toFixed(2) : a.toFixed(1), ha: h < 10 ? h.toFixed(2) : h.toFixed(1) });
 }
 
 /// Great-circle distance in metres.
@@ -125,7 +128,7 @@ export async function searchPlace(q: string, signal?: AbortSignal): Promise<Plac
   url.searchParams.set("format", "jsonv2");
   url.searchParams.set("limit", "5");
   const r = await fetch(url, { signal, headers: { Accept: "application/json" } });
-  if (!r.ok) throw new Error(`Place search failed (${r.status})`);
+  if (!r.ok) throw new Error(tr("lib.geo.searchFailed", { status: r.status }));
   const rows = (await r.json()) as { display_name: string; lat: string; lon: string }[];
   return rows.map((x) => ({ name: x.display_name, lat: Number(x.lat), lng: Number(x.lon) }));
 }

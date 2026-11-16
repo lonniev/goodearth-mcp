@@ -22,6 +22,7 @@ import { useEffect, useRef, useState } from "react";
 import { searchSpecies, taxonScope, type Kingdom, type SpeciesHit } from "../lib/species";
 import { isTap, type PointerMark } from "../lib/tapIntent";
 import { FIELD } from "./ui";
+import { useT } from "../i18n";
 
 /// Long enough that a grower is not searching after one keystroke, short
 /// enough that the list feels like it is keeping up.
@@ -64,6 +65,7 @@ export default function SpeciesPicker({
   const [err, setErr] = useState("");
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement | null>(null);
+  const t = useT();
 
   useEffect(() => {
     if (seed) { setText(seed); onText?.(seed); setOpen(true); }
@@ -129,7 +131,7 @@ export default function SpeciesPicker({
             the same card the nearby list opens, rather than a dead label. */}
         {onRead ? (
           <button type="button" onClick={onRead}
-            title={`About ${value.commonName ?? value.scientificName}`}
+            title={t("ui.speciesPicker.about", { name: value.commonName ?? value.scientificName ?? "" })}
             className="min-w-0 flex-1 rounded text-left leading-tight active:bg-band">
             <b className="block truncate text-[0.8125rem] underline decoration-dotted underline-offset-2">
               {value.commonName ?? value.scientificName}</b>
@@ -148,7 +150,7 @@ export default function SpeciesPicker({
         {onClear && (
           <button type="button" onClick={onClear}
             className="min-h-9 shrink-0 rounded-full px-2.5 text-[0.75rem] text-ink-soft active:bg-band">
-            Change
+            {t("ui.speciesPicker.change")}
           </button>
         )}
       </div>
@@ -162,10 +164,10 @@ export default function SpeciesPicker({
         autoFocus={autoFocus}
         onChange={(e) => { setText(e.target.value); onText?.(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
-        placeholder={placeholder ?? "Start typing a name…"}
+        placeholder={placeholder ?? t("ui.speciesPicker.placeholder")}
         className={FIELD}
         autoComplete="off"
-        aria-label="Search for a species"
+        aria-label={t("ui.speciesPicker.searchAria")}
       />
 
       {open && text.trim().length >= 2 && (
@@ -173,7 +175,7 @@ export default function SpeciesPicker({
           {err && <p className="px-3 py-2 text-[0.75rem] text-clay">{err}</p>}
           {!err && !hits.length && (
             <p className="px-3 py-2 text-[0.75rem] text-ink-soft">
-              {busy ? "Looking…" : "Nothing by that name."}
+              {busy ? t("ui.speciesPicker.looking") : t("ui.speciesPicker.nothing")}
             </p>
           )}
           {hits.map((h) => (
@@ -220,7 +222,7 @@ export default function SpeciesPicker({
                     a row that already reads "sugar maple" is noise. */}
                 {h.matched && !shown(h).includes(h.matched.toLowerCase()) && (
                   <span className="data block truncate text-[0.65625rem] text-ink-soft">
-                    matched “{h.matched}”
+                    {t("ui.speciesPicker.matched", { matched: h.matched })}
                   </span>
                 )}
               </span>
@@ -228,7 +230,7 @@ export default function SpeciesPicker({
           ))}
           {!err && hits.length > 0 && (
             <p className="data px-2.5 py-1.5 text-[0.65625rem] text-ink-soft">
-              iNaturalist · most-recorded first
+              {t("ui.speciesPicker.source")}
             </p>
           )}
         </div>

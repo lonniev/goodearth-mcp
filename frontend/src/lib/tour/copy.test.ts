@@ -10,9 +10,13 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { lintTours } from "@tollbooth-dpyc/web";
+import { registerGoodEarth } from "../../i18n/index.ts";
+import en from "../../i18n/en.ts";
 import { TOURS } from "./copy.ts";
 import { TARGETS } from "./targets.ts";
 import { TOUR_PAGES } from "./types.ts";
+
+await registerGoodEarth();
 
 const SRC = new URL("../..", import.meta.url).pathname;
 
@@ -26,10 +30,12 @@ function sources(dir: string): string[] {
 const ALL_TSX = sources(SRC).map((p) => readFileSync(p, "utf8")).join("\n");
 
 /// The control labels of a guide's `using` steps, read from its source: the
-/// guides are JSX, which the test runner does not load.
+/// guides are JSX, which the test runner does not load. Each step's control
+/// is a key into the English catalog, `[t("howto.<page>.<step>"), …]`.
 function guideControls(page: string): string[] {
   const src = readFileSync(join(SRC, "views", "howto", `${page}.tsx`), "utf8");
-  return [...src.matchAll(/^\s+\["([^"]+)",\s*$/gm)].map((m) => m[1]);
+  const words = en as Record<string, string>;
+  return [...src.matchAll(/^\s+\[t\("(howto\.[^"]+)"\),/gm)].map((m) => words[m[1]] ?? m[1]);
 }
 
 const GUIDED = ["plots", "ledger", "almanac", "crops", "pests", "wildlife", "todo", "reports"];

@@ -5,6 +5,7 @@
 
 import type { ReactNode } from "react";
 import { Glyph, ICON } from "./ui";
+import { useT } from "../i18n";
 import { childrenOf, filedIn, isOpen, leaf, memberIds, toggleOpen } from "../lib/plotGroups";
 import type { SavedRegion } from "../lib/regions";
 
@@ -26,16 +27,18 @@ export type FolderTreeProps = {
 };
 
 export default function FolderTree(props: FolderTreeProps) {
+  const tt = useT();
   const top = childrenOf(props.plots, "");
   if (!top.length) return null;
   return (
-    <ul role="tree" aria-label="Groups">
+    <ul role="tree" aria-label={tt("ui.folderTree.groups")}>
       {top.map((g) => <Folder key={g} path={g} {...props} />)}
     </ul>
   );
 }
 
 function Folder({ path, ...t }: FolderTreeProps & { path: string }) {
+  const tt = useT();
   const opened = isOpen(t.open, path);
   const kids = childrenOf(t.plots, path);
   const filed = filedIn(t.plots, path);
@@ -43,7 +46,9 @@ function Folder({ path, ...t }: FolderTreeProps & { path: string }) {
     <li role="treeitem" aria-expanded={opened} aria-label={leaf(path)}>
       <div className="flex items-center">
         <button onClick={() => t.onOpen(toggleOpen(t.open, path))}
-          title={opened ? `Close ${leaf(path)}` : `Open ${leaf(path)}`}
+          title={opened
+            ? tt("ui.folderTree.close", { name: leaf(path) })
+            : tt("ui.folderTree.open", { name: leaf(path) })}
           className={`flex min-h-11 flex-1 items-center gap-1.5 pr-2 text-left font-semibold ${
             t.stacked ? "text-[0.8125rem]" : "text-[0.875rem]"} ${t.faint?.(path) ? "text-ink-soft opacity-60" : "text-ink"}`}>
           <span className={`text-ink-soft transition-transform ${opened ? "" : "-rotate-90"}`}>

@@ -11,6 +11,8 @@
 
 import { newItemId } from "./submit.ts";
 import type { FieldObservation } from "./mcp";
+import { tr } from "../i18n/index.ts";
+import type { MessageKey } from "../i18n/en.ts";
 
 /// What was seen. The five below are quick picks, not the whole vocabulary:
 /// a grower may type anything. Only "frost" and the stage kinds reach the
@@ -46,13 +48,20 @@ export interface FieldReport {
 
 /// `pick: false` is a kind recorded elsewhere — a harvest is recorded against
 /// its planting on the Crops page — which this page still names and lists.
+/// A kind's words are `lib.reports.tag.<key>.label` and `.hint`, read when shown.
+const tag = (key: string, calibrates: boolean, pick?: boolean) => ({
+  key, calibrates, ...(pick === undefined ? {} : { pick }),
+  get label() { return tr(`lib.reports.tag.${key}.label` as MessageKey); },
+  get hint() { return tr(`lib.reports.tag.${key}.hint` as MessageKey); },
+});
+
 export const TAGS: { key: string; label: string; hint: string; calibrates: boolean; pick?: boolean }[] = [
-  { key: "frost", label: "Frost", hint: "Frost seen on the ground", calibrates: true },
-  { key: "first_bloom", label: "First bloom", hint: "A planting reached its stage", calibrates: true },
-  { key: "emergence", label: "Emergence", hint: "A sowing came up", calibrates: true },
-  { key: "pest", label: "Pest seen", hint: "Sighting or trap catch", calibrates: false },
-  { key: "note", label: "Note", hint: "Anything worth remembering", calibrates: false },
-  { key: "harvest", label: "Harvest", hint: "A cut or a pick, recorded on Flora", calibrates: true, pick: false },
+  tag("frost", true),
+  tag("first_bloom", true),
+  tag("emergence", true),
+  tag("pest", false),
+  tag("note", false),
+  tag("harvest", true, false),
 ];
 
 /// Whether a kind carries the extra fields the calibration model needs.
@@ -67,15 +76,15 @@ export function makeReport(
   input: Omit<FieldReport, "id" | "createdAt">,
 ): FieldReport | string {
   if (!input.observedOn || Number.isNaN(Date.parse(input.observedOn)))
-    return "When did you see it?";
+    return tr("lib.reports.when");
   if (input.tag !== "frost" && input.tag !== "note" && !input.crop?.trim())
-    return "Which crop was it?";
+    return tr("lib.reports.whichCrop");
   if (input.gddTarget != null && (input.gddTarget < 1 || input.gddTarget > 20_000))
-    return "That GDD target is outside any real crop's range.";
+    return tr("lib.reports.badTarget");
   if (input.setOut && Number.isNaN(Date.parse(input.setOut)))
-    return "Set-out date must be a real date.";
+    return tr("lib.reports.badSetOut");
   if (input.setOut && input.setOut > input.observedOn)
-    return "It cannot have been seen before it was set out.";
+    return tr("lib.reports.beforeSetOut");
   return {
     ...input,
     id: newItemId("fr"),

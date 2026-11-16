@@ -16,6 +16,8 @@ import { useFrameHeight } from "../lib/useFrameHeight";
 import { useChartZoom, windowToDomain } from "../lib/useChartZoom";
 import Term from "./Term";
 import ZoomControls, { AxisZoom } from "./ZoomControls";
+import { Tx } from "@tollbooth-dpyc/web/react";
+import { useT, WORDS } from "../i18n";
 
 /// Height, gutters and type are pixels; the WIDTH is the box's own. It was a
 /// fixed 740-unit drawing held at a 520 px minimum, which on a phone ran each
@@ -42,6 +44,7 @@ export default function MeasureChart({
   skill?: { pct: number; title: string; says: string[] } | null;
 }) {
   const u = useUnits();
+  const t = useT();
   const { ref: box, width: boxW } = useBoxWidth<HTMLDivElement>();
   const W = drawWidth(boxW);
   const R = W - RIGHT_PAD;
@@ -99,11 +102,11 @@ export default function MeasureChart({
     const combined = [...dates, ...forecastDates];
     const ticks = spaceTicks(
       dateTicks(dLo, dHi, (d) => combined[d] ?? null)
-        .map((t) => ({ i: t.d, label: t.label, major: t.major }))
+        .map((tk) => ({ i: tk.d, label: tk.label, major: tk.major }))
         // On the plot, and wholly inside the drawing: a label half past the
         // right edge reads as a different word.
-        .filter((t) => x(t.i) >= L - 1 && labelFits(x(t.i) + 2, t.label, W)),
-      (t) => x(t.i) + 2,
+        .filter((tk) => x(tk.i) >= L - 1 && labelFits(x(tk.i) + 2, tk.label, W)),
+      (tk) => x(tk.i) + 2,
     );
 
     const mid = (vLo + vHi) / 2;
@@ -115,7 +118,7 @@ export default function MeasureChart({
   if (!view) {
     return (
       <div className="rounded-md border border-rule bg-panel p-4 text-[0.78125rem] text-ink-soft">
-        {emoji} {label} — not enough on record yet.
+        {emoji} {t("ui.measureChart.notEnough", { label })}
       </div>
     );
   }
@@ -154,13 +157,17 @@ export default function MeasureChart({
         )}
         {measure.accumulates ? (
           <span className="text-[0.78125rem] text-ink-soft">
-            <b className="figure text-ink">{measure.actual_total?.toFixed(2)} {unitLabel}</b> so far
-            {measure.normal_total != null && ` · normally ${measure.normal_total.toFixed(2)} by now`}
+            <Tx ns={WORDS} k="ui.measureChart.soFar"
+              vars={{ total: measure.actual_total?.toFixed(2) ?? "", unit: unitLabel }}
+              components={{ b: <b className="figure text-ink" /> }} />
+            {measure.normal_total != null && ` · ${t("ui.measureChart.normallyByNow", { n: measure.normal_total.toFixed(2) })}`}
           </span>
         ) : (
           <span className="text-[0.78125rem] text-ink-soft">
-            <b className="figure text-ink">{measure.latest != null ? show(measure.latest) : "—"} {unitLabel}</b> latest
-            {measure.normal_today && ` · normal ${show(measure.normal_today.mean)}`}
+            <Tx ns={WORDS} k="ui.measureChart.latest"
+              vars={{ value: measure.latest != null ? show(measure.latest) : "—", unit: unitLabel }}
+              components={{ b: <b className="figure text-ink" /> }} />
+            {measure.normal_today && ` · ${t("ui.measureChart.normal", { n: show(measure.normal_today.mean) })}`}
           </span>
         )}
       </div>
@@ -173,7 +180,7 @@ export default function MeasureChart({
       <div ref={box} className="min-w-0 flex-1">
       <svg ref={svgRef} data-plot viewBox={`0 0 ${W} ${H}`}
         className={`ge-chart block h-auto w-full touch-none select-none ${isZoomed ? "cursor-grab" : ""}`}
-        role="img" aria-label={`${label}, this season against the normal range`}>
+        role="img" aria-label={t("ui.measureChart.aria", { label })}>
         <defs>
           <clipPath id={`clip-${label.replace(/\W/g, "")}`}>
             <rect x={L} y={T} width={R - L} height={B - T} />
@@ -200,11 +207,11 @@ export default function MeasureChart({
         {/* A month boundary is drawn darker than the days inside it, so the
             coarse structure survives the detail — a ruler shows centimetres
             without hiding the millimetres. */}
-        {ticks.map((t) => (
-          <text key={t.i} x={x(t.i) + 2} y={B + 14} fontSize={9}
-            fill={t.major ? "var(--color-ink)" : "var(--color-ink-soft)"}
+        {ticks.map((tk) => (
+          <text key={tk.i} x={x(tk.i) + 2} y={B + 14} fontSize={9}
+            fill={tk.major ? "var(--color-ink)" : "var(--color-ink-soft)"}
             fontFamily="var(--font-data)">
-            {t.label}
+            {tk.label}
           </text>
         ))}
         <line x1={L} x2={R} y1={B} y2={B} stroke="var(--color-ink)" strokeWidth={1.2} />

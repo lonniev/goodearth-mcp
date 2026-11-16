@@ -5,58 +5,47 @@
 // claim best made in a picture — the stages sit at fixed HEAT and therefore at
 // moving DATES, which no sentence shows as quickly as two rulers do.
 
+import { Tx } from "@tollbooth-dpyc/web/react";
 import { Claim, Facts, StageRun } from "../components/Diagram";
+import { useT, WORDS, type Translate } from "../i18n";
 
 /// Positions are the shape of a season, not a scale to read values off.
 /// A crop's early stages come fast and its ripening is the long half.
-const STAGES = [
-  { emoji: "🌱", label: "sown", at: 0.0 },
-  { emoji: "🌿", label: "emerges", at: 0.12, figure: "~120" },
-  { emoji: "🍃", label: "leafs out", at: 0.3, figure: "~400" },
-  { emoji: "🌸", label: "flowers", at: 0.58, figure: "~900" },
-  { emoji: "🍅", label: "sets fruit", at: 0.76, figure: "~1,200" },
-  { emoji: "🧺", label: "harvest", at: 1.0, figure: "~1,600" },
+const stages = (t: Translate) => [
+  { emoji: "🌱", label: t("views.lifeOfAPlant.stage.sown"), at: 0.0 },
+  { emoji: "🌿", label: t("views.lifeOfAPlant.stage.emerges"), at: 0.12, figure: "~120" },
+  { emoji: "🍃", label: t("views.lifeOfAPlant.stage.leafsOut"), at: 0.3, figure: "~400" },
+  { emoji: "🌸", label: t("views.lifeOfAPlant.stage.flowers"), at: 0.58, figure: "~900" },
+  { emoji: "🍅", label: t("views.lifeOfAPlant.stage.setsFruit"), at: 0.76, figure: "~1,200" },
+  { emoji: "🧺", label: t("views.lifeOfAPlant.stage.harvest"), at: 1.0, figure: "~1,600" },
 ];
 
 export default function LifeOfAPlant() {
+  const t = useT();
   return (
     <article>
-      <h1 className="figure mb-1 text-[1.5rem] font-bold">The life of a plant</h1>
-      <p className="eyebrow mb-4">and what a Growing Degree Day is</p>
+      <h1 className="figure mb-1 text-[1.5rem] font-bold">{t("views.lifeOfAPlant.title")}</h1>
+      <p className="eyebrow mb-4">{t("views.lifeOfAPlant.eyebrow")}</p>
 
-      <Claim>A crop does not count days. It counts warmth.</Claim>
+      <Claim>{t("views.lifeOfAPlant.claim")}</Claim>
 
       <p className="text-[0.84375rem] leading-relaxed">
-        Every plant has a temperature below which it does no growing — its{" "}
-        <b>base</b>. Above that, each day adds the degrees it spent there. Add
-        them up and you have <b>Growing Degree Days</b>: the season measured in
-        what the plant actually responds to.
+        <Tx ns={WORDS} k="views.lifeOfAPlant.intro" components={{ b: <b /> }} />
       </p>
 
-      <StageRun stages={STAGES} axis="Growing Degree Days →"
-        foot={<>Figures are the shape of a tomato's season, to read as an
-          example rather than as your cultivar's. A seed packet's own numbers
-          are the ones that count.</>} />
+      <StageRun stages={stages(t)} axis={t("views.lifeOfAPlant.axis")}
+        foot={t("views.lifeOfAPlant.foot")} />
 
       <div className="rounded-md border border-rule border-l-4 border-l-growth bg-panel px-4 py-3">
         <p className="text-[0.84375rem] leading-relaxed">
-          <b>Which is why the dates move.</b> A warm spring and a cold one reach
-          900&nbsp;GDD weeks apart, and the plant flowers at 900 in both. Count
-          days and you are early one year and late the next; count heat and you
-          are on time in either.
+          <Tx ns={WORDS} k="views.lifeOfAPlant.datesMove" components={{ b: <b /> }} />
         </p>
       </div>
 
       <Facts items={[
-        ["One day's heat",
-          <>The day's mean, minus the base, never below zero. A night at
-            20&nbsp;°F below base does not un-grow a plant.</>],
-        ["The base is the plant's",
-          <>Winter wheat counts from 32&nbsp;°F and field corn from
-            50&nbsp;°F on the same acre.</>],
-        ["The ground is yours",
-          <>A bench and a hollow on one farm do not share a season, so every
-            answer here comes back with the spread across your block.</>],
+        [t("views.lifeOfAPlant.fact.oneDay"), <>{t("views.lifeOfAPlant.fact.oneDayBody")}</>],
+        [t("views.lifeOfAPlant.fact.base"), <>{t("views.lifeOfAPlant.fact.baseBody")}</>],
+        [t("views.lifeOfAPlant.fact.ground"), <>{t("views.lifeOfAPlant.fact.groundBody")}</>],
       ]} />
     </article>
   );

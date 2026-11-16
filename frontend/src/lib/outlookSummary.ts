@@ -15,17 +15,22 @@
 
 import type { AlmanacResult, Measure, MeasureKey } from "./mcp.ts";
 import { temp, tempUnit, type Unit } from "./units.ts";
+import { tr } from "../i18n/index.ts";
+import type { MessageKey } from "../i18n/en.ts";
 
 /// Measures worth a sentence, in the order a grower would read them. Day
 /// length is omitted deliberately — it is astronomy, identical every year, and
 /// "normal" is not a useful frame for it.
+const spoken = (key: MeasureKey, decimals: number) =>
+  ({ key, decimals, get label() { return tr(`lib.outlookSummary.${key}` as MessageKey); } });
+
 const SPOKEN: { key: MeasureKey; label: string; decimals: number }[] = [
-  { key: "temp_max", label: "Daily high", decimals: 0 },
-  { key: "temp_min", label: "Daily low", decimals: 0 },
-  { key: "dew_point", label: "Dew point", decimals: 0 },
-  { key: "precip", label: "Rain", decimals: 2 },
-  { key: "sunshine", label: "Sunshine", decimals: 1 },
-  { key: "wind_max", label: "Wind", decimals: 0 },
+  spoken("temp_max", 0),
+  spoken("temp_min", 0),
+  spoken("dew_point", 0),
+  spoken("precip", 2),
+  spoken("sunshine", 1),
+  spoken("wind_max", 0),
 ];
 
 const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
@@ -98,7 +103,8 @@ export function compareOutlook(data: AlmanacResult, unit: Unit = "F"): Line[] {
 export function departure(l: Line): string {
   const scale = Math.max(Math.abs(l.normal) * 0.08, l.decimals === 2 ? 0.15 : 1);
   const d = l.delta;
-  if (Math.abs(d) < scale) return "about normal";
-  const size = Math.abs(d) > scale * 3 ? "well " : "";
-  return `${size}${d > 0 ? "above" : "below"} normal by ${Math.abs(d).toFixed(l.decimals)} ${l.unit}`;
+  if (Math.abs(d) < scale) return tr("lib.outlookSummary.aboutNormal");
+  const well = Math.abs(d) > scale * 3 ? "well" : "";
+  const vars = { by: Math.abs(d).toFixed(l.decimals), unit: l.unit };
+  return tr(`lib.outlookSummary.${d > 0 ? "above" : "below"}${well ? "Well" : ""}` as MessageKey, vars);
 }

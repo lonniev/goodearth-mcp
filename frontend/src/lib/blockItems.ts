@@ -18,6 +18,7 @@ import {
 } from "./mcp";
 import { entries, overlay, pendingItems, subscribe } from "./outbox";
 import { RESTORED_EVENT } from "./undoEvents";
+import { tr } from "../i18n/index.ts";
 
 export type { ItemKind, ItemSort };
 
@@ -150,7 +151,7 @@ export function useBlockItems<T>(
       // No signal is not a fault to report in a transport's words. What was
       // on screen stays; anything recorded now waits and is sent later.
       setError(isNetworkError(e)
-        ? "No signal. This list loads when the signal is back — anything you record now waits and is sent then."
+        ? tr("lib.blockItems.noSignal")
         : String(e instanceof Error ? e.message : e));
     } finally {
       setLoading(false);
@@ -206,7 +207,7 @@ export function useBlockItems<T>(
       items: [to(value)],
       ...(season != null ? { season } : {}),
     });
-    if (!res?.success) throw new Error(res?.error ?? "could not save");
+    if (!res?.success) throw new Error(res?.error ?? tr("lib.blockItems.couldNotSave"));
     // A queued write is already on screen, from the outbox. Reloading would
     // only fail for want of the same signal.
     if (!res.queued) await reload();
@@ -225,13 +226,13 @@ export function useBlockItems<T>(
       items: values.map(to),
       ...(season != null ? { season } : {}),
     });
-    if (!res?.success) throw new Error(res?.error ?? "could not save");
+    if (!res?.success) throw new Error(res?.error ?? tr("lib.blockItems.couldNotSave"));
     if (!res.queued) await reload();
   }, [block, kind, season, to, reload]);
 
   const retire = useCallback(async (itemId: string) => {
     const res = await blockItemSave(block, kind, { retire_ids: [itemId] });
-    if (!res?.success) throw new Error(res?.error ?? "could not remove");
+    if (!res?.success) throw new Error(res?.error ?? tr("lib.blockItems.couldNotRemove"));
     if (!res.queued) await reload();
   }, [block, kind, reload]);
 
@@ -242,7 +243,7 @@ export function useBlockItems<T>(
     const ids = itemIds.filter(Boolean);
     if (!ids.length) return;
     const res = await blockItemSave(block, kind, { retire_ids: ids });
-    if (!res?.success) throw new Error(res?.error ?? "could not remove");
+    if (!res?.success) throw new Error(res?.error ?? tr("lib.blockItems.couldNotRemove"));
     if (!res.queued) await reload();
   }, [block, kind, reload]);
 

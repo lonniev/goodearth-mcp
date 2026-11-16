@@ -12,6 +12,7 @@ import { animalKey } from "./husbandry.ts";
 import { newItemId } from "./submit.ts";
 import type { SavedPest } from "./pestModels";
 import type { SavedWildlife } from "./wildlifeModels";
+import { tr } from "../i18n/index.ts";
 
 /// How the record names an event, so "First Flight " and "first flight" are one.
 export function eventKey(name: string): string {
@@ -127,8 +128,7 @@ export function pestWithStages(
   if (!existing) return pestRow(pest, events, baseTempF, regionId, extra);
   const have = existing.stages ?? [];
   if (have.length && existing.base_temp != null && Math.abs(existing.base_temp - baseTempF) > 0.5) {
-    return `${existing.pest} already counts its stages from ${existing.base_temp}°F; `
-      + `these count from ${baseTempF}°F.`;
+    return tr("lib.lifeCycle.otherBase", { pest: existing.pest, have: existing.base_temp, these: baseTempF });
   }
   const known = new Set(have.map((s) => eventKey(s.stage)));
   const added = heatStages(events).filter((s) => !known.has(eventKey(s.stage)))

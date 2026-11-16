@@ -8,6 +8,9 @@ import {
 import { lonScaleAt } from "./geo.ts";
 import type { SunlightKwPrices } from "./mcp.ts";
 import { decodeGrid, type WireField, type WireGrid, type WirePacked } from "./sunGrid.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 // The same 2×3 raster the grid tests use: three kept cells, one row of two
 // off the block, 2 m cells.

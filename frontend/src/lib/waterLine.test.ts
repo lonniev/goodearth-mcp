@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { WaterBalanceResult } from "./mcp.ts";
 import { percent, waterLine } from "./waterLine.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 const base = (over: Partial<WaterBalanceResult> = {}): WaterBalanceResult => ({
   success: true, as_of: "", days: [], note: "", sources: [],

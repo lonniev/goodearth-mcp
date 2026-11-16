@@ -14,6 +14,7 @@ import Barometer from "./Barometer";
 import PlotStation, { needsConnect } from "./PlotStation";
 import { Pill } from "./ui";
 import { useUnits } from "./Units";
+import { useT } from "../i18n";
 
 export function Stat({ emoji, label, value, sub }: {
   emoji: ReactNode; label: string; value: string; sub?: string;
@@ -29,6 +30,7 @@ export function Stat({ emoji, label, value, sub }: {
 }
 
 export default function StationNow({ block }: { block: string }) {
+  const t = useT();
   const u = useUnits();
   const [, zone] = useTimezone();
   const [report, setReport] = useState<PlotConditions | null>(null);
@@ -58,13 +60,13 @@ export default function StationNow({ block }: { block: string }) {
   return (
     <section className="mb-4 rounded-md border border-rule bg-panel px-4 py-3" {...tour("almanac.station")}>
       <div className="flex flex-wrap items-baseline gap-2">
-        <h2 className="figure text-[0.9375rem] font-semibold">Now at {name}</h2>
-        {!changing && <Pill onClick={() => setChanging(true)}>Change station</Pill>}
+        <h2 className="figure text-[0.9375rem] font-semibold">{t("ui.stationNow.nowAt", { name })}</h2>
+        {!changing && <Pill onClick={() => setChanging(true)}>{t("ui.stationNow.change")}</Pill>}
         {report && (
           <dl className="data ml-auto grid grid-cols-[auto_auto] gap-x-2 text-right text-[0.8125rem]">
-            <dt className="text-ink-soft">Read</dt>
+            <dt className="text-ink-soft">{t("ui.stationNow.read")}</dt>
             <dd>{report.read_at ? formatDateTime(report.read_at, zone) : "—"}</dd>
-            <dt className="text-ink-soft">Observed</dt>
+            <dt className="text-ink-soft">{t("ui.stationNow.observed")}</dt>
             <dd>{report.observed_at ? `${formatDateTime(report.observed_at, zone)} · ${reportAge(report.observed_at, Date.now())}` : "—"}</dd>
           </dl>
         )}
@@ -77,17 +79,17 @@ export default function StationNow({ block }: { block: string }) {
       {problem && !changing && (
         <div className="mt-1 flex flex-wrap items-center gap-2 text-[0.78125rem] text-clay">
           <span>{problem}</span>
-          {needsConnect(problem) && <Pill active onClick={() => setChanging(true)}>Connect FieldData</Pill>}
+          {needsConnect(problem) && <Pill active onClick={() => setChanging(true)}>{t("ui.stationNow.connect")}</Pill>}
         </div>
       )}
-      {!report && !problem && <p className="mt-1 text-[0.78125rem] text-ink-soft" aria-busy="true">Reading the station…</p>}
+      {!report && !problem && <p className="mt-1 text-[0.78125rem] text-ink-soft" aria-busy="true">{t("ui.stationNow.reading")}</p>}
       {report && (
         <div className="mt-2.5 grid grid-cols-2 gap-x-2 gap-y-3.5 sm:grid-cols-4 lg:grid-cols-8">
           {tileReadings(report.readings).map((r) => {
             if (r === "wind") {
               return report.wind && (
-                <Stat key="wind" emoji={report.wind.emoji} label="wind" value={windSpeed(report.readings, u.unit)}
-                  sub={report.wind.from ? `${report.wind.arrow} from ${report.wind.from}` : undefined} />
+                <Stat key="wind" emoji={report.wind.emoji} label={t("ui.stationNow.wind")} value={windSpeed(report.readings, u.unit)}
+                  sub={report.wind.from ? t("ui.stationNow.windFrom", { arrow: String(report.wind.arrow), from: report.wind.from }) : undefined} />
               );
             }
             const line = readingLine(r, u.unit);

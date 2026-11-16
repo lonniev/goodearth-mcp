@@ -9,6 +9,8 @@
 // species sharing a common name; one that resets on a new search silently
 // discards what the grower already chose, and they only notice at the end.
 
+import { tr } from "../i18n/index.ts";
+
 export interface Chosen {
   /// iNaturalist's taxon id. THE key: two species can share "blackberry", and
   /// the same species found under two searches is one choice, not two.
@@ -58,9 +60,8 @@ export function clampPage(page: number, total: number, size: number): number {
 /// What the add button says. Zero is not a count worth printing, so the caller
 /// disables it and this reports the empty case honestly rather than "Add 0".
 export function addLabel(basket: Chosen[], where: string): string {
-  if (!basket.length) return `Choose some to add to ${where}`;
-  const n = basket.length;
-  return `Add ${n} ${n === 1 ? "thing" : "things"} to ${where}`;
+  if (!basket.length) return tr("lib.basket.choose", { where });
+  return tr("lib.basket.add", { count: basket.length, where });
 }
 
 /// What the result line should say, given how the last call went.

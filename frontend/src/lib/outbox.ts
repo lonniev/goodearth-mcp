@@ -16,6 +16,7 @@
 // same row, never a copy.
 
 import { isNetworkError } from "@tollbooth-dpyc/web";
+import { tr } from "../i18n/index.ts";
 
 export const OUTBOX_KEY = "goodearth.outbox.v1";
 
@@ -174,7 +175,7 @@ async function drain(npub: string, send: Sender): Promise<FlushResult> {
     const res = r as { success?: boolean; error?: string; error_code?: string } | null;
     if (res && res.success === false) {
       if (TRANSIENT.has(String(res.error_code ?? ""))) return { sent, left: left(), stoppedBy: "server" };
-      refuse(p.id, res.error ?? "The server would not take it.");
+      refuse(p.id, res.error ?? tr("lib.outbox.refused"));
       continue;
     }
     discard(p.id);

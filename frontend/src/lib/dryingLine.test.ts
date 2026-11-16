@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { clock, dryingLine } from "./dryingLine.ts";
 import type { DryingWindowResult } from "./mcp.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 // 2026-09-15 is a Tuesday.
 const base = (over: Partial<DryingWindowResult> = {}): DryingWindowResult => ({

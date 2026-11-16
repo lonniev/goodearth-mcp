@@ -7,15 +7,17 @@ import { useTourReplay } from "@tollbooth-dpyc/web/react";
 import type { TourPage } from "../lib/tour/types";
 import type { ViewKey } from "../lib/views";
 import { ICON, IconButton } from "./ui";
+import { useT } from "../i18n";
 
 export function TourButton({ page, onView }: {
   page: Extract<TourPage, ViewKey>;
   onView: (v: ViewKey) => void;
 }) {
   const replay = useTourReplay();
+  const t = useT();
   return (
-    <IconButton path={ICON.explore} label="Show me on the page" tone="quiet"
-      title="Walk me through the page itself"
+    <IconButton path={ICON.explore} label={t("ui.tour.showMe")} tone="quiet"
+      title={t("ui.tour.walkMe")}
       onClick={() => { replay(page); onView(page); }} />
   );
 }

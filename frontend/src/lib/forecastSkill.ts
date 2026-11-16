@@ -4,6 +4,8 @@
 // the words for it, in the reader's own units. Kept pure so they can be tested.
 
 import type { ForecastSkill, MeasureKey } from "./mcp";
+import { tr } from "../i18n/index.ts";
+import type { MessageKey } from "../i18n/en.ts";
 
 /// The reader's scale for a tolerance: a difference, so no offset.
 export interface Scale {
@@ -24,14 +26,7 @@ function tolerance(key: MeasureKey, within: number, s: Scale): string {
 }
 
 /// What each scored measure's forecast is held to, in a sentence.
-const SCORED: Partial<Record<MeasureKey, string>> = {
-  temp_max: "the day's high",
-  temp_min: "the day's low",
-  dew_point: "the day's average dew point",
-  wind_max: "the day's strongest wind",
-  humidity: "the day's average humidity",
-  pressure: "the day's average pressure",
-};
+const SCORED = new Set<MeasureKey>(["temp_max", "temp_min", "dew_point", "wind_max", "humidity", "pressure"]);
 
 /// The chip for one card, or null when that measure was not scored.
 export function skillChip(
@@ -41,19 +36,25 @@ export function skillChip(
   const next = m?.leads["1"];
   if (!m || !next) return null;
   const far = m.leads["3"];
-  const right = m.within == null ? "right about rain" : `within ${tolerance(key, m.within, s)}`;
+  const right = m.within == null
+    ? tr("lib.forecastSkill.rightAboutRain")
+    : tr("lib.forecastSkill.within", { tolerance: tolerance(key, m.within, s) });
+  const of = { hits: next.hits, days: next.days };
   const title = [
-    `Next-day forecast ${right} on ${next.hits} of ${next.days} days`,
-    far && `3 days out: ${far.pct}%`,
+    tr("lib.forecastSkill.title", { right, ...of }),
+    far && tr("lib.forecastSkill.threeDays", { pct: far.pct }),
   ].filter(Boolean).join(" · ");
+  const measure = SCORED.has(key)
+    ? tr(`lib.forecastSkill.measure.${key}` as MessageKey)
+    : tr("lib.forecastSkill.measure.other");
   const held = m.within == null
-    ? `the forecast made the day before called rain or no rain correctly on ${next.hits} of ${next.days} days`
-    : `the forecast made the day before got ${SCORED[key] ?? "this measure"} ${right} on ${next.hits} of ${next.days} days`;
+    ? tr("lib.forecastSkill.heldRain", of)
+    : tr("lib.forecastSkill.held", { measure, right, ...of });
   const says = [
-    `Over the last month here, ${held}.`,
-    far && `Three days ahead, it was right ${far.pct}% of the time.`,
-    m.within == null && "A trace too small to wet anything counts as dry.",
-    "Each day is checked against the weather model's later reading, not a station on your ground.",
+    tr("lib.forecastSkill.lastMonth", { held }),
+    far && tr("lib.forecastSkill.threeDaysAhead", { pct: far.pct }),
+    m.within == null && tr("lib.forecastSkill.trace"),
+    tr("lib.forecastSkill.checked"),
   ].filter((line): line is string => Boolean(line));
   return { pct: next.pct, title, says };
 }

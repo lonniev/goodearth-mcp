@@ -9,6 +9,7 @@
 
 import type { ReactNode } from "react";
 import { flushSync } from "react-dom";
+import { useT } from "../i18n";
 
 export default function AddPanel({ label, open, onOpen, aside, children }: {
   /// The form's name, beside the [+]. It names the thing added.
@@ -19,11 +20,14 @@ export default function AddPanel({ label, open, onOpen, aside, children }: {
   aside?: ReactNode;
   children: ReactNode;
 }) {
+  const t = useT();
   return (
     <>
       <div className={`flex items-center justify-between gap-2 ${open ? "mb-2" : "mb-4"}`}>
         <button type="button" onClick={() => onOpen(!open)} aria-expanded={open}
-          title={open ? `Fold ${label.toLowerCase()}` : `Open ${label.toLowerCase()}`}
+          title={open
+            ? t("ui.addPanel.fold", { label: label.toLowerCase() })
+            : t("ui.addPanel.open", { label: label.toLowerCase() })}
           className="flex min-h-11 items-center gap-2.5 rounded-full pr-3 text-left active:bg-band">
           <span aria-hidden
             className="flex size-8 shrink-0 items-center justify-center rounded-full bg-ink text-paper">

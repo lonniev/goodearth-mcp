@@ -2,6 +2,7 @@
 // are its readings in the units the reader chose. Kept pure so they can be tested.
 
 import { showPressure, showRain, showTemp, type Unit } from "./units.ts";
+import { tr } from "../i18n/index.ts";
 
 export interface StationReading {
   sensor_kind: string;
@@ -81,9 +82,9 @@ export function reportAge(observedAt: string, now: number): string {
   const then = Date.parse(observedAt);
   if (!Number.isFinite(then)) return "";
   const minutes = Math.round((now - then) / 60000);
-  if (minutes < 2) return "just now";
-  if (minutes < 90) return `${minutes} min ago`;
+  if (minutes < 2) return tr("lib.age.justNow");
+  if (minutes < 90) return tr("lib.age.minutes", { n: minutes });
   const hours = Math.round(minutes / 60);
-  if (hours < 36) return `${hours} h ago`;
-  return `${Math.round(hours / 24)} days ago`;
+  if (hours < 36) return tr("lib.age.hours", { n: hours });
+  return tr("lib.age.days", { count: Math.round(hours / 24) });
 }

@@ -13,6 +13,8 @@
 import { lonScaleAt } from "./geo.ts";
 import type { SunlightKwPrices } from "./mcp.ts";
 import type { SunGrid } from "./sunGrid.ts";
+import { languageLocale } from "@tollbooth-dpyc/web";
+import { tr } from "../i18n/index.ts";
 
 /// Metres per degree of latitude; longitude scales by `lonScaleAt`.
 export const M_PER_DEG_LAT = 111_320;
@@ -119,14 +121,15 @@ export function paybackYears(installCost: number, dailyNetUsd: number): number |
   return installCost / (dailyNetUsd * 365);
 }
 
-const MONTH = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
 /// "2026-07" → "Jul 2026"; anything else as it came.
 export function periodLabel(period: string): string {
   const m = /^(\d{4})-(\d{2})$/.exec(period);
   if (!m) return period;
   const i = Number(m[2]) - 1;
-  return i >= 0 && i < 12 ? `${MONTH[i]} ${m[1]}` : period;
+  return i >= 0 && i < 12
+    ? new Date(Date.UTC(Number(m[1]), i, 15))
+      .toLocaleDateString(languageLocale(), { month: "short", year: "numeric", timeZone: "UTC" })
+    : period;
 }
 
 export interface SellRate { cents: number; label: string; yours: boolean }
@@ -134,9 +137,9 @@ export interface SellRate { cents: number; label: string; yours: boolean }
 /// The rate a kWh sells at: the grower's own if they typed one, else the
 /// state's retail price as read, else nothing.
 export function sellRate(prices: SunlightKwPrices | null, override: number | null): SellRate | null {
-  if (override != null && override > 0) return { cents: override, label: "yours", yours: true };
+  if (override != null && override > 0) return { cents: override, label: tr("lib.arrayEconomics.yours"), yours: true };
   const s = prices?.sell;
   if (!s) return null;
   const where = prices?.place?.state_name ?? s.state_id;
-  return { cents: s.cents_per_kwh, label: `EIA ${where}, ${periodLabel(s.period)}`, yours: false };
+  return { cents: s.cents_per_kwh, label: tr("lib.arrayEconomics.eia", { where, period: periodLabel(s.period) }), yours: false };
 }

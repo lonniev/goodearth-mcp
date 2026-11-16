@@ -14,6 +14,8 @@
 // Writes need OAuth. This is read-only on purpose — importing someone's
 // observations is a courtesy; posting on their behalf is not.
 
+import { tr } from "../i18n/index.ts";
+
 const API = "https://api.inaturalist.org/v1/observations";
 
 export interface INatObservation {
@@ -47,11 +49,9 @@ function isFlowering(o: Record<string, unknown>): boolean {
 async function reasonFor(r: Response, user: string): Promise<string> {
   if (r.status === 404 || r.status === 422) {
     if (user.includes("@")) {
-      return `iNaturalist does not know "${user}". That looks like an email `
-        + "address, and this field wants your iNaturalist handle — the name in "
-        + "your profile URL, which is usually shorter and has no @ in it.";
+      return tr("lib.inaturalist.email", { user });
     }
-    return `No iNaturalist user called "${user}".`;
+    return tr("lib.inaturalist.noUser", { user });
   }
   // Anything else is theirs, not the grower's. Pass on what they said rather
   // than translating a server fault into a user error.
@@ -59,8 +59,8 @@ async function reasonFor(r: Response, user: string): Promise<string> {
   try { said = String(((await r.json()) as { error?: unknown }).error ?? ""); }
   catch { /* a status with no body is still a status */ }
   return said
-    ? `iNaturalist could not answer: ${said}`
-    : `iNaturalist replied ${r.status}. That is on their side — try again shortly.`;
+    ? tr("lib.inaturalist.couldNot", { said })
+    : tr("lib.inaturalist.replied", { status: r.status });
 }
 
 /// Handles that look like what has been typed so far, so a grower who does not
@@ -100,7 +100,7 @@ export async function fetchObservations(opts: {
   signal?: AbortSignal;
 }): Promise<INatObservation[]> {
   const user = opts.user.trim().replace(/^@/, "");
-  if (!user) throw new Error("Which iNaturalist user?");
+  if (!user) throw new Error(tr("lib.inaturalist.which"));
 
   const q = new URLSearchParams({
     user_login: user,
@@ -147,7 +147,7 @@ export async function fetchObservations(opts: {
     return {
       id: Number(o.id),
       observed_on: (o.observed_on as string) ?? null,
-      species: String(taxon.preferred_common_name || taxon.name || "Unidentified"),
+      species: String(taxon.preferred_common_name || taxon.name || tr("lib.inaturalist.unidentified")),
       scientificName: (taxon.name as string) ?? null,
       lat: geo?.coordinates?.[1] ?? null,
       lng: geo?.coordinates?.[0] ?? null,

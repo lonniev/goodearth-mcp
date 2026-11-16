@@ -3,6 +3,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { readingLine, reportAge, tileReadings, windSpeed, type StationReading } from "./stationNow.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 const r = (sensor_kind: string, quantity: number, unit: string, channel: number | null = null, channel_name: string | null = null): StationReading =>
   ({ sensor_kind, quantity, unit, channel, channel_name, observed_at: "2026-10-30T14:00:00Z" });

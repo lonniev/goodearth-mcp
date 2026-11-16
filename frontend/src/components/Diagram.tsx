@@ -16,6 +16,7 @@
 // sentence.
 
 import type { ReactNode } from "react";
+import { useT } from "../i18n";
 
 /// One stage on a run: what it is, and the number it sits at.
 export interface Stage {
@@ -39,6 +40,7 @@ export function StageRun({ stages, axis, foot }: {
   axis: string;
   foot?: ReactNode;
 }) {
+  const t = useT();
   return (
     <div className="my-4 overflow-x-auto overscroll-x-contain">
       <div className="min-w-[520px]">
@@ -48,7 +50,7 @@ export function StageRun({ stages, axis, foot }: {
             caption sat on top of the last two figures — which a screenshot
             showed and a type-check never could. */}
         <svg viewBox="0 0 720 136" className="block h-auto w-full" role="img"
-          aria-label={`${axis}: ${stages.map((s) => s.label).join(", then ")}`}>
+          aria-label={`${axis}: ${stages.map((s) => s.label).join(t("ui.diagram.then"))}`}>
           <line x1={40} x2={664} y1={78} y2={78}
             stroke="var(--color-rule)" strokeWidth={2} />
           <path d="M664 78 l-9 -5 v10 z" fill="var(--color-rule)" />
@@ -95,6 +97,7 @@ export function YearWheel({ stages, centre, foot }: {
   centre: ReactNode;
   foot?: ReactNode;
 }) {
+  const t = useT();
   const R = 96;
   const cx = 160;
   const cy = 160;
@@ -108,7 +111,7 @@ export function YearWheel({ stages, centre, foot }: {
   return (
     <div className="my-4 flex flex-wrap items-center gap-x-8 gap-y-3">
       <svg viewBox="0 0 320 320" className="h-[240px] w-[240px] shrink-0" role="img"
-        aria-label={`The year: ${stages.map((s) => s.label).join(", then ")}`}>
+        aria-label={t("ui.diagram.theYear", { stages: stages.map((s) => s.label).join(t("ui.diagram.then")) })}>
         <circle cx={cx} cy={cy} r={R} fill="none"
           stroke="var(--color-rule)" strokeWidth={2} />
         {stages.map((s) => {

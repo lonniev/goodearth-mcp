@@ -4,6 +4,9 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { makePest, makeWatch } from "./pestModels.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 describe("blank stages mean watch it", () => {
   it("does not reject a pest with nothing to count", () => {
@@ -85,7 +88,7 @@ describe("the form a pest is named in", () => {
     // A tester asked for the button to sit AFTER the boxes and it still does;
     // what it gives up is a whole row of the page to say so.
     const form = view().slice(view().indexOf('<form id="new-pest"'), view().indexOf("</form>"));
-    assert.match(form, /<IconButton path=\{ICON\.bug\} label="Pest" hideLabel/);
+    assert.match(form, /<IconButton path=\{ICON\.bug\} label=\{t\("views\.pests\.col\.pest"\)\} hideLabel/);
     assert.ok(form.indexOf("IconButton") > form.indexOf("pest-stages"),
       "the button must come after the fields it acts on");
   });
@@ -109,5 +112,15 @@ describe("the stages a row is edited through", () => {
     // Opening the editor on such a pest and pressing the tick used to delete
     // stages the grower had never touched.
     assert.match(editor(), /const kept = \(draft\.stages \?\? \[\]\)\.find/);
+  });
+});
+
+describe("stages typed in another script", () => {
+  it("reads a Chinese or Japanese comma and colon as the English ones", () => {
+    for (const raw of ["初飞 375，二飞 1400", "初飛：375、二飛：1400"]) {
+      const made = makePest("Codling moth", 50, raw, "b1");
+      assert.ok(typeof made !== "string", `${raw}: ${made as string}`);
+      assert.deepEqual(made.stages?.map((s) => s.gdd), [375, 1400]);
+    }
   });
 });

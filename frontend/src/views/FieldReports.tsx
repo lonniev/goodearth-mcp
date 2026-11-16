@@ -11,7 +11,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Provenance from "../components/Provenance";
-import { QuoteScroller } from "@tollbooth-dpyc/web/react";
+import { QuoteScroller, useLanguageLocale } from "@tollbooth-dpyc/web/react";
 import { AGRARIAN_QUOTES, AGRARIAN_SOURCE, quoteStyles } from "../lib/quotes";
 import { calibration, type CalibrationResult } from "../lib/mcp";
 import { boundsFrom, fetchObservations, searchUsers,
@@ -31,10 +31,20 @@ import { useSubmit } from "../lib/useSubmit";
 import { withId } from "../lib/submit";
 import { useTour } from "@tollbooth-dpyc/web/react";
 import { tour } from "../lib/tour/targets";
+import { useT, type Translate } from "../i18n";
 
 const today = () => new Date().toISOString().slice(0, 10);
-const nice = (iso: string) =>
-  new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+const nice = (iso: string, locale: string) =>
+  new Date(iso + "T12:00:00").toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" });
+
+/// The confidence the service reports, in words. The key is the service's own
+/// value; an unknown one is shown as it came.
+const confidenceWord = (t: Translate, c: string): string => ({
+  provisional: t("views.fieldReports.confidence.provisional"),
+  early: t("views.fieldReports.confidence.early"),
+  firming: t("views.fieldReports.confidence.firming"),
+  settled: t("views.fieldReports.confidence.settled"),
+} as Record<string, string>)[c] ?? c;
 
 const CONFIDENCE: Record<string, string> = {
   provisional: "bg-band text-ink-soft",
@@ -56,6 +66,8 @@ function inatKey(): string {
 export default function FieldReports({
   region, onCost,
 }: { region: SavedRegion; onCost: (sats: number) => void }) {
+  const t = useT();
+  const locale = useLanguageLocale();
   // Observations are the most valuable thing a grower produces here, so they
   // live on their record under their npub rather than in one browser.
   const { items: reports, save: storeReport, retire: retireReport, reload: reloadReports,
@@ -101,12 +113,12 @@ export default function FieldReports({
       return;
     }
     const ac = new AbortController();
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       void searchUsers(q, ac.signal)
         .then((r) => { if (!ac.signal.aborted) setHandles(r); })
         .catch(() => { /* a suggestion is a convenience, never an error */ });
     }, 250);
-    return () => { ac.abort(); clearTimeout(t); };
+    return () => { ac.abort(); clearTimeout(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inatUser, typed]);
 
@@ -121,19 +133,19 @@ export default function FieldReports({
     setBusy(true); setErr("");
     try {
       const r = await calibration(region.id, obs, region.baseTempF);
-      if (!r.success) { setErr(r.error || "Calibration could not be read."); return; }
+      if (!r.success) { setErr(r.error || t("views.fieldReports.err.calibration")); return; }
       setCal(r); setRanAt(new Date());
     } catch (e) { setErr((e as Error).message); }
     finally { setBusy(false); }
-  }, [region]);
+  }, [region, t]);
 
   useEffect(() => { void run(reports); }, [run, reports]);
 
   function pin() {
-    if (!navigator.geolocation) { setMsg("This device will not share a location."); return; }
+    if (!navigator.geolocation) { setMsg(t("views.fieldReports.noLocation")); return; }
     navigator.geolocation.getCurrentPosition(
       (p) => { setHere({ lat: p.coords.latitude, lng: p.coords.longitude }); },
-      () => setMsg("Could not get a location — the report files fine without one."),
+      () => setMsg(t("views.fieldReports.locationFailed")),
       { enableHighAccuracy: true, timeout: 10_000 },
     );
   }
@@ -216,10 +228,10 @@ export default function FieldReports({
       setPicked(new Set(rows.filter((r) => r.flowering).map((r) => r.id)));
       if (!rows.length) {
         setMsg(outside > 0
-          ? `${outside} of your observations are near ${region.name} but outside its boundary.`
-          : `No observations from ${inatUser} inside ${region.name}.`);
+          ? t("views.fieldReports.inat.allOutside", { n: outside, plot: region.name })
+          : t("views.fieldReports.inat.none", { user: inatUser, plot: region.name }));
       } else if (outside > 0) {
-        setMsg(`${rows.length} inside ${region.name}. ${outside} nearby fell outside its boundary.`);
+        setMsg(t("views.fieldReports.inat.someOutside", { n: rows.length, plot: region.name, outside }));
       }
     } catch (e) { setErr((e as Error).message); }
     finally { setInatBusy(false); }
@@ -246,8 +258,8 @@ export default function FieldReports({
     void reloadReports();
     setInat(null);
     setMsg(added
-      ? `Imported ${added}. Bloom observations need a set-out date and an expected GDD before they can teach the model — add those on the rows that matter.`
-      : "Nothing selected.");
+      ? t("views.fieldReports.inat.imported", { n: added })
+      : t("views.fieldReports.inat.nothingSelected"));
   }
 
   const needsCrop = tag === "first_bloom" || tag === "emergence" || tag === "pest";
@@ -256,10 +268,10 @@ export default function FieldReports({
 
   return (
     <>
-      <h1 className="figure mb-3.5 text-[1.375rem] font-bold">Field Reports</h1>
+      <h1 className="figure mb-3.5 text-[1.375rem] font-bold">{t("views.fieldReports.title")}</h1>
 
       {/* ── File one ───────────────────────────────────────────────────── */}
-      <AddPanel label="New observation" open={addOpen} onOpen={setAddOpen}>
+      <AddPanel label={t("views.fieldReports.newObservation")} open={addOpen} onOpen={setAddOpen}>
       <form onSubmit={file} className="mb-4 rounded-md border border-rule bg-panel p-4">
         {/* Quick picks, not the vocabulary. Only frost and the stage kinds
             reach the calibration model; everything else is recorded either
@@ -267,65 +279,65 @@ export default function FieldReports({
             whatever they actually saw. */}
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="flex flex-wrap items-center gap-1.5" {...tour("reports.tags")}>
-          {TAGS.filter((t) => t.pick !== false).map((t) => (
-            <button key={t.key} type="button" onClick={() => setTag(t.key)}
+          {TAGS.filter((x) => x.pick !== false).map((x) => (
+            <button key={x.key} type="button" onClick={() => setTag(x.key)}
               className={`min-h-11 rounded-full border px-4 text-[0.8125rem] font-medium ${
-                tag === t.key ? "border-ink bg-ink text-paper" : "border-rule active:bg-band"}`}>
-              {t.label}
+                tag === x.key ? "border-ink bg-ink text-paper" : "border-rule active:bg-band"}`}>
+              {x.label}
             </button>
           ))}
           </span>
           <input
-            value={TAGS.some((t) => t.key === tag) ? "" : tag}
+            value={TAGS.some((x) => x.key === tag) ? "" : tag}
             onChange={(e) => setTag(e.target.value)}
-            placeholder="or type what you saw" {...tour("reports.custom")}
+            placeholder={t("views.fieldReports.typeWhatYouSaw")} {...tour("reports.custom")}
             className="h-11 min-w-[12rem] flex-1 rounded-full border border-rule bg-white px-4 text-[0.8125rem] focus:border-honey focus:outline-none"
           />
         </div>
 
         <div className="mt-3 flex flex-wrap items-end gap-3">
           <div className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="block text-[0.6875rem] text-ink-soft" {...tour("reports.on")}>Seen on
+          <label className="block text-[0.6875rem] text-ink-soft" {...tour("reports.on")}>{t("views.fieldReports.seenOn")}
             <input name="on" type="date" defaultValue={today()}
               className={FIELD} /></label>
 
           {needsCrop && (
-            <label className="block text-[0.6875rem] text-ink-soft" {...tour("reports.crop")}>Crop
-              <input name="crop" placeholder="Dahlia"
+            <label className="block text-[0.6875rem] text-ink-soft" {...tour("reports.crop")}>{t("views.fieldReports.crop")}
+              <input name="crop" placeholder={t("views.fieldReports.cropPlaceholder")}
                 className={FIELD} /></label>
           )}
           {calibrating && (
             <>
-              <label className="block text-[0.6875rem] text-ink-soft" {...tour("reports.setout")}>Set out
+              <label className="block text-[0.6875rem] text-ink-soft" {...tour("reports.setout")}>{t("views.fieldReports.setOut")}
                 <input name="setout" type="date"
                   className={FIELD} /></label>
-              <label className="block text-[0.6875rem] text-ink-soft" {...tour("reports.target")}>Expected at (GDD)
+              <label className="block text-[0.6875rem] text-ink-soft" {...tour("reports.target")}>{t("views.fieldReports.expectedAt")}
                 <input name="target" inputMode="numeric" placeholder="1200"
                   className={FIELD} /></label>
             </>
           )}
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            <button title="Add observation" disabled={submit.busy} {...tour("reports.add")}
+            <button title={t("views.fieldReports.addObservation")} disabled={submit.busy} {...tour("reports.add")}
               className="flex min-h-11 items-center gap-1.5 rounded-full border-[1.5px] border-ink bg-ink px-3.5 text-[0.78125rem] font-semibold text-paper disabled:opacity-40">
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
                 <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
               </svg>
-              Observation
+              {t("views.fieldReports.observation")}
             </button>
-            <button type="button" onClick={pin} title="Use my location" {...tour("reports.here")}
+            <button type="button" onClick={pin} title={t("views.fieldReports.useMyLocation")} {...tour("reports.here")}
               className={`flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-[0.78125rem] ${
                 here ? "border-growth/50 bg-growth/8" : "border-rule text-ink-soft active:bg-band"}`}>
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
                 <path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z" />
               </svg>
-              {here ? `${here.lat.toFixed(5)}, ${here.lng.toFixed(5)}` : "Here"}
+              {here ? `${here.lat.toFixed(5)}, ${here.lng.toFixed(5)}` : t("views.fieldReports.here")}
             </button>
           </div>
         </div>
 
-        <label className="mt-3 block text-[0.6875rem] text-ink-soft">Note
-          <textarea name="note" rows={2} placeholder="Patchy in the hollow, bench untouched"
+        <label className="mt-3 block text-[0.6875rem] text-ink-soft">{t("views.fieldReports.note")}
+          <textarea name="note" rows={2} placeholder={t("views.fieldReports.notePlaceholder")}
             className="mt-0.5 w-full rounded border border-rule bg-white px-2.5 py-2 text-[1rem] focus:border-honey focus:outline-none" /></label>
 
         {msg && <p className="mt-2 text-[0.78125rem] text-ink-soft">{msg}</p>}
@@ -334,33 +346,34 @@ export default function FieldReports({
 
       {/* ── Your observations ────────────────────────────────────────── */}
       <h2 className="figure mb-2.5 flex items-baseline gap-2.5 text-[1.125rem] font-semibold">
-        Your Observations
+        {t("views.fieldReports.yourObservations")}
         {usable > 0 && <Provenance tool="goodearth_calibration" at={ranAt} onCost={onCost} />}
       </h2>
 
       {busy && !cal ? (
-        <div className="rounded-md border border-rule bg-panel"><QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Reading your reports" intervalMs={6500} classNames={quoteStyles} /></div>
+        <div className="rounded-md border border-rule bg-panel"><QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading={t("views.fieldReports.reading")} intervalMs={6500} classNames={quoteStyles} /></div>
       ) : cal ? (
         <div className="grid gap-3 sm:grid-cols-2">
-          <Bias title="Heat" s={cal.heat} unit="%" />
-          <Bias title="First frost" s={cal.first_frost} unit=" days" />
+          <Bias title={t("views.fieldReports.heat")} s={cal.heat} percent />
+          <Bias title={t("views.fieldReports.firstFrost")} s={cal.first_frost} />
           {Object.keys(cal.corrections).length > 0 && (
             <p className="sm:col-span-2 rounded-md border border-rule border-l-4 border-l-growth bg-panel px-3.5 py-2.5 text-[0.8125rem]">
-              Applied to your ground:{" "}
+              {t("views.fieldReports.applied")}{" "}
               {cal.corrections.heat_multiplier != null && (
-                <b>heat × {cal.corrections.heat_multiplier}</b>
+                <b>{t("views.fieldReports.appliedHeat", { x: cal.corrections.heat_multiplier })}</b>
               )}
               {cal.corrections.heat_multiplier != null && cal.corrections.first_frost_offset_days != null && " · "}
               {cal.corrections.first_frost_offset_days != null && (
-                <b>frost {cal.corrections.first_frost_offset_days > 0 ? "+" : ""}
-                  {cal.corrections.first_frost_offset_days} days</b>
+                <b>{t("views.fieldReports.appliedFrost", {
+                  n: `${cal.corrections.first_frost_offset_days > 0 ? "+" : ""}${cal.corrections.first_frost_offset_days}`,
+                })}</b>
               )}
             </p>
           )}
         </div>
       ) : (
         <div className="rounded-md border border-dashed border-rule bg-panel/60 p-5 text-[0.8125rem] leading-relaxed text-ink-soft">
-          Nothing yet.
+          {t("views.fieldReports.nothingYet")}
         </div>
       )}
 
@@ -368,21 +381,21 @@ export default function FieldReports({
 
 
       {/* ── Import ─────────────────────────────────────────────────────── */}
-      <h2 className="figure mt-7 mb-2.5 text-[1.125rem] font-semibold">🔭 Import from iNaturalist</h2>
+      <h2 className="figure mt-7 mb-2.5 text-[1.125rem] font-semibold">🔭 {t("views.fieldReports.importHeading")}</h2>
       <div className="rounded-md border border-rule bg-panel p-4" {...tour("reports.inat")}>
         <div className="flex flex-wrap items-end gap-2">
           {/* A div, not a label element: the suggestions below are buttons, and a
               tap inside a label can be handed to its input instead. */}
           <div className="relative block flex-1 text-[0.6875rem] text-ink-soft" style={{ minWidth: 180 }}>
-            iNaturalist handle <span className="opacity-60">(not your email)</span>
+            {t("views.fieldReports.handle")} <span className="opacity-60">{t("views.fieldReports.notEmail")}</span>
             {/* `autoComplete="off"` and a name that says nothing about email,
                 because the browser will otherwise offer one — and iNaturalist
                 answers an email address with a 422 that used to reach the
                 grower as a bare number. */}
             <input value={inatUser} name="inat-handle" autoComplete="off"
-              aria-label="iNaturalist handle"
+              aria-label={t("views.fieldReports.handle")}
               onChange={(e) => { setTyped(true); setInatUser(e.target.value); }}
-              placeholder="your-handle"
+              placeholder={t("views.fieldReports.handlePlaceholder")}
               className={FIELD} />
             {handles.length > 0 && (
               <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-md border border-rule bg-panel shadow-lg">
@@ -393,7 +406,7 @@ export default function FieldReports({
                     <b className="text-[0.8125rem] text-ink">{h.login}</b>
                     {h.name && <span className="truncate text-[0.6875rem]">{h.name}</span>}
                     <span className="data ml-auto shrink-0 text-[0.65625rem]">
-                      {h.observations.toLocaleString()}
+                      {h.observations.toLocaleString(locale)}
                     </span>
                   </button>
                 ))}
@@ -404,11 +417,11 @@ export default function FieldReports({
               and the record is only touched by "Import n selected" below,
               after the grower has picked. A button that claims to import and
               does not is worse than one with a duller name. */}
-          <IconButton path={ICON.search} label={inatBusy ? "Searching…" : "Search"}
+          <IconButton path={ICON.search} label={inatBusy ? t("views.fieldReports.searching") : t("views.fieldReports.search")}
             onClick={pullINat} disabled={inatBusy || !inatUser.trim()} />
         </div>
         <p className="mt-2 text-[0.75rem] leading-relaxed text-ink-soft">
-          iNaturalist observations that are within the current boundaries.
+          {t("views.fieldReports.withinBoundaries")}
         </p>
 
         {inat && inat.length > 0 && (
@@ -426,7 +439,7 @@ export default function FieldReports({
                     className="h-5 w-5 shrink-0 accent-[color:var(--color-growth)]" />
                   <span className="min-w-0 flex-1 text-[0.8125rem]">
                     {o.species}
-                    {o.flowering && <span className="ml-1.5 rounded-full bg-growth/12 px-2 py-0.5 text-[0.65625rem] font-semibold text-growth">flowering</span>}
+                    {o.flowering && <span className="ml-1.5 rounded-full bg-growth/12 px-2 py-0.5 text-[0.65625rem] font-semibold text-growth">{t("views.fieldReports.flowering")}</span>}
                     <span className="data ml-2 text-[0.6875rem] text-ink-soft">{o.observed_on}</span>
                   </span>
                 </label>
@@ -434,7 +447,7 @@ export default function FieldReports({
             </div>
             <button onClick={importPicked}
               className="mt-3 min-h-11 rounded border-[1.5px] border-ink bg-ink px-5 text-[0.8125rem] font-semibold text-paper">
-              Import {picked.size} selected
+              {t("views.fieldReports.importSelected", { n: picked.size })}
             </button>
           </>
         )}
@@ -443,34 +456,34 @@ export default function FieldReports({
       {/* ── The log ────────────────────────────────────────────────────── */}
       {/* The record is the truth here. An empty page would claim this ground
           has never been walked, so a read that failed says so instead. */}
-      {reportsLoading && <Note>Reading your observations for {region.name}…</Note>}
+      {reportsLoading && <Note>{t("views.fieldReports.readingFor", { plot: region.name })}</Note>}
       {!reportsLoading && reportsUnknown && (
-        <ErrorBox>This browser is set to ground the record does not have. Pick the block again from My Plots, or draw it there.</ErrorBox>
+        <ErrorBox>{t("views.fieldReports.unknownBlock")}</ErrorBox>
       )}
       {!reportsLoading && reportsError && (
-        <ErrorBox>Could not read your observations: {reportsError}</ErrorBox>
+        <ErrorBox>{t("views.fieldReports.readFailed", { err: reportsError })}</ErrorBox>
       )}
       {reports.length > 0 && (
         <>
           <h2 className="figure mt-7 mb-2.5 text-[1.125rem] font-semibold" {...tour("reports.log")}>
-            Log <span className="text-[0.8125rem] font-normal text-ink-soft">
-              {reports.length} report{reports.length === 1 ? "" : "s"} · {usable} teaching the model
+            {t("views.fieldReports.log")} <span className="text-[0.8125rem] font-normal text-ink-soft">
+              {t("views.fieldReports.logCount", { count: reports.length, usable })}
             </span>
           </h2>
           <ul className="space-y-2">
             {reports.map((r) => {
-              const t = TAGS.find((x) => x.key === r.tag);
+              const tg = TAGS.find((x) => x.key === r.tag);
               return (
                 <li key={r.id} className="flex items-start gap-3 rounded-md border border-rule bg-panel px-3.5 py-2.5">
                   <div className="min-w-0 flex-1">
-                    <span className="text-[0.8125rem] font-semibold">{t?.label}</span>
+                    <span className="text-[0.8125rem] font-semibold">{tg?.label}</span>
                     {r.crop && <span className="text-[0.8125rem]"> · {r.crop}</span>}
                     {r.amount != null && (
                       <span className="text-[0.8125rem]"> · {r.amount}{r.unit ? ` ${r.unit}` : ""}</span>
                     )}
-                    <span className="data ml-2 text-[0.6875rem] text-ink-soft">{nice(r.observedOn)}</span>
+                    <span className="data ml-2 text-[0.6875rem] text-ink-soft">{nice(r.observedOn, locale)}</span>
                     {reportsWaiting.has(r.id) && (
-                      <span className="ml-2 text-[0.65625rem] text-ink-soft">⇡ waiting for signal</span>
+                      <span className="ml-2 text-[0.65625rem] text-ink-soft">{t("views.fieldReports.waiting")}</span>
                     )}
                     {r.lat != null && (
                       <span className="data ml-2 text-[0.625rem] text-ink-soft">
@@ -480,7 +493,7 @@ export default function FieldReports({
                     {r.note && <p className="mt-0.5 text-[0.78125rem] text-ink-soft">{r.note}</p>}
                   </div>
                   <button onClick={() => void retireReport(r.id)}
-                    aria-label="Delete report" title="Remove"
+                    aria-label={t("views.fieldReports.deleteLabel")} title={t("views.fieldReports.remove")}
                     className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-ink-soft active:text-clay"><TrashGlyph /></button>
                 </li>
               );
@@ -493,13 +506,17 @@ export default function FieldReports({
   );
 }
 
-function Bias({ title, s, unit }: {
+function Bias({ title, s, percent = false }: {
   title: string;
   s: { median?: number; n?: number; confidence?: string; reading?: string; applicable?: boolean;
        rejected_as_implausible?: number };
-  unit: string;
+  /// A heat bias, shown as a percentage; otherwise a count of days.
+  percent?: boolean;
 }) {
-  const pct = unit === "%" && s.median != null ? s.median * 100 : s.median;
+  const t = useT();
+  const pct = percent && s.median != null ? s.median * 100 : s.median;
+  const shown = pct == null ? ""
+    : `${pct > 0 ? "+" : ""}${Math.abs(pct) < 10 ? pct.toFixed(1) : pct.toFixed(0)}`;
   return (
     <div className="rounded-md border border-rule bg-panel px-3.5 py-3">
       <div className="flex items-baseline gap-2">
@@ -507,17 +524,19 @@ function Bias({ title, s, unit }: {
         {s.confidence && (
           <span className={`rounded-full px-2 py-0.5 text-[0.65625rem] font-semibold ${
             CONFIDENCE[s.confidence] ?? "bg-band text-ink-soft"}`}>
-            {s.confidence}
+            {confidenceWord(t, s.confidence)}
           </span>
         )}
       </div>
       <div className={`figure mt-1 text-[1.5rem] ${s.applicable ? "" : "opacity-45"}`}>
-        {pct == null ? "—" : `${pct > 0 ? "+" : ""}${Math.abs(pct) < 10 ? pct.toFixed(1) : pct.toFixed(0)}${unit}`}
+        {pct == null ? "—" : percent
+          ? t("views.fieldReports.biasPct", { v: shown })
+          : t("views.fieldReports.biasDays", { v: shown })}
       </div>
       <p className="mt-1 text-[0.78125rem] leading-relaxed text-ink-soft">{s.reading}</p>
       {!!s.rejected_as_implausible && (
         <p className="data mt-1 text-[0.625rem] text-ink-soft">
-          {s.rejected_as_implausible} set aside as implausible
+          {t("views.fieldReports.setAside", { n: s.rejected_as_implausible })}
         </p>
       )}
     </div>

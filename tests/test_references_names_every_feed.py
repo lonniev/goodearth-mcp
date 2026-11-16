@@ -20,11 +20,15 @@ from pathlib import Path
 
 from goodearth_mcp import disease, kw_prices, sources
 
-REFERENCES = Path(__file__).resolve().parents[1] / "frontend" / "src" / "views" / "References.tsx"
+FRONTEND = Path(__file__).resolve().parents[1] / "frontend" / "src"
+REFERENCES = FRONTEND / "views" / "References.tsx"
+# The page's English words live in the catalog since it was translated; the
+# page holds the keys and the URLs. Read both, so a name is found wherever it is.
+WORDS = FRONTEND / "i18n" / "en" / "views.ts"
 
 
 def page() -> str:
-    return REFERENCES.read_text(encoding="utf-8")
+    return REFERENCES.read_text(encoding="utf-8") + "\n" + WORDS.read_text(encoding="utf-8")
 
 
 def test_both_history_feeds_are_named_and_told_apart() -> None:
@@ -98,7 +102,7 @@ def test_sunlight_feeds_are_named() -> None:
     text = page()
     for name in ("Meta/WRI canopy height map", "Copernicus GLO-30 terrain", "Copernicus Global Land Cover"):
         assert name in text, f"References names no entry for {name}"
-    assert 'title: "Sunlight"' in text
+    assert '"views.references.model.sunlight.title": "Sunlight"' in text
 
 
 def test_the_two_price_feeds_are_named_as_the_answer_names_them() -> None:

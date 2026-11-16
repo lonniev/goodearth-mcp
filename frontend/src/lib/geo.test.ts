@@ -6,6 +6,9 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { acres, areaM2, distanceM, formatArea, geoJSONToRing, isDrawable, lonScaleAt, ringToGeoJSON, withinRing } from "./geo.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 /// A square of `side` metres, anchored at `lat`.
 function square(lat: number, lng: number, side: number) {

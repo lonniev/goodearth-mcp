@@ -8,6 +8,8 @@
 
 import { claimedBy, matches } from "./cropMatch.ts";
 import type { DiseaseRiskResult, DiseaseVerdict } from "./mcp.ts";
+import { languageLocale } from "@tollbooth-dpyc/web";
+import { tr } from "../i18n/index.ts";
 
 /// "clear" was "quiet", which a grower read as "you have not entered anything
 /// yet". It means the weather has not been right for the disease.
@@ -28,9 +30,9 @@ export function toneOf(v: DiseaseVerdict): Tone {
 }
 
 export const TONE_WORD: Record<Tone, string> = {
-  ahead: "forecast",
-  recent: "recent",
-  clear: "clear",
+  get ahead() { return tr("lib.diseaseRows.tone.ahead"); },
+  get recent() { return tr("lib.diseaseRows.tone.recent"); },
+  get clear() { return tr("lib.diseaseRows.tone.clear"); },
 };
 
 /// The date on the right of a row: what is coming, else what last happened,
@@ -83,9 +85,10 @@ export function estimatesInfo(data: DiseaseRiskResult, plantings: readonly strin
   const { live, clear } = order(data, plantings);
   const n = live.length + clear.length;
   const since = new Date(`${data.season_from.slice(0, 10)}T12:00:00Z`)
-    .toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
-  return `${n} disease model${n === 1 ? "" : "s"} · `
-    + `${data.wetness.wet_hours.toLocaleString("en-US")} estimated wet hours since ${since}`;
+    .toLocaleDateString(languageLocale(), { month: "short", day: "numeric", timeZone: "UTC" });
+  return tr("lib.diseaseRows.estimates", {
+    models: tr("lib.diseaseRows.models", { count: n }),
+    hours: data.wetness.wet_hours.toLocaleString(languageLocale()), since });
 }
 
 export interface CropWatch {
@@ -176,7 +179,7 @@ export function stripMonths(axis: StripAxis): { at: number; label: string }[] {
     const iso = `${y}-${String(m).padStart(2, "0")}-01`;
     if (iso > axis.to) break;
     out.push({ at: along(axis, iso),
-      label: new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", timeZone: "UTC" }) });
+      label: new Date(`${iso}T12:00:00Z`).toLocaleDateString(languageLocale(), { month: "short", timeZone: "UTC" }) });
   }
   return out;
 }

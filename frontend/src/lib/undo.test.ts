@@ -4,6 +4,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, it } from "node:test";
+import en from "../i18n/en.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 const store = new Map<string, string>();
 const NPUB = "goodearth:patron_npub:v1";
@@ -196,7 +200,8 @@ describe("where the way back lives", () => {
 
   it("keeps the offer when a restore fails, and says why", () => {
     const chip = read("../components/UndoChip.tsx");
-    assert.match(chip, /could not be put back/);
+    assert.match(chip, /t\("ui\.undoChip\.couldNotPutBack"/);
+    assert.match(en["ui.undoChip.couldNotPutBack"], /could not be put back/);
     // `drop` runs only on the success path — losing the row silently is the
     // one thing this must never do.
     assert.match(chip, /await restore\(e\);\s*\n\s*setEntries\(drop\(e\.id\)\);/);

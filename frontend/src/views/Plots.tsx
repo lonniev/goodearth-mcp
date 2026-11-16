@@ -39,6 +39,7 @@ import { exportPlot, importBundle } from "../lib/farmBundleIO";
 import { shareOrDownload } from "@tollbooth-dpyc/web";
 import { useTour } from "@tollbooth-dpyc/web/react";
 import { tour } from "../lib/tour/targets";
+import { useT, type Translate } from "../i18n";
 
 const EMPTY: MapValue = { mode: "polygon", ring: [], centre: null, radiusM: 400 };
 
@@ -46,13 +47,18 @@ const RADII = [200, 400, 800, 1600, 3200];
 
 /// A plot in its numbers, for the line under the map:
 /// "Frogdale · polygon · 4 corners · 9.2 ha · 14 samples · base 50 °F".
-function describe(r: SavedRegion, u: ReturnType<typeof useUnits>): string {
+function describe(r: SavedRegion, u: ReturnType<typeof useUnits>, t: Translate): string {
   const shape = "lat" in r.region
-    ? `pin ${r.region.lat.toFixed(4)}, ${r.region.lon.toFixed(4)} · ${r.region.radius_m} m`
-    : `polygon · ${r.region.coordinates[0].length - 1} corners`;
-  const size = r.areaHa != null ? `${r.areaHa.toFixed(1)} ha · ${r.sampleCount} samples` : "not measured yet";
-  const also = r.aliases?.length ? ` · also ${r.aliases.map((a) => `“${a}”`).join(", ")}` : "";
-  return `${r.name}${also} · ${shape} · ${size} · base ${u.showTemp(r.baseTempF)}`;
+    ? t("views.plots.describe.pin", {
+      lat: r.region.lat.toFixed(4), lon: r.region.lon.toFixed(4), r: r.region.radius_m,
+    })
+    : t("views.plots.describe.polygon", { count: r.region.coordinates[0].length - 1 });
+  const size = r.areaHa != null
+    ? t("views.plots.describe.size", { ha: r.areaHa.toFixed(1), count: r.sampleCount ?? 0 })
+    : t("views.plots.describe.notMeasured");
+  const also = r.aliases?.length
+    ? t("views.plots.describe.also", { names: r.aliases.map((a) => `“${a}”`).join(", ") }) : "";
+  return t("views.plots.describe.line", { name: r.name, also, shape, size, base: u.showTemp(r.baseTempF) });
 }
 
 export default function Plots({
@@ -68,6 +74,7 @@ export default function Plots({
   synced?: boolean;
 }) {
   const u = useUnits();
+  const t = useT();
   const [regions, setRegions] = useState<SavedRegion[]>(() => listRegions());
   /// The plots as one table, for the share button in the top bar.
   useShare(useMemo(() => plotsSheet(regions, u.unit), [regions, u.unit]));
@@ -134,19 +141,19 @@ export default function Plots({
     const outcome = await shareOrDownload(file, name);
     if (outcome === "blocked") {
       setWaiting({ id, file });
-      setCardMsg({ id, text: `${name} is ready. Tap Share again to send it.` });
+      setCardMsg({ id, text: t("views.plots.bundle.ready", { name }) });
       return;
     }
     setWaiting(null);
     setCardMsg(outcome === "downloaded"
-      ? { id, text: `Saved ${file.name} to your downloads. Send it to whoever should have it.` }
+      ? { id, text: t("views.plots.bundle.downloaded", { file: file.name }) }
       : null);
   }
 
   async function share(r: SavedRegion) {
     if (waiting?.id === r.id) { await hand(r.id, waiting.file, r.name); return; }
     setPacking(r.id); setBundleMsg("");
-    setCardMsg({ id: r.id, text: `Preparing ${r.name}…` });
+    setCardMsg({ id: r.id, text: t("views.plots.bundle.preparing", { name: r.name }) });
     try {
       const bundle = await exportPlot(r);
       const file = new File([JSON.stringify(bundle, null, 2)], bundleFileName(r.name),
@@ -184,10 +191,10 @@ export default function Plots({
       setRegions(listRegions());
       onSaved(done.plot);   // switching to it re-scopes the whole app
       setIncoming(null);
-      const got = `${done.saved - done.tasks} items and ${done.tasks} tasks`;
+      const got = { name: done.plot.name, items: done.saved - done.tasks, tasks: done.tasks };
       setBundleMsg(done.error
-        ? `${done.plot.name} is yours now, with ${got}. ${done.error}`
-        : `${done.plot.name} is yours now, with ${got}. Every view is scoped to it.`);
+        ? t("views.plots.bundle.importedWithError", { ...got, err: done.error })
+        : t("views.plots.bundle.imported", got));
     } catch (e) {
       setBundleMsg((e as Error).message);
       setIncoming(null);
@@ -253,7 +260,7 @@ export default function Plots({
         block: r.id, name: r.name, geometry: r.region,
         base_temp: r.baseTempF, retired: true,
       });
-      if (!res.success) { setErr(res.error || "The block could not be retired."); return; }
+      if (!res.success) { setErr(res.error || t("views.plots.err.retire")); return; }
       setRegions(deleteRegion(r.id));
       setConfirming(null);
     } catch (e) {
@@ -273,35 +280,35 @@ export default function Plots({
     try {
       const rows = await searchPlace(query, ac.signal);
       setPlaces(rows);
-      if (!rows.length) setMsg("Nothing found by that name. Try a nearby town or a road.");
+      if (!rows.length) setMsg(t("views.plots.msg.notFound"));
     } catch (err2) {
       if ((err2 as Error).name !== "AbortError") setMsg((err2 as Error).message);
     } finally { setSearching(false); }
-  }, [query]);
+  }, [query, t]);
 
   const locate = useCallback(() => {
-    if (!navigator.geolocation) { setMsg("This device will not share a location."); return; }
-    setMsg("Finding you…");
+    if (!navigator.geolocation) { setMsg(t("views.plots.msg.noLocation")); return; }
+    setMsg(t("views.plots.msg.finding"));
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setCentreOn({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         setMsg("");
       },
-      () => setMsg("Could not get a location — search for the farm instead."),
+      () => setMsg(t("views.plots.msg.locationFailed")),
       { enableHighAccuracy: true, timeout: 10_000 },
     );
-  }, []);
+  }, [t]);
 
   function save() {
     const trimmed = name.trim();
-    if (!trimmed) { setMsg("Give the block a name you'll recognise."); return; }
+    if (!trimmed) { setMsg(t("views.plots.msg.needName")); return; }
 
     let region: SavedRegion["region"];
     if (value.mode === "polygon") {
-      if (!isDrawable(value.ring)) { setMsg("Trace at least three corners on the map below."); return; }
+      if (!isDrawable(value.ring)) { setMsg(t("views.plots.msg.threeCorners")); return; }
       region = ringToGeoJSON(value.ring);
     } else {
-      if (!value.centre) { setMsg("Click the middle of the block on the map below."); return; }
+      if (!value.centre) { setMsg(t("views.plots.msg.clickMiddle")); return; }
       region = { lat: value.centre.lat, lon: value.centre.lng, radius_m: value.radiusM };
     }
 
@@ -314,7 +321,7 @@ export default function Plots({
     // To the RECORD, then the cache. Saving only here is what lost a block:
     // the server reported the patron had none, and the cache was cleared to
     // match. See `saveBlock`.
-    setMsg("Saving…");
+    setMsg(t("views.plots.msg.saving"));
     void saveBlock(saved)
       .then((measured) => {
         onSaved(measured);   // switching to it re-scopes the whole app
@@ -333,17 +340,17 @@ export default function Plots({
   return (
     <>
       <div className="mb-3.5 flex items-center justify-between gap-2">
-        <h1 className="figure text-[1.625rem] font-bold">My Plots</h1>
+        <h1 className="figure text-[1.625rem] font-bold">{t("views.plots.title")}</h1>
         {/* A plot someone shared, opened as a plot of your own. Waits for the
             record, like rename: the new plot's name is chosen against the
             plots the record says you have. */}
         <div className="flex gap-1.5">
           {!adding && (
-            <IconButton path={ICON.add} label="Add a plot" tone="quiet" tour="plots.add"
-              title="Trace or pin new ground" onClick={() => setAdding(true)} />
+            <IconButton path={ICON.add} label={t("views.plots.addPlot")} tone="quiet" tour="plots.add"
+              title={t("views.plots.addPlotTitle")} onClick={() => setAdding(true)} />
           )}
-          <IconButton path={ICON.upload} label="Import" tone="quiet" tour="plots.import"
-            title="Import a farm bundle" disabled={!synced || importing}
+          <IconButton path={ICON.upload} label={t("views.plots.import")} tone="quiet" tour="plots.import"
+            title={t("views.plots.importTitle")} disabled={!synced || importing}
             onClick={() => fileRef.current?.click()} />
         </div>
         <input ref={fileRef} type="file" accept="application/json,.json" hidden
@@ -377,9 +384,9 @@ export default function Plots({
                 if (!isActive) onPick(r);
                 setFocus((n) => n + 1);
               }}
-              title={tap === "show" ? `Show ${r.name} on the map`
-                : tap === "ask" ? `Hide or forget ${r.name}`
-                : tap === "frame" ? `Frame ${r.name} on the map` : `Work ${r.name}`}
+              title={tap === "show" ? t("views.plots.chip.show", { name: r.name })
+                : tap === "ask" ? t("views.plots.chip.ask", { name: r.name })
+                : tap === "frame" ? t("views.plots.chip.frame", { name: r.name }) : t("views.plots.chip.work", { name: r.name })}
               className={`flex min-h-11 flex-col items-start justify-center rounded-full border-[1.5px] px-3.5 leading-none ${
                 isHidden ? "border-dashed border-rule bg-panel text-ink-soft opacity-60"
                   : isActive ? "border-ink bg-ink text-paper" : "border-rule bg-panel text-ink active:bg-band"
@@ -389,7 +396,7 @@ export default function Plots({
                   narrow as its name; the active chip adds a small eye, since
                   its tap frames the plot on the map. */}
               <span className={`data mt-0.5 flex items-center gap-1 text-[0.65625rem] ${isActive ? "text-paper/75" : "text-ink-soft"}`}>
-                {r.areaHa != null ? `${r.areaHa.toFixed(1)} ha` : "unmeasured"}
+                {r.areaHa != null ? `${r.areaHa.toFixed(1)} ha` : t("views.plots.unmeasured")}
                 {(isActive || isHidden) && (
                   <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor" aria-hidden="true">
                     <path d={isHidden ? ICON.eyeOff : ICON.eye} />
@@ -405,7 +412,7 @@ export default function Plots({
                   the plot's aliases, and saving what it does not know would
                   clear them. */}
               {synced && editing !== active.id && (
-                <IconButton path={ICON.edit} label={`Rename ${active.name}`} tone="quiet" hideLabel tour="plots.rename"
+                <IconButton path={ICON.edit} label={t("views.plots.rename", { name: active.name })} tone="quiet" hideLabel tour="plots.rename"
                   onClick={() => setEditing(active.id)} />
               )}
               {/* The plot and this season's plantings, pests and wildlife,
@@ -413,15 +420,15 @@ export default function Plots({
                   for only when the share sheet refused the first. */}
               {synced && editing !== active.id && (
                 waiting?.id === active.id ? (
-                  <IconButton path={ICON.share} label="Share ready" title={`Share ${active.name}`}
+                  <IconButton path={ICON.share} label={t("views.plots.shareReady")} title={t("views.plots.share", { name: active.name })}
                     onClick={() => void share(active)} />
                 ) : (
-                  <IconButton path={ICON.share} label={`Share ${active.name}`} tone="quiet" hideLabel tour="plots.share"
-                    title="Share this plot as a farm bundle" disabled={packing === active.id}
+                  <IconButton path={ICON.share} label={t("views.plots.share", { name: active.name })} tone="quiet" hideLabel tour="plots.share"
+                    title={t("views.plots.shareTitle")} disabled={packing === active.id}
                     onClick={() => void share(active)} />
                 )
               )}
-              <IconButton path={ICON.delete} label={`Forget ${active.name}`} tone="quiet" hideLabel tour="plots.forget"
+              <IconButton path={ICON.delete} label={t("views.plots.forget", { name: active.name })} tone="quiet" hideLabel tour="plots.forget"
                 onClick={() => { setConfirming(active); setErr(""); }} />
             </div>
         )} />
@@ -430,15 +437,15 @@ export default function Plots({
           <span className="text-[0.8125rem]">{active.name}</span>
           <button onClick={() => { setHidden(hide(hiddenNow, active.id)); setAsking(null); setFramedId(null); }}
             className="flex min-h-11 items-center gap-1.5 rounded-full border border-rule px-3.5 text-[0.78125rem] font-medium active:bg-band">
-            <Glyph path={ICON.eyeOff} size={16} /> Hide
+            <Glyph path={ICON.eyeOff} size={16} /> {t("views.plots.hide")}
           </button>
           {active.id !== EXAMPLE_ID && (
             <button onClick={() => { setAsking(null); setConfirming(active); setErr(""); }}
               className="flex min-h-11 items-center gap-1.5 rounded-full border border-clay/50 px-3.5 text-[0.78125rem] font-medium text-clay active:bg-band">
-              <Glyph path={ICON.delete} size={16} /> Forget
+              <Glyph path={ICON.delete} size={16} /> {t("views.plots.forgetShort")}
             </button>
           )}
-          <button onClick={() => setAsking(null)} aria-label="Close"
+          <button onClick={() => setAsking(null)} aria-label={t("views.plots.close")}
             className="ml-auto inline-flex h-11 w-11 items-center justify-center text-[1.125rem] text-ink-soft">×</button>
         </div>
       )}
@@ -469,9 +476,9 @@ export default function Plots({
       {/* The plot being worked, in its numbers — what the cards used to
           say three times over, said once, under the map. */}
       <p className="data mt-1 text-[0.65625rem] text-ink-soft">
-        {describe(active, u)}
+        {describe(active, u, t)}
         {" — "}
-        {sun.on && sun.grid ? "tap inside the plot for that spot's light" : "tap a plot to work it, its chip again to frame it"}
+        {sun.on && sun.grid ? t("views.plots.hint.sun") : t("views.plots.hint.tap")}
       </p>
       {/* The Sun's controls under the map, not over it: the strip across
           the map's width hid a third of the ground it coloured. */}
@@ -497,9 +504,9 @@ export default function Plots({
 
       {adding && (<>
       <div className="mt-6 flex items-center justify-between gap-2">
-        <h2 className="figure text-[1.125rem] font-semibold">Add a plot</h2>
-        <IconButton path={ICON.collapse} label="Close" tone="quiet" hideLabel
-          title="Put the finder away" onClick={() => setAdding(false)} />
+        <h2 className="figure text-[1.125rem] font-semibold">{t("views.plots.addPlot")}</h2>
+        <IconButton path={ICON.collapse} label={t("views.plots.close")} tone="quiet" hideLabel
+          title={t("views.plots.putAway")} onClick={() => setAdding(false)} />
       </div>
 
       {/* ── Find the farm ──────────────────────────────────────────────── */}
@@ -509,16 +516,16 @@ export default function Plots({
         <form onSubmit={search} className="flex flex-1 min-w-[240px] gap-2" {...tour("plots.search")}>
           <input
             value={query} onChange={(e) => setQuery(e.target.value)}
-            placeholder="Find a town, road or address"
+            placeholder={t("views.plots.findPlaceholder")}
             className="min-h-11 flex-1 rounded border border-rule bg-white px-3 text-[1rem] focus:border-honey focus:outline-none"
           />
           <button className="min-h-11 rounded border-[1.5px] border-ink px-4 text-[0.8125rem] font-semibold active:bg-ink active:text-paper">
-            {searching ? "…" : "Search"}
+            {searching ? "…" : t("views.plots.search")}
           </button>
         </form>
         <button onClick={locate} {...tour("plots.locate")}
           className="min-h-11 rounded border-[1.5px] border-ink px-4 text-[0.8125rem] font-semibold active:bg-ink active:text-paper">
-          Use my location
+          {t("views.plots.useMyLocation")}
         </button>
 
         <div className="ml-auto flex overflow-hidden rounded-md border-[1.5px] border-ink text-[0.78125rem] font-semibold" {...tour("plots.shape")}>
@@ -526,7 +533,7 @@ export default function Plots({
             <button key={mo}
               onClick={() => setValue({ ...EMPTY, mode: mo, radiusM: value.radiusM })}
               className={`min-h-11 px-4 ${value.mode === mo ? "bg-ink text-paper" : "active:bg-band"}`}>
-              {mo === "polygon" ? "Trace a block" : "Pin + radius"}
+              {mo === "polygon" ? t("views.plots.traceBlock") : t("views.plots.pinRadius")}
             </button>
           ))}
         </div>
@@ -550,13 +557,13 @@ export default function Plots({
       <div className="mt-4 rounded-md border border-rule bg-panel p-4">
         <div className="grid gap-3 sm:grid-cols-[2fr_1fr_auto] sm:items-end">
           <label className="block text-[0.6875rem] text-ink-soft" {...tour("plots.name")}>
-            Name
+            {t("views.plots.name")}
             <input value={name} onChange={(e) => setName(e.target.value)}
-              placeholder="East Bench"
+              placeholder={t("views.plots.namePlaceholder")}
               className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[1rem] focus:border-honey focus:outline-none" />
           </label>
           <label className="block text-[0.6875rem] text-ink-soft" {...tour("plots.base")}>
-            Base{u.tempUnit}
+            {t("views.plots.base", { unit: u.tempUnit })}
             {/* Shown in the reader's scale, stored in the Fahrenheit the
                 service validates against. */}
             <input defaultValue={Math.round(u.temp(baseTemp))} type="number" inputMode="decimal"
@@ -564,13 +571,13 @@ export default function Plots({
               onChange={(e) => setBaseTemp(u.toF(Number(e.target.value)) || 50)}
               className="mt-0.5 min-h-11 w-full rounded border border-rule bg-white px-2.5 text-[1rem] focus:border-honey focus:outline-none" />
           </label>
-          <IconButton path={ICON.save} label="Save" onClick={save} disabled={!ready} tour="plots.save"
-            title="Save this ground and work it" />
+          <IconButton path={ICON.save} label={t("views.plots.save")} onClick={save} disabled={!ready} tour="plots.save"
+            title={t("views.plots.saveTitle")} />
         </div>
 
         {ready && (
           <p className="mt-2 text-[0.78125rem] text-ink-soft">
-            {formatArea(m2)} — saving switches every view to it.
+            {t("views.plots.areaSaving", { area: formatArea(m2) })}
           </p>
         )}
         {msg && <p className="mt-2 text-[0.78125rem] text-ink">{msg}</p>}
@@ -588,20 +595,20 @@ export default function Plots({
               onClick={() => setValue({ ...value, ring: value.ring.slice(0, -1) })}
               disabled={!value.ring.length}
               className="min-h-11 rounded border border-rule px-3.5 active:bg-band disabled:opacity-40">
-              Undo corner
+              {t("views.plots.undoCorner")}
             </button>
             <button onClick={() => setValue({ ...EMPTY, mode: "polygon" })}
               disabled={!value.ring.length}
               className="min-h-11 rounded border border-rule px-3.5 active:bg-band disabled:opacity-40">
-              Start over
+              {t("views.plots.startOver")}
             </button>
             <span className="text-ink-soft">
-              Click each corner · drag a corner to fix it
+              {t("views.plots.clickCorners")}
             </span>
           </>
         ) : (
           <>
-            <span className="text-ink-soft">Radius</span>
+            <span className="text-ink-soft">{t("views.plots.radius")}</span>
             {RADII.map((r) => (
               <button key={r} onClick={() => setValue({ ...value, radiusM: r })}
                 className={`min-h-11 rounded border px-3.5 ${
@@ -618,22 +625,23 @@ export default function Plots({
         <div className="fixed inset-0 z-[900] flex items-center justify-center bg-ink/40 px-5">
           <div className="w-full max-w-sm rounded-xl border border-rule bg-paper p-5 shadow-xl">
             <h2 className="figure text-[1.0625rem] font-semibold">
-              Import {incoming.bundle.plot.name}?
+              {t("views.plots.importQ", { name: incoming.bundle.plot.name })}
             </h2>
             <p className="mt-2 text-[0.8125rem] leading-relaxed">
-              {countLine(incoming.bundle)}. It becomes a new plot of yours, on
-              the same ground; none of your plots are changed.
+              {t("views.plots.importBody", { counts: countLine(incoming.bundle) })}
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button onClick={() => setIncoming(null)} disabled={importing}
                 className="min-h-11 rounded-full border border-rule px-4 text-[0.8125rem] font-medium text-ink-soft disabled:opacity-40 active:bg-band">
-                Not now
+                {t("views.plots.notNow")}
               </button>
               <button onClick={() => void accept()} disabled={importing}
                 className="min-h-11 rounded-full border-[1.5px] border-ink bg-ink px-4 text-[0.8125rem] font-semibold text-paper disabled:opacity-40">
                 {importing
-                  ? (progress && progress.total ? `Importing… ${progress.done} of ${progress.total}` : "Importing…")
-                  : "Import it"}
+                  ? (progress && progress.total
+                    ? t("views.plots.importingOf", { done: progress.done, total: progress.total })
+                    : t("views.plots.importing"))
+                  : t("views.plots.importIt")}
               </button>
             </div>
           </div>
@@ -643,21 +651,20 @@ export default function Plots({
       {bigFile && (
         <div className="fixed inset-0 z-[900] flex items-center justify-center bg-ink/40 px-5">
           <div className="w-full max-w-sm rounded-xl border border-rule bg-paper p-5 shadow-xl">
-            <h2 className="figure text-[1.0625rem] font-semibold">Open a large bundle?</h2>
+            <h2 className="figure text-[1.0625rem] font-semibold">{t("views.plots.largeQ")}</h2>
             {/* Asked, not refused. A big farm makes a big bundle, and the
                 point of sharing one is to share all of it. */}
             <p className="mt-2 text-[0.8125rem] leading-relaxed">
-              {bigFile.name} is {(bigFile.size / 1_000_000).toFixed(1)} MB, larger than most
-              farm bundles. It may take a while to open and import.
+              {t("views.plots.largeBody", { file: bigFile.name, mb: (bigFile.size / 1_000_000).toFixed(1) })}
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button onClick={() => setBigFile(null)}
                 className="min-h-11 rounded-full border border-rule px-4 text-[0.8125rem] font-medium text-ink-soft active:bg-band">
-                Not now
+                {t("views.plots.notNow")}
               </button>
               <button onClick={() => void stage(bigFile)}
                 className="min-h-11 rounded-full border-[1.5px] border-ink bg-ink px-4 text-[0.8125rem] font-semibold text-paper">
-                Open it
+                {t("views.plots.openIt")}
               </button>
             </div>
           </div>
@@ -668,15 +675,13 @@ export default function Plots({
         <div className="fixed inset-0 z-[900] flex items-center justify-center bg-ink/40 px-5">
           <div className="w-full max-w-sm rounded-xl border border-rule bg-paper p-5 shadow-xl">
             <h2 className="figure text-[1.0625rem] font-semibold">
-              Forget {confirming.name}?
+              {t("views.plots.forgetQ", { name: confirming.name })}
             </h2>
             {/* What actually happens, in the order it matters. A row can be
                 undone from the bar on its page; a block cannot, which is the
                 whole reason this asks first. */}
             <p className="mt-2 text-[0.8125rem] leading-relaxed">
-              The plot and everything recorded on it — crops, pests, watches,
-              reports — stop appearing anywhere. Nothing is deleted: the record
-              keeps it, and saving the plot again brings it back.
+              {t("views.plots.forgetBody")}
             </p>
             {err && <p className="mt-2 text-[0.78125rem] text-clay">{err}</p>}
             <div className="mt-4 flex justify-end gap-2">
@@ -685,14 +690,14 @@ export default function Plots({
                 disabled={forgetting}
                 className="min-h-11 rounded-full border border-rule px-4 text-[0.8125rem] font-medium text-ink-soft disabled:opacity-40 active:bg-band"
               >
-                Keep it
+                {t("views.plots.keepIt")}
               </button>
               <button
                 onClick={() => void forget(confirming)}
                 disabled={forgetting}
                 className="min-h-11 rounded-full border-[1.5px] border-clay bg-clay px-4 text-[0.8125rem] font-semibold text-paper disabled:opacity-40"
               >
-                {forgetting ? "Forgetting…" : "Forget it"}
+                {forgetting ? t("views.plots.forgetting") : t("views.plots.forgetIt")}
               </button>
             </div>
           </div>

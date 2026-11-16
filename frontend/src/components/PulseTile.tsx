@@ -9,6 +9,7 @@
 
 import type { ReactNode } from "react";
 import { tour, type Target } from "../lib/tour/targets";
+import { useT } from "../i18n";
 
 export type Tone = "growth" | "frost" | "clay";
 
@@ -63,6 +64,7 @@ export default function PulseTile({ emoji, value, unit, label, tone, muted, gaug
   /// The tour stop that explains this tile.
   tourId?: Target;
 }) {
+  const t = useT();
   const fill = FILL[tone ?? "growth"];
   return (
     <div title={title} {...(tourId ? tour(tourId) : {})}
@@ -88,10 +90,10 @@ export default function PulseTile({ emoji, value, unit, label, tone, muted, gaug
               <span key={`z${i}`} className={`absolute top-0 h-full first:rounded-l-full ${z.className}`}
                 style={{ left: `${clamp(z.from) * 100}%`, width: `${(clamp(z.to) - clamp(z.from)) * 100}%` }} />
             ))}
-            {gauge.ticks?.map((t, i) => (
-              <span key={i} title={t.label}
+            {gauge.ticks?.map((tk, i) => (
+              <span key={i} title={tk.label}
                 className="absolute top-1/2 h-[9px] w-px -translate-y-1/2 bg-ink-soft/50"
-                style={{ left: `${clamp(t.pos) * 100}%` }} />
+                style={{ left: `${clamp(tk.pos) * 100}%` }} />
             ))}
             <span className={`absolute top-1/2 size-[11px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-panel ${fill}`}
               style={{ left: `${clamp(gauge.pos) * 100}%` }} />
@@ -101,12 +103,12 @@ export default function PulseTile({ emoji, value, unit, label, tone, muted, gaug
               <span className="truncate">{gauge.lo}</span><span className="truncate">{gauge.hi}</span>
             </div>
           )}
-          {(gauge.ticks?.some((t) => t.mark) || gauge.labels?.length) && (
+          {(gauge.ticks?.some((tk) => tk.mark) || gauge.labels?.length) && (
             <div className="data relative mt-1 h-3 text-[0.59375rem] text-ink-soft">
-              {[...(gauge.ticks ?? []).filter((t) => t.mark).map((t) => ({ pos: t.pos, text: t.mark!, title: t.label })),
-                ...(gauge.labels ?? []).map((l) => ({ ...l, title: undefined }))].map((t, i) => (
-                <span key={i} title={t.title} className="absolute -translate-x-1/2 whitespace-nowrap"
-                  style={{ left: `${clamp(t.pos) * 100}%` }}>{t.text}</span>
+              {[...(gauge.ticks ?? []).filter((tk) => tk.mark).map((tk) => ({ pos: tk.pos, text: tk.mark!, title: tk.label })),
+                ...(gauge.labels ?? []).map((l) => ({ ...l, title: undefined }))].map((tk, i) => (
+                <span key={i} title={tk.title} className="absolute -translate-x-1/2 whitespace-nowrap"
+                  style={{ left: `${clamp(tk.pos) * 100}%` }}>{tk.text}</span>
               ))}
             </div>
           )}
@@ -123,7 +125,7 @@ export default function PulseTile({ emoji, value, unit, label, tone, muted, gaug
                 : { right: "50%", width: `${clamp(-gauge.value) * 50}%` }} />
           </div>
           <div className="data mt-1 flex justify-between gap-2 text-[0.59375rem] text-ink-soft">
-            <span className="truncate">{gauge.lo}</span><span>normal</span><span className="truncate">{gauge.hi}</span>
+            <span className="truncate">{gauge.lo}</span><span>{t("ui.pulseTile.normal")}</span><span className="truncate">{gauge.hi}</span>
           </div>
         </div>
       )}

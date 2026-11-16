@@ -7,17 +7,19 @@
 import { useEffect, useRef, useState } from "react";
 import { QuoteScroller } from "@tollbooth-dpyc/web/react";
 import type { FieldDiff } from "../lib/refreshRow";
-import { NATURALIST_QUOTES, NATURALIST_SOURCE, RESEARCH_WAIT, quoteStyles } from "../lib/quotes";
+import { NATURALIST_QUOTES, NATURALIST_SOURCE, researchWait, quoteStyles } from "../lib/quotes";
 import Provenance from "./Provenance";
 import { RowActions } from "./ui";
+import { useT } from "../i18n";
 
 /// The 🧠 in a row's actions.
 export function RefreshButton({ name, open, onClick }: {
   name: string; open: boolean; onClick: () => void;
 }) {
+  const t = useT();
   return (
     <button onClick={onClick}
-      aria-label={`Refresh ${name} from AI`} title="Refresh from AI"
+      aria-label={t("ui.refreshFromAI.refreshName", { name })} title={t("ui.refreshFromAI.refresh")}
       className={`inline-flex h-11 w-11 items-center justify-center text-[1.0625rem] ${
         open ? "" : "opacity-60 grayscale active:opacity-100 active:grayscale-0"}`}>
       🧠</button>
@@ -37,6 +39,7 @@ export default function RefreshFromAI<T>({ colSpan, tool, ask, onSave, onCancel,
   /// Said when `ask` answers null.
   missing: string;
 }) {
+  const t = useT();
   const [diffs, setDiffs] = useState<FieldDiff<T>[] | null | undefined>(undefined);
   const [at, setAt] = useState<Date | null>(null);
   const [err, setErr] = useState("");
@@ -78,18 +81,18 @@ export default function RefreshFromAI<T>({ colSpan, tool, ask, onSave, onCancel,
           {diffs === undefined && !err ? (
             <div className="rounded-md border border-rule bg-band/40">
               <QuoteScroller quotes={NATURALIST_QUOTES} source={NATURALIST_SOURCE}
-                heading={RESEARCH_WAIT} intervalMs={6500} classNames={quoteStyles} />
+                heading={researchWait()} intervalMs={6500} classNames={quoteStyles} />
             </div>
           ) : (
             <>
               {err && <p className="mb-1.5 text-[0.75rem] text-clay">{err}</p>}
               {diffs === null && <p className="text-[0.78125rem] text-ink-soft">{missing}</p>}
-              {diffs?.length === 0 && <p className="text-[0.78125rem] text-growth">✓ Matches the reference.</p>}
+              {diffs?.length === 0 && <p className="text-[0.78125rem] text-growth">{t("ui.refreshFromAI.matches")}</p>}
               {!!diffs?.length && (
                 <div className="grid grid-cols-[auto_1fr_1fr] items-center gap-x-2 gap-y-1.5">
                   <span />
-                  <span className="data text-[0.65625rem] text-ink-soft">✍️ Yours</span>
-                  <span className="data text-[0.65625rem] text-ink-soft">🧠 AI</span>
+                  <span className="data text-[0.65625rem] text-ink-soft">{t("ui.refreshFromAI.yours")}</span>
+                  <span className="data text-[0.65625rem] text-ink-soft">{t("ui.refreshFromAI.ai")}</span>
                   {diffs.map((d) => (
                     <div key={d.field} className="contents">
                       <span className="pr-1 text-[0.75rem] font-semibold">{d.label}</span>
@@ -104,8 +107,8 @@ export default function RefreshFromAI<T>({ colSpan, tool, ask, onSave, onCancel,
               <div className="mt-1.5 flex items-center justify-end gap-1">
                 {at && <Provenance tool={tool} at={at} onCost={onCost} />}
                 {diffs?.length
-                  ? <RowActions onCommit={save} onCancel={onCancel} saving={saving} what="the picked figures" />
-                  : <button onClick={onCancel} aria-label="Close"
+                  ? <RowActions onCommit={save} onCancel={onCancel} saving={saving} what={t("ui.refreshFromAI.picked")} />
+                  : <button onClick={onCancel} aria-label={t("ui.refreshFromAI.close")}
                       className="inline-flex h-11 w-11 items-center justify-center text-[1.125rem] text-ink-soft">×</button>}
               </div>
             </>

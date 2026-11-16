@@ -14,6 +14,7 @@ import { useEffect } from "react";
 import { useTimezone } from "@tollbooth-dpyc/web/react";
 import { clockDay, clockTime } from "../lib/clock";
 import { priceOf } from "../lib/mcp";
+import { useT } from "../i18n";
 
 export default function Provenance({
   tool, at, onCost, from, hideTime,
@@ -31,6 +32,7 @@ export default function Provenance({
   /// Two copies of "read 8:28 PM" on one row is one copy too many.
   hideTime?: boolean;
 }) {
+  const t = useT();
   const [, zone] = useTimezone();
   useEffect(() => {
     if (!at || !onCost) return;
@@ -55,11 +57,9 @@ export default function Provenance({
 
   return (
     <span className="data ml-auto text-right text-[0.65625rem] font-normal text-ink-soft"
-      title={from
-        ? "The weather service was busy, so this is the last reading taken of this ground"
-        : "When this answer was read"}>
-      read {clockTime(at, zone)}
-      {from && ` · weather from ${when(from)}`}
+      title={from ? t("ui.provenance.busy") : t("ui.provenance.when")}>
+      {t("ui.provenance.read", { time: clockTime(at, zone) })}
+      {from && t("ui.provenance.weatherFrom", { when: when(from) })}
     </span>
   );
 }

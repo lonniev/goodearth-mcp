@@ -2,6 +2,9 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { FACE, onFace, stormWhen, stormWords } from "./storm.ts";
 import type { StormSignal } from "./mcp.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 const base: StormSignal = {
   now_hpa: 1012, at: "2026-10-22T10:00", tendency: null, change_24h_hpa: null,

@@ -4,6 +4,9 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { bloomSpan, fillFrom, mayFill, provenance } from "./profileFill.ts";
 import type { PlantProfileResult } from "./mcp.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 const F = { degreeDays: (d: number) => d, temp: (f: number) => f };
 const C = { degreeDays: (d: number) => (d * 5) / 9, temp: (f: number) => ((f - 32) * 5) / 9 };

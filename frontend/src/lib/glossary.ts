@@ -10,6 +10,9 @@
 // several of these are figures the grower supplies, and a definition that hides
 // that would suggest the service knows something it does not.
 
+import { tr } from "../i18n/index.ts";
+import type { MessageKey } from "../i18n/en.ts";
+
 export interface Entry {
   /// Stable key. Used by `Term of="..."`, so renaming one is a compile error
   /// rather than a definition that silently stops appearing.
@@ -23,360 +26,74 @@ export interface Entry {
   aka?: string[];
 }
 
-export const GLOSSARY: Entry[] = [
+const ROWS: Omit<Entry, "term" | "said">[] = [
   // ── Counting heat ──────────────────────────────────────────────────────
-  {
-    key: "gdd", term: "Growing degree day", group: "heat", aka: ["GDD", "degree day"],
-    said: "A day's worth of warmth above the temperature a plant or insect "
-      + "starts growing at. A day averaging 60 °F contributes 10 growing degree "
-      + "days above a base of 50. They add up through the season, which is why "
-      + "a crop is paced by accumulated heat rather than by the calendar: the "
-      + "same variety is ready in different weeks in different years.",
-  },
-  {
-    key: "base_temp", term: "Base temperature", group: "heat", aka: ["base", "threshold temperature"],
-    said: "The temperature below which a plant or insect does no growing. It "
-      + "belongs to the organism and not to the field — winter wheat counts "
-      + "from 32 °F and field corn from 50 °F on the same acre — which is why "
-      + "it sits on the planting rather than on the block.",
-  },
-  {
-    key: "gdd_target", term: "Degree-day target", group: "heat",
-    said: "The heat one planting needs from set-out to the stage you care "
-      + "about. Nobody publishes it for a cultivar, so it comes off your seed "
-      + "packet or your extension bulletin. Good Earth counts what your ground "
-      + "delivered against the figure you gave it.",
-  },
-  {
-    key: "biofix", term: "Biofix", group: "life",
-    said: "The day a degree-day count starts for a pest. For most published "
-      + "models it is the first sustained catch in a trap, not a date on the "
-      + "calendar — which is why two farms in one county can be a week apart.",
-  },
-  {
-    key: "threshold", term: "Threshold", group: "life",
-    said: "The accumulated heat at which a stage is expected to arrive. Yours "
-      + "to set: the published figures vary by region and by the model you "
-      + "trust, and this service records the one you chose rather than "
-      + "asserting one of its own.",
-  },
-  {
-    key: "infection_period", term: "Infection period", group: "life",
-    aka: ["qualifying period", "wet period"],
-    said: "A stretch of weather that met a disease model's criteria — long "
-      + "enough wet, at the right temperature, for an infection to have been "
-      + "possible. It says the conditions occurred, not that the crop caught "
-      + "anything: whether spores were present, and what to do about it, is "
-      + "between you and your extension service.",
-  },
-  {
-    key: "severity_value", term: "Severity value", group: "life",
-    aka: ["SV"],
-    said: "A score from 0 to 4 that one wet period contributes, from how many "
-      + "hours it ran and how warm it was. They add up across the season the "
-      + "way degree days do, which is why an early-blight answer carries a "
-      + "running total as well as a date.",
-  },
-  {
-    key: "conducive", term: "Conducive", group: "life",
-    said: "Weather that favours a disease without being an infection period — "
-      + "used here for powdery mildew, which wants humid air and is set back "
-      + "by rain. It is the one model where a wet hour counts against rather "
-      + "than for, so it is reported in its own words.",
-  },
-  {
-    key: "leaf_wetness", term: "Leaf wetness", group: "life",
-    aka: ["wet hours", "estimated", "wetness"],
-    said: "How long a leaf stays wet, which is what decides a fungal infection "
-      + "the way accumulated heat decides an insect. Good Earth ESTIMATES it: a "
-      + "real measurement is a sensor plate in a field, and no weather service "
-      + "publishes one for arbitrary ground, so an hour is counted wet when the "
-      + "modelled humidity reaches 90% or rain falls into air already close to "
-      + "its dew point. That is the standard substitution and it inherits the "
-      + "weather grid's own bias — near a lake, two feeds a couple of degrees "
-      + "apart on dew point can differ threefold on the hours they count.",
-  },
-  {
-    key: "disease_status", term: "Forecast, recent, clear", group: "life",
-    aka: ["clear", "all clear", "clear prognosis", "recent", "forecast", "disease status"],
-    said: "The word beside each disease on the Dashboard. Forecast: the next "
-      + "ten days of weather meet the model's criteria. Recent: they were met "
-      + "on your ground in the last fourteen days. Clear: neither — a clear "
-      + "prognosis. It is read from the weather, not from your records, so "
-      + "clear means the weather has not been right for it.",
-  },
-  {
-    key: "disease_model", term: "Disease model", group: "life",
-    said: "A published rule that turns hours of wetness and temperature into "
-      + "the dates a disease could have infected. Good Earth runs five of them "
-      + "on every plot and says whose each one is; it adds none of its own.",
-  },
-  {
-    key: "late_blight", term: "Late blight", group: "life",
-    aka: ["Phytophthora infestans", "Hutton criteria", "Smith period"],
-    said: "The potato and tomato disease behind the Irish famine. Timed here by "
-      + "the Hutton criteria: two days running, each with a night above 10 °C "
-      + "and at least six hours at 90% humidity.",
-  },
-  {
-    key: "early_blight", term: "Early blight", group: "life",
-    aka: ["Alternaria", "Wallin"],
-    said: "A leaf-spot disease of potato and tomato that builds through the "
-      + "season. Timed by Wallin severity values, which add up like degree "
-      + "days, so it is reported as a running total as well as a date.",
-  },
-  {
-    key: "apple_scab", term: "Apple scab", group: "life",
-    aka: ["Venturia inaequalis", "Mills"],
-    said: "The spring disease of apples and crabapples. Timed by the modified "
-      + "Mills table: how many hours a leaf stayed wet at the temperature of "
-      + "that rain, graded light, moderate or severe.",
-  },
-  {
-    key: "grey_mould", term: "Grey mould", group: "life",
-    aka: ["botrytis", "gray mold", "Botrytis cinerea"],
-    said: "The fuzzy grey rot of flowers, strawberries and grapes. Timed by one "
-      + "unbroken stretch of wet hours — about six when it is warm, eighteen "
-      + "when it is cool. The same hours split by a dry spell do not count.",
-  },
-  {
-    key: "powdery_mildew", term: "Powdery mildew", group: "life",
-    aka: ["mildew"],
-    said: "The white dust on cucurbit, grape and rose leaves. It is the "
-      + "opposite of the others: it wants humid air at 68–81 °F and is set "
-      + "back by rain, so its hours are the dry-but-muggy ones.",
-  },
-  {
-    key: "spread", term: "Spread", group: "ground",
-    said: "The difference an answer shows across your block. A bench and a "
-      + "hollow on the same acreage do not share a frost date, so every answer "
-      + "carries the range over the ground it was measured on rather than a "
-      + "single number for a pin.",
-  },
+  { key: "gdd", group: "heat", aka: ["GDD", "degree day"] },
+  { key: "base_temp", group: "heat", aka: ["base", "threshold temperature"] },
+  { key: "gdd_target", group: "heat" },
+  { key: "biofix", group: "life" },
+  { key: "threshold", group: "life" },
+  { key: "infection_period", group: "life", aka: ["qualifying period", "wet period"] },
+  { key: "severity_value", group: "life", aka: ["SV"] },
+  { key: "conducive", group: "life" },
+  { key: "leaf_wetness", group: "life", aka: ["wet hours", "estimated", "wetness"] },
+  { key: "disease_status", group: "life", aka: ["clear", "all clear", "clear prognosis", "recent", "forecast", "disease status"] },
+  { key: "disease_model", group: "life" },
+  { key: "late_blight", group: "life", aka: ["Phytophthora infestans", "Hutton criteria", "Smith period"] },
+  { key: "early_blight", group: "life", aka: ["Alternaria", "Wallin"] },
+  { key: "apple_scab", group: "life", aka: ["Venturia inaequalis", "Mills"] },
+  { key: "grey_mould", group: "life", aka: ["botrytis", "gray mold", "Botrytis cinerea"] },
+  { key: "powdery_mildew", group: "life", aka: ["mildew"] },
+  { key: "spread", group: "ground" },
 
   // ── Cold, and surviving it ─────────────────────────────────────────────
-  {
-    key: "chill_hours", term: "Chill hours", group: "cold",
-    said: "Hours a plant spent at or below about 45 °F over the winter. Fruit "
-      + "trees need a quantity of it before they will bloom evenly, and a warm "
-      + "winter can leave a tree that is perfectly hardy blooming raggedly or "
-      + "not at all.",
-  },
-  {
-    key: "hardiness", term: "Hardiness", group: "cold", aka: ["hardy to", "cold limit"],
-    said: "The lowest temperature a plant survives. Good Earth compares it "
-      + "against the coldest night in your block's own record for each winter, "
-      + "and answers with how often that ground went below it — which is a "
-      + "different question from the zone on the label.",
-  },
-  {
-    key: "frost_free", term: "Frost-free days", group: "cold",
-    said: "The length of the growing season on your ground: the run of days "
-      + "between the last spring frost and the first in autumn, taken as a "
-      + "median over the seasons on record rather than from one year.",
-  },
-  {
-    key: "dormancy", term: "Dormancy", group: "cold",
-    said: "The part of the year a perennial spends not growing. Chill is "
-      + "banked during it, which is why winter is part of a tree's cycle and "
-      + "not a gap between growing seasons.",
-  },
-  {
-    key: "sap_run", term: "Sap run", group: "cold",
-    said: "The days sap moves in a tapped tree: a night below freezing "
-      + "followed by a day above it. It answers to freeze and thaw rather "
-      + "than to warmth, and it ends when the nights stop freezing.",
-  },
+  { key: "chill_hours", group: "cold" },
+  { key: "hardiness", group: "cold", aka: ["hardy to", "cold limit"] },
+  { key: "frost_free", group: "cold" },
+  { key: "dormancy", group: "cold" },
+  { key: "sap_run", group: "cold" },
 
   // ── The sky ────────────────────────────────────────────────────────────
-  {
-    key: "dew_point", term: "Dew point", group: "sky",
-    said: "The temperature air must cool to before its water condenses. It is "
-      + "the absolute measure of how much water the air holds, and a run of "
-      + "high dew points is disease weather whatever the heat total says.",
-  },
-  {
-    key: "humidity", term: "Relative humidity", group: "sky",
-    said: "How close the air is to holding all the water it can, as a "
-      + "percentage. It moves with temperature: the same water reads 90 % at "
-      + "dawn and 50 % by noon because the air warmed, not because anything "
-      + "dried. The dew point is the steadier figure; this is what a leaf feels.",
-  },
-  {
-    key: "pressure", term: "Barometric pressure", group: "sky",
-    aka: ["barometer", "air pressure", "sea-level pressure", "inHg", "hPa"],
-    said: "The weight of the air overhead, corrected to sea level so one place "
-      + "compares with another. Highs bring settled weather and lows bring "
-      + "cloud, wind and rain. Its level matters less than how fast it changes.",
-  },
-  {
-    key: "pressure_tendency", term: "Pressure tendency", group: "sky",
-    aka: ["falling quickly", "storm signal", "storm likely", "unsettled", "bomb"],
-    said: "How much the barometer moved in the last three hours, in the Met "
-      + "Office's words: steady (under 0.1 hPa), slowly (to 1.5), plain rising "
-      + "or falling (to 3.5), quickly (to 6) and very rapidly beyond. A fall of "
-      + "1.6 hPa reads as unsettled, 3.6 hPa as a storm likely, and more than "
-      + "6 hPa — or a day-long fall deep enough to count as a 'bomb' — as "
-      + "severe. It is a signal from the forecast model, not a rainfall amount.",
-  },
-  {
-    key: "dew_point_depression", term: "Dew-point depression", group: "sky",
-    aka: ["depression"],
-    said: "How far the air temperature sits above its dew point. Near zero, "
-      + "the air is about to condense onto leaves; rain falling into air within "
-      + "about 5 °F of its dew point is what the disease models count as wetting "
-      + "a leaf.",
-  },
-  {
-    key: "water", term: "Water balance", group: "sky",
-    aka: ["water", "soil moisture", "evapotranspiration", "ET0", "dry soil", "irrigation", "drought"],
-    said: "The Dashboard's water panel. Above the line, each day's rain; below "
-      + "it, what the air pulled out (FAO-56 reference evapotranspiration, a short "
-      + "grass crop). The running balance adds the two up from two weeks ago, so "
-      + "\"30 mm short\" means the air took that much more than the sky gave. It "
-      + "is a tally, not a soil bucket: it knows nothing of your soil's texture, "
-      + "runoff or drainage. The gauges are the weather model's soil at 0–9 cm "
-      + "and 9–81 cm, on a grid kilometres wide, and your station's probe beside "
-      + "them when it has one. Whether to water is yours to judge.",
-  },
-  {
-    key: "drying", term: "Dry by, dry days", group: "sky",
-    aka: ["dew off", "dry day", "drying", "mowing", "harvest", "hay"],
-    said: "The Dashboard's drying panel: a line, and a card per day with a "
-      + "bar for drying power (FAO-56 reference evapotranspiration, how hard the "
-      + "air pulls water out of anything wet). \"Dry by 9 am\" is the first hour "
-      + "this ground's leaves are estimated to stay dry for two hours running "
-      + "after a wet night — the dew burning off. A dry day is a forecast day "
-      + "with no hour of rain. Both come from the same modelled hours as leaf "
-      + "wetness, so they are estimates, and they describe the weather: what to "
-      + "cut, pick or mow, and whether hay will cure, is yours to judge.",
-  },
-  {
-    key: "et0", term: "Evapotranspiration (ET0)", group: "sky",
-    aka: ["ET0", "evaporation", "evaporative demand", "drying power"],
-    said: "How much water the air would pull from well-watered grass in a day, "
-      + "in millimetres — the standard FAO measure of evaporative demand, from "
-      + "sun, warmth, dry air and wind. Not wet is not drying: a still, overcast, "
-      + "humid day wets nothing and dries little, and its ET0 says so.",
-  },
-  {
-    key: "normal", term: "Normal", group: "sky", aka: ["normal band", "the grey band"],
-    said: "What this ground usually does on this date, taken from its own "
-      + "record over the last ten seasons. It is the band a chart draws behind "
-      + "the current year — not a target, and not a forecast.",
-  },
-  {
-    key: "daylight", term: "Day length", group: "sky", aka: ["photoperiod", "daylight"],
-    said: "Hours between sunrise and sunset. It is astronomy, so it is the one "
-      + "reading here that is computed exactly rather than forecast, and it "
-      + "falls on the same date every year whatever the weather does.",
-  },
-  {
-    key: "spring_index", term: "Spring Index", group: "sky", aka: ["first leaf", "first bloom"],
-    said: "USA-NPN's dating of when spring arrived at a point, as first leaf "
-      + "and first bloom. It is computed from cloned indicator plants, so it "
-      + "gives one date for a whole block rather than a date for each of your "
-      + "trees.",
-  },
+  { key: "dew_point", group: "sky" },
+  { key: "humidity", group: "sky" },
+  { key: "pressure", group: "sky", aka: ["barometer", "air pressure", "sea-level pressure", "inHg", "hPa"] },
+  { key: "pressure_tendency", group: "sky", aka: ["falling quickly", "storm signal", "storm likely", "unsettled", "bomb"] },
+  { key: "dew_point_depression", group: "sky", aka: ["depression"] },
+  { key: "water", group: "sky", aka: ["water", "soil moisture", "evapotranspiration", "ET0", "dry soil", "irrigation", "drought"] },
+  { key: "drying", group: "sky", aka: ["dew off", "dry day", "drying", "mowing", "harvest", "hay"] },
+  { key: "et0", group: "sky", aka: ["ET0", "evaporation", "evaporative demand", "drying power"] },
+  { key: "normal", group: "sky", aka: ["normal band", "the grey band"] },
+  { key: "daylight", group: "sky", aka: ["photoperiod", "daylight"] },
+  { key: "spring_index", group: "sky", aka: ["first leaf", "first bloom"] },
 
   // ── What lives there ───────────────────────────────────────────────────
-  {
-    key: "phenophase", term: "Phenophase", group: "life",
-    said: "A stage of a plant or animal's year that somebody can see and "
-      + "record: breaking leaf buds, open flowers, pollen release, coloured "
-      + "leaves. USA-NPN publishes which ones it tracks for a species; when "
-      + "each arrives on your ground is yours to record.",
-  },
-  {
-    key: "has_a_year", term: "Has a year", group: "life",
-    said: "USA-NPN publishes a life cycle for this species — the stages it is "
-      + "tracked through, such as breaking leaf buds, open flowers, pollen "
-      + "release or coloured leaves. It means there is a year to look at, not "
-      + "that Good Earth knows when any of it happens on your ground. When "
-      + "each stage arrives here is yours to record.",
-  },
-  {
-    key: "observations", term: "Observations", group: "life",
-    said: "How many times somebody recorded this species near your ground, in "
-      + "iNaturalist. It measures observers as much as organisms: a roadside "
-      + "is better recorded than a back hayfield, so a high count is evidence "
-      + "that people were standing there — not that a thing is common on your "
-      + "land.",
-  },
-  {
-    key: "phenology", term: "Phenology", group: "life",
-    said: "The timing of natural events through the year, and the study of "
-      + "what moves them. Everything on this site is phenology: not what the "
-      + "weather is, but what the weather means for when things happen.",
-  },
-  {
-    key: "taxon", term: "Taxon", group: "life", aka: ["scientific name", "binomial"],
-    said: "A named group in the tree of life, and the scientific name that "
-      + "identifies it — Acer saccharum for sugar maple. Good Earth stores the "
-      + "one you pick because the scientific databases it asks are keyed on "
-      + "it; no catalogue anywhere has a row for “Maple · sugar”.",
-  },
-  {
-    key: "succession", term: "Succession", group: "life",
-    said: "One of several plantings of the same crop, put in weeks apart so "
-      + "the harvest is continuous. Each is its own row here, because each has "
-      + "its own set-out date and so its own heat to count.",
-  },
-  {
-    key: "direct_sow", term: "Direct sow", group: "life",
-    said: "Sown where it will grow rather than started under lights and moved. "
-      + "It waits on soil temperature rather than on air, and soil lags air by "
-      + "weeks in spring.",
-  },
-  {
-    key: "set_out", term: "Set-out", group: "life", aka: ["planted"],
-    said: "The day a planting went into the ground. Heat is counted from it, "
-      + "so a wrong set-out moves every date that follows.",
-  },
+  { key: "phenophase", group: "life" },
+  { key: "has_a_year", group: "life" },
+  { key: "observations", group: "life" },
+  { key: "phenology", group: "life" },
+  { key: "taxon", group: "life", aka: ["scientific name", "binomial"] },
+  { key: "succession", group: "life" },
+  { key: "direct_sow", group: "life" },
+  { key: "set_out", group: "life", aka: ["planted"] },
 
   // ── The ground, and the service ────────────────────────────────────────
-  {
-    key: "block", term: "Block", group: "ground", aka: ["plot", "ground"],
-    said: "A piece of your ground, saved once as a shape with a name. Every "
-      + "tool takes a block and samples across it, so the geometry travels "
-      + "once instead of on every question.",
-  },
-  {
-    key: "resolution", term: "Resolution", group: "service",
-    said: "How fine the feed behind an answer actually is. A 9 km reanalysis "
-      + "cell covers a whole town, so two points on one farm return the same "
-      + "number from it. Every answer names the feed it came from and how "
-      + "coarse that feed is.",
-  },
-  {
-    key: "provenance", term: "Provenance", group: "service",
-    said: "Which service answered, when, and what it cost. It appears beside "
-      + "every computed answer, because a figure you cannot trace is one you "
-      + "have to take on trust.",
-  },
-  {
-    key: "plot_station", term: "A plot's station", group: "service", aka: ["FieldData", "current conditions"],
-    said: "The one FieldData station you chose for a plot. Its latest report shows at the top of the Almanac, "
-      + "and it comes from that one spot, so it may differ from the forecast read across the plot.",
-  },
-  {
-    key: "npub", term: "npub", group: "service", aka: ["Nostr key"],
-    said: "Your public Nostr key, which is how this service knows you. There "
-      + "is no email, no password and no account to recover — the key is the "
-      + "identity, and your ground is stored against it.",
-  },
-  {
-    key: "sats", term: "Sats", group: "service", aka: ["satoshi", "Lightning"],
-    said: "Satoshis, the smallest unit of Bitcoin, paid over the Lightning "
-      + "network. Answers are priced per call against a balance you top up in "
-      + "advance, so nothing interrupts you to ask for payment.",
-  },
-  {
-    key: "calendar_feed", term: "Calendar feed", group: "service",
-    said: "A subscribable link that puts this block's dated events into "
-      + "whatever calendar you already use. It updates as the season moves.",
-  },
+  { key: "block", group: "ground", aka: ["plot", "ground"] },
+  { key: "resolution", group: "service" },
+  { key: "provenance", group: "service" },
+  { key: "plot_station", group: "service", aka: ["FieldData", "current conditions"] },
+  { key: "npub", group: "service", aka: ["Nostr key"] },
+  { key: "sats", group: "service", aka: ["satoshi", "Lightning"] },
+  { key: "calendar_feed", group: "service" },
 ];
+
+/// Each entry's term and definition are read from the catalog
+/// (`lib.glossary.<key>.term` / `.said`) whenever they are shown, so the page
+/// follows a language change.
+export const GLOSSARY: Entry[] = ROWS.map((r) => ({
+  ...r,
+  get term() { return tr(`lib.glossary.${r.key}.term` as MessageKey); },
+  get said() { return tr(`lib.glossary.${r.key}.said` as MessageKey); },
+}));
 
 const BY_KEY = new Map(GLOSSARY.map((e) => [e.key, e]));
 
@@ -399,11 +116,6 @@ export function searchGlossary(q: string): Entry[] {
     || (e.aka ?? []).some((a) => a.toLowerCase().includes(needle)));
 }
 
-export const GROUPS: { key: Entry["group"]; label: string }[] = [
-  { key: "heat", label: "Counting heat" },
-  { key: "cold", label: "Cold, and surviving it" },
-  { key: "sky", label: "The sky" },
-  { key: "life", label: "What lives there" },
-  { key: "ground", label: "Your ground" },
-  { key: "service", label: "The service" },
-];
+export const GROUPS: { key: Entry["group"]; label: string }[] = (
+  ["heat", "cold", "sky", "life", "ground", "service"] as const
+).map((key) => ({ key, get label() { return tr(`lib.glossary.group.${key}` as MessageKey); } }));

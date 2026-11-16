@@ -17,6 +17,7 @@ import { readOpenGroups, writeOpenGroups } from "../lib/openGroups";
 import { saveBlocks } from "../lib/saveBlock";
 import { EXAMPLE_ID, type SavedRegion } from "../lib/regions";
 import { tour } from "../lib/tour/targets";
+import { useT } from "../i18n";
 
 type Sheet =
   | { kind: "ask"; group: string }
@@ -37,6 +38,7 @@ export default function PlotFolders({ plots, hidden, onHidden, onSaved, synced, 
   /// What acts on the plot being worked, at the top row's end.
   actions: ReactNode;
 }) {
+  const t = useT();
   const own = plots.filter((p) => p.id !== EXAMPLE_ID);
   const [open, setOpenState] = useState<string[]>(readOpenGroups);
   const setOpen = (next: string[]) => setOpenState(writeOpenGroups(next));
@@ -49,26 +51,26 @@ export default function PlotFolders({ plots, hidden, onHidden, onSaved, synced, 
       return (
         <div className="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-rule bg-panel px-3.5 py-2">
           <button className={PILL} onClick={() => { onHidden(showGroup(hidden, own, group)); setSheet(null); }}>
-            <Glyph path={ICON.eye} size={16} /> Show
+            <Glyph path={ICON.eye} size={16} /> {t("ui.plotFolders.show")}
           </button>
           <button className={PILL} onClick={() => { onHidden(hideGroup(hidden, own, group)); setSheet(null); }}>
-            <Glyph path={ICON.eyeOff} size={16} /> Hide
+            <Glyph path={ICON.eyeOff} size={16} /> {t("ui.plotFolders.hide")}
           </button>
           {synced && (
             <>
               <button className={PILL} onClick={() => setSheet({ kind: "members", group, fresh: true })}
-                aria-label={`New group inside ${leaf(group)}`}>
-                <Glyph path={ICON.add} size={16} /> Group
+                aria-label={t("ui.plotFolders.newGroupInside", { name: leaf(group) })}>
+                <Glyph path={ICON.add} size={16} /> {t("ui.plotFolders.group")}
               </button>
               <button className={PILL} onClick={() => setSheet({ kind: "members", group, fresh: false })}>
-                <Glyph path={ICON.group} size={16} /> Edit plots
+                <Glyph path={ICON.group} size={16} /> {t("ui.plotFolders.editPlots")}
               </button>
               <button className={PILL} onClick={() => setSheet({ kind: "rename", group })}>
-                <Glyph path={ICON.edit} size={16} /> Rename
+                <Glyph path={ICON.edit} size={16} /> {t("ui.plotFolders.rename")}
               </button>
             </>
           )}
-          <button onClick={() => setSheet(null)} aria-label="Close"
+          <button onClick={() => setSheet(null)} aria-label={t("ui.plotFolders.close")}
             className="ml-auto inline-flex h-11 w-11 items-center justify-center text-[1.125rem] text-ink-soft">×</button>
         </div>
       );
@@ -100,9 +102,9 @@ export default function PlotFolders({ plots, hidden, onHidden, onSaved, synced, 
       <div className="mb-1 flex flex-wrap items-center gap-2">
         {synced && own.length > 0 && (
           <button onClick={() => setSheet(sheet?.group === "" ? null : { kind: "members", group: "", fresh: true })}
-            aria-label="New group" title="Group plots"
+            aria-label={t("ui.plotFolders.newGroup")} title={t("ui.plotFolders.groupPlots")}
             className="flex min-h-11 items-center gap-1.5 rounded-full border-[1.5px] border-dashed border-rule bg-panel px-3 text-[0.8125rem] font-medium text-ink-soft active:bg-band">
-            <Glyph path={ICON.add} size={16} /> Group
+            <Glyph path={ICON.add} size={16} /> {t("ui.plotFolders.group")}
           </button>
         )}
         {actions}
@@ -114,7 +116,7 @@ export default function PlotFolders({ plots, hidden, onHidden, onSaved, synced, 
           under={sheets}
           extra={(g) => (
             <button onClick={() => setSheet(sheet?.group === g ? null : { kind: "ask", group: g })}
-              aria-expanded={sheet?.group === g} aria-label={`${leaf(g)}: show, hide or edit`}
+              aria-expanded={sheet?.group === g} aria-label={t("ui.plotFolders.groupMenu", { name: leaf(g) })}
               className={`inline-flex h-11 w-11 items-center justify-center rounded-full ${
                 sheet?.group === g ? "bg-ink text-paper" : "text-ink-soft active:bg-band"}`}>
               <Glyph path={ICON.more} size={18} />
@@ -136,6 +138,7 @@ function Members({ plots, group, fresh, onDone }: {
   fresh: boolean;
   onDone: (saved: SavedRegion[], group: string) => void;
 }) {
+  const t = useT();
   const [name, setName] = useState("");
   const path = fresh ? cleanPath(group ? `${group} / ${name}` : name) : group;
   const [picked, setPicked] = useState<string[]>(() => fresh ? [] : memberIds(plots, group));
@@ -143,7 +146,7 @@ function Members({ plots, group, fresh, onDone }: {
   const [err, setErr] = useState("");
 
   async function commit() {
-    if (!path) { setErr(fresh ? "A group needs a name." : "A group is at most six levels deep."); return; }
+    if (!path) { setErr(fresh ? t("ui.plotFolders.needsName") : t("ui.plotFolders.tooDeep")); return; }
     const changed = plots.flatMap((p) => {
       const was = (p.groups ?? []).some((g) => isWithin(g, path));
       const now = picked.includes(p.id);
@@ -165,16 +168,16 @@ function Members({ plots, group, fresh, onDone }: {
       <div className="flex items-center gap-1">
         {fresh ? (
           <label className="flex-1 text-[0.6875rem] text-ink-soft">
-            {group ? `New group inside ${leaf(group)}` : "New group"}
+            {group ? t("ui.plotFolders.newGroupInside", { name: leaf(group) }) : t("ui.plotFolders.newGroup")}
             <input autoFocus value={name} onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") void commit(); if (e.key === "Escape") onDone([], ""); }}
-              placeholder="Orchard" className={`mt-0.5 min-h-11 ${CELL}`} />
+              placeholder={t("ui.plotFolders.namePlaceholder")} className={`mt-0.5 min-h-11 ${CELL}`} />
           </label>
         ) : (
           <p className="flex-1 text-[0.8125rem] font-semibold">{leaf(group)}</p>
         )}
         <div className="self-end">
-          <RowActions onCommit={() => void commit()} onCancel={() => onDone([], "")} saving={saving} what={leaf(path) || "group"} />
+          <RowActions onCommit={() => void commit()} onCancel={() => onDone([], "")} saving={saving} what={leaf(path) || t("ui.plotFolders.whatGroup")} />
         </div>
       </div>
       <ul className="mt-2 divide-y divide-rule">
@@ -189,7 +192,7 @@ function Members({ plots, group, fresh, onDone }: {
         ))}
       </ul>
       <p className="data mt-1.5 text-[0.65625rem] text-ink-soft">
-        A slash puts a group inside another: North Farm / Orchard.
+        {t("ui.plotFolders.slashHelp")}
       </p>
       {err && <p className="mt-1.5 text-[0.78125rem] text-clay">{err}</p>}
     </div>
@@ -202,13 +205,14 @@ function Rename({ plots, group, onDone }: {
   group: string;
   onDone: (saved: SavedRegion[], to: string) => void;
 }) {
+  const t = useT();
   const [to, setTo] = useState(group);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
 
   async function commit() {
     const path = cleanPath(to);
-    if (!path) { setErr("A group needs a name, at most six levels deep."); return; }
+    if (!path) { setErr(t("ui.plotFolders.needsNameDepth")); return; }
     setSaving(true); setErr("");
     try {
       const changed = renameGroup(plots, group, path);
@@ -224,7 +228,7 @@ function Rename({ plots, group, onDone }: {
     <div className="mb-2 rounded-md border border-rule bg-panel p-3.5">
       <div className="flex items-center gap-1">
         <label className="flex-1 text-[0.6875rem] text-ink-soft">
-          Group
+          {t("ui.plotFolders.group")}
           <input autoFocus value={to} onChange={(e) => setTo(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") void commit(); if (e.key === "Escape") onDone([], ""); }}
             className={`mt-0.5 min-h-11 ${CELL}`} />
@@ -234,7 +238,7 @@ function Rename({ plots, group, onDone }: {
         </div>
       </div>
       <p className="data mt-1.5 text-[0.65625rem] text-ink-soft">
-        Type another path to move it, with every group and plot inside: South Farm / Orchard.
+        {t("ui.plotFolders.moveHelp")}
       </p>
       {err && <p className="mt-1.5 text-[0.78125rem] text-clay">{err}</p>}
     </div>

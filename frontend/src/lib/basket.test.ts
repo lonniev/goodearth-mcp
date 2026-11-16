@@ -3,6 +3,9 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { addLabel, clampPage, finderState, holds, markChosen, pageCount, toggle } from "./basket.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 const bee = { taxonId: 1, name: "Common Eastern Bumble Bee" };
 const oak = { taxonId: 2, name: "northern red oak" };

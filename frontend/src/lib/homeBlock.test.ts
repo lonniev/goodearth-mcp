@@ -9,6 +9,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { HOME_ACRES, HOME_RADIUS_M, proposeHomeBlock } from "./regions.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 const M2_PER_ACRE = 4046.8564224;
 const acresOf = (r: number) => (Math.PI * r * r) / M2_PER_ACRE;

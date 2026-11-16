@@ -16,6 +16,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import { sheetJSON, sheetText, type Sheet } from "../lib/exports";
 import { tour } from "../lib/tour/targets";
 import { Glyph, ICON } from "./ui";
+import { tr, useT } from "../i18n";
 
 const Read = createContext<Sheet | null>(null);
 const Set_ = createContext<(s: Sheet | null) => void>(() => {});
@@ -41,8 +42,9 @@ export function useShare(sheet: Sheet | null) {
 export function ShareButton() {
   const sheet = useContext(Read);
   const [open, setOpen] = useState(false);
+  const t = useT();
   if (!sheet) return null;
-  const label = `Share ${sheet.title}`;
+  const label = t("ui.share.share", { title: sheet.title });
   return (
     <>
       <button type="button" aria-label={label} title={label} {...tour("shell.share")}
@@ -63,7 +65,7 @@ export async function toClipboard(text: string, what: string): Promise<boolean> 
     await navigator.clipboard.writeText(text);
     return true;
   } catch {
-    window.prompt(`Copy ${what}:`, text);
+    window.prompt(tr("ui.share.copyPrompt", { what }), text);
     return false;
   }
 }
@@ -71,6 +73,7 @@ export async function toClipboard(text: string, what: string): Promise<boolean> 
 function ShareSheet({ sheet, onClose }: { sheet: Sheet; onClose: () => void }) {
   const box = useRef<HTMLDivElement>(null);
   const [done, setDone] = useState<"text" | "json" | null>(null);
+  const t = useT();
 
   useEffect(() => { box.current?.focus(); }, []);
   useEffect(() => {
@@ -81,8 +84,8 @@ function ShareSheet({ sheet, onClose }: { sheet: Sheet; onClose: () => void }) {
 
   async function copy(kind: "text" | "json") {
     const ok = kind === "json"
-      ? await toClipboard(sheetJSON(sheet), `${sheet.title} as JSON`)
-      : await toClipboard(sheetText(sheet), `the ${sheet.title} table`);
+      ? await toClipboard(sheetJSON(sheet), t("ui.share.whatJson", { title: sheet.title }))
+      : await toClipboard(sheetText(sheet), t("ui.share.whatTable", { title: sheet.title }));
     if (!ok) return;
     setDone(kind);
     setTimeout(() => setDone(null), 1600);
@@ -105,7 +108,7 @@ function ShareSheet({ sheet, onClose }: { sheet: Sheet; onClose: () => void }) {
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label={`Share ${sheet.title}`}
+      aria-label={t("ui.share.share", { title: sheet.title })}
     >
       <div
         ref={box}
@@ -119,9 +122,9 @@ function ShareSheet({ sheet, onClose }: { sheet: Sheet; onClose: () => void }) {
             <div className="eyebrow">{sheet.eyebrow}</div>
             <h2 className="figure text-[1.25rem] font-semibold leading-tight">{sheet.title}</h2>
           </div>
-          {copyButton("json", ICON.braces, "Copy as JSON")}
-          {copyButton("text", ICON.copy, "Copy the table")}
-          <button onClick={onClose} aria-label="Close"
+          {copyButton("json", ICON.braces, t("ui.share.copyJson"))}
+          {copyButton("text", ICON.copy, t("ui.share.copyTable"))}
+          <button onClick={onClose} aria-label={t("ui.share.close")}
             className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-[1.125rem] text-ink-soft active:text-ink">×</button>
         </div>
 
@@ -169,7 +172,7 @@ function ShareSheet({ sheet, onClose }: { sheet: Sheet; onClose: () => void }) {
             </table>
           </div>
         ) : (
-          <p className="mt-4 text-[0.8125rem] text-ink-soft">Nothing on this page yet.</p>
+          <p className="mt-4 text-[0.8125rem] text-ink-soft">{t("ui.share.nothing")}</p>
         )}
 
         {sheet.foot && (

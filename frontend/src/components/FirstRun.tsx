@@ -17,7 +17,8 @@ import {
 } from "../lib/regions";
 import { saveBlock } from "../lib/saveBlock";
 import { tour } from "../lib/tour/targets";
-import { useTour } from "@tollbooth-dpyc/web/react";
+import { Tx, useTour } from "@tollbooth-dpyc/web/react";
+import { useT, WORDS } from "../i18n";
 
 export default function FirstRun({ onSaved, onDraw, onExample }: {
   onSaved: (r: SavedRegion) => void;
@@ -26,15 +27,16 @@ export default function FirstRun({ onSaved, onDraw, onExample }: {
 }) {
   // The Dashboard's tour begins here for a grower with no ground yet.
   useTour("ledger");
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
   function here() {
     if (!navigator.geolocation) {
-      setMsg("This device will not share a location — draw it on the map instead.");
+      setMsg(t("ui.firstRun.noGeo"));
       return;
     }
-    setBusy(true); setMsg("Finding you…");
+    setBusy(true); setMsg(t("ui.firstRun.finding"));
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const made = proposeHomeBlock(pos.coords.latitude, pos.coords.longitude);
@@ -46,7 +48,7 @@ export default function FirstRun({ onSaved, onDraw, onExample }: {
       },
       () => {
         setBusy(false);
-        setMsg("Could not get a location — draw it on the map instead.");
+        setMsg(t("ui.firstRun.noLocation"));
       },
       { enableHighAccuracy: true, timeout: 10_000 },
     );
@@ -54,12 +56,10 @@ export default function FirstRun({ onSaved, onDraw, onExample }: {
 
   return (
     <div>
-      <h1 className="figure mb-1 text-[1.625rem] font-bold">Where do you farm?</h1>
-      <Claim>Every answer here is about a piece of ground, so it needs one.</Claim>
+      <h1 className="figure mb-1 text-[1.625rem] font-bold">{t("ui.firstRun.title")}</h1>
+      <Claim>{t("ui.firstRun.claim")}</Claim>
       <p className="text-[0.84375rem] leading-relaxed">
-        Heat, frost, soil and daylight are all answered for the block you name,
-        with the spread across it. Nothing is computed until there is ground to
-        compute it for.
+        {t("ui.firstRun.lede")}
       </p>
 
       <div className="mt-5 grid gap-2.5 sm:grid-cols-2">
@@ -67,21 +67,19 @@ export default function FirstRun({ onSaved, onDraw, onExample }: {
           className="rounded-md border-[1.5px] border-ink bg-ink p-4 text-left text-paper disabled:opacity-50">
           <span className="text-[1.5rem]" aria-hidden="true">📍</span>
           <span className="figure mt-1 block text-[0.9375rem] font-semibold">
-            {busy ? "Finding you…" : "Start where I am"}
+            {busy ? t("ui.firstRun.finding") : t("ui.firstRun.here")}
           </span>
           <span className="mt-1 block text-[0.78125rem] leading-relaxed opacity-80">
-            About {HOME_ACRES} acres around this device, to move and reshape.
-            Your location is used here and not stored.
+            {t("ui.firstRun.hereNote", { acres: HOME_ACRES })}
           </span>
         </button>
 
         <button onClick={onDraw} {...tour("firstrun.draw")}
           className="rounded-md border border-rule bg-panel p-4 text-left active:border-ink">
           <span className="text-[1.5rem]" aria-hidden="true">✏️</span>
-          <span className="figure mt-1 block text-[0.9375rem] font-semibold">Draw it on the map</span>
+          <span className="figure mt-1 block text-[0.9375rem] font-semibold">{t("ui.firstRun.draw")}</span>
           <span className="mt-1 block text-[0.78125rem] leading-relaxed text-ink-soft">
-            Trace the field, or drop a pin with a radius. A polygon is worth the
-            minute — the spread is measured across whatever you draw.
+            {t("ui.firstRun.drawNote")}
           </span>
         </button>
       </div>
@@ -89,13 +87,9 @@ export default function FirstRun({ onSaved, onDraw, onExample }: {
       {msg && <p className="mt-3 text-[0.78125rem] text-clay">{msg}</p>}
 
       <p className="mt-6 text-[0.8125rem] leading-relaxed text-ink-soft">
-        Not ready to say where you are?{" "}
-        <button onClick={onExample}
-          className="underline decoration-dotted underline-offset-2">
-          Look at a worked example
-        </button>{" "}
-        — the Champlain Valley in Vermont, which is the ground this was built
-        against. It is not your farm, and nothing you record on it is kept.
+        <Tx ns={WORDS} k="ui.firstRun.example" components={{
+          example: <button onClick={onExample} className="underline decoration-dotted underline-offset-2" />,
+        }} />
       </p>
     </div>
   );

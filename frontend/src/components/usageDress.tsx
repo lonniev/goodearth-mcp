@@ -3,7 +3,8 @@
 // through. The package does the statement and the arithmetic; this is the look.
 
 import type { ToolSpend } from "@tollbooth-dpyc/web";
-import type { UsageFigure, UsageSummaryClassNames } from "@tollbooth-dpyc/web/react";
+import { useLanguageLocale, type UsageFigure, type UsageSummaryClassNames } from "@tollbooth-dpyc/web/react";
+import { useT } from "../i18n";
 
 /// The period's own figures only. The balance sits in the card above, and the
 /// lifetime deposited/consumed totals would read as this month's under a
@@ -32,13 +33,15 @@ export const USAGE: UsageSummaryClassNames = {
 
 /// A tool as a grower reads it: "crop gdd status", not "goodearth_crop_gdd_status".
 export function UsageRow({ tool }: { tool: ToolSpend }) {
+  const t = useT();
+  const locale = useLanguageLocale();
   return (
     <>
       <span className={USAGE.tool}>{tool.tool.replace(/^goodearth_/, "").replace(/_/g, " ")}</span>
       <span className={USAGE.calls}>
-        {tool.calls.toLocaleString()} call{tool.calls === 1 ? "" : "s"}
+        {t("ui.usageDress.calls", { count: tool.calls, n: tool.calls.toLocaleString(locale) })}
       </span>
-      <span className={USAGE.sats}>{tool.sats.toLocaleString()} sats</span>
+      <span className={USAGE.sats}>{t("ui.usageDress.sats", { n: tool.sats.toLocaleString(locale) })}</span>
     </>
   );
 }

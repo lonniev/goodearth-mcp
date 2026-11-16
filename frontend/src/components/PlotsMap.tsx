@@ -17,6 +17,7 @@ import { mountArray, type ArrayLayer } from "../lib/arrayLayer";
 import { cellAt, cellCentre, type SunGrid } from "../lib/sunGrid";
 import { mountSun, type SunLayer, type SunState } from "../lib/sunOverlay";
 import { tour } from "../lib/tour/targets";
+import { useT } from "../i18n";
 
 const GROWTH = "#4C7A3D";
 const HONEY = "#D99A06";
@@ -79,6 +80,7 @@ export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0, hidd
   const ids = shapes.map((s) => s.id).join(",");
   const framed = useRef("");
   const size = useEnlarged(map);
+  const t = useT();
 
   // Measure first: the container may not have its size yet, and fitting
   // a zero-sized map leaves the farm a speck.
@@ -190,14 +192,14 @@ export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0, hidd
       {/* Sized by the frame; its own classes never change (see MapFrame). */}
       <div ref={host} className="h-full w-full bg-band" />
 
-      <EnlargeButton big={size.big} onClick={size.toggle} label="the map" />
+      <EnlargeButton big={size.big} onClick={size.toggle} label={t("ui.plotsMap.theMap")} />
 
       {sun && (
         <button
           onClick={sun.onToggle}
           aria-pressed={sun.on}
-          aria-label="Sun and shade"
-          title="Sun and shade"
+          aria-label={t("ui.plotsMap.sunShade")}
+          title={t("ui.plotsMap.sunShade")}
           {...tour("plots.sun")}
           // Under the enlarge button, which holds the corner on every frame.
           className={`absolute right-2 top-[60px] z-[400] flex h-11 w-11 items-center justify-center rounded-md border border-ink/30 shadow ${
@@ -211,8 +213,8 @@ export default function PlotsMap({ plots, activeId, onPick, sun, focus = 0, hidd
       <button
         onClick={toggleLabels}
         aria-pressed={labels}
-        aria-label="Plot names"
-        title="Plot names"
+        aria-label={t("ui.plotsMap.plotNames")}
+        title={t("ui.plotsMap.plotNames")}
         {...tour("plots.labels")}
         // Under the Sun button when there is one, else under the enlarge button.
         className={`absolute right-2 ${sun ? "top-[112px]" : "top-[60px]"} z-[400] flex h-11 w-11 items-center justify-center rounded-md border border-ink/30 shadow ${

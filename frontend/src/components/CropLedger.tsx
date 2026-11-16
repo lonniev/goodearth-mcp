@@ -43,23 +43,26 @@ import { baseBounds } from "../lib/baseTemp";
 import type { Target } from "../lib/tour/targets";
 import type { FieldDiff } from "../lib/refreshRow";
 import RefreshFromAI, { RefreshButton } from "./RefreshFromAI";
+import { useT, WORDS, type Translate } from "../i18n";
+import type { MessageKey } from "../i18n/en";
+import { Tx, useLanguageLocale } from "@tollbooth-dpyc/web/react";
 
-const STATUS: Record<string, { label: string; cls: string }> = {
-  past_target:     { label: "Past target",  cls: "bg-growth/15 text-growth" },
-  on_pace:         { label: "On pace",      cls: "bg-band text-ink-soft" },
-  stalled:         { label: "Stalled",      cls: "bg-band text-ink-soft" },
-  not_yet_planted: { label: "Not yet out",  cls: "bg-band text-ink-soft" },
+const STATUS: Record<string, { label: MessageKey; cls: string }> = {
+  past_target:     { label: "ui.cropLedger.status.pastTarget", cls: "bg-growth/15 text-growth" },
+  on_pace:         { label: "ui.cropLedger.status.onPace",     cls: "bg-band text-ink-soft" },
+  stalled:         { label: "ui.cropLedger.status.stalled",    cls: "bg-band text-ink-soft" },
+  not_yet_planted: { label: "ui.cropLedger.status.notYetOut",  cls: "bg-band text-ink-soft" },
 };
 
-const VERDICT: Record<string, { label: string; cls: string }> = {
-  wont_finish: { label: "Won't finish", cls: "bg-clay/15 text-clay" },
-  finishes:    { label: "Finishes",     cls: "bg-growth/10 text-growth" },
-  finished:    { label: "Done",         cls: "bg-growth/15 text-growth" },
-  unknown:     { label: "Unknown",      cls: "bg-band text-ink-soft" },
+const VERDICT: Record<string, { label: MessageKey; cls: string }> = {
+  wont_finish: { label: "ui.cropLedger.verdict.wontFinish", cls: "bg-clay/15 text-clay" },
+  finishes:    { label: "ui.cropLedger.verdict.finishes",   cls: "bg-growth/10 text-growth" },
+  finished:    { label: "ui.cropLedger.verdict.done",       cls: "bg-growth/15 text-growth" },
+  unknown:     { label: "ui.cropLedger.verdict.unknown",    cls: "bg-band text-ink-soft" },
 };
 
-const shortDate = (iso: string) =>
-  new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+const shortDate = (iso: string, locale: string) =>
+  new Date(iso + "T12:00:00").toLocaleDateString(locale, { month: "short", day: "numeric" });
 
 /// One line of the ledger: what the grower saved, and whatever the season had
 /// to say about it. `status` is absent for a planting nothing can be computed
@@ -130,28 +133,21 @@ export interface Refreshing {
   onCost: (sats: number) => void;
 }
 
-const COLS: Column<ItemSort>[] = [
-  { key: "name", label: "Plant" },
-  { key: "starts_on", label: "Set out" },
-  { key: "target_gdd", label: "Heat to target", width: "34%",
-    info: <>Growing degree days this planting has banked since it was set out,
-      against the target you gave it. The bar fills as the heat arrives; the
-      target is when it reaches the stage you care about, usually harvest.</> },
-  { label: "Projected",
-    info: <>The date this planting reaches its heat target if the last
-      fortnight&rsquo;s heat keeps arriving at the same daily pace. It reads
-      no weather forecast, so a cooling autumn reaches it later than shown.</> },
-  { label: "Frost",
-    info: <>Whether that date comes before the median first frost on this
-      ground — and by how many days it clears it, or misses.</> },
-  { label: "Status",
-    info: <><b>On pace</b>: heat is arriving and a date can be projected.{" "}
-      <b>Past target</b>: it has banked its heat.{" "}
-      <b>Stalled</b>: too little heat lately to project a date.{" "}
-      <b>Not yet out</b>: its set-out date is still ahead.{" "}
-      <b>Not tracked</b>: it has no set-out date or no heat target to count from.{" "}
-      <b>Perennial</b>: judged on winter chill and hardiness instead.</> },
+/// The ledger's columns, in the language on screen.
+const cols = (t: Translate): Column<ItemSort>[] => [
+  { key: "name", label: t("ui.cropLedger.col.plant") },
+  { key: "starts_on", label: t("ui.cropLedger.col.setOut") },
+  { key: "target_gdd", label: t("ui.cropLedger.col.heat"), width: "34%",
+    info: <>{t("ui.cropLedger.col.heatInfo")}</> },
+  { label: t("ui.cropLedger.col.projected"),
+    info: <>{t("ui.cropLedger.col.projectedInfo")}</> },
+  { label: t("ui.cropLedger.col.frost"),
+    info: <>{t("ui.cropLedger.col.frostInfo")}</> },
+  { label: t("ui.cropLedger.col.status"),
+    info: <Tx ns={WORDS} k="ui.cropLedger.col.statusInfo" components={{ b: <b /> }} /> },
 ];
+/// How many columns the ledger has, for a row that spans them all.
+const COL_COUNT = 6;
 
 export default function CropLedger({
   rows, sort, dir, onSort, editing, onEdit, onCancel, onCommit, draft, onDraft,
@@ -178,11 +174,14 @@ export default function CropLedger({
   refreshing?: Refreshing;
 }) {
   const u = useUnits();
+  const t = useT();
+  const locale = useLanguageLocale();
+  const sd = (iso: string) => shortDate(iso, locale);
   return (
     <div data-tour={tour} className="overflow-x-auto overscroll-x-contain rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">
       <table className="w-full border-collapse text-[0.8125rem]">
         <thead>
-          <SortHeaders cols={COLS} sort={sort} dir={dir} onSort={onSort} />
+          <SortHeaders cols={cols(t)} sort={sort} dir={dir} onSort={onSort} />
         </thead>
         <tbody>
           {rows.map(({ planting: p, status: r, reason, watch, harvest }, i) =>
@@ -204,7 +203,7 @@ export default function CropLedger({
                     <span className="data mt-0.5 block text-[0.65625rem] font-normal text-clay">
                       {watch!.map((w) => (
                         <span key={w.model} className="mr-2 inline-block">
-                          🍄 {w.label} {w.lead} {shortDate(w.date)}
+                          🍄 {w.label} {w.lead} {sd(w.date)}
                         </span>
                       ))}
                     </span>
@@ -216,10 +215,10 @@ export default function CropLedger({
                       cells already say what is missing. */}
                   {(() => {
                     const facts = (p.perennial
-                      ? [p.chillHours != null && `${p.chillHours} h chill`,
-                         p.hardyToF != null && `hardy to ${u.showTemp(p.hardyToF)}`]
-                      : [p.gddTarget != null && `target ${u.showDD(p.gddTarget)}`,
-                         p.baseTempF != null && `base ${u.showTemp(p.baseTempF)}`]
+                      ? [p.chillHours != null && t("ui.cropLedger.fact.chill", { n: p.chillHours }),
+                         p.hardyToF != null && t("ui.cropLedger.fact.hardy", { temp: u.showTemp(p.hardyToF) })]
+                      : [p.gddTarget != null && t("ui.cropLedger.fact.target", { dd: u.showDD(p.gddTarget) }),
+                         p.baseTempF != null && t("ui.cropLedger.fact.base", { temp: u.showTemp(p.baseTempF) })]
                     ).filter(Boolean).join(" · ");
                     return facts
                       ? <small className="block text-[0.6875rem] font-normal text-ink-soft">{facts}</small>
@@ -229,12 +228,12 @@ export default function CropLedger({
                       target is "usually harvest"; this is when harvest was. */}
                   {harvest && (
                     <span className="data mt-0.5 block text-[0.65625rem] font-normal text-growth">
-                      {describeHarvest(harvest, shortDate)}
+                      {describeHarvest(harvest, sd)}
                     </span>
                   )}
                 </td>
                 <td onClick={() => onEdit(p)} className="cursor-text px-3 py-2.5 whitespace-nowrap">
-                  {p.setOut ? shortDate(p.setOut) : "—"}
+                  {p.setOut ? sd(p.setOut) : "—"}
                 </td>
 
                 {r ? (
@@ -243,7 +242,7 @@ export default function CropLedger({
                       <HeatBar r={r} />
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
-                      {r.projected_date ? shortDate(r.projected_date) : "—"}
+                      {r.projected_date ? sd(r.projected_date) : "—"}
                     </td>
                     <td className="px-3 py-2.5">
                       <Verdict r={r} />
@@ -253,7 +252,7 @@ export default function CropLedger({
                   // Not tracked: one cell across the computed columns, saying
                   // what it would need rather than showing three dashes.
                   <td className="px-3 py-2.5" colSpan={3}>
-                    <span className="data text-[0.6875rem]">{reason ?? "nothing to count from"}</span>
+                    <span className="data text-[0.6875rem]">{reason ?? t("ui.cropLedger.nothingToCount")}</span>
                   </td>
                 )}
 
@@ -263,8 +262,8 @@ export default function CropLedger({
                   }`}>
                     {/* "Not tracked" is wrong for a tree: it is tracked, on a
                         different clock. */}
-                    {r ? (STATUS[r.state] ?? STATUS.on_pace).label
-                       : p.perennial ? "Perennial" : "Not tracked"}
+                    {r ? t((STATUS[r.state] ?? STATUS.on_pace).label)
+                       : p.perennial ? t("ui.cropLedger.status.perennial") : t("ui.cropLedger.status.notTracked")}
                   </span>
                   {/* Full and green where there is seed on the shelf for this
                       plant, empty and quiet where there is not. The ledger is
@@ -275,8 +274,8 @@ export default function CropLedger({
                     const held = seeding.lotsFor(p).length > 0;
                     return (
                       <button onClick={() => seeding.onOpen(p)} data-tour={i === 0 ? "crops.seed" : undefined}
-                        aria-label={held ? `Seed for ${p.crop} — on hand` : `Seed for ${p.crop}`}
-                        title={held ? "Seed on hand" : "Seed"}
+                        aria-label={held ? t("ui.cropLedger.seedForHeld", { crop: p.crop }) : t("ui.cropLedger.seedFor", { crop: p.crop })}
+                        title={held ? t("ui.cropLedger.seedOnHand") : t("ui.cropLedger.seed")}
                         className={`inline-flex h-11 w-11 items-center justify-center ${
                           held ? "text-growth" : "text-ink-soft active:text-growth"}`}>
                         <Glyph path={held ? ICON.seed : ICON.seedOutline} /></button>
@@ -284,13 +283,13 @@ export default function CropLedger({
                   })()}
                   {harvesting && (
                     <button onClick={() => harvesting.onOpen(p)} data-tour={i === 0 ? "crops.cut" : undefined}
-                      aria-label={`Record a cut of ${p.crop}`} title="Record a harvest"
+                      aria-label={t("ui.cropLedger.recordCutOf", { crop: p.crop })} title={t("ui.cropLedger.recordHarvest")}
                       className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-growth">
                       <Glyph path={ICON.shears} size={24} grid={512} /></button>
                   )}
                   {companioning && (
                     <button onClick={() => companioning.onOpen(p)} data-tour={i === 0 ? "crops.companions" : undefined}
-                      aria-label={`Companions for ${p.crop}`} title="Companions"
+                      aria-label={t("ui.cropLedger.companionsFor", { crop: p.crop })} title={t("ui.cropLedger.companions")}
                       className={`inline-flex h-11 w-11 items-center justify-center ${
                         companioning.open === p.id ? "text-growth" : "text-ink-soft active:text-growth"}`}>
                       <Glyph path={ICON.companions} /></button>
@@ -299,7 +298,7 @@ export default function CropLedger({
                     <RefreshButton name={p.crop} open={refreshing.open === p.id}
                       onClick={() => (refreshing.open === p.id ? refreshing.onClose() : refreshing.onOpen(p))} />
                   )}
-                  <button onClick={() => onDelete(p.id)} aria-label={`Remove ${p.crop}`} title="Remove"
+                  <button onClick={() => onDelete(p.id)} aria-label={t("ui.cropLedger.removeCrop", { crop: p.crop })} title={t("ui.cropLedger.remove")}
                     className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-clay"><TrashGlyph /></button>
                 </td>
               </tr>
@@ -314,10 +313,10 @@ export default function CropLedger({
                   onSave={(h, id) => harvesting.onSave(p, h, id)} onCancel={harvesting.onClose} />
               )}
               {refreshing?.open === p.id && (
-                <RefreshFromAI<Planting> colSpan={COLS.length} tool="goodearth_plant_profile"
-                  ask={() => refreshing.ask(p)} onSave={(t) => refreshing.onSave(p, t)}
+                <RefreshFromAI<Planting> colSpan={COL_COUNT} tool="goodearth_plant_profile"
+                  ask={() => refreshing.ask(p)} onSave={(taken) => refreshing.onSave(p, taken)}
                   onCancel={refreshing.onClose} onCost={refreshing.onCost}
-                  missing="The reference has nothing to set beside this planting." />
+                  missing={t("ui.cropLedger.refreshMissing")} />
               )}
               {companioning?.open === p.id && (
                 <CompanionsRow planting={p} ask={(k) => companioning.ask(p, k)}
@@ -333,6 +332,8 @@ export default function CropLedger({
 }
 
 function HeatBar({ r }: { r: PlantingStatus }) {
+  const t = useT();
+  const locale = useLanguageLocale();
   const pct = Math.round((r.progress ?? 0) * 100);
   const over = r.state === "past_target";
   return (
@@ -341,46 +342,47 @@ function HeatBar({ r }: { r: PlantingStatus }) {
         <i className={`absolute inset-y-0 left-0 rounded ${over ? "bg-honey" : "bg-growth"}`}
            style={{ width: `${Math.min(pct, 100)}%` }} />
         {/* A tick for each stage the grower tracks, where its heat falls. */}
-        {stageTicks(r.stages, r.gdd_target).map((t) => (
-          <i key={t.at} title={t.title} aria-label={t.title}
-            className={`absolute inset-y-0 w-[2px] ${t.reached ? "bg-ink" : "bg-ink-soft/60"}`}
-            style={{ left: `${t.at}%` }} />
+        {stageTicks(r.stages, r.gdd_target).map((tk) => (
+          <i key={tk.at} title={tk.title} aria-label={tk.title}
+            className={`absolute inset-y-0 w-[2px] ${tk.reached ? "bg-ink" : "bg-ink-soft/60"}`}
+            style={{ left: `${tk.at}%` }} />
         ))}
       </div>
       <span className="data mt-1 block text-[0.6875rem] text-ink-soft">
         {r.gdd_accumulated != null
-          ? `${Math.round(r.gdd_accumulated).toLocaleString()} / ${r.gdd_target.toLocaleString()}`
+          ? `${Math.round(r.gdd_accumulated).toLocaleString(locale)} / ${r.gdd_target.toLocaleString(locale)}`
           : r.note}
-        {r.gdd_remaining ? ` · ${Math.round(r.gdd_remaining)} to go` : ""}
+        {r.gdd_remaining ? t("ui.cropLedger.toGo", { n: Math.round(r.gdd_remaining) }) : ""}
       </span>
     </>
   );
 }
 
 function Verdict({ r }: { r: PlantingStatus }) {
+  const t = useT();
   const vd = VERDICT[r.finish.verdict] ?? VERDICT.unknown;
   return (
     <>
       <span className={`inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-[0.71875rem] font-semibold ${vd.cls}`}>
-        {vd.label}
+        {t(vd.label)}
       </span>
       {/* The verdict's reasoning was tooltip-only. On a tablet that is the
           same as not shipping it. */}
       {r.finish.margin_days != null && r.finish.verdict !== "finished" && (
         <span className="data mt-1 block text-[0.625rem] text-ink-soft">
           {r.finish.margin_days >= 0
-            ? `${r.finish.margin_days} days of margin`
-            : `${Math.abs(r.finish.margin_days)} days late`}
+            ? t("ui.cropLedger.marginDays", { count: r.finish.margin_days })
+            : t("ui.cropLedger.daysLate", { count: Math.abs(r.finish.margin_days) })}
         </span>
       )}
       {r.finish.at_risk_of_early_frost && r.finish.verdict === "finishes" && (
         <span className="data mt-1 block text-[0.625rem] text-frost">
-          past the earliest frost on record
+          {t("ui.cropLedger.pastEarliestFrost")}
         </span>
       )}
       {r.finish.verdict === "wont_finish" && r.finish.gdd_shortfall != null && (
         <span className="data mt-1 block text-[0.625rem] text-clay">
-          ~{Math.round(r.finish.gdd_shortfall)} GDD short
+          {t("ui.cropLedger.gddShort", { n: Math.round(r.finish.gdd_shortfall) })}
         </span>
       )}
     </>
@@ -412,6 +414,7 @@ function CompanionsRow({ planting, ask, onPick, onCost, onCancel }: {
   onCost: (sats: number) => void;
   onCancel: () => void;
 }) {
+  const t = useT();
   const [kind, setKind] = useState<Kind>("synergy");
   const [result, setResult] = useState<CompanionsResult | null>(null);
   const [at, setAt] = useState<Date | null>(null);
@@ -435,16 +438,16 @@ function CompanionsRow({ planting, ask, onPick, onCost, onCancel }: {
       <td colSpan={6} className="px-3 py-2.5">
         <div className="sticky left-3 max-w-[calc(100vw-3.5rem)]">
           <div className="flex flex-wrap items-center gap-2">
-            <Pill active={kind === "synergy"} onClick={() => setKind("synergy")} title="Biological companions, by cited family rules">🤝 Synergy</Pill>
-            <Pill active={kind === "design"} onClick={() => setKind("design")} title="Visual companions, from the colour, height and bloom you recorded">🎨 Design</Pill>
+            <Pill active={kind === "synergy"} onClick={() => setKind("synergy")} title={t("ui.cropLedger.synergyTitle")}>🤝 {t("ui.cropLedger.synergy")}</Pill>
+            <Pill active={kind === "design"} onClick={() => setKind("design")} title={t("ui.cropLedger.designTitle")}>🎨 {t("ui.cropLedger.design")}</Pill>
             <span className="ml-auto flex items-center gap-2">
               {at && <Provenance tool="goodearth_companions" at={at} onCost={onCost} />}
-              <button onClick={onCancel} aria-label="Close companions"
+              <button onClick={onCancel} aria-label={t("ui.cropLedger.closeCompanions")}
                 className="inline-flex h-11 w-11 items-center justify-center text-[1.125rem] text-ink-soft">×</button>
             </span>
           </div>
 
-          {busy && <p className="data mt-2 text-[0.6875rem] text-ink-soft">Reading…</p>}
+          {busy && <p className="data mt-2 text-[0.6875rem] text-ink-soft">{t("ui.cropLedger.reading")}</p>}
           {err && <p className="mt-1.5 text-[0.75rem] text-clay">{err}</p>}
           {result && !result.success && (
             <p className="mt-1.5 text-[0.75rem] text-clay">{result.error}</p>
@@ -465,7 +468,7 @@ function CompanionsRow({ planting, ask, onPick, onCost, onCancel }: {
                 </p>
               )}
               {groups.length === 0 && (
-                <p className="mt-2 text-[0.78125rem] text-ink-soft">Nothing on the record pairs with this yet.</p>
+                <p className="mt-2 text-[0.78125rem] text-ink-soft">{t("ui.cropLedger.noCompanions")}</p>
               )}
               {groups.map((g) => (
                 <div key={g.where} className="mt-2.5">
@@ -495,7 +498,7 @@ function CompanionsRow({ planting, ask, onPick, onCost, onCancel }: {
               ))}
               {!!result.unplaced?.length && (
                 <p className="mt-2 text-[0.71875rem] text-ink-soft">
-                  Not placed: {result.unplaced.map((u) => u.name).join(", ")} — {result.unplaced[0].reason}.
+                  {t("ui.cropLedger.notPlaced", { names: result.unplaced.map((u) => u.name).join(", "), reason: result.unplaced[0].reason })}
                 </p>
               )}
             </>
@@ -515,6 +518,7 @@ function SeedRow({ planting, lots, saving, onBind, onSaveLot, onRetireLot, onCan
   onRetireLot: (lot: SeedLot) => void;
   onCancel: () => void;
 }) {
+  const t = useT();
   const [sown, setSown] = useState(planting.sownOn ?? "");
   const [lotId, setLotId] = useState(planting.seedLotId ?? "");
   const [adding, setAdding] = useState(false);
@@ -550,14 +554,14 @@ function SeedRow({ planting, lots, saving, onBind, onSaveLot, onRetireLot, onCan
               {/* No plant name here: this row hangs under the plant's own,
                   and saying it twice is what made the head look like a
                   heading rather than a form. */}
-              <Field label="Sown" htmlFor={`sown-${planting.id}`} width="w-[10rem]">
+              <Field label={t("ui.cropLedger.sown")} htmlFor={`sown-${planting.id}`} width="w-[10rem]">
                 <input id={`sown-${planting.id}`} type="date" value={sown} className={FIELD}
                   onKeyDown={keys} onChange={(e) => setSown(e.target.value)} />
               </Field>
               {/* The caption is a sibling of the select, never its parent: a
                   tap inside a label can be handed to the label's own control,
                   and on an iPad that swallows the tap entirely. */}
-              <Field label="Seed" htmlFor={`seed-lot-${planting.id}`} width="min-w-[14rem] flex-1">
+              <Field label={t("ui.cropLedger.seed")} htmlFor={`seed-lot-${planting.id}`} width="min-w-[14rem] flex-1">
                 <select id={`seed-lot-${planting.id}`} value={lotId} className={FIELD}
                   onKeyDown={keys} onChange={(e) => setLotId(e.target.value)}>
                   <option value="">—</option>
@@ -572,19 +576,19 @@ function SeedRow({ planting, lots, saving, onBind, onSaveLot, onRetireLot, onCan
 
             <div className="flex shrink-0 items-center gap-0.5 pt-3.5">
               <button type="button" onClick={() => setAdding((a) => !a)} disabled={adding}
-                aria-label={`Add a seed lot of ${planting.crop}`} title="Add a seed lot"
+                aria-label={t("ui.cropLedger.addSeedLotOf", { crop: planting.crop })} title={t("ui.cropLedger.addSeedLot")}
                 className="inline-flex h-11 w-11 items-center justify-center text-ink-soft
                   active:text-growth disabled:opacity-30">
                 <Glyph path={ICON.add} />
               </button>
               <button type="button" onClick={() => { if (bound) { onRetireLot(bound); setLotId(""); } }}
-                disabled={!bound} aria-label={`Remove ${bound?.crop ?? planting.crop} seed`}
-                title="Remove this lot"
+                disabled={!bound} aria-label={t("ui.cropLedger.removeSeed", { crop: bound?.crop ?? planting.crop })}
+                title={t("ui.cropLedger.removeLot")}
                 className="inline-flex h-11 w-11 items-center justify-center text-ink-soft
                   active:text-clay disabled:opacity-30">
                 <TrashGlyph />
               </button>
-              <button type="button" onClick={onCancel} aria-label="Cancel" title="Cancel"
+              <button type="button" onClick={onCancel} aria-label={t("ui.cropLedger.cancel")} title={t("ui.cropLedger.cancel")}
                 className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-ink">
                 <Glyph path={ICON.cancelEdit} />
               </button>
@@ -593,8 +597,8 @@ function SeedRow({ planting, lots, saving, onBind, onSaveLot, onRetireLot, onCan
                   otherwise writes the sowing and the chosen lot. */}
               <button type={adding ? "submit" : "button"} form={adding ? "new-seed" : undefined}
                 onClick={adding ? undefined : () => void commit()} disabled={busy || saving}
-                aria-label={adding ? "Add seed lot" : "Save seed"}
-                title={adding ? "Add" : "Save"}
+                aria-label={adding ? t("ui.cropLedger.addSeedLotAria") : t("ui.cropLedger.saveSeed")}
+                title={adding ? t("ui.cropLedger.add") : t("ui.cropLedger.save")}
                 className="inline-flex h-11 w-11 items-center justify-center text-[1.125rem]
                   text-growth disabled:opacity-40">✓</button>
             </div>
@@ -631,6 +635,7 @@ function HarvestRow({ planting, unit, onSave, onCancel }: {
   onSave: (h: HarvestInput, id: string) => Promise<string | null>;
   onCancel: () => void;
 }) {
+  const t = useT();
   const today = new Date().toLocaleDateString("en-CA");
   const [on, setOn] = useState(today);
   const [amount, setAmount] = useState("");
@@ -673,25 +678,25 @@ function HarvestRow({ planting, unit, onSave, onCancel }: {
                   be open while the reader has scrolled sideways, and this is
                   the only thing saying which plant the amount belongs to. */}
               <span className="flex items-center gap-1.5 pt-3.5 text-[0.78125rem] font-semibold">
-                <Glyph path={ICON.shears} size={20} grid={512} />A cut of {planting.crop}
+                <Glyph path={ICON.shears} size={20} grid={512} />{t("ui.cropLedger.aCutOf", { crop: planting.crop })}
               </span>
-              <Field label="Cut on" htmlFor={`cut-on-${planting.id}`} width="w-[10rem]">
+              <Field label={t("ui.cropLedger.cutOn")} htmlFor={`cut-on-${planting.id}`} width="w-[10rem]">
                 <input id={`cut-on-${planting.id}`} type="date" value={on} max={today}
                   className={FIELD} onKeyDown={keys}
                   onChange={(e) => setOn(e.target.value)} />
               </Field>
-              <QuantityField id={`cut-${planting.id}`} label="How much" width="w-[11rem]"
+              <QuantityField id={`cut-${planting.id}`} label={t("ui.cropLedger.howMuch")} width="w-[11rem]"
                 amount={amount} unit={unitText} units={UNITS} placeholder="12"
-                unitPlaceholder="stems"
+                unitPlaceholder={t("ui.cropLedger.stemsPlaceholder")}
                 onAmount={setAmount} onUnit={setUnitText} onKeyDown={keys} />
-              <Field label="Note" htmlFor={`cut-note-${planting.id}`} width="min-w-[10rem] flex-1">
+              <Field label={t("ui.cropLedger.note")} htmlFor={`cut-note-${planting.id}`} width="min-w-[10rem] flex-1">
                 <input id={`cut-note-${planting.id}`} value={note} className={FIELD}
-                  onKeyDown={keys} placeholder="optional"
+                  onKeyDown={keys} placeholder={t("ui.cropLedger.optional")}
                   onChange={(e) => setNote(e.target.value)} />
               </Field>
             </div>
             <span className="flex shrink-0 items-center gap-0.5 pt-3.5">
-              <RowActions onCommit={() => void commit()} onCancel={onCancel} saving={saving} what="harvest" />
+              <RowActions onCommit={() => void commit()} onCancel={onCancel} saving={saving} what={t("ui.cropLedger.whatHarvest")} />
             </span>
           </div>
           {err && <p className="mt-1.5 text-[0.75rem] text-clay">{err}</p>}
@@ -714,6 +719,7 @@ function Editor({ draft, onChange, onCommit, onCancel, saving }: {
   saving: boolean;
 }) {
   const u = useUnits();
+  const t = useT();
   const set = (patch: Partial<Planting>) => onChange({ ...draft, ...patch });
   // Enter saves and Escape abandons: a row editor that can only be dismissed
   // with the mouse is slower than the form it replaced.
@@ -737,7 +743,7 @@ function Editor({ draft, onChange, onCommit, onCancel, saving }: {
     <tr className="border-b border-rule bg-band/40 last:border-b-0">
       <td className="px-3 py-2 align-top">
         <input autoFocus value={draft.crop} className={CELL} onKeyDown={keys}
-          placeholder="Zinnia · succession 4"
+          placeholder={t("ui.cropLedger.cropPlaceholder")}
           onChange={(e) => set({ crop: e.target.value })} />
       </td>
       <td className="px-3 py-2 align-top">
@@ -746,17 +752,17 @@ function Editor({ draft, onChange, onCommit, onCancel, saving }: {
       </td>
       <td className="px-3 py-2 align-top" colSpan={2}>
         <input inputMode="numeric" defaultValue={target} className={CELL}
-          onKeyDown={keys} placeholder={`${u.ddUnit.trim()} target — leave blank for a perennial`}
+          onKeyDown={keys} placeholder={t("ui.cropLedger.targetPlaceholder", { unit: u.ddUnit.trim() })}
           onChange={(e) => set({ gddTarget: gddToF(e.target.value) })} />
       </td>
       <td className="px-3 py-2 align-top">
         <input type="number" inputMode="decimal" step="1" defaultValue={base} className={CELL}
           min={baseBounds(u).min} max={baseBounds(u).max}
-          onKeyDown={keys} placeholder={`base${u.tempUnit}`}
+          onKeyDown={keys} placeholder={t("ui.cropLedger.basePlaceholder", { unit: u.tempUnit })}
           onChange={(e) => set({ baseTempF: baseToF(e.target.value) })} />
       </td>
       <td className="px-2 py-2 text-right align-top whitespace-nowrap">
-        <RowActions onCommit={onCommit} onCancel={onCancel} saving={saving} what="planting" />
+        <RowActions onCommit={onCommit} onCancel={onCancel} saving={saving} what={t("ui.cropLedger.whatPlanting")} />
       </td>
     </tr>
   );

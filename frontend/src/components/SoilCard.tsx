@@ -10,27 +10,33 @@
 // them by looking.
 
 import { useUnits } from "./Units";
+import { languageLocale } from "@tollbooth-dpyc/web";
+import { Tx } from "@tollbooth-dpyc/web/react";
+import { useT, WORDS } from "../i18n";
 import { dateFor } from "../lib/seasonDays";
 import { soilTrack, type SoilTrack } from "../lib/soilTrack";
 import type { SoilWindowResult } from "../lib/mcp";
 
 const d = (iso: string) =>
-  new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  new Date(iso + "T12:00:00").toLocaleDateString(languageLocale(), { month: "short", day: "numeric" });
 
 export default function SoilCard({ data }: { data: SoilWindowResult }) {
   const u = useUnits();
+  const t = useT();
   const track = soilTrack(data);
 
   return (
     <div className="mb-3 rounded-md border border-rule bg-panel px-4 py-3.5">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h3 className="figure text-[0.96875rem] font-semibold">
-          Soil {data.direction === "cooling" ? "cooling through" : "warming through"}{" "}
-          {u.showTemp(data.threshold_f)}
+          {data.direction === "cooling"
+            ? t("ui.soilCard.coolingThrough", { temp: u.showTemp(data.threshold_f) })
+            : t("ui.soilCard.warmingThrough", { temp: u.showTemp(data.threshold_f) })}
         </h3>
         {data.current_soil_f != null && (
           <span className="data text-[0.75rem] text-ink-soft">
-            now <b className="text-ink">{u.showTemp(data.current_soil_f)}</b>
+            <Tx ns={WORDS} k="ui.soilCard.now" vars={{ temp: u.showTemp(data.current_soil_f) }}
+              components={{ b: <b className="text-ink" /> }} />
           </span>
         )}
         <span className="data ml-auto text-[0.625rem] text-ink-soft">{data.band.label}</span>
@@ -57,6 +63,7 @@ const W = 720, H = 108, L = 8, R = 712, T = 20, B = 76;
 /// normal window is a band, not a curve, and the median a tick inside it.
 function Track({ track, threshold }: { track: SoilTrack; threshold: number }) {
   const u = useUnits();
+  const t = useT();
   const { lo, hi, origin, forecast, horizon, crossing, typical, loF, hiF } = track;
 
   const x = (day: number) => L + ((day - lo) * (R - L)) / Math.max(hi - lo, 1);
@@ -73,9 +80,9 @@ function Track({ track, threshold }: { track: SoilTrack; threshold: number }) {
       <svg viewBox={`0 0 ${W} ${H}`} className="mt-2 block h-auto w-full"
         role="img"
         aria-label={
-          `Soil at planting depth against ${Math.round(threshold)} degrees. `
-          + (crossing ? `Crosses ${d(crossing.date)}. ` : "Does not cross inside the forecast. ")
-          + (typical ? `Normally ${d(typical.median.date)}, between ${d(typical.earliest.date)} and ${d(typical.latest.date)}.` : "")
+          t("ui.soilCard.ariaAgainst", { n: Math.round(threshold) })
+          + (crossing ? t("ui.soilCard.ariaCrosses", { date: d(crossing.date) }) : t("ui.soilCard.ariaNoCross"))
+          + (typical ? t("ui.soilCard.ariaNormally", { median: d(typical.median.date), earliest: d(typical.earliest.date), latest: d(typical.latest.date) }) : "")
         }>
         {/* The years, behind everything: the band the crossing usually falls in. */}
         {typical && (
@@ -88,7 +95,7 @@ function Track({ track, threshold }: { track: SoilTrack; threshold: number }) {
             <text x={x(typical.median.day)} y={T - 10} textAnchor="middle"
               fontSize={10.5} fontWeight={700} fill="var(--color-ink)"
               fontFamily="var(--font-data)">
-              normally {d(typical.median.date)}
+              {t("ui.soilCard.normally", { date: d(typical.median.date) })}
             </text>
           </>
         )}
@@ -122,7 +129,7 @@ function Track({ track, threshold }: { track: SoilTrack; threshold: number }) {
           <>
             <circle cx={x(forecast[0].day)} cy={y(forecast[0].f)} r={4} fill="var(--color-ink)" />
             <text x={x(forecast[0].day)} y={B + 18} textAnchor="start" fontSize={10}
-              fill="var(--color-ink-soft)" fontFamily="var(--font-data)">today</text>
+              fill="var(--color-ink-soft)" fontFamily="var(--font-data)">{t("ui.soilCard.today")}</text>
           </>
         )}
 
@@ -155,12 +162,12 @@ function Track({ track, threshold }: { track: SoilTrack; threshold: number }) {
       <p className="data mt-0.5 flex flex-wrap items-center gap-x-3 text-[0.65625rem] text-ink-soft">
         <span>
           <i className="mr-1.5 inline-block w-4 border-t-[3px] border-growth align-middle" />
-          forecast{crossing ? "" : " — no crossing in it"}
+          {crossing ? t("ui.soilCard.forecast") : t("ui.soilCard.forecastNoCrossing")}
         </span>
         {typical && (
           <span>
             <i className="mr-1.5 inline-block h-2.5 w-4 bg-band align-middle" />
-            {d(typical.earliest.date)}–{d(typical.latest.date)} across the record
+            {t("ui.soilCard.acrossRecord", { from: d(typical.earliest.date), to: d(typical.latest.date) })}
           </span>
         )}
       </p>

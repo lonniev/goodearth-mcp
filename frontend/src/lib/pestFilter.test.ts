@@ -104,7 +104,7 @@ describe("the page it sits on", () => {
   });
 
   it("puts the reading time in the heading, once", () => {
-    assert.match(view(), /Pests ledger\$\{ranAt/);
+    assert.match(view(), /title=\{ranAt\s*\?\s*t\("views\.pests\.ledgerAt"/);
     assert.match(view(), /<Provenance tool="goodearth_pest_threshold"[\s\S]{0,120}hideTime/);
   });
 
@@ -114,7 +114,9 @@ describe("the page it sits on", () => {
   });
 
   it("names the catalogue section for what it answers", () => {
-    assert.match(view(), /title="When they appear here"/);
+    assert.match(view(), /title=\{t\("views\.pests\.whenTheyAppear"\)\}/);
+    assert.match(readFileSync(new URL("../i18n/en/views.ts", import.meta.url), "utf8"),
+      /"views\.pests\.whenTheyAppear": "When they appear here"/);
     assert.doesNotMatch(view(), /title="Modelled stages"|title="Due on this ground"/);
   });
 });

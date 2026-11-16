@@ -90,9 +90,11 @@ describe("the three pages now read alike", () => {
   const view = (n: string) => readFileSync(new URL(`../views/${n}.tsx`, import.meta.url), "utf8");
 
   it("each heading carries its own reading time, once", () => {
-    for (const [n, h] of [["Crops", "Plants ledger"], ["Pests", "Pests ledger"],
-                          ["Wildlife", "Fauna ledger"]] as const) {
-      assert.match(view(n), new RegExp(`${h.replace(/[^\w\s]/g, ".")}\\$\\{ranAt`), n);
+    // The heading's words are in the views catalog; the page picks the key
+    // that carries the reading time when there is one.
+    for (const [n, area] of [["Crops", "crops"], ["Pests", "pests"],
+                             ["Wildlife", "wildlife"]] as const) {
+      assert.match(view(n), new RegExp(`title=\\{ranAt\\s*\\?\\s*t\\("views\\.${area}\\.ledgerAt"`), n);
       assert.match(view(n), /hideTime/, n);
     }
   });
@@ -128,9 +130,9 @@ describe("the three pages are laid out alike", () => {
       assert.ok(f > -1 && t > -1, "both markers present");
       return f < t;
     };
-    assert.ok(where(view("Crops"), /<form key=\{formKey\} id="new-planting"/, /title=\{`Plants ledger/));
-    assert.ok(where(view("Pests"), /<form id="new-pest"/, /Pests ledger\$\{ranAt/));
-    assert.ok(where(view("Wildlife"), /<EventComposer/, /title=\{`Fauna ledger/));
+    assert.ok(where(view("Crops"), /<form key=\{formKey\} id="new-planting"/, /t\("views\.crops\.ledgerAt"/));
+    assert.ok(where(view("Pests"), /<form id="new-pest"/, /t\("views\.pests\.ledgerAt"/));
+    assert.ok(where(view("Wildlife"), /<EventComposer/, /t\("views\.wildlife\.ledgerAt"/));
   });
 
   it("no page puts a heading over its add form", () => {

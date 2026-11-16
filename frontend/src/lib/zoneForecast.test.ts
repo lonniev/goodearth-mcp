@@ -1,6 +1,9 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { chanceOf, dayDetails, dayForecast, rainfall, stormLine, windLine, zoneForecast } from "./zoneForecast.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 const day = (over: Record<string, unknown> = {}) => ({
   date: "2026-10-27", sky: { label: "Partly cloudy", emoji: "⛅" },

@@ -11,12 +11,14 @@ import { saveBlock } from "../lib/saveBlock";
 import PlotStation from "./PlotStation";
 import { listRegions, type SavedRegion } from "../lib/regions";
 import { allGroups, cleanPath, withGroup } from "../lib/plotGroups";
+import { useT } from "../i18n";
 
 export default function PlotEditor({ plot, onDone }: {
   plot: SavedRegion;
   /// The saved plot, or null when the grower cancelled.
   onDone: (saved: SavedRegion | null) => void;
 }) {
+  const t = useT();
   const [name, setName] = useState(plot.name);
   const [aliases, setAliases] = useState<string[]>(plot.aliases ?? []);
   const [entry, setEntry] = useState("");
@@ -40,7 +42,7 @@ export default function PlotEditor({ plot, onDone }: {
 
   async function commit() {
     const n = name.trim();
-    if (!n) { setErr("A plot needs a name."); return; }
+    if (!n) { setErr(t("ui.plotEditor.needsName")); return; }
     // A name typed but not yet added is one the grower meant to keep.
     const final = cleanAliases(entry.trim() ? [...aliases, entry] : aliases, n);
     const typed = cleanPath(groupEntry);
@@ -64,24 +66,24 @@ export default function PlotEditor({ plot, onDone }: {
     <div>
       <div className="flex items-center gap-1">
         <label className="flex-1 text-[0.6875rem] text-ink-soft">
-          Name
+          {t("ui.plotEditor.name")}
           <input autoFocus value={name} onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => keys(e, () => void commit())}
             className={`mt-0.5 min-h-11 ${CELL}`} />
         </label>
         <div className="self-end">
-          <RowActions onCommit={() => void commit()} onCancel={() => onDone(null)} saving={saving} what={name || "plot"} />
+          <RowActions onCommit={() => void commit()} onCancel={() => onDone(null)} saving={saving} what={name || t("ui.plotEditor.plot")} />
         </div>
       </div>
 
-      <p className="mt-2.5 text-[0.6875rem] text-ink-soft">Also called</p>
+      <p className="mt-2.5 text-[0.6875rem] text-ink-soft">{t("ui.plotEditor.alsoCalled")}</p>
       {aliases.length > 0 && (
         <ul className="mt-1 flex flex-wrap gap-1.5">
           {aliases.map((a) => (
             <li key={a} className="flex items-center rounded-full bg-band pl-3 text-[0.78125rem]">
               {a}
               <button onClick={() => setAliases(aliases.filter((x) => x !== a))}
-                aria-label={`Remove ${a}`}
+                aria-label={t("ui.plotEditor.remove", { name: a })}
                 className="inline-flex h-9 w-9 items-center justify-center text-ink-soft active:text-clay">×</button>
             </li>
           ))}
@@ -90,24 +92,24 @@ export default function PlotEditor({ plot, onDone }: {
       <div className="mt-1.5 flex items-center gap-1.5">
         <input value={entry} onChange={(e) => setEntry(e.target.value)}
           onKeyDown={(e) => keys(e, add)}
-          placeholder="Another name for it"
+          placeholder={t("ui.plotEditor.anotherName")}
           className={`min-h-11 flex-1 ${CELL}`} />
-        <IconButton path={ICON.add} label="Add name" tone="quiet" hideLabel onClick={add} disabled={!entry.trim()} />
+        <IconButton path={ICON.add} label={t("ui.plotEditor.addName")} tone="quiet" hideLabel onClick={add} disabled={!entry.trim()} />
       </div>
       <p className="data mt-1.5 text-[0.65625rem] text-ink-soft">
-        Any part of the name already works. Add one only for a name that shares no words with it.
+        {t("ui.plotEditor.aliasHint")}
       </p>
 
       <PlotStation block={plot.id} />
 
-      <p className="mt-3 text-[0.6875rem] text-ink-soft">Groups</p>
+      <p className="mt-3 text-[0.6875rem] text-ink-soft">{t("ui.plotEditor.groups")}</p>
       {groups.length > 0 && (
         <ul className="mt-1 flex flex-wrap gap-1.5">
           {groups.map((g) => (
             <li key={g} className="flex items-center rounded-full bg-band pl-3 text-[0.78125rem]">
               {g}
               <button onClick={() => setGroups(groups.filter((x) => x !== g))}
-                aria-label={`Take it out of ${g}`}
+                aria-label={t("ui.plotEditor.takeOutOf", { group: g })}
                 className="inline-flex h-9 w-9 items-center justify-center text-ink-soft active:text-clay">×</button>
             </li>
           ))}
@@ -128,13 +130,13 @@ export default function PlotEditor({ plot, onDone }: {
       <div className="mt-1.5 flex items-center gap-1.5">
         <input value={groupEntry} onChange={(e) => setGroupEntry(e.target.value)}
           onKeyDown={(e) => keys(e, () => addGroup(groupEntry))}
-          placeholder="North Farm / Orchard"
+          placeholder={t("ui.plotEditor.groupPlaceholder")}
           className={`min-h-11 flex-1 ${CELL}`} />
-        <IconButton path={ICON.add} label="Add group" tone="quiet" hideLabel
+        <IconButton path={ICON.add} label={t("ui.plotEditor.addGroup")} tone="quiet" hideLabel
           onClick={() => addGroup(groupEntry)} disabled={!cleanPath(groupEntry)} />
       </div>
       <p className="data mt-1.5 text-[0.65625rem] text-ink-soft">
-        A slash puts a group inside another.
+        {t("ui.plotEditor.slashHint")}
       </p>
       {err && <p className="mt-1.5 text-[0.78125rem] text-clay">{err}</p>}
     </div>

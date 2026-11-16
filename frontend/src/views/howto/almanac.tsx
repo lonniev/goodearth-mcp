@@ -1,122 +1,49 @@
 // How the Almanac works.
 
-import Term from "../../components/Term";
+import { Tx } from "@tollbooth-dpyc/web/react";
+import { WORDS, type Translate } from "../../i18n";
 import type { Guide } from "./types";
+import { Word } from "./word";
 
-export const almanac: Guide = {
-  claim: "Degree days say what the season is doing to the plants. The Almanac says what the season is doing.",
+export const almanac = (t: Translate): Guide => ({
+  claim: t("howto.almanac.claim"),
   phenomenon: (
     <>
+      <p>{t("howto.almanac.p1")}</p>
       <p>
-        A grower reads a season by more than its heat: how humid the mornings
-        run, how much rain fell and when the next is due, how much of the
-        daylight was actually sunshine, which way the wind sat. Each is a
-        measure with its own unit, so each gets its own small chart rather
-        than a share of one crowded axis — degrees, inches and hours cannot
-        share a scale honestly. The shape is the same across them so the eye
-        learns it once: the grey band is the range of the last seasons here,
-        the solid line is this season, the dashed line is the fortnight's
-        forecast.
+        <Tx ns={WORDS} k="howto.almanac.p2" components={{
+          dew: <Word of="dew_point" />, humidity: <Word of="humidity" />,
+        }} />
       </p>
       <p>
-        Two of the measures are easily confused and sit beside each other on
-        purpose. The <Term label="dew point" of="dew_point" /> is how much
-        water the air holds; <Term label="humidity" of="humidity" /> is how
-        close it is to holding all it can. The same water reads ninety per
-        cent at dawn and fifty by noon because the air warmed, not because
-        anything dried — and it is the hours near saturation that keep a leaf
-        wet.
-      </p>
-      <p>
-        Two more are astronomy rather than weather. <Term label="Day length" of="daylight" />
-        {" "}and its change per day are computed exactly, and they are the
-        clock migration runs on, which is why a robin's arrival barely moves
-        between a warm year and a cold one. The moon's phase is the same kind
-        of fact, and the next full moon is dated to the day.
+        <Tx ns={WORDS} k="howto.almanac.p3" components={{ daylight: <Word of="daylight" /> }} />
       </p>
     </>
   ),
   facts: [
-    ["One call, every measure",
-      <>The whole page is one read of the almanac. The Dashboard's weather
-        overlay shares it, so flipping between the two costs nothing extra.</>],
-    ["Normal is local",
-      <>The grey band is this ground's own last seasons, not a regional
-        average — the number of seasons is printed under the charts.</>],
-    ["Nothing is written",
-      <>The Almanac reads. The only thing you change is the arrangement, and
-        that is remembered on this device beside your season and your units.</>],
+    [t("howto.almanac.fact1"), t("howto.almanac.fact1Body")],
+    [t("howto.almanac.fact2"), t("howto.almanac.fact2Body")],
+    [t("howto.almanac.fact3"), t("howto.almanac.fact3Body")],
   ],
   using: [
-    { emoji: "👀", heading: "Read", steps: [
-      ["Now at your station",
-        <>Shown when you have chosen a FieldData station for this plot on My
-          Plots: what it reads right now and how long ago, in the order Today
-          reads. These are measurements at the station; Today is a forecast for
-          the plot, so the two can differ. Change station picks another one here.</>],
-      ["Today",
-        <>The forecast in equal cells: the sky with its high and low, dew
-          point, humidity, wind with its direction, the barometer with which way
-          it is moving, chance of rain, rain rate while it falls, rain today,
-          sunrise to sunset with the hours of daylight, sun strength averaged
-          over daylight, hours of sunshine as a share of daylight, the day's
-          peak UV, how much the day length is changing, and the moon.</>],
-      ["🌀 Storm signal",
-        <>Shown above Today only when the barometer is forecast to fall fast
-          in the next three days. Unsettled is a fall of 1.6 hPa (0.05 inHg)
-          in three hours, storm likely 3.6 hPa (0.11 inHg), severe more than
-          6 hPa or a day-long fall deep enough to be a &lsquo;bomb&rsquo;. It
-          says how far, how fast and by when; the ⓘ explains the bands.</>],
-      ["🌧️ in the title row",
-        <>Shows or hides the rain on the radar, now, over your ground. The map
-          plays the last hour; the button in its top right corner enlarges it.
-          Whether it is open is remembered on this device.</>],
-      ["Share, in the top bar",
-        <>The ten days ahead against the record as a table — each measure,
-          its normal, and how far off it runs. Braces copy it as JSON, the two
-          pages copy it as text. Every number is already on the page, so
-          opening it asks for nothing.</>],
-      ["The fortnight",
-        <>Fourteen cards, one per day: sky, high and low, chance of rain,
-          humidity, pressure with an arrow for its move from the day before,
-          and wind. Each card rides a few pixels higher on a warmer
-          day, so the week's warming or cooling shows before a number is read.
-          Tap a card for that day's forecast, written the Weather Service's
-          way and ready to paste, with its rain, sun strength and UV.</>],
-      ["The season so far",
-        <>One chart per measure you have switched on. Grey band, solid season,
-          dashed forecast. The button in each chart's corner takes it to the
-          whole screen; Escape brings it back.</>],
+    { emoji: "👀", heading: t("howto.almanac.read"), steps: [
+      [t("howto.almanac.read1"), t("howto.almanac.read1Does")],
+      [t("howto.almanac.read2"), t("howto.almanac.read2Does")],
+      [t("howto.almanac.read3"), t("howto.almanac.read3Does")],
+      [t("howto.almanac.read4"), t("howto.almanac.read4Does")],
+      [t("howto.almanac.read5"), t("howto.almanac.read5Does")],
+      [t("howto.almanac.read6"), t("howto.almanac.read6Does")],
+      [t("howto.almanac.read7"), t("howto.almanac.read7Does")],
     ]},
-    { emoji: "✏️", heading: "Arrange", steps: [
-      ["The chiclets",
-        <>One per measure. Tap to show or hide its chart. Drag one along the
-          row to move its chart up or down the page — left to right here is top
-          to bottom below. A press that never travels is a tap.</>],
-      ["Units and season",
-        <>Degrees, inches and the season's theme are set on the Account page
-          and apply everywhere.</>],
+    { emoji: "✏️", heading: t("howto.almanac.arrange"), steps: [
+      [t("howto.almanac.arrange1"), t("howto.almanac.arrange1Does")],
+      [t("howto.almanac.arrange2"), t("howto.almanac.arrange2Does")],
     ]},
   ],
   agent: {
-    lead: (
-      <>
-        The almanac is one tool that answers for every measure at once, so an
-        agent asked any sky question reads it once and answers from the
-        structure: today's conditions, the fortnight, each measure's season
-        against its normal, and the sun and moon.
-      </>
-    ),
-    say: "Is this a disease week on the Meadow? What's the dew point running, and when is the next dry stretch?",
-    does: (
-      <>
-        Reads the almanac for the block and reports the dew point and humidity
-        over the last days against normal, the rain in the fortnight and the
-        first run of dry days. Asked specifically about a disease, it reads the
-        disease risk tool instead, which counts the wet hours the models
-        actually use.
-      </>
-    ),
+    lead: t("howto.almanac.agentLead"),
+    say: t("howto.almanac.agentSay"),
+    does: t("howto.almanac.agentDoes"),
     tools: ["goodearth_almanac", "goodearth_disease_risk", "goodearth_drying_window"],
   },
-};
+});

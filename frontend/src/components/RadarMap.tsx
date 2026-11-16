@@ -12,6 +12,7 @@ import { useTimezone } from "@tollbooth-dpyc/web/react";
 import { BASEMAPS } from "./FieldMap";
 import { useEnlarged } from "./MapFrame";
 import { EnlargeButton } from "./ui";
+import { useT } from "../i18n";
 import { coverageLabel, fetchRadarIndex, frameLabel, RADAR_MAX_NATIVE_ZOOM, tileUrl, type RadarIndex } from "../lib/radar";
 import { plotShapes } from "../lib/plotShapes";
 import type { SavedRegion } from "../lib/regions";
@@ -21,6 +22,7 @@ const GROWTH = "#4C7A3D";
 const REGION_ZOOM = 8;
 
 export default function RadarMap({ region }: { region: SavedRegion }) {
+  const t = useT();
   const host = useRef<HTMLDivElement | null>(null);
   const map = useRef<L.Map | null>(null);
   const drawn = useRef<L.LayerGroup | null>(null);
@@ -113,24 +115,24 @@ export default function RadarMap({ region }: { region: SavedRegion }) {
       <div className={size.big ? "relative min-h-0 flex-1" : "relative h-[40vh] min-h-[280px] overflow-hidden rounded-md border border-rule"}>
         {/* Sized by the frame; its own classes never change (see MapFrame). */}
         <div ref={host} className="h-full w-full bg-band" />
-        <EnlargeButton big={size.big} onClick={size.toggle} label="the rain" />
+        <EnlargeButton big={size.big} onClick={size.toggle} label={t("ui.radarMap.theRain")} />
       </div>
       <div className={`border-rule bg-panel px-3 py-2 ${size.big ? "border-t" : "mt-2 rounded-md border"}`}>
         {err ? (
           <p className="text-[0.75rem] text-clay">{err}</p>
         ) : !radar ? (
-          <p className="text-[0.75rem] text-ink-soft">Loading radar…</p>
+          <p className="text-[0.75rem] text-ink-soft">{t("ui.radarMap.loading")}</p>
         ) : (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <button onClick={() => setPlaying((p) => !p)}
-              aria-label={playing ? "Pause radar" : "Play radar"}
+              aria-label={playing ? t("ui.radarMap.pause") : t("ui.radarMap.play")}
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded border border-rule text-[0.9375rem] active:bg-band">
               {playing ? "⏸" : "▶"}
             </button>
             <input
               type="range" min={0} max={radar.frames.length - 1} value={frame}
               onChange={(e) => { setPlaying(false); setFrame(Number(e.target.value)); }}
-              aria-label="Radar time"
+              aria-label={t("ui.radarMap.time")}
               className="h-11 min-w-[12rem] flex-1 accent-[color:var(--color-frost)]"
             />
             <span className="data w-[4.5rem] shrink-0 text-[0.75rem]">

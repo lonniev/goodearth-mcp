@@ -7,6 +7,7 @@
 // same way (`block_store.clean_group_path`).
 
 import type { SavedRegion } from "./regions";
+import { tr } from "../i18n/index.ts";
 
 export const SEP = " / ";
 export const MAX_DEPTH = 6;
@@ -159,7 +160,7 @@ export function renameGroup(plots: readonly SavedRegion[], from: string, to: str
     if (!gs.some((g) => isWithin(g, f))) continue;
     const moved = gs.map((g) => isWithin(g, f) ? joinPath([...parsePath(t), ...parsePath(g).slice(fDepth)]) : g);
     if (moved.some((g) => parsePath(g).length > MAX_DEPTH)) {
-      throw new Error(`A group is at most ${MAX_DEPTH} levels deep.`);
+      throw new Error(tr("lib.plotGroups.tooDeep", { n: MAX_DEPTH }));
     }
     const seen = new Set<string>();
     out.push({ ...p, groups: moved.filter((g) => !seen.has(fold(g)) && !!seen.add(fold(g))) });

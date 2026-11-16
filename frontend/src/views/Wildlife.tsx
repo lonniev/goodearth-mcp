@@ -11,7 +11,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useUnits } from "../components/Units";
 import Provenance from "../components/Provenance";
-import { QuoteScroller, TableFilter, useTimezone } from "@tollbooth-dpyc/web/react";
+import { QuoteScroller, TableFilter, useLanguageLocale, useTimezone } from "@tollbooth-dpyc/web/react";
 import { clockTime } from "../lib/clock";
 import { AGRARIAN_QUOTES, AGRARIAN_SOURCE, quoteStyles } from "../lib/quotes";
 import { Pager, SortHeaders, type Column } from "../components/RecordTable";
@@ -43,14 +43,15 @@ import { speciesHabits, type SpeciesHabitsResult } from "../lib/mcp";
 import { useTour } from "@tollbooth-dpyc/web/react";
 import AddPanel, { showForm } from "../components/AddPanel";
 import CommunityObservations from "../components/CommunityObservations";
+import { useT, type Translate } from "../i18n";
 
-const CLOCK: Record<string, { label: string; cls: string }> = {
-  heat:      { label: "heat",       cls: "bg-growth/12 text-growth" },
-  daylight:  { label: "daylight",   cls: "bg-honey/15 text-honey" },
-  interval:  { label: "days from",  cls: "bg-clay/12 text-clay" },
-  calendar:  { label: "your record", cls: "bg-band text-ink-soft" },
-  condition: { label: "conditions", cls: "bg-growth/12 text-growth" },
-};
+const clocks = (t: Translate): Record<string, { label: string; cls: string }> => ({
+  heat:      { label: t("views.wildlife.clock.heat"),      cls: "bg-growth/12 text-growth" },
+  daylight:  { label: t("views.wildlife.clock.daylight"),  cls: "bg-honey/15 text-honey" },
+  interval:  { label: t("views.wildlife.clock.interval"),  cls: "bg-clay/12 text-clay" },
+  calendar:  { label: t("views.wildlife.clock.calendar"),  cls: "bg-band text-ink-soft" },
+  condition: { label: t("views.wildlife.clock.condition"), cls: "bg-growth/12 text-growth" },
+});
 
 /// A driver this page has no chip for is still a row worth showing.
 ///
@@ -59,19 +60,19 @@ const CLOCK: Record<string, { label: string; cls: string }> = {
 /// the calendar's driver dispatch caused server-side. A record may legitimately
 /// hold a driver this build has never heard of: an agent writes it through the
 /// MCP, or the browser is a version behind the service.
-const clockOf = (driver: string) =>
-  CLOCK[driver] ?? { label: driver, cls: "bg-band text-ink-soft" };
+const clockOf = (t: Translate, driver: string) =>
+  clocks(t)[driver] ?? { label: driver, cls: "bg-band text-ink-soft" };
 
-const day = (iso: string) =>
-  new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+const day = (iso: string, locale: string) =>
+  new Date(iso + "T12:00:00").toLocaleDateString(locale, { month: "short", day: "numeric" });
 
 /// Species and event sort in the database; the clock and the computed date do
 /// not, so they are not offered as headers that would quietly do nothing.
-const COLS: Column<ItemSort>[] = [
-  { key: "name", label: "Creature" },
-  { key: "event", label: "Event" },
-  { key: "driver", label: "Clock" },
-  { label: "When", width: "38%" },
+const cols = (t: Translate): Column<ItemSort>[] => [
+  { key: "name", label: t("views.wildlife.col.creature") },
+  { key: "event", label: t("views.wildlife.col.event") },
+  { key: "driver", label: t("views.wildlife.col.clock") },
+  { label: t("views.wildlife.col.when"), width: "38%" },
   { label: "" },
 ];
 
@@ -81,6 +82,9 @@ export default function Wildlife({
   // Read from the grower's record under their npub, not from this browser.
   // Order, search and paging are the database's — it sorts every watch on the
   // block, not the twenty in hand. Search runs on submit: a read costs sats.
+  const t = useT();
+  const locale = useLanguageLocale();
+  const COLS = cols(t);
   const [sort, setSort] = useState<ItemSort>("name");
   const [dir, setDir] = useState<"asc" | "desc">("asc");
   const [pageNo, setPageNo] = useState(0);
@@ -187,11 +191,11 @@ export default function Wildlife({
         // a migration arrival and a departure — and only this separates them.
         list.map(({ id, regionId: _r, ...e }) => ({ ...e, ref: id })),
       );
-      if (!r.success) { setError(r.error || "The calendar could not be read."); return; }
+      if (!r.success) { setError(r.error || t("views.wildlife.err.calendar")); return; }
       setData(r); setRanAt(new Date());
     } catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
-  }, [region]);
+  }, [region, t]);
 
   useEffect(() => { void run(models); }, [run, models]);
 
@@ -282,7 +286,7 @@ export default function Wildlife({
     const subject = (m as { role?: string }).role === "foe" ? "pest" : "animal";
     const r = await lifeCycle(region.id, subject,
       lookupBy(m.species, { taxonId: m.taxon_id, scientificName: m.scientific_name }));
-    if (!r.success) throw new Error(r.error || `${m.species} could not be looked up.`);
+    if (!r.success) throw new Error(r.error || t("views.wildlife.err.lookup", { name: m.species }));
     return wildlifeDiff(m, r, { temp: (f) => u.showTemp(f), dd: (n) => u.showDD(n) });
   }
   async function saveRefresh(m: SavedWildlife, taken: FieldDiff<SavedWildlife>[]) {
@@ -311,7 +315,7 @@ export default function Wildlife({
 
   return (
     <>
-      <PageTitle>Fauna</PageTitle>
+      <PageTitle>{t("views.wildlife.title")}</PageTitle>
 
       {error && <ErrorBox>{error}</ErrorBox>}
 
@@ -320,7 +324,7 @@ export default function Wildlife({
           the year — past the table, past its pager, past the empty state
           telling a grower to go and find a creature — so the page asked them
           to scroll away from the answer to act on it. */}
-      <AddPanel label="Track something" open={addOpen} onOpen={setAddOpen}>
+      <AddPanel label={t("views.wildlife.trackSomething")} open={addOpen} onOpen={setAddOpen}>
       <EventComposer
         region={region}
         recorded={models}
@@ -348,33 +352,33 @@ export default function Wildlife({
           sentence is gone — it was a fact about a list the list shows. */}
       <div className="mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <Section emoji="🐾" first tour="wildlife.list"
-          title={`Fauna ledger${ranAt
-            ? ` (at ${clockTime(ranAt, zone)})`
-            : ""}`}>
+          title={ranAt
+            ? t("views.wildlife.ledgerAt", { time: clockTime(ranAt, zone) })
+            : t("views.wildlife.ledger")}>
           {models.length > 0 && (
             <Provenance tool="goodearth_wildlife_calendar" at={ranAt} onCost={onCost} hideTime />
           )}
         </Section>
         <div className="ml-auto flex items-center gap-2">
-          <TableFilter classNames={TABLE_FILTER} clearLabel="Clear" clearPlacement="panel"
+          <TableFilter classNames={TABLE_FILTER} clearLabel={t("views.wildlife.clear")} clearPlacement="panel"
             onClear={() => { setFilter(NO_WILDLIFE_FILTER); setPageNo(0); }}
             questions={{
               value: filter, summary: wildFilterWords(filter),
               onChange: (f) => { setFilter(f); setPageNo(0); },
               icon: <Glyph path={ICON.filter} size={16} />,
               questions: [
-                { kind: "number", key: "dueDays", label: "Due within", unit: "days" },
-                { kind: "toggle", key: "happened", label: "Already happened" },
-                { kind: "toggle", key: "rosterOnly", label: "On the roster, no date" },
+                { kind: "number", key: "dueDays", label: t("views.wildlife.filter.dueWithin"), unit: t("views.wildlife.filter.days") },
+                { kind: "toggle", key: "happened", label: t("views.wildlife.filter.happened") },
+                { kind: "toggle", key: "rosterOnly", label: t("views.wildlife.filter.rosterOnly") },
               ],
             }} />
-          <SearchBox value={search} placeholder="regex ok, e.g. robin|migration"
-            onSearch={(t) => { setSearch(t); setPageNo(0); }} />
+          <SearchBox value={search} placeholder={t("views.wildlife.searchPlaceholder")}
+            onSearch={(q) => { setSearch(q); setPageNo(0); }} />
         </div>
       </div>
 
       {busy && !data ? (
-        <div className="rounded-md border border-rule bg-panel"><QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Reading the year" intervalMs={6500} classNames={quoteStyles} /></div>
+        <div className="rounded-md border border-rule bg-panel"><QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading={t("views.wildlife.reading")} intervalMs={6500} classNames={quoteStyles} /></div>
       ) : models.length ? (
         <>
           <div className="overflow-x-auto overscroll-x-contain rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">
@@ -384,7 +388,7 @@ export default function Wildlife({
               </thead>
               <tbody>
                 {shown.map(({ model: m, seen: e }) => {
-                  const clock = clockOf(m.driver);
+                  const clock = clockOf(t, m.driver);
                   const when = e?.reached_on ?? e?.projected_date;
                   const past = !!e?.reached_on;
                   const open = () => { setEditing(m.id); setDraft(m); };
@@ -409,7 +413,7 @@ export default function Wildlife({
                             roster — which is when a grower wants it. */}
                         <button
                           onClick={() => openHabits(m.species, m.scientific_name)}
-                          title={`What USA-NPN tracks ${m.species} doing in a year`}
+                          title={t("views.wildlife.habitsTitle", { name: m.species })}
                           className="border-b border-dotted border-ink-soft/70 text-left">
                           {m.species}
                         </button>
@@ -428,18 +432,20 @@ export default function Wildlife({
                           {e ? (
                             <>
                               {e.threshold}
-                              {when && ` → ${day(when)}${past ? "" : " expected"}`}
-                              {e.window && !past && ` (${day(e.window.from)}–${day(e.window.to)})`}
-                              {!when && " → not this season"}
+                              {when && (past
+                                ? t("views.wildlife.when.reached", { date: day(when, locale) })
+                                : t("views.wildlife.when.expected", { date: day(when, locale) }))}
+                              {e.window && !past && ` (${day(e.window.from, locale)}–${day(e.window.to, locale)})`}
+                              {!when && t("views.wildlife.when.notThisSeason")}
                             </>
-                          ) : "not yet read"}
+                          ) : t("views.wildlife.when.notRead")}
                         </span>
                         {m.note && <p className="mt-0.5 text-[0.75rem] text-ink-soft">{m.note}</p>}
                       </td>
                       <td className="px-2 py-2.5 text-right whitespace-nowrap">
                         <span className={`mr-2 shrink-0 rounded-full px-2 py-1 text-[0.6875rem] font-semibold ${
                           past ? "bg-growth/12 text-growth" : "bg-band text-ink-soft"}`}>
-                          {past ? "seen" : "ahead"}
+                          {past ? t("views.wildlife.seen") : t("views.wildlife.ahead")}
                         </span>
                         <RefreshButton name={`${m.species} ${m.event}`} open={refreshing === m.id}
                           onClick={() => setRefreshing(refreshing === m.id ? "" : m.id)} />
@@ -451,15 +457,15 @@ export default function Wildlife({
                           });
                           void retireWildlife(m.id);
                         }}
-                          aria-label={`Remove ${m.species} ${m.event}`} title="Remove"
+                          aria-label={t("views.wildlife.removeRow", { name: m.species, event: m.event })} title={t("views.wildlife.remove")}
                           className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-clay"><TrashGlyph /></button>
                       </td>
                     </tr>
                     {refreshing === m.id && (
                       <RefreshFromAI<SavedWildlife> colSpan={COLS.length} tool="goodearth_life_cycle"
-                        ask={() => askRefresh(m)} onSave={(t) => saveRefresh(m, t)}
+                        ask={() => askRefresh(m)} onSave={(taken) => saveRefresh(m, taken)}
                         onCancel={() => setRefreshing("")} onCost={onCost}
-                        missing={`The reference has no “${m.event}” for ${m.species}.`} />
+                        missing={t("views.wildlife.missing", { event: m.event, name: m.species })} />
                     )}
                     </Fragment>
                   );
@@ -471,27 +477,24 @@ export default function Wildlife({
               pager stands down rather than counting past the list it shows. */}
           {narrowed ? (
             <p className="data mt-1 text-[0.6875rem] text-ink-soft">
-              {shown.length} of {models.length}
-              {total > models.length ? ` · filtering the first ${models.length} of ${total}` : ""}
+              {t("views.wildlife.shownOf", { n: shown.length, total: models.length })}
+              {total > models.length ? t("views.wildlife.filteringFirst", { n: models.length, total }) : ""}
             </p>
           ) : (
             <Pager page={page} pages={pages} total={total} noun="watch" onPage={setPageNo} />
           )}
         </>
       ) : modelsLoading ? (
-        <Empty>Reading what you have on {region.name}…</Empty>
+        <Empty>{t("views.wildlife.readingRecord", { plot: region.name })}</Empty>
       ) : modelsUnknown ? (
-        <ErrorBox>This browser is set to ground the record does not have. Pick the block again from My Plots, or draw it there.</ErrorBox>
+        <ErrorBox>{t("views.wildlife.unknownBlock")}</ErrorBox>
       ) : modelsError ? (
-        <ErrorBox>Could not read your record for {region.name}: {modelsError}</ErrorBox>
+        <ErrorBox>{t("views.wildlife.readFailed", { plot: region.name, err: modelsError })}</ErrorBox>
       ) : (
         <Empty>
           {search
-            ? "Nothing matches that. Clear the search to see everything you track."
-            : `Nothing tracked on ${region.name} yet. Take a creature from what is `
-              + "recorded around you below — when do your robins arrive, when do the "
-              + "squirrels start caching — and the calendar works out when it happens "
-              + "on this ground."}
+            ? t("views.wildlife.noMatch")
+            : t("views.wildlife.empty", { plot: region.name })}
         </Empty>
       )}
 
@@ -505,7 +508,7 @@ export default function Wildlife({
           blockName={region.name}
           kingdom="wildlife"
           adding={addingMany}
-          hint="What people have actually seen near here. Choose any number, keep searching, then add them all. They go on the roster named and undated — the clock and its figure are yours to set."
+          hint={t("views.wildlife.communityHint")}
           onAdd={addChosen}
         />
       </CommunityObservations>
@@ -515,10 +518,10 @@ export default function Wildlife({
               <div className="flex flex-wrap items-baseline gap-2">
                 <b className="figure text-[0.9375rem]">{habitsOf.name}</b>
                 <span className="data text-[0.65625rem] text-ink-soft">
-                  {habitsBusy ? "reading…" : habits?.tracked ? "tracked by USA-NPN" : "not tracked"}
+                  {habitsBusy ? t("views.wildlife.habits.reading") : habits?.tracked ? t("views.wildlife.habits.tracked") : t("views.wildlife.habits.notTracked")}
                 </span>
                 <button onClick={() => { setHabitsOf(null); setHabits(null); }}
-                  aria-label="Close" className="ml-auto inline-flex h-11 w-11 items-center justify-center text-[1.125rem] text-ink-soft active:text-ink">×</button>
+                  aria-label={t("views.wildlife.close")} className="ml-auto inline-flex h-11 w-11 items-center justify-center text-[1.125rem] text-ink-soft active:text-ink">×</button>
               </div>
               {habits && (habits.habits ?? []).length > 0 ? (
                 <>
@@ -531,9 +534,7 @@ export default function Wildlife({
                     ))}
                   </div>
                   <p className="mt-2 text-[0.71875rem] leading-relaxed text-ink-soft">
-                    What USA-NPN tracks this animal doing in a year. The composer
-                    offers these as labels once you choose the animal; the clock
-                    that says when it happens on your ground stays yours.
+                    {t("views.wildlife.habits.explain")}
                   </p>
                 </>
               ) : habits && !habitsBusy ? (
@@ -561,6 +562,7 @@ function Editor({ draft, onChange, onCommit, onCancel, saving }: {
   onCancel: () => void;
   saving: boolean;
 }) {
+  const t = useT();
   const set = (patch: Partial<SavedWildlife>) => onChange({ ...draft, ...patch });
   const keys = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") { e.preventDefault(); onCommit(); }
@@ -574,7 +576,7 @@ function Editor({ draft, onChange, onCommit, onCancel, saving }: {
       </td>
       <td className="px-3 py-2 align-top">
         <input value={draft.event} className={CELL} onKeyDown={keys}
-          placeholder="first arrival"
+          placeholder={t("views.wildlife.eventPlaceholder")}
           onChange={(e) => set({ event: e.target.value })} />
       </td>
       <td className="px-3 py-2 align-top">
@@ -583,10 +585,10 @@ function Editor({ draft, onChange, onCommit, onCancel, saving }: {
       </td>
       <td className="px-3 py-2 align-top">
         <input value={draft.note ?? ""} className={CELL} onKeyDown={keys}
-          placeholder="note" onChange={(e) => set({ note: e.target.value })} />
+          placeholder={t("views.wildlife.notePlaceholder")} onChange={(e) => set({ note: e.target.value })} />
       </td>
       <td className="px-2 py-2 text-right align-top whitespace-nowrap">
-        <RowActions onCommit={onCommit} onCancel={onCancel} saving={saving} what="watch" />
+        <RowActions onCommit={onCommit} onCancel={onCancel} saving={saving} what={t("views.wildlife.whatWatch")} />
       </td>
     </tr>
   );

@@ -13,9 +13,16 @@
 // curve. A grower asking for the season in September means autumn, not January
 // through December.
 
+import { tr } from "../i18n/index.ts";
+
 export type SeasonName = "Winter" | "Spring" | "Summer" | "Fall";
 
 const NAMES: SeasonName[] = ["Winter", "Spring", "Summer", "Fall"];
+
+/// A season's name in the reader's words. `SeasonName` itself is the key in code.
+export function seasonWord(name: SeasonName): string {
+  return tr(`lib.meteoSeason.${name}`);
+}
 
 function isLeap(y: number): boolean {
   return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;

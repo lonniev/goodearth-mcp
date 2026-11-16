@@ -9,6 +9,7 @@
 
 import type { RotationPlanting, SeasonRow } from "../lib/rotation";
 import { Empty } from "./ui";
+import { useT } from "../i18n";
 
 export default function RotationPanel({ rows, more, onRepeat }: {
   rows: SeasonRow[];
@@ -16,8 +17,9 @@ export default function RotationPanel({ rows, more, onRepeat }: {
   /// Plant this crop again. Absent, the crops are plain text.
   onRepeat?: (p: RotationPlanting, season: number) => void;
 }) {
+  const t = useT();
   if (!rows.length) {
-    return <Empty>No dated plantings on this plot yet — rotation reads the season each one went in.</Empty>;
+    return <Empty>{t("ui.rotationPanel.empty")}</Empty>;
   }
 
   const crop = (name: string, r: SeasonRow, i: number) => {
@@ -27,7 +29,7 @@ export default function RotationPanel({ rows, more, onRepeat }: {
         {i > 0 && ", "}
         {onRepeat && from ? (
           <button type="button" onClick={() => onRepeat(from, r.season)}
-            title={`Plant ${name} again this season`}
+            title={t("ui.rotationPanel.again", { name })}
             className="inline-flex min-h-9 items-center rounded px-1 underline decoration-dotted underline-offset-2 active:bg-band">
             {name}
           </button>
@@ -40,7 +42,7 @@ export default function RotationPanel({ rows, more, onRepeat }: {
     <div className="mb-3 rounded-md border border-rule bg-panel px-4 py-3 text-[0.8125rem] leading-relaxed">
       {onRepeat && (
         <p className="mb-2 text-[0.75rem] text-ink-soft">
-          Tap a plant to grow it again — the form above fills in, and you choose the day.
+          {t("ui.rotationPanel.tap")}
         </p>
       )}
       <ul className="space-y-3">
@@ -54,12 +56,12 @@ export default function RotationPanel({ rows, more, onRepeat }: {
                   {g.common && <span className="text-ink-soft"> ({g.common})</span>}
                   {" — "}{g.crops.map((c, i) => crop(c, r, i))}
                   {g.alsoIn.length > 0 && (
-                    <span className="data ml-2 text-[0.6875rem] text-ink-soft">also here {g.alsoIn.join(", ")}</span>
+                    <span className="data ml-2 text-[0.6875rem] text-ink-soft">{t("ui.rotationPanel.alsoHere", { seasons: g.alsoIn.join(", ") })}</span>
                   )}
                 </li>
               ))}
               {r.unplaced.length > 0 && (
-                <li className="text-ink-soft">family not known — {r.unplaced.map((c, i) => crop(c, r, i))}</li>
+                <li className="text-ink-soft">{t("ui.rotationPanel.noFamily")}{r.unplaced.map((c, i) => crop(c, r, i))}</li>
               )}
             </ul>
           </li>

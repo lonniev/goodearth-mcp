@@ -24,6 +24,8 @@
 // the extension service whose bulletin is actually authoritative there. That
 // is the honest version of "what's the usual treatment".
 
+import { tr } from "../i18n/index.ts";
+
 const TAXA = "https://api.inaturalist.org/v1/taxa";
 
 /// Kingdom ids, used to constrain a search to the thing being named.
@@ -79,7 +81,7 @@ export async function lookupSpecies(
   const q = new URLSearchParams({ q: name.trim(), per_page: "1" });
   if (kingdom) q.set("taxon_id", String(KINGDOM[kingdom]));
   const r = await fetch(`${TAXA}?${q}`, { signal, headers: { Accept: "application/json" } });
-  if (!r.ok) throw new Error(`Species lookup failed (${r.status}).`);
+  if (!r.ok) throw new Error(tr("lib.species.lookupFailed", { status: r.status }));
   const d = (await r.json()) as { results?: Record<string, unknown>[] };
   const hit = d.results?.[0];
   if (!hit) { cache.set(key, null); return null; }
@@ -152,16 +154,16 @@ export function guidanceLinks(
 
   const out: GuidanceLink[] = [
     {
-      label: state ? `${state} extension bulletins` : "University extension bulletins",
+      label: state ? tr("lib.species.stateBulletins", { state }) : tr("lib.species.bulletins"),
       url: `https://duckduckgo.com/?q=${query}`,
-      note: "A search of land-grant extension sites — their bulletin is the authority, not this app.",
+      note: tr("lib.species.bulletinsNote"),
     },
   ];
   if (kind === "pest") {
     out.push({
-      label: "Regional IPM centers",
+      label: tr("lib.species.ipm"),
       url: `https://www.ipmcenters.org/`,
-      note: "Integrated pest management guidance by region.",
+      note: tr("lib.species.ipmNote"),
     });
   }
   return out;
@@ -235,7 +237,7 @@ export async function searchSpecies(
   const r = await fetch(`${TAXA}/autocomplete?${p}`, {
     signal, headers: { Accept: "application/json" },
   });
-  if (!r.ok) throw new Error(`Species search failed (${r.status}).`);
+  if (!r.ok) throw new Error(tr("lib.species.searchFailed", { status: r.status }));
   const d = (await r.json()) as { results?: Record<string, unknown>[] };
   return (d.results ?? []).map(toHit).filter((h) => h.id && h.scientificName);
 }
@@ -395,7 +397,7 @@ export async function speciesDetail(
   const r = await fetch(`${TAXA}/${taxonId}`, {
     signal, headers: { Accept: "application/json" },
   });
-  if (!r.ok) throw new Error(`iNaturalist replied ${r.status}.`);
+  if (!r.ok) throw new Error(tr("lib.species.replied", { status: r.status }));
   const d = (await r.json()) as { results?: Record<string, unknown>[] };
   const t = d.results?.[0];
   if (!t) { details.set(taxonId, null); return null; }

@@ -21,9 +21,12 @@ import Term from "./Term";
 import { along, estimatesInfo, order, rowDate, stripAxis, stripMarks, stripMonths, toneOf, TONE_WORD, type StripAxis, type Tone } from "../lib/diseaseRows";
 import { growing } from "../lib/cropMatch";
 import type { DiseaseRiskResult, DiseaseVerdict } from "../lib/mcp";
+import { languageLocale } from "@tollbooth-dpyc/web";
+import { Tx } from "@tollbooth-dpyc/web/react";
+import { useT, WORDS } from "../i18n";
 
 const d = (iso: string) =>
-  new Date(iso.slice(0, 10) + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  new Date(iso.slice(0, 10) + "T12:00:00").toLocaleDateString(languageLocale(), { month: "short", day: "numeric" });
 
 const CHIP: Record<Tone, string> = {
   ahead: "bg-clay/15 text-clay",
@@ -37,6 +40,7 @@ export default function DiseaseCard({ data, plantings = [] }: {
   /// own "developed for" list claims one of these.
   plantings?: string[];
 }) {
+  const t = useT();
   const [open, setOpen] = useState<string | null>(null);
 
   const { live, clear } = order(data, plantings);
@@ -60,17 +64,14 @@ export default function DiseaseCard({ data, plantings = [] }: {
       <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-[max-content_minmax(0,1fr)_max-content]">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 sm:col-span-3 sm:grid sm:grid-cols-subgrid">
         <h3 className="figure text-[0.96875rem] font-semibold">
-          Disease Estimates
+          {t("ui.diseaseCard.title")}
           <Term>
-            {estimatesInfo(data, plantings)}. An hour counts as wet when {w.estimator.wet_when} —
-            estimated, never measured. Each strip is the season: grey where a period qualified,
-            clay where the forecast has one coming, and the dark tick is today. Published models run against your ground; Good Earth
-            does not publish plant pathology and never recommends a treatment.
+            {t("ui.diseaseCard.info", { info: estimatesInfo(data, plantings), wetWhen: w.estimator.wet_when })}
           </Term>
         </h3>
         {axis ? <Months axis={axis} /> : <span />}
         {w.forecast_note && (
-          <span className="data text-[0.65625rem] text-clay">record only — the forecast did not answer</span>
+          <span className="data text-[0.65625rem] text-clay">{t("ui.diseaseCard.recordOnly")}</span>
         )}
       </div>
 
@@ -110,6 +111,7 @@ export default function DiseaseCard({ data, plantings = [] }: {
 function Row({ v, axis, open, onOpen, plantings }: {
   v: DiseaseVerdict; axis: StripAxis | null; open: boolean; onOpen: (k: string | null) => void; plantings: string[];
 }) {
+  const t = useT();
   const tone = toneOf(v);
   // Named as the GROWER wrote them. Echoing back the model's "calendula" at
   // someone who saved "Calendula officinalis" quietly corrects them.
@@ -133,7 +135,7 @@ function Row({ v, axis, open, onOpen, plantings }: {
             heavier than forecast. */}
         {v.next_period?.front_due && (
           <span className="text-[0.8125rem]"
-            title="A front is due: the barometer falls fast across this projected period, so its wet hours are the likeliest to come — perhaps sooner or heavier than forecast. The model itself is unchanged.">
+            title={t("ui.diseaseCard.frontDue")}>
             🌀
           </span>
         )}
@@ -142,10 +144,12 @@ function Row({ v, axis, open, onOpen, plantings }: {
         <span className="ml-auto data text-[0.75rem] sm:text-right">
           {(() => {
             const r = rowDate(v);
-            if (!r) return <span className="text-ink-soft">none this season</span>;
+            if (!r) return <span className="text-ink-soft">{t("ui.diseaseCard.noneThisSeason")}</span>;
             return r.lead === "from"
-              ? <><span className="text-ink-soft">from </span><b>{d(r.date)}</b></>
-              : <><span className="text-ink-soft">last </span>{d(r.date)}</>;
+              ? <Tx ns={WORDS} k="ui.diseaseCard.from" vars={{ date: d(r.date) }}
+                  components={{ soft: <span className="text-ink-soft" />, b: <b /> }} />
+              : <Tx ns={WORDS} k="ui.diseaseCard.last" vars={{ date: d(r.date) }}
+                  components={{ soft: <span className="text-ink-soft" /> }} />;
           })()}
         </span>
       </button>
@@ -166,13 +170,12 @@ function Row({ v, axis, open, onOpen, plantings }: {
               record names none, and is then how a reader judges relevance. */}
           <p className="mt-1 text-ink-soft">
             {yours.length > 0
-              ? `Watched here for your ${yours.join(", ")}.`
-              : `Developed for ${v.about.crops.join(", ")}.`}
+              ? t("ui.diseaseCard.watchedHere", { crops: yours.join(", ") })
+              : t("ui.diseaseCard.developedFor", { crops: v.about.crops.join(", ") })}
           </p>
           {v.at_decision_point && (
             <p className="mt-1 text-ink-soft">
-              {v.severity_total} severity values accrued — the literature's decision point.
-              What to decide is your extension service's to say.
+              {t("ui.diseaseCard.decisionPoint", { n: v.severity_total ?? "" })}
             </p>
           )}
           <p className="data mt-1.5 text-[0.65625rem] text-ink-soft">
@@ -203,15 +206,16 @@ function Months({ axis }: { axis: StripAxis }) {
 /// and the count at the end. The row's date says what is happening now; the
 /// strip says whether this is the first time or the tenth.
 function Season({ v, axis }: { v: DiseaseVerdict; axis: StripAxis }) {
+  const t = useT();
   const marks = stripMarks(v, axis);
   if (!marks) return <span className="hidden sm:block" />;
   const now = along(axis, axis.today);
   const n = v.season_count;
   return (
     <span className="flex min-w-0 grow basis-48 items-center gap-2"
-      title={n ? `${n} qualifying period${n === 1 ? "" : "s"} this season`
-        + (v.severity_total != null ? ` · ${v.severity_total} severity values of the 18 that mark a decision point` : "")
-        : "nothing qualifying this season"}>
+      title={n ? t("ui.diseaseCard.periods", { count: n })
+        + (v.severity_total != null ? ` · ${t("ui.diseaseCard.severityOf18", { n: v.severity_total })}` : "")
+        : t("ui.diseaseCard.nothingQualifying")}>
       <span className="relative h-3 min-w-0 flex-1 overflow-hidden rounded-full bg-band" aria-hidden>
         {stripMonths(axis).map((m) => (
           <span key={m.label} className="absolute inset-y-0 w-px bg-rule" style={{ left: `${m.at * 100}%` }} />

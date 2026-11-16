@@ -6,60 +6,61 @@
 // weather comes from — and what "clear" on the Dashboard means. It was
 // "quiet", which a tester read as "you have not entered anything yet".
 
+import { Tx } from "@tollbooth-dpyc/web/react";
 import { Claim, Facts, StageRun } from "../components/Diagram";
+import { useT, WORDS, type Translate } from "../i18n";
 
-const STAGES = [
-  { emoji: "🍂", label: "spore lands", at: 0.0 },
-  { emoji: "💧", label: "leaf stays wet", at: 0.3, figure: "hours, not days" },
-  { emoji: "🌱", label: "spore germinates", at: 0.62 },
-  { emoji: "🍄", label: "infection", at: 0.84, figure: "the infection period" },
-  { emoji: "🔎", label: "spots show", at: 1.0, figure: "days later" },
+const stages = (t: Translate) => [
+  { emoji: "🍂", label: t("views.lifeOfADisease.stage.sporeLands"), at: 0.0 },
+  { emoji: "💧", label: t("views.lifeOfADisease.stage.leafWet"), at: 0.3, figure: t("views.lifeOfADisease.stage.hoursNotDays") },
+  { emoji: "🌱", label: t("views.lifeOfADisease.stage.germinates"), at: 0.62 },
+  { emoji: "🍄", label: t("views.lifeOfADisease.stage.infection"), at: 0.84, figure: t("views.lifeOfADisease.stage.infectionPeriod") },
+  { emoji: "🔎", label: t("views.lifeOfADisease.stage.spotsShow"), at: 1.0, figure: t("views.lifeOfADisease.stage.daysLater") },
 ];
 
-const DISEASES: { emoji: string; disease: string; crops: string; watches: string }[] = [
+// Disease and crop names stay in English; what each model watches is said in
+// the reader's language.
+const diseases = (t: Translate): { emoji: string; disease: string; crops: string; watches: string }[] => [
   { emoji: "🥔", disease: "Late blight", crops: "potato, tomato",
-    watches: "Two days running, each with a warm night and six humid hours (the Hutton criteria)." },
+    watches: t("views.lifeOfADisease.watches.lateBlight") },
   { emoji: "🍅", disease: "Early blight", crops: "potato, tomato",
-    watches: "A score for every wet period, from its length and warmth, added up over the season (Wallin severity values)." },
+    watches: t("views.lifeOfADisease.watches.earlyBlight") },
   { emoji: "🍎", disease: "Apple scab", crops: "apple, crabapple",
-    watches: "How many wet hours a spring rain lasted at the temperature it fell (the modified Mills table)." },
+    watches: t("views.lifeOfADisease.watches.appleScab") },
   { emoji: "🌼", disease: "Grey mould (botrytis)", crops: "cut flowers, strawberry, grape",
-    watches: "One unbroken wet stretch — about six hours when it is warm, eighteen when it is cool." },
+    watches: t("views.lifeOfADisease.watches.botrytis") },
   { emoji: "🥒", disease: "Powdery mildew", crops: "cucurbits, grape, rose",
-    watches: "The opposite case: humid air with NO rain. Rain sets this one back." },
+    watches: t("views.lifeOfADisease.watches.powderyMildew") },
 ];
 
-const STATUS: { word: string; tone: string; means: string }[] = [
-  { word: "forecast", tone: "bg-clay/15 text-clay",
-    means: "The next 10 days of forecast weather meet the model's criteria. The date is when." },
-  { word: "recent", tone: "bg-honey/20 text-ink",
-    means: "An infection period happened on your ground in the last 14 days." },
-  { word: "clear", tone: "bg-band text-ink-soft",
-    means: "A clear prognosis. The weather over the last two weeks and the next ten has not met the criteria." },
+const status = (t: Translate): { word: string; label: string; tone: string; means: string }[] => [
+  { word: "forecast", label: t("views.lifeOfADisease.status.forecast"), tone: "bg-clay/15 text-clay",
+    means: t("views.lifeOfADisease.status.forecastMeans") },
+  { word: "recent", label: t("views.lifeOfADisease.status.recent"), tone: "bg-honey/20 text-ink",
+    means: t("views.lifeOfADisease.status.recentMeans") },
+  { word: "clear", label: t("views.lifeOfADisease.status.clear"), tone: "bg-band text-ink-soft",
+    means: t("views.lifeOfADisease.status.clearMeans") },
 ];
 
 export default function LifeOfADisease() {
+  const t = useT();
   return (
     <article>
-      <h1 className="figure mb-1 text-[1.5rem] font-bold">The life of a fungus</h1>
-      <p className="eyebrow mb-4">and why it counts wet hours</p>
+      <h1 className="figure mb-1 text-[1.5rem] font-bold">{t("views.lifeOfADisease.title")}</h1>
+      <p className="eyebrow mb-4">{t("views.lifeOfADisease.eyebrow")}</p>
 
-      <Claim>A fungus does not count warmth. It counts how long the leaf stays wet.</Claim>
+      <Claim>{t("views.lifeOfADisease.claim")}</Claim>
 
       <p className="text-[0.84375rem] leading-relaxed">
-        A spore on a dry leaf waits. It needs a film of water, or air near
-        saturation, for long enough to germinate and get in — and the warmer it
-        is, the fewer hours that takes. So disease weather is measured in hours
-        of wetness at a temperature, not in degree days.
+        {t("views.lifeOfADisease.intro")}
       </p>
 
-      <StageRun stages={STAGES} axis="Hours the leaf stays wet →"
-        foot={<>A dry break can reset the count, which is why the length of one
-          unbroken wet stretch matters more than the day's total rain.</>} />
+      <StageRun stages={stages(t)} axis={t("views.lifeOfADisease.axis")}
+        foot={t("views.lifeOfADisease.foot")} />
 
-      <h2 className="figure mt-6 mb-2.5 text-[1.125rem] font-semibold">The five it watches</h2>
+      <h2 className="figure mt-6 mb-2.5 text-[1.125rem] font-semibold">{t("views.lifeOfADisease.fiveHeading")}</h2>
       <ul className="space-y-2">
-        {DISEASES.map((d) => (
+        {diseases(t).map((d) => (
           <li key={d.disease} className="flex gap-3 rounded-md border border-rule bg-panel px-3.5 py-2.5">
             <span className="text-[1.375rem]" aria-hidden="true">{d.emoji}</span>
             <div>
@@ -73,26 +74,20 @@ export default function LifeOfADisease() {
         ))}
       </ul>
 
-      <h2 className="figure mt-6 mb-2.5 text-[1.125rem] font-semibold">How it is predicted</h2>
+      <h2 className="figure mt-6 mb-2.5 text-[1.125rem] font-semibold">{t("views.lifeOfADisease.predictedHeading")}</h2>
       <p className="text-[0.84375rem] leading-relaxed">
-        Every hour since the season began, and every hour of the next ten days,
-        is read for the middle of your plot: temperature, humidity, dew point and
-        rain, from a weather model run on a 2 km grid. An hour counts as wet when
-        the humidity reaches 90%, or when rain falls into air already close to
-        its dew point. Each of the five models then reads those hours by its own
-        published rule.
+        {t("views.lifeOfADisease.predicted")}
       </p>
       <p className="mt-2 text-[0.84375rem] leading-relaxed">
-        It runs on every plot whether or not you have entered anything. Once
-        you record your crops, the card shows only the diseases of those crops.
+        {t("views.lifeOfADisease.runsOnEvery")}
       </p>
 
-      <h2 className="figure mt-6 mb-2.5 text-[1.125rem] font-semibold">What the card is telling you</h2>
+      <h2 className="figure mt-6 mb-2.5 text-[1.125rem] font-semibold">{t("views.lifeOfADisease.cardHeading")}</h2>
       <dl className="space-y-2">
-        {STATUS.map((s) => (
+        {status(t).map((s) => (
           <div key={s.word} className="flex items-baseline gap-3">
             <dt className={`w-20 shrink-0 rounded-full px-2 py-0.5 text-center text-[0.6875rem] font-semibold ${s.tone}`}>
-              {s.word}
+              {s.label}
             </dt>
             <dd className="text-[0.8125rem] leading-relaxed">{s.means}</dd>
           </div>
@@ -101,28 +96,18 @@ export default function LifeOfADisease() {
 
       <div className="mt-4 rounded-md border border-rule border-l-4 border-l-honey bg-panel px-4 py-3">
         <p className="text-[0.84375rem] leading-relaxed">
-          <b>Clear is an answer, not a blank.</b> A dry fortnight is the ordinary
-          result, and it is as useful to know as a warning. Open a row to see the
-          last time that disease's weather did happen this season.
+          <Tx ns={WORDS} k="views.lifeOfADisease.clearIsAnswer" components={{ b: <b /> }} />
         </p>
       </div>
 
       <Facts items={[
-        ["Estimated, not measured",
-          <>Nobody publishes leaf wetness for arbitrary ground, so it is worked
-            out from humidity and rain. A station with a wetness sensor, like
-            Cornell's NEWA, is nearer the truth.</>],
-        ["Weather, not spores",
-          <>An infection period says the conditions allowed infection. Whether
-            spores were there is a separate question, and a field walk answers it.</>],
-        ["No treatment advice",
-          <>What to do about it belongs to your extension service. This says
-            when the weather was right for it.</>],
+        [t("views.lifeOfADisease.fact.estimated"), <>{t("views.lifeOfADisease.fact.estimatedBody")}</>],
+        [t("views.lifeOfADisease.fact.weather"), <>{t("views.lifeOfADisease.fact.weatherBody")}</>],
+        [t("views.lifeOfADisease.fact.noAdvice"), <>{t("views.lifeOfADisease.fact.noAdviceBody")}</>],
       ]} />
 
       <p className="mt-5 text-[0.78125rem] leading-relaxed text-ink-soft">
-        Every feed and every model rule, with its citation, is on the References
-        page; the words are in Words.
+        {t("views.lifeOfADisease.seeReferences")}
       </p>
     </article>
   );

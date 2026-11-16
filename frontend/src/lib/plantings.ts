@@ -159,28 +159,28 @@ export function makePlanting(
     | "commonName" | "taps" | "frostHardy" | "flowerColor" | "heightIn" | "bloomMonths"
     | "stages">,
 ): Planting | string {
-  if (!crop.trim()) return "Give the planting a crop name.";
+  if (!crop.trim()) return tr("lib.plantings.needCrop");
   const perennial = !!extra?.perennial;
 
   if (gddTarget != null && (!Number.isFinite(gddTarget) || gddTarget < 1 || gddTarget > 20_000))
-    return "GDD target should be a realistic number of degree days.";
+    return tr("lib.plantings.badTarget");
   if (!perennial && gddTarget == null)
-    return "GDD target should be a realistic number of degree days.";
+    return tr("lib.plantings.badTarget");
 
   if (setOut && (!/^\d{4}-\d{2}-\d{2}$/.test(setOut) || Number.isNaN(Date.parse(setOut))))
-    return "Set-out date must be YYYY-MM-DD.";
-  if (!perennial && !setOut) return "Set-out date must be YYYY-MM-DD.";
+    return tr("lib.plantings.badSetOut");
+  if (!perennial && !setOut) return tr("lib.plantings.badSetOut");
 
   if (baseTempF != null && (baseTempF < 20 || baseTempF > 80))
-    return "Base temperature must be between 20 and 80 °F.";
+    return tr("lib.plantings.badBase");
   if (extra?.chillHours != null && (extra.chillHours < 0 || extra.chillHours > 2_000))
-    return "Chill hours should be between 0 and 2,000.";
+    return tr("lib.plantings.badChill");
   if (extra?.hardyToF != null && (extra.hardyToF < -60 || extra.hardyToF > 40))
-    return "Hardiness should be between -60 and 40 °F.";
+    return tr("lib.plantings.badHardy");
   if (extra?.heightIn != null && (!Number.isFinite(extra.heightIn) || extra.heightIn <= 0 || extra.heightIn > 600))
-    return "Height should be between 1 and 600 inches.";
+    return tr("lib.plantings.badHeight");
   if (extra?.bloomMonths?.some((m) => !Number.isInteger(m) || m < 1 || m > 12))
-    return "Bloom months should be 1 to 12.";
+    return tr("lib.plantings.badBloom");
 
   return {
     id: newItemId("pl"),
@@ -230,6 +230,7 @@ export function plantingDateFor(earliestOut: string | null | undefined, today: s
 
 import { newItemId } from "./submit.ts";
 import { HUES, type Hue } from "./companions.ts";
+import { tr } from "../i18n/index.ts";
 import type { ItemCodec } from "./blockItems";
 import type { ItemRow } from "./mcp";
 

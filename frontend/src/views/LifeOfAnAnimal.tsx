@@ -8,76 +8,55 @@
 // has to finish. An animal's year comes back round.
 
 import { Claim, Facts, YearWheel } from "../components/Diagram";
+import { useT, type Translate } from "../i18n";
 
 /// Clockwise from January at the top. Northern temperate, which is where the
 /// feeds this service reads actually cover.
-const YEAR = [
-  { emoji: "❄️", label: "winter sleep", at: 0.03 },
-  { emoji: "🐦", label: "first arrival", at: 0.24 },
-  { emoji: "🪺", label: "nesting", at: 0.36 },
-  { emoji: "🐣", label: "young fledge", at: 0.48 },
-  { emoji: "🦌", label: "young disperse", at: 0.61 },
-  { emoji: "🍂", label: "southbound", at: 0.76 },
-  { emoji: "🐻", label: "denning", at: 0.89 },
+const year = (t: Translate) => [
+  { emoji: "❄️", label: t("views.lifeOfAnAnimal.stage.winterSleep"), at: 0.03 },
+  { emoji: "🐦", label: t("views.lifeOfAnAnimal.stage.firstArrival"), at: 0.24 },
+  { emoji: "🪺", label: t("views.lifeOfAnAnimal.stage.nesting"), at: 0.36 },
+  { emoji: "🐣", label: t("views.lifeOfAnAnimal.stage.youngFledge"), at: 0.48 },
+  { emoji: "🦌", label: t("views.lifeOfAnAnimal.stage.youngDisperse"), at: 0.61 },
+  { emoji: "🍂", label: t("views.lifeOfAnAnimal.stage.southbound"), at: 0.76 },
+  { emoji: "🐻", label: t("views.lifeOfAnAnimal.stage.denning"), at: 0.89 },
 ];
 
 export default function LifeOfAnAnimal() {
+  const t = useT();
   return (
     <article>
-      <h1 className="figure mb-1 text-[1.5rem] font-bold">The life of an animal</h1>
-      <p className="eyebrow mb-4">migration, and the winter sleep</p>
+      <h1 className="figure mb-1 text-[1.5rem] font-bold">{t("views.lifeOfAnAnimal.title")}</h1>
+      <p className="eyebrow mb-4">{t("views.lifeOfAnAnimal.eyebrow")}</p>
 
-      <Claim>A bird does not read a thermometer.</Claim>
+      <Claim>{t("views.lifeOfAnAnimal.claim")}</Claim>
 
       <p className="text-[0.84375rem] leading-relaxed">
-        Almost everything else on this site runs on heat. Animals are the
-        exception. A migrating bird leaves on day length. Day length is the
-        same on the same date every year, whatever the weather did. The insects
-        it arrives to eat came out on warmth, and warmth moves by weeks. In
-        some years the two line up. In others they do not, and that gap is
-        something a grower can watch for.
+        {t("views.lifeOfAnAnimal.intro")}
       </p>
 
-      <YearWheel stages={YEAR} centre="the year"
-        foot={<>Seven moments a temperate year tends to have. Which of them
-          matter is a question about your ground and your own record. Good
-          Earth dates the ones you name.</>} />
+      <YearWheel stages={year(t)} centre={t("views.lifeOfAnAnimal.centre")}
+        foot={t("views.lifeOfAnAnimal.foot")} />
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-md border border-rule border-l-4 border-l-honey bg-panel px-4 py-3">
-          <p className="eyebrow">Migration keeps a calendar</p>
+          <p className="eyebrow">{t("views.lifeOfAnAnimal.migrationQ")}</p>
           <p className="mt-1 text-[0.84375rem] leading-relaxed">
-            Day length is astronomy. The 13-hour day falls on the same date at
-            your latitude every year. Birds that time departure by light are
-            reliable to within about a week, and a warm spring does not move
-            them.
+            {t("views.lifeOfAnAnimal.migrationA")}
           </p>
         </div>
         <div className="rounded-md border border-rule border-l-4 border-l-frost bg-panel px-4 py-3">
-          <p className="eyebrow">Hibernation is two questions</p>
+          <p className="eyebrow">{t("views.lifeOfAnAnimal.hibernationQ")}</p>
           <p className="mt-1 text-[0.84375rem] leading-relaxed">
-            Going under has to do with cold and with food running out. Coming
-            back out has to do with warmth. The two ends of a winter sleep
-            answer to different things, so a mild autumn and a mild spring do
-            not shift the dates by the same amount.
+            {t("views.lifeOfAnAnimal.hibernationA")}
           </p>
         </div>
       </div>
 
       <Facts items={[
-        ["Four clocks",
-          <>An event here can be timed by day length, by accumulated heat, by a
-            fixed count of days from a date you give, or by a date from your own
-            record. Husbandry uses the third: a ewe bred in October lambs about
-            147 days later whatever the winter does.</>],
-        ["Your record, not natural history",
-          <>Good Earth times what you tell it to watch for. It does not publish
-            what an animal does — the phenophases it can offer come from
-            USA-NPN, in their words.</>],
-        ["Counts measure observers",
-          <>What is recorded near your ground says as much about where people
-            walk as about where animals live. A roadside is better watched than
-            a back hayfield.</>],
+        [t("views.lifeOfAnAnimal.fact.clocks"), <>{t("views.lifeOfAnAnimal.fact.clocksBody")}</>],
+        [t("views.lifeOfAnAnimal.fact.record"), <>{t("views.lifeOfAnAnimal.fact.recordBody")}</>],
+        [t("views.lifeOfAnAnimal.fact.counts"), <>{t("views.lifeOfAnAnimal.fact.countsBody")}</>],
       ]} />
     </article>
   );

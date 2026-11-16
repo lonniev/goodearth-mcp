@@ -7,7 +7,8 @@
 
 import { useEffect, useState } from "react";
 import { formatDateTime, serviceStatus, type ServiceStatus } from "@tollbooth-dpyc/web";
-import { BuildInfoPanel, useTimezone, type BuildInfoPanelClassNames } from "@tollbooth-dpyc/web/react";
+import { BuildInfoPanel, Tx, useTimezone, type BuildInfoPanelClassNames } from "@tollbooth-dpyc/web/react";
+import { useT, WORDS } from "../i18n";
 
 // The build panel in the page's own dress: a ruled card, soft labels, the
 // values in the data face. The package draws the rows; the look is ours.
@@ -21,6 +22,7 @@ const BUILD: BuildInfoPanelClassNames = {
 };
 
 export default function About() {
+  const t = useT();
   const [status, setStatus] = useState<ServiceStatus | null>(null);
   const [err, setErr] = useState("");
   const [, zone] = useTimezone();
@@ -34,8 +36,8 @@ export default function About() {
   return (
     <>
       <div className="mb-3.5 flex items-baseline gap-3">
-        <h1 className="figure text-[1.625rem] font-bold">About</h1>
-        <span className="text-[0.8125rem] text-ink-soft">Good Earth, and the tollbooth behind it</span>
+        <h1 className="figure text-[1.625rem] font-bold">{t("views.about.title")}</h1>
+        <span className="text-[0.8125rem] text-ink-soft">{t("views.about.subtitle")}</span>
       </div>
 
       {/* ── What it is ─────────────────────────────────────────────────── */}
@@ -43,14 +45,7 @@ export default function About() {
         {/* The same correction as the welcome page: name the thing this is
             better THAN, rather than denying a claim nobody made. */}
         <p className="text-[0.875rem] leading-relaxed">
-          <b className="figure text-[1rem]">
-            Many weather services provide a climate prediction for a single
-            weather station that may be miles from your fields.
-          </b>{" "}
-          Good Earth helps you estimate the climate variation across the varied
-          surface of your plots and fields. A bench and a hollow on the same
-          acreage do not share a frost date — draw the block, and every answer
-          comes back with the spread across it.
+          <Tx ns={WORDS} k="views.about.what" components={{ b: <b className="figure text-[1rem]" /> }} />
         </p>
         {/* "That spread is the whole product" claimed the service amounts to
             noticing that microclimates exist — which every grower who has
@@ -58,75 +53,48 @@ export default function About() {
             poor thing to pay for. The spread is a PROPERTY of the answers. The
             answers are the product. */}
         <p className="mt-2 text-[0.8125rem] leading-relaxed text-ink-soft">
-          The spread is a property of the answers rather than the service
-          itself. What Good Earth does is the arithmetic a walk cannot: it reads
-          public scientific feeds against the shape you drew and returns dates.
-          When the frost window opens and closes here. Which sowing still
-          finishes before it closes. Which week a pest&rsquo;s stages arrive.
-          Whether a tree banks the chill it needs on this ground.
+          {t("views.about.arithmetic")}
         </p>
         <p className="mt-2 text-[0.8125rem] leading-relaxed text-ink-soft">
-          A grower already knows the hollow is colder. What this adds is how
-          many days colder, from which feed, with the assumption inside the
-          model written down beside the number.
+          {t("views.about.alreadyKnows")}
         </p>
       </div>
 
       {/* ── What it costs ──────────────────────────────────────────────── */}
-      <h2 className="figure mb-2.5 text-[1.125rem] font-semibold">⚡ How paying works</h2>
+      <h2 className="figure mb-2.5 text-[1.125rem] font-semibold">⚡ {t("views.about.payingHeading")}</h2>
       <div className="rounded-md border border-rule bg-panel px-4 py-3.5 text-[0.8125rem] leading-relaxed">
-        <p>
-          Answers draw from a pre-funded balance of satoshis — Bitcoin's
-          smallest unit — over the Lightning network. You top up when you
-          choose to, and nothing interrupts you mid-task to ask for a card.
-        </p>
+        <p>{t("views.about.paying1")}</p>
         <p className="mt-2">
-          That is the point of <b>DPYC</b>, which stands for{" "}
-          <i>Don't Pester Your Customer</i>. There is no account and no
-          password: your identity is a Nostr key you already own, the same one
-          that signs your profile. The operator never holds your credentials and
-          never sees a payment method.
+          <Tx ns={WORDS} k="views.about.paying2" components={{ b: <b />, i: <i /> }} />
         </p>
-        <p className="mt-2">
-          Every answer on this site shows what it cost, on the card that carries
-          it. Prices are set live by the operator and can move — a free tier, a
-          quiet-season discount, a surge — so the figure you see is read from
-          the pricing model at the moment you ask, never from anything baked
-          into this page.
-        </p>
+        <p className="mt-2">{t("views.about.paying3")}</p>
       </div>
 
       {/* ── For an AI assistant ────────────────────────────────────────── */}
       {/* An assistant asked about Good Earth could not find how to use it,
           and said so: the page was built for a person, and the address its
           own tools answer on was written nowhere a reader would look. */}
-      <h2 className="figure mt-7 mb-2.5 text-[1.125rem] font-semibold">🤖 Use it from your AI assistant</h2>
+      <h2 className="figure mt-7 mb-2.5 text-[1.125rem] font-semibold">🤖 {t("views.about.aiHeading")}</h2>
       <div className="rounded-md border border-rule bg-panel px-4 py-3.5 text-[0.8125rem] leading-relaxed">
-        <p>
-          Everything on this site is also an MCP server, so an assistant such as
-          Claude or Cursor can ask Good Earth the same questions for you — same
-          answers, same balance, same Nostr key.
-        </p>
+        <p>{t("views.about.ai1")}</p>
         <p className="data mt-2 break-all rounded bg-band px-2.5 py-1.5 text-[0.78125rem]">
           https://goodearth-mcp.fastmcp.app/mcp
         </p>
         <ul className="mt-2 list-disc space-y-1 pl-5">
-          <li><b>Claude.ai or Claude Desktop:</b> Customize → Connectors → Add custom connector, and paste the address.</li>
-          <li><b>Claude Code:</b> <span className="data">claude mcp add --transport http goodearth</span> and the address.</li>
-          <li><b>Cursor:</b> add it under <span className="data">mcpServers</span> as a <span className="data">url</span>.</li>
+          <li><Tx ns={WORDS} k="views.about.aiClaude" components={{ b: <b /> }} /></li>
+          <li><Tx ns={WORDS} k="views.about.aiClaudeCode" components={{ b: <b />, cmd: <span className="data" /> }} /></li>
+          <li><Tx ns={WORDS} k="views.about.aiCursor" components={{ b: <b />, data: <span className="data" /> }} /></li>
         </ul>
         <p className="mt-2 text-ink-soft">
-          The assistant asks for your npub and sends you a direct message to
-          confirm it is you — reply from your Nostr client, as you do to sign in
-          here. <a href="/llms.txt" className="underline">A plain-text summary for assistants</a> says the rest.
+          <Tx ns={WORDS} k="views.about.aiConfirm" components={{ summary: <a href="/llms.txt" className="underline" /> }} />
         </p>
       </div>
 
       {/* ── What is running ────────────────────────────────────────────── */}
-      <h2 className="figure mt-7 mb-2.5 text-[1.125rem] font-semibold">🔧 What is running</h2>
+      <h2 className="figure mt-7 mb-2.5 text-[1.125rem] font-semibold">🔧 {t("views.about.runningHeading")}</h2>
       {err ? (
         <div className="rounded-md border border-clay/30 bg-clay/10 p-3 text-[0.8125rem] text-clay">
-          Could not reach the service: {err}
+          {t("views.about.unreachable", { err })}
         </div>
       ) : (
         <BuildInfoPanel
@@ -141,35 +109,35 @@ export default function About() {
           classNames={BUILD}
         >
           <div className={BUILD.row}>
-            <span className={BUILD.label}>Operator fingerprint</span>{" "}
+            <span className={BUILD.label}>{t("views.about.fingerprint")}</span>{" "}
             <span className={BUILD.value}>
               {status?.operator_npub_hash ?? "—"}
               <span className="mt-0.5 block text-[0.71875rem] text-ink-soft">
-                Verify this matches the fingerprint on any direct message claiming to be Good Earth.
+                {t("views.about.fingerprintHint")}
               </span>
             </span>
           </div>
           <div className={BUILD.row}>
-            <span className={BUILD.label}>Persistence</span>{" "}
+            <span className={BUILD.label}>{t("views.about.persistence")}</span>{" "}
             <span className={BUILD.value}>
-              {status ? (status.vault_configured ? "configured" : "not configured") : "—"}
+              {status ? (status.vault_configured ? t("views.about.configured") : t("views.about.notConfigured")) : "—"}
             </span>
           </div>
         </BuildInfoPanel>
       )}
 
       {/* ── The network ────────────────────────────────────────────────── */}
-      <h2 className="figure mt-7 mb-2.5 text-[1.125rem] font-semibold">🌐 The wider network</h2>
+      <h2 className="figure mt-7 mb-2.5 text-[1.125rem] font-semibold">🌐 {t("views.about.networkHeading")}</h2>
       <div className="grid gap-2.5 sm:grid-cols-2">
         {[
           { name: "Good Brew", url: "https://cafe.tollbooth-dpyc.com",
-            line: "The sibling storefront — coffee, books, and the DPYC tech site." },
+            line: t("views.about.goodBrew") },
           { name: "Tollbooth DPYC", url: "https://github.com/lonniev/tollbooth-dpyc",
-            line: "The shared runtime: ledger, encrypted vault, pricing, Lightning, audit." },
-          { name: "Good Earth source", url: "https://github.com/lonniev/goodearth-mcp",
-            line: "Apache-2.0. The models on the References page are all readable here." },
+            line: t("views.about.tollbooth") },
+          { name: t("views.about.sourceName"), url: "https://github.com/lonniev/goodearth-mcp",
+            line: t("views.about.source") },
           { name: "Pricing Studio", url: "https://github.com/lonniev/tollbooth-pricing-studio",
-            line: "The operator console where these prices are actually set." },
+            line: t("views.about.pricingStudio") },
         ].map((l) => (
           <a key={l.url} href={l.url} target="_blank" rel="noreferrer"
             className="rounded-md border border-rule bg-panel px-3.5 py-3 active:border-ink">
@@ -180,10 +148,7 @@ export default function About() {
       </div>
 
       <p className="mt-6 text-[0.75rem] leading-relaxed text-ink-soft">
-        Good Earth is open source under Apache-2.0. If an answer here disagrees
-        with your own record, the References page shows exactly which feed and
-        which assumption produced it — and a field report turns that
-        disagreement into a correction for your block.
+        {t("views.about.openSource")}
       </p>
     </>
   );

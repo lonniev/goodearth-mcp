@@ -17,30 +17,34 @@
 import type { AlmanacResult, StormSignal } from "./mcp.ts";
 import { dayTrend, stormLevel } from "./storm.ts";
 import { pressure, pressureUnit, showRain, temp, tempUnit, type Unit } from "./units.ts";
+import { languageLocale } from "@tollbooth-dpyc/web";
+import { tr } from "../i18n/index.ts";
+import type { MessageKey } from "../i18n/en.ts";
 
 type Day = AlmanacResult["upcoming"][number];
 
-const POINTS: Record<string, string> = {
-  N: "North", NNE: "North northeast", NE: "Northeast", ENE: "East northeast",
-  E: "East", ESE: "East southeast", SE: "Southeast", SSE: "South southeast",
-  S: "South", SSW: "South southwest", SW: "Southwest", WSW: "West southwest",
-  W: "West", WNW: "West northwest", NW: "Northwest", NNW: "North northwest",
-};
+/// Compass points, by the abbreviation the almanac sends.
+const POINTS = new Set([
+  "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW",
+]);
 
 /// The almanac's sky words, turned into the daytime words the Weather
 /// Service uses. A sky that is raining reads "Mostly cloudy", because the
 /// rain itself has its own sentence.
-const DAY_SKY: Record<string, string> = {
-  "Clear": "Sunny", "Mainly clear": "Mostly sunny", "Partly cloudy": "Partly sunny",
-  "Overcast": "Cloudy", "Fog": "Patchy fog", "Rime fog": "Patchy freezing fog",
+const DAY_SKY: Record<string, MessageKey> = {
+  "Clear": "lib.zoneForecast.sky.clear", "Mainly clear": "lib.zoneForecast.sky.mainlyClear",
+  "Partly cloudy": "lib.zoneForecast.sky.partlyCloudy", "Overcast": "lib.zoneForecast.sky.overcast",
+  "Fog": "lib.zoneForecast.sky.fog", "Rime fog": "lib.zoneForecast.sky.rimeFog",
 };
 
+type Falls = "storms" | "freezingRain" | "snowShowers" | "snow" | "showers" | "drizzle" | "rain";
+
 /// What falls, from the sky's own word for it.
-function falling(sky: string): string {
+function falling(sky: string): Falls {
   const s = sky.toLowerCase();
-  if (s.includes("thunder")) return "showers and thunderstorms";
-  if (s.includes("freezing")) return "freezing rain";
-  if (s.includes("snow")) return s.includes("shower") ? "snow showers" : "snow";
+  if (s.includes("thunder")) return "storms";
+  if (s.includes("freezing")) return "freezingRain";
+  if (s.includes("snow")) return s.includes("shower") ? "snowShowers" : "snow";
   if (s.includes("shower")) return "showers";
   if (s.includes("drizzle")) return "drizzle";
   return "rain";
@@ -54,31 +58,33 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 export function chanceOf(pct: number | null | undefined, what: string): [string, string | null] | null {
   if (pct == null || pct < 15) return null;
   const p = Math.round(pct / 10) * 10;
-  if (pct < 25) return [`A slight chance of ${what}.`, null];
-  if (pct < 55) return [`A ${p} percent chance of ${what}.`, null];
-  const tail = `Chance of precipitation is ${p}%.`;
-  return [pct < 75 ? `${cap(what)} likely.` : `${cap(what)}.`, tail];
+  if (pct < 25) return [tr("lib.zoneForecast.chance.slight", { what }), null];
+  if (pct < 55) return [tr("lib.zoneForecast.chance.percent", { p, what }), null];
+  const tail = tr("lib.zoneForecast.chance.tail", { p });
+  return [tr(pct < 75 ? "lib.zoneForecast.chance.likely" : "lib.zoneForecast.chance.certain", { what: cap(what) }), tail];
 }
 
 /// The day's rain as the Weather Service brackets it; nothing under a tenth.
 export function rainfall(inches: number | null | undefined, snow: boolean): string | null {
   if (inches == null || inches < 0.1) return null;
-  const what = snow ? "New precipitation amounts" : "New rainfall amounts";
   const band =
-    inches < 0.25 ? "between a tenth and quarter of an inch" :
-    inches < 0.5 ? "between a quarter and half of an inch" :
-    inches < 0.75 ? "between a half and three quarters of an inch" :
-    inches < 1 ? "between three quarters and one inch" :
-    inches < 2 ? "between 1 and 2 inches" : "of 2 inches or more";
-  return `${what} ${band} possible.`;
+    inches < 0.25 ? "tenthToQuarter" :
+    inches < 0.5 ? "quarterToHalf" :
+    inches < 0.75 ? "halfToThreeQuarters" :
+    inches < 1 ? "threeQuartersToOne" :
+    inches < 2 ? "oneToTwo" : "twoOrMore";
+  return tr(snow ? "lib.zoneForecast.amount.snow" : "lib.zoneForecast.amount.rain",
+    { band: tr(`lib.zoneForecast.band.${band}`) });
 }
 
 export function windLine(w: Day["wind"]): string {
   const mph = w.speed_mph;
   if (mph == null) return "";
-  if (mph < 4) return "Calm wind.";
-  const from = w.from ? `${POINTS[w.from] ?? w.from} wind` : "Wind";
-  return `${from} up to ${Math.round(mph)} mph.`;
+  if (mph < 4) return tr("lib.zoneForecast.wind.calm");
+  const mphN = Math.round(mph);
+  if (!w.from) return tr("lib.zoneForecast.wind.any", { mph: mphN });
+  const point = POINTS.has(w.from) ? tr(`lib.zoneForecast.point.${w.from}` as MessageKey) : w.from;
+  return tr("lib.zoneForecast.wind.from", { point, mph: mphN });
 }
 
 function degrees(f: number, unit: Unit): string {
@@ -91,22 +97,26 @@ function degrees(f: number, unit: Unit): string {
 /// sentences: the dew point, the humidity, the barometer, the rain and the sun.
 export function dayDetails(day: Day, before: Day | undefined, unit: Unit): string[] {
   const out: string[] = [];
-  if (day.dew_point_f != null) out.push(`Dew point near ${degrees(day.dew_point_f, unit)}.`);
-  if (day.humidity_pct != null) out.push(`Humidity around ${Math.round(day.humidity_pct)} percent.`);
+  if (day.dew_point_f != null) out.push(tr("lib.zoneForecast.dew", { t: degrees(day.dew_point_f, unit) }));
+  if (day.humidity_pct != null) out.push(tr("lib.zoneForecast.humidity", { n: Math.round(day.humidity_pct) }));
   if (day.pressure_hpa != null) {
     const reading = `${pressure(day.pressure_hpa, unit).toFixed(unit === "C" ? 0 : 2)}${pressureUnit(unit)}`;
     const trend = dayTrend(day.pressure_hpa, before?.pressure_hpa);
-    out.push(`Barometer ${reading}${trend ? ` and ${trend}` : ""}.`);
+    out.push(trend
+      ? tr("lib.zoneForecast.barometerTrend", { reading, trend: tr(`lib.zoneForecast.trend.${trend}`) })
+      : tr("lib.zoneForecast.barometer", { reading }));
   }
   if (day.precip_in) {
-    const rate = day.rain_rate_in_h ? `, at ${showRain(day.rain_rate_in_h, unit)} an hour` : "";
-    out.push(`Rain about ${showRain(day.precip_in, unit)}${rate}.`);
+    const amount = showRain(day.precip_in, unit);
+    out.push(day.rain_rate_in_h
+      ? tr("lib.zoneForecast.rainRate", { amount, rate: showRain(day.rain_rate_in_h, unit) })
+      : tr("lib.zoneForecast.rain", { amount }));
   }
-  if (day.sun_wm2 != null) out.push(`Sun strength averaging ${Math.round(day.sun_wm2)} W/m² in daylight.`);
-  if (day.uv_index != null) out.push(`UV peaking at ${day.uv_index.toFixed(0)}.`);
+  if (day.sun_wm2 != null) out.push(tr("lib.zoneForecast.sun", { n: Math.round(day.sun_wm2) }));
+  if (day.uv_index != null) out.push(tr("lib.zoneForecast.uv", { n: day.uv_index.toFixed(0) }));
   if (day.sunshine_hours != null) {
     const h = Math.round(day.sunshine_hours);
-    out.push(h === 0 ? "No sunshine." : `About ${h} hour${h === 1 ? "" : "s"} of sunshine.`);
+    out.push(h === 0 ? tr("lib.zoneForecast.noSunshine") : tr("lib.zoneForecast.sunshine", { count: h }));
   }
   return out;
 }
@@ -114,15 +124,15 @@ export function dayDetails(day: Day, before: Day | undefined, unit: Unit): strin
 /// The barometer's warning, on the day its worst fall lands.
 export function stormLine(storm: StormSignal | null | undefined, date: string): string | null {
   if (!storm || storm.level === "none" || storm.worst?.at.slice(0, 10) !== date) return null;
-  return `${stormLevel(storm)}: the barometer is forecast to fall fast.`;
+  return tr("lib.zoneForecast.storm", { level: stormLevel(storm) });
 }
 
 /// What the heading calls a day: TODAY and TONIGHT for today, else its name.
 function names(date: string, today: string): [string, string] {
-  if (date === today) return ["TODAY", "TONIGHT"];
+  if (date === today) return [tr("lib.zoneForecast.today"), tr("lib.zoneForecast.tonight")];
   const name = new Date(date + "T12:00:00")
-    .toLocaleDateString("en-US", { weekday: "long" }).toUpperCase();
-  return [name, `${name} NIGHT`];
+    .toLocaleDateString(languageLocale(), { weekday: "long" }).toUpperCase();
+  return [name, tr("lib.zoneForecast.night", { name })];
 }
 
 /// The day and the night after it, as two dotted paragraphs.
@@ -131,21 +141,26 @@ export function dayForecast(
   before?: Day, storm?: StormSignal | null,
 ): string {
   const [dayName, nightName] = names(day.date, today);
-  const what = falling(day.sky.label);
+  const falls = falling(day.sky.label);
+  const what = tr(`lib.zoneForecast.falls.${falls}`);
   const wet = chanceOf(day.precip_chance_pct, what);
-  const sky = wet ? (DAY_SKY[day.sky.label] ?? "Mostly cloudy") : (DAY_SKY[day.sky.label] ?? cap(day.sky.label));
-  const high = day.high_f != null ? `, with a high near ${degrees(day.high_f, unit)}` : "";
+  const named = DAY_SKY[day.sky.label];
+  const sky = named ? tr(named) : wet ? tr("lib.zoneForecast.sky.mostlyCloudy") : cap(day.sky.label);
   const parts = [
     wet?.[0],
-    `${sky}${high}.`,
+    day.high_f != null
+      ? tr("lib.zoneForecast.skyHigh", { sky, t: degrees(day.high_f, unit) })
+      : tr("lib.zoneForecast.skyOnly", { sky }),
     windLine(day.wind),
     wet?.[1],
-    rainfall(day.precip_in, what.includes("snow")),
+    rainfall(day.precip_in, falls === "snow" || falls === "snowShowers"),
     stormLine(storm, day.date),
     ...dayDetails(day, before, unit),
   ].filter(Boolean);
   const lines = [`.${dayName}...${parts.join(" ")}`];
-  if (next?.low_f != null) lines.push(`.${nightName}...Low around ${degrees(next.low_f, unit)}.`);
+  if (next?.low_f != null) {
+    lines.push(`.${nightName}...${tr("lib.zoneForecast.low", { t: degrees(next.low_f, unit) })}`);
+  }
   return lines.join("\n");
 }
 
@@ -157,13 +172,13 @@ export function zoneForecast(
     storm?: StormSignal | null;
   },
 ): string {
-  const at = issued.toLocaleString("en-US", {
+  const at = issued.toLocaleString(languageLocale(), {
     hour: "numeric", minute: "2-digit", timeZoneName: "short",
     weekday: "short", month: "short", day: "numeric", year: "numeric",
   });
   return [
-    `Point forecast for ${place}`,
-    `Good Earth · issued ${at}`,
+    tr("lib.zoneForecast.header", { place }),
+    tr("lib.zoneForecast.issued", { at }),
     "",
     dayForecast(days[index], days[index + 1], unit, today, days[index - 1], storm),
   ].join("\n");

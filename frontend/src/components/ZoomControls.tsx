@@ -1,4 +1,5 @@
 import { TIMESCALES } from "../lib/useChartZoom";
+import { useT } from "../i18n";
 // Zoom controls for a chart.
 //
 // Split in two, because the two axes belong in different places. The DATE
@@ -91,10 +92,11 @@ export function AxisZoom({ onZoom, label, short }: {
   /// `title` and `aria-label` always carrying the whole of it.
   short?: string;
 }) {
+  const t = useT();
   return (
     <div className="flex shrink-0 flex-col items-center justify-center gap-1 pl-1">
       <button className={BTN} onClick={() => onZoom(1 / 1.4)}
-        aria-label={`Zoom in on ${label}`} title={`Expand the ${label} scale`}>
+        aria-label={t("ui.zoomControls.zoomInOn", { label })} title={t("ui.zoomControls.expandScale", { label })}>
         <Glass kind="in" />
       </button>
       <span title={label}
@@ -102,7 +104,7 @@ export function AxisZoom({ onZoom, label, short }: {
         {short ? <><span className="hidden sm:inline">{label}</span><span className="sm:hidden">{short}</span></> : label}
       </span>
       <button className={BTN} onClick={() => onZoom(1.4)}
-        aria-label={`Zoom out on ${label}`} title={`Compress the ${label} scale`}>
+        aria-label={t("ui.zoomControls.zoomOutOn", { label })} title={t("ui.zoomControls.compressScale", { label })}>
         <Glass kind="out" />
       </button>
     </div>
@@ -113,36 +115,37 @@ export default function ZoomControls({
   onZoomX, onReset, isZoomed, onSpan, activeSpan, spanLabels, spanTitles,
   spanIcons, compact,
 }: Props) {
+  const t = useT();
   return (
     <div className={`flex flex-wrap items-center justify-center gap-3 px-2 text-[0.6875rem] text-ink-soft ${
       compact ? "pt-1" : "pt-1.5"}`}>
       {onSpan && (
         <span className="flex flex-wrap items-center justify-center gap-1.5">
-          {TIMESCALES.map((t) => (
-            <button key={t.key} onClick={() => onSpan(t.key)}
-              title={spanTitles?.[t.key]}
+          {TIMESCALES.map((ts) => (
+            <button key={ts.key} onClick={() => onSpan(ts.key)}
+              title={spanTitles?.[ts.key]}
               className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-[0.75rem] font-medium ${
-                activeSpan === t.key
+                activeSpan === ts.key
                   ? "border-ink bg-ink text-paper"
                   : "border-rule text-ink active:bg-band"}`}>
-              {spanIcons?.[t.key] && (
+              {spanIcons?.[ts.key] && (
                 <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-                  <path d={spanIcons[t.key]} />
+                  <path d={spanIcons[ts.key]} />
                 </svg>
               )}
-              {spanLabels?.[t.key] ?? t.label}
+              {spanLabels?.[ts.key] ?? ts.label}
             </button>
           ))}
         </span>
       )}
       <span className="inline-flex items-center gap-1">
-        <span className="eyebrow">Dates</span>
+        <span className="eyebrow">{t("ui.zoomControls.dates")}</span>
         <button className={BTN} onClick={() => onZoomX(1 / 1.4)}
-          aria-label="Zoom in on dates" title="Narrow the date range">
+          aria-label={t("ui.zoomControls.zoomInDates")} title={t("ui.zoomControls.narrowDates")}>
           <Glass kind="in" />
         </button>
         <button className={BTN} onClick={() => onZoomX(1.4)}
-          aria-label="Zoom out on dates" title="Widen the date range">
+          aria-label={t("ui.zoomControls.zoomOutDates")} title={t("ui.zoomControls.widenDates")}>
           <Glass kind="out" />
         </button>
       </span>
@@ -152,7 +155,7 @@ export default function ZoomControls({
           onClick={onReset}
           className="min-h-11 rounded border border-rule px-3 text-[0.75rem] active:bg-band focus-visible:outline-2 focus-visible:outline-honey"
         >
-          Whole season
+          {t("ui.zoomControls.wholeSeason")}
         </button>
       )}
 

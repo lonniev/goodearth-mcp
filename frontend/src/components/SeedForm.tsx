@@ -17,6 +17,7 @@ import { lookUp } from "../lib/growstuff";
 import { makeSeedLot, type SeedInput, type SeedLot } from "../lib/seeds";
 import QuantityField from "./QuantityField";
 import { Field, FIELD } from "./ui";
+import { useT } from "../i18n";
 
 export default function SeedForm({ crop, taxonId, varieties, units, onSave }: {
   /// The plant this packet is seed of, from the row this opened on.
@@ -32,6 +33,7 @@ export default function SeedForm({ crop, taxonId, varieties, units, onSave }: {
   units?: readonly string[];
   onSave: (lot: SeedLot) => Promise<string | null>;
 }) {
+  const t = useT();
   const [err, setErr] = useState("");
   /// Days to maturity is the one field a lookup can fill, so it is the one
   /// field this form holds rather than reads at submit.
@@ -85,7 +87,7 @@ export default function SeedForm({ crop, taxonId, varieties, units, onSave }: {
           input, a select and a text box do not agree on a height by
           themselves. */}
       <div className="flex flex-wrap items-start gap-x-3 gap-y-2.5">
-        <Field label="Variety" htmlFor="seed-variety" width="min-w-[10rem] flex-1">
+        <Field label={t("ui.seedForm.variety")} htmlFor="seed-variety" width="min-w-[10rem] flex-1">
           <input id="seed-variety" name="variety" list="seed-varieties"
             placeholder="Benary's Giant" className={FIELD} />
           {varieties?.length ? (
@@ -99,40 +101,40 @@ export default function SeedForm({ crop, taxonId, varieties, units, onSave }: {
             fixed height: a button under the word pushed this one field's box
             below every other. It is a sibling of the label, never inside it —
             a tap inside a label can be handed to the label's own input. */}
-        <Field label="Days" htmlFor="seed-dtm" width="w-[8rem]"
+        <Field label={t("ui.seedForm.days")} htmlFor="seed-dtm" width="w-[8rem]"
           hint={
             <button type="button" onClick={() => void look()} disabled={looking}
               className="ml-auto underline decoration-dotted underline-offset-2 disabled:opacity-40">
-              {looking ? "…" : nothingFound ? "none published" : "Look it up"}
+              {looking ? "…" : nothingFound ? t("ui.seedForm.nonePublished") : t("ui.seedForm.lookItUp")}
             </button>
           }>
           <input id="seed-dtm" name="dtm" inputMode="numeric" placeholder="75" className={FIELD}
             value={dtm} onChange={(e) => { setDtm(e.target.value); setNothingFound(false); }} />
         </Field>
 
-        <Field label="Germination %" htmlFor="seed-germ" width="w-[7rem]">
+        <Field label={t("ui.seedForm.germination")} htmlFor="seed-germ" width="w-[7rem]">
           <input id="seed-germ" name="germ" type="number" min={0} max={100} step={1}
             placeholder="88" className={FIELD} />
         </Field>
         {/* Named in full, because "Tested on" beside a date said nothing about
             WHAT was tested — the germination beside it, by the seller or by
             the grower. */}
-        <Field label="Germination tested" htmlFor="seed-tested" width="w-[10rem]">
+        <Field label={t("ui.seedForm.germinationTested")} htmlFor="seed-tested" width="w-[10rem]">
           <input id="seed-tested" name="tested" type="date" className={FIELD} />
         </Field>
 
-        <Field label="Packed for" htmlFor="seed-packed" width="w-[7rem]">
+        <Field label={t("ui.seedForm.packedFor")} htmlFor="seed-packed" width="w-[7rem]">
           <input id="seed-packed" name="packed" type="number" min={1900} max={2200} step={1}
             placeholder={String(new Date().getFullYear())} className={FIELD} />
         </Field>
 
-        <QuantityField id="seed-qty" label="Inventory count" width="w-[11rem]"
+        <QuantityField id="seed-qty" label={t("ui.seedForm.inventoryCount")} width="w-[11rem]"
           amount={qty} unit={unit} units={units} onAmount={setQty} onUnit={setUnit} />
 
-        <Field label="Supplier" htmlFor="seed-source" width="w-[10rem]">
-          <input id="seed-source" name="source" placeholder="a seed house" className={FIELD} />
+        <Field label={t("ui.seedForm.supplier")} htmlFor="seed-source" width="w-[10rem]">
+          <input id="seed-source" name="source" placeholder={t("ui.seedForm.aSeedHouse")} className={FIELD} />
         </Field>
-        <Field label="Supplier’s lot" htmlFor="seed-lot" width="w-[8rem]">
+        <Field label={t("ui.seedForm.suppliersLot")} htmlFor="seed-lot" width="w-[8rem]">
           <input id="seed-lot" name="lot" placeholder="Z-114" className={FIELD} />
         </Field>
       </div>

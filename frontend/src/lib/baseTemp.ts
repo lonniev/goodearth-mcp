@@ -5,6 +5,8 @@
 // what the record would refuse — in the grower's own scale, before a paid call
 // comes back with an error in Fahrenheit.
 
+import { tr } from "../i18n/index.ts";
+
 export const MIN_BASE_F = 20;
 export const MAX_BASE_F = 80;
 
@@ -28,10 +30,10 @@ export function parseBase(raw: string, u: Scale): { f?: number; error?: string }
   const { min, max } = baseBounds(u);
   const range = `${min}–${max}${u.tempUnit}`;
   const n = Number(t);
-  if (!Number.isFinite(n)) return { error: `Base must be a temperature, ${range}.` };
+  if (!Number.isFinite(n)) return { error: tr("lib.baseTemp.notTemp", { range }) };
   const f = u.toF(n);
   if (f < MIN_BASE_F - 1e-9 || f > MAX_BASE_F + 1e-9) {
-    return { error: `Base must be between ${range}.` };
+    return { error: tr("lib.baseTemp.outOfRange", { range }) };
   }
   return { f };
 }
