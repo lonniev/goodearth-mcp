@@ -16,6 +16,7 @@
 
 import { blockSave, blockSaveMany, type BlockRow } from "./mcp";
 import { saveRegion, type SavedRegion } from "./regions";
+import { tr } from "../i18n/index.ts";
 
 /// Put ground on the record and in the cache. Throws with a readable message
 /// if the record refuses, because a block that only exists in this browser is
@@ -40,7 +41,7 @@ export async function saveBlock(r: SavedRegion): Promise<SavedRegion> {
   // leave the cache holding ground the record has never seen. Which is the
   // exact state this module exists to prevent.
   if (!res?.success) {
-    throw new Error(res?.error || "The record would not take this block.");
+    throw new Error(res?.error || tr("lib.saveBlock.refused"));
   }
   // The server measures it — area and sample count come back on the row — so
   // the cache takes what it returned rather than what was sent.
@@ -76,7 +77,7 @@ export async function saveBlocks(rs: SavedRegion[]): Promise<SavedRegion[]> {
     ...(r.groups ? { groups: r.groups } : {}),
   })));
   if (!res?.success) {
-    throw new Error(res?.error || "The record would not take these plots.");
+    throw new Error(res?.error || tr("lib.saveBlock.refusedMany"));
   }
   const out = rs.map((r, i) => measuredFrom(r, res.blocks?.[i]));
   out.forEach(saveRegion);

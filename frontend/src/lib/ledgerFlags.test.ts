@@ -11,6 +11,9 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { buildFlags, partsOf, rollUpFlags, taskFlags, type LedgerFlag } from "./ledgerFlags.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 /// The shape HeatLedger hands in — a fortnight of accumulating heat.
 const N = 14;

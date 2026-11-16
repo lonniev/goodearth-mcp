@@ -2,7 +2,10 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { registerGoodEarth } from "../i18n/index.ts";
 import { define, GLOSSARY, GROUPS, searchGlossary } from "./glossary.ts";
+
+await registerGoodEarth();
 
 describe("the glossary is one source, not a second copy", () => {
   it("every inline Term names a key that exists", async () => {

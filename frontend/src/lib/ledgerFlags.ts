@@ -17,6 +17,7 @@ import type { SeasonCurveResult } from "./mcp";
 import type { Planting } from "./plantings";
 import type { SavedPest } from "./pestModels";
 import type { SavedWildlife } from "./wildlifeModels";
+import { tr } from "../i18n/index.ts";
 
 export type FlagKind = "crop" | "pest" | "wildlife" | "task";
 
@@ -247,7 +248,7 @@ export function buildFlags(
     if (!p.sownOn) continue;
     out.push({
       kind: "crop",
-      label: `Sown · ${p.crop}`,
+      label: tr("lib.ledgerFlags.sown", { crop: p.crop }),
       emoji: "🌰",
       index: 0,          // unused for a date-anchored mark; the date decides
       date: p.sownOn,

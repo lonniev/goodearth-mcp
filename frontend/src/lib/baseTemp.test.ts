@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { baseBounds, parseBase, type Scale } from "./baseTemp.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 const F: Scale = { temp: (f) => f, toF: (x) => x, tempUnit: " °F" };
 const C: Scale = { temp: (f) => (f - 32) * 5 / 9, toF: (c) => c * 9 / 5 + 32, tempUnit: " °C" };

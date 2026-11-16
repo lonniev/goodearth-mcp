@@ -6,10 +6,12 @@
 // and are marked so rather than left for the grower to work out.
 
 import type { SuccessionRow } from "../lib/mcp";
+import { Tx, useLanguageLocale } from "@tollbooth-dpyc/web/react";
 import { Pill } from "./ui";
+import { useT, WORDS } from "../i18n";
 
-const short = (iso: string) =>
-  new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+const shortDate = (iso: string, locale: string) =>
+  new Date(iso + "T12:00:00").toLocaleDateString(locale, { month: "short", day: "numeric" });
 
 export default function SuccessionRows({ crop, every, rows, onAdd, adding }: {
   crop: string;
@@ -18,33 +20,36 @@ export default function SuccessionRows({ crop, every, rows, onAdd, adding }: {
   onAdd: () => void;
   adding: boolean;
 }) {
+  const t = useT();
+  const locale = useLanguageLocale();
+  const short = (iso: string) => shortDate(iso, locale);
   if (!rows.length) {
     return (
       <p className="text-[0.78125rem] text-ink-soft">
-        No sowing of {crop} left this season still finishes before the frost.
+        {t("ui.successionRows.none", { crop })}
       </p>
     );
   }
   return (
     <div>
       <p className="mb-1.5 text-[0.75rem] text-ink-soft">
-        {crop} every {every} days — {rows.length} sowing{rows.length === 1 ? "" : "s"} still finish here.
+        {t("ui.successionRows.summary", { crop, every, count: rows.length })}
       </p>
       <ol className="space-y-1">
         {rows.map((s) => (
           <li key={s.n} className="flex flex-wrap items-baseline gap-x-2.5 text-[0.78125rem]">
             <span className="data w-7 text-ink-soft">#{s.n}</span>
-            <span>out <b>{short(s.out)}</b></span>
+            <span><Tx ns={WORDS} k="ui.successionRows.out" vars={{ date: short(s.out) }} components={{ b: <b /> }} /></span>
             {s.start_seed_indoors && (
-              <span className="text-ink-soft">seed indoors {short(s.start_seed_indoors)}</span>
+              <span className="text-ink-soft">{t("ui.successionRows.seedIndoors", { date: short(s.start_seed_indoors) })}</span>
             )}
-            <span>finishes <b>{s.finish ? short(s.finish) : "—"}</b></span>
+            <span><Tx ns={WORDS} k="ui.successionRows.finishes" vars={{ date: s.finish ? short(s.finish) : "—" }} components={{ b: <b /> }} /></span>
             {s.margin_days != null && (
-              <span className="text-ink-soft">{s.margin_days} days before the frost</span>
+              <span className="text-ink-soft">{t("ui.successionRows.margin", { n: s.margin_days })}</span>
             )}
             {s.at_risk_of_early_frost && (
               <span className="rounded-full bg-honey/15 px-2 py-0.5 text-[0.6875rem] font-semibold text-honey">
-                after the earliest frost on record
+                {t("ui.successionRows.atRisk")}
               </span>
             )}
           </li>
@@ -52,7 +57,7 @@ export default function SuccessionRows({ crop, every, rows, onAdd, adding }: {
       </ol>
       <div className="mt-2">
         <Pill onClick={onAdd} disabled={adding} active>
-          {adding ? "Adding…" : `＋ Add ${rows.length} to the ledger`}
+          {adding ? t("ui.successionRows.adding") : t("ui.successionRows.add", { n: rows.length })}
         </Pill>
       </div>
     </div>

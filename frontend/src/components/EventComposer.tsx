@@ -37,41 +37,51 @@ import {
   SpeciesMark, Stepper, TrashGlyph,
 } from "./ui";
 import { tour } from "../lib/tour/targets";
+import { useT, WORDS, type Translate } from "../i18n";
+import type { MessageKey } from "../i18n/en";
+import { Tx, useLanguageLocale } from "@tollbooth-dpyc/web/react";
 
 type Driver = "calendar" | "interval" | "daylight" | "heat" | "condition" | "moon";
 
-const CLOCKS: { key: Driver; label: string }[] = [
-  { key: "interval", label: "days from" },
-  { key: "calendar", label: "your record" },
-  { key: "daylight", label: "daylight" },
-  { key: "heat", label: "heat" },
-  { key: "condition", label: "conditions" },
-  { key: "moon", label: "moon" },
+const CLOCKS: { key: Driver; label: MessageKey }[] = [
+  { key: "interval", label: "ui.eventComposer.clock.interval" },
+  { key: "calendar", label: "ui.eventComposer.clock.calendar" },
+  { key: "daylight", label: "ui.eventComposer.clock.daylight" },
+  { key: "heat", label: "ui.eventComposer.clock.heat" },
+  { key: "condition", label: "ui.eventComposer.clock.condition" },
+  { key: "moon", label: "ui.eventComposer.clock.moon" },
 ];
 
-const PHASE_PILLS: { key: MoonPhase; glyph: string; label: string }[] = [
-  { key: "new", glyph: "🌑", label: "new" },
-  { key: "first_quarter", glyph: "🌓", label: "first quarter" },
-  { key: "full", glyph: "🌕", label: "full" },
-  { key: "last_quarter", glyph: "🌗", label: "last quarter" },
+const PHASE_PILLS: { key: MoonPhase; glyph: string; label: MessageKey }[] = [
+  { key: "new", glyph: "🌑", label: "ui.eventComposer.phase.new" },
+  { key: "first_quarter", glyph: "🌓", label: "ui.eventComposer.phase.firstQuarter" },
+  { key: "full", glyph: "🌕", label: "ui.eventComposer.phase.full" },
+  { key: "last_quarter", glyph: "🌗", label: "ui.eventComposer.phase.lastQuarter" },
 ];
 const NTH = [1, 2, 3] as const;
-const NTH_LABEL: Record<number, string> = { 1: "first", 2: "second", 3: "third" };
+const NTH_LABEL: Record<number, MessageKey> = {
+  1: "ui.eventComposer.nth.first", 2: "ui.eventComposer.nth.second", 3: "ui.eventComposer.nth.third",
+};
 
-const HELP: Record<Driver, string> = {
-  ...DRIVER_HELP as Record<Driver, string>,
-  interval: "A count of days from a day you saw — a cycle. Gestation, "
-    + "incubation, days to point of lay.",
-  condition: "What the weather has to do. Re-dates itself every season from "
-    + "this ground's own record.",
+/// What each clock means, in the language on screen.
+const help = (t: Translate, d: Driver): string =>
+  d === "interval" ? t("ui.eventComposer.help.interval")
+  : d === "condition" ? t("ui.eventComposer.help.condition")
+  : (DRIVER_HELP as Record<Driver, string>)[d];
+
+/// The grower's role for an animal: the value stored, and its words.
+const ROLE_LABEL: Record<"friend" | "foe" | "watch", MessageKey> = {
+  friend: "ui.eventComposer.role.friend",
+  foe: "ui.eventComposer.role.foe",
+  watch: "ui.eventComposer.role.watch",
 };
 
 /// The same pause `SpeciesPicker` takes before it searches.
 const SEARCH_DEBOUNCE_MS = 250;
 
 const today = () => new Date().toISOString().slice(0, 10);
-const day = (iso: string) =>
-  new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+const dayIn = (iso: string, locale: string) =>
+  new Date(iso + "T12:00:00").toLocaleDateString(locale, { month: "short", day: "numeric" });
 
 export default function EventComposer({
   region, recorded, photos, onSave, onCost, seed, onSeedTaken, composing, onComposing,
@@ -96,6 +106,9 @@ export default function EventComposer({
   onComposing: (open: boolean) => void;
 }) {
   const u = useUnits();
+  const t = useT();
+  const locale = useLanguageLocale();
+  const day = (iso: string) => dayIn(iso, locale);
   const [error, setError] = useState("");
   const submit = useSubmit("wl", setError);
 
@@ -123,10 +136,10 @@ export default function EventComposer({
     try {
       const r = await wildlifeCatalog(region.id);
       if (r.success) setCatalog(r);
-      else setError(r.error || "What is recorded here could not be read.");
+      else setError(r.error || t("ui.eventComposer.catalogFailed"));
     } catch (e) { setError(String((e as Error).message ?? e)); }
     finally { setCatBusy(false); }
-  }, [catAsked, region.id]);
+  }, [catAsked, region.id, t]);
 
   /// What iNaturalist's whole catalogue of animals has for the words typed.
   ///
@@ -142,7 +155,7 @@ export default function EventComposer({
     if (text.length < 2) { setFound([]); setFinding(false); setFindError(""); return; }
     const ac = new AbortController();
     setFinding(true);
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       searchSpecies(text, "animals", ac.signal)
         .then((r) => { if (!ac.signal.aborted) { setFound(r); setFindError(""); } })
         .catch((e) => {
@@ -154,7 +167,7 @@ export default function EventComposer({
         })
         .finally(() => { if (!ac.signal.aborted) setFinding(false); });
     }, SEARCH_DEBOUNCE_MS);
-    return () => { ac.abort(); clearTimeout(t); };
+    return () => { ac.abort(); clearTimeout(timer); };
   }, [q]);
 
   const all = useMemo(() => mergeSpecies(catalog, recorded), [catalog, recorded]);
@@ -305,7 +318,7 @@ export default function EventComposer({
     if (!signature || signature === previewed.current) return;
     // A read costs a fare, so it waits for the grower to stop moving. Dragging
     // the daylight slider is one call when they let go, not one per pixel.
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       previewed.current = signature;
       setPreviewBusy(true);
       const list = (JSON.parse(signature) as SavedWildlife[])
@@ -314,13 +327,13 @@ export default function EventComposer({
         .then((r) => {
           if (previewed.current !== signature) return;
           if (r.success) { setPreview(r); setPreviewAt(new Date()); }
-          else setError(r.error || "The dates could not be worked out.");
+          else setError(r.error || t("ui.eventComposer.datesFailed"));
         })
         .catch((e) => setError(String((e as Error).message ?? e)))
         .finally(() => setPreviewBusy(false));
     }, 900);
-    return () => clearTimeout(t);
-  }, [signature, region.id]);
+    return () => clearTimeout(timer);
+  }, [signature, region.id, t]);
 
   const stale = ready && signature !== previewed.current;
 
@@ -370,16 +383,16 @@ export default function EventComposer({
         <div className="flex flex-wrap items-start gap-x-3 gap-y-2.5">
           {/* What is SEARCHED for here is animals. Fungi are named on Flora;
               a row already on this record shows whatever it is. */}
-          <Field label="Species" htmlFor="wl-species" width="min-w-[15rem] flex-1" tour="wildlife.species">
+          <Field label={t("ui.eventComposer.species")} htmlFor="wl-species" width="min-w-[15rem] flex-1" tour="wildlife.species">
             <input id="wl-species"
               value={animal ? animal.name : q}
               onFocus={() => { setOpen(true); void askCatalog(); }}
               onChange={(e) => { setAnimal(null); setQ(e.target.value); setOpen(true); }}
-              placeholder="hen, ewe, robin…"
+              placeholder={t("ui.eventComposer.speciesPlaceholder")}
               className={FIELD} />
             {open && !animal && (
               <div className="mt-1 max-h-64 overflow-y-auto rounded-md border border-rule bg-paper">
-                {catBusy && <p className="px-3 py-2 text-[0.75rem] text-ink-soft">Reading what is recorded here…</p>}
+                {catBusy && <p className="px-3 py-2 text-[0.75rem] text-ink-soft">{t("ui.eventComposer.readingCatalog")}</p>}
                 {shown.map((p) => (
                   <button key={p.name} type="button"
                     onClick={() => { setAnimal(p); setSupersedes([]); setOpen(false); setQ(""); }}
@@ -396,7 +409,7 @@ export default function EventComposer({
                         && !`${p.name} ${p.scientificName ?? ""}`.toLowerCase()
                           .includes(p.matched.toLowerCase()) && (
                         <span className="data block truncate text-[0.65625rem] text-ink-soft">
-                          matched “{p.matched}”
+                          {t("ui.eventComposer.matched", { name: p.matched })}
                         </span>
                       )}
                     </span>
@@ -409,19 +422,18 @@ export default function EventComposer({
                       {/* An animal the search found has no count either: how many
                           the world has recorded is not how many are near here. */}
                       {p.yours
-                        ? <span className="text-growth">on your record</span>
-                        : p.observations != null && p.observations.toLocaleString()}
+                        ? <span className="text-growth">{t("ui.eventComposer.onYourRecord")}</span>
+                        : p.observations != null && p.observations.toLocaleString(locale)}
                       {p.hasHabits && <span className="block"><LifecycleMark /></span>}
                     </span>
                   </button>
                 ))}
                 {finding && !shown.length && (
-                  <p className="px-3 py-2 text-[0.75rem] text-ink-soft">Looking…</p>
+                  <p className="px-3 py-2 text-[0.75rem] text-ink-soft">{t("ui.eventComposer.looking")}</p>
                 )}
                 {findError && (
                   <p className="px-3 py-2 text-[0.75rem] text-clay">
-                    iNaturalist could not be searched just now ({findError}) — these
-                    are only the animals recorded near here.
+                    {t("ui.eventComposer.searchFailed", { error: findError })}
                   </p>
                 )}
                 {!catBusy && !finding && !listed(shown, q) && (
@@ -432,27 +444,27 @@ export default function EventComposer({
                         search of everything finds something for nearly any word,
                         and a grower whose flock is "Layers" must not have to pick
                         somebody else's bird to get past it. */}
-                    {!shown.length && "Nothing listed. "}Add <b>{q.trim()}</b> as your own.
+                    {!shown.length && t("ui.eventComposer.nothingListed")}<Tx ns={WORDS} k="ui.eventComposer.addOwn" vars={{ name: q.trim() }} components={{ b: <b /> }} />
                   </button>
                 )}
                 {!catBusy && !finding && !shown.length && !q.trim() && (
                   <p className="px-3 py-2 text-[0.75rem] text-ink-soft">
-                    Type a name to search for an animal.
+                    {t("ui.eventComposer.typeToSearch")}
                   </p>
                 )}
               </div>
             )}
           </Field>
-          <Field label={driver === "interval" ? "What you saw" : "What it does"} htmlFor="wl-label"
+          <Field label={driver === "interval" ? t("ui.eventComposer.whatYouSaw") : t("ui.eventComposer.whatItDoes")} htmlFor="wl-label"
             width="min-w-[12rem] flex-1" tour="wildlife.label">
             <input id="wl-label" value={label} list="goodearth-labels"
               onChange={(e) => setLabel(e.target.value)}
-              placeholder={driver === "interval" ? "laying on eggs" : "first arrival"}
+              placeholder={driver === "interval" ? t("ui.eventComposer.sawPlaceholder") : t("ui.eventComposer.doesPlaceholder")}
               className={FIELD} />
           </Field>
           <span className="pt-3.5">
-            <IconButton path={ICON.paw} label="Track" hideLabel tour="wildlife.open"
-              title="Track it: the clock and its figures" onClick={() => onComposing(true)} />
+            <IconButton path={ICON.paw} label={t("ui.eventComposer.track")} hideLabel tour="wildlife.open"
+              title={t("ui.eventComposer.trackTitle")} onClick={() => onComposing(true)} />
           </span>
         </div>
         {/* Its year, looked up: tick what to watch for and save it in one go.
@@ -475,7 +487,7 @@ export default function EventComposer({
           onClick={() => onComposing(false)}
           role="dialog"
           aria-modal="true"
-          aria-label="Track it"
+          aria-label={t("ui.eventComposer.trackIt")}
         >
           <div
             ref={box}
@@ -486,10 +498,10 @@ export default function EventComposer({
             <div className="flex items-start gap-3">
               {animal && <SpeciesMark emoji={animal.emoji} photo={animal.photo ?? photos?.get(animal.name)} />}
               <h2 className="figure min-w-0 flex-1 text-[1.25rem] font-semibold leading-tight">
-                {animal?.name || "Which animal?"}
+                {animal?.name || t("ui.eventComposer.whichAnimal")}
                 {label.trim() && <span className="text-ink-soft"> · {label.trim()}</span>}
               </h2>
-              <button type="button" onClick={() => onComposing(false)} aria-label="Close"
+              <button type="button" onClick={() => onComposing(false)} aria-label={t("ui.eventComposer.close")}
                 className="-mt-1 -mr-1 flex h-11 w-11 shrink-0 items-center justify-center rounded text-[1.25rem] text-ink-soft active:bg-band">
                 ×
               </button>
@@ -498,12 +510,12 @@ export default function EventComposer({
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5" {...tour("wildlife.role")}>
                 {(["friend", "foe", "watch"] as const).map((r) => (
                   <Pill key={r} active={role === r} onClick={() => setRole(role === r ? "" : r)}>
-                    {r}
+                    {t(ROLE_LABEL[r])}
                   </Pill>
                 ))}
                 <button type="button" onClick={reset}
                   className="ml-auto min-h-11 text-[0.75rem] text-ink-soft underline">
-                  start over
+                  {t("ui.eventComposer.startOver")}
                 </button>
               </div>
             )}
@@ -527,28 +539,28 @@ export default function EventComposer({
                     setDriver(c.key); setSupersedes([]);
                     if (c.key === "interval" && !steps.length) setSteps([{ label: "", days: 1 }]);
                   }}>
-                  {c.label}
+                  {t(c.label)}
                 </Pill>
               ))}
             </div>
-            <p className="mt-1.5 text-[0.75rem] text-ink-soft">{HELP[driver]}</p>
+            <p className="mt-1.5 text-[0.75rem] text-ink-soft">{help(t, driver)}</p>
 
             {/* ── The clock's own question ───────────────────────────────── */}
             <div className="mt-3 grid gap-3 sm:grid-cols-2" {...tour("wildlife.figures")}>
               {driver === "interval" && (
                 <>
                   <label className="block text-[0.6875rem] text-ink-soft">
-                    The day it happened
+                    {t("ui.eventComposer.dayItHappened")}
                     <input type="date" value={startOn} max={today()}
                       onChange={(e) => setStartOn(e.target.value)} className={FIELD} />
                   </label>
                   <div className="sm:col-span-2">
-                    <span className="eyebrow">And then, counting from that day</span>
+                    <span className="eyebrow">{t("ui.eventComposer.andThen")}</span>
                     {steps.map((s, i) => (
                       <div key={i} className="mt-1.5 grid gap-2 sm:grid-cols-[1fr_auto]">
                         <label className="block text-[0.6875rem] text-ink-soft">
-                          What follows
-                          <input value={s.label} placeholder="eggs hatch" className={FIELD}
+                          {t("ui.eventComposer.whatFollows")}
+                          <input value={s.label} placeholder={t("ui.eventComposer.followsPlaceholder")} className={FIELD}
                             list="goodearth-labels"
                             onChange={(e) => setSteps(steps.map((x, j) =>
                               j === i ? { ...x, label: e.target.value } : x))} />
@@ -559,11 +571,11 @@ export default function EventComposer({
                             milestone's control. */}
                         <div className="flex items-end gap-1">
                           <div className="w-36 shrink-0">
-                            <Stepper label="Days" value={s.days} min={1} max={1000}
+                            <Stepper label={t("ui.eventComposer.days")} value={s.days} min={1} max={1000}
                               onChange={(n) => setSteps(steps.map((x, j) =>
                                 j === i ? { ...x, days: typeof n === "number" ? n : 0 } : x))} />
                           </div>
-                          <button type="button" aria-label={`Remove ${s.label || "milestone"}`}
+                          <button type="button" aria-label={t("ui.eventComposer.remove", { what: s.label || t("ui.eventComposer.milestone") })}
                             onClick={() => setSteps(steps.filter((_, j) => j !== i))}
                             className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-ink-soft active:text-clay"><TrashGlyph /></button>
                         </div>
@@ -575,7 +587,7 @@ export default function EventComposer({
                         // one. Never a shipped figure: a hen is 21 days and a
                         // muscovy is 35, and both move with the breed.
                         { label: "", days: remembered ?? 1 }])}>
-                        + a milestone{remembered ? ` (${remembered} days, as you had it)` : ""}
+                        {t("ui.eventComposer.addMilestone")}{remembered ? t("ui.eventComposer.asYouHadIt", { n: remembered }) : ""}
                       </Pill>
                     </div>
                   </div>
@@ -583,13 +595,13 @@ export default function EventComposer({
               )}
 
               {driver === "calendar" && (
-                <MonthDay label="Typically on" value={typicalOn} onChange={setTypicalOn} />
+                <MonthDay label={t("ui.eventComposer.typicallyOn")} value={typicalOn} onChange={setTypicalOn} />
               )}
 
               {driver === "daylight" && (
                 <>
                   <label className="block text-[0.6875rem] text-ink-soft sm:col-span-2">
-                    Day length — {typeof hours === "number" ? hours.toFixed(1) : "—"} h
+                    {t("ui.eventComposer.dayLength", { h: typeof hours === "number" ? hours.toFixed(1) : "—" })}
                     <input type="range" min={daylight ? Math.floor(daylight.low * 10) / 10 : 8}
                       max={daylight ? Math.ceil(daylight.high * 10) / 10 : 16}
                       step={0.1} value={hours === "" ? 12 : hours}
@@ -597,13 +609,13 @@ export default function EventComposer({
                       className="mt-1.5 w-full accent-honey" />
                     <span className="data mt-0.5 block text-[0.65625rem] text-ink-soft">
                       {daylight
-                        ? `${region.name} runs ${daylight.low.toFixed(1)}–${daylight.high.toFixed(1)} h this season`
-                        : "reading this block's day length…"}
+                        ? t("ui.eventComposer.daylightRange", { name: region.name, low: daylight.low.toFixed(1), high: daylight.high.toFixed(1) })
+                        : t("ui.eventComposer.readingDaylight")}
                     </span>
                   </label>
                   <div className="flex flex-wrap gap-1.5">
-                    <Pill active={rising} onClick={() => setRising(true)}>days lengthening</Pill>
-                    <Pill active={!rising} onClick={() => setRising(false)}>days shortening</Pill>
+                    <Pill active={rising} onClick={() => setRising(true)}>{t("ui.eventComposer.lengthening")}</Pill>
+                    <Pill active={!rising} onClick={() => setRising(false)}>{t("ui.eventComposer.shortening")}</Pill>
                   </div>
                 </>
               )}
@@ -612,28 +624,31 @@ export default function EventComposer({
                 <>
                   <Stepper label={u.ddUnit.trim()} value={gdd} min={1} max={20000} step={25}
                     onChange={setGdd} />
-                  <Stepper label={`Base${u.tempUnit}`} value={base} min={Math.round(u.temp(20))}
+                  <Stepper label={t("ui.eventComposer.base", { unit: u.tempUnit })} value={base} min={Math.round(u.temp(20))}
                     max={Math.round(u.temp(80))} onChange={setBase} />
                   <p className="data text-[0.6875rem] text-ink-soft sm:col-span-2">
                     {curve?.accumulated_gdd
-                      ? `${region.name} has ${Math.round(u.degreeDays(curve.accumulated_gdd.mean)).toLocaleString()} `
-                        + `${u.ddUnit.trim()} on the season so far.`
-                      : "reading this block's season so far…"}
+                      ? t("ui.eventComposer.seasonSoFar", {
+                          name: region.name,
+                          n: Math.round(u.degreeDays(curve.accumulated_gdd.mean)).toLocaleString(locale),
+                          unit: u.ddUnit.trim(),
+                        })
+                      : t("ui.eventComposer.readingSeason")}
                   </p>
                 </>
               )}
 
               {driver === "condition" && (
                 <>
-                  <MonthDay label="Not before" value={after} onChange={setAfter} />
-                  <Stepper label={`Night at or above${u.tempUnit}`} value={minNight}
+                  <MonthDay label={t("ui.eventComposer.notBefore")} value={after} onChange={setAfter} />
+                  <Stepper label={t("ui.eventComposer.nightAtOrAbove", { unit: u.tempUnit })} value={minNight}
                     min={Math.round(u.temp(20))} max={Math.round(u.temp(80))}
                     onChange={setMinNight} />
-                  <Stepper label={`Day at or above${u.tempUnit}`} value={minDay}
+                  <Stepper label={t("ui.eventComposer.dayAtOrAbove", { unit: u.tempUnit })} value={minDay}
                     min={Math.round(u.temp(20))} max={Math.round(u.temp(80))}
                     onChange={setMinDay} />
                   <div className="flex items-end">
-                    <Pill active={wet} onClick={() => setWet(!wet)}>and it rained</Pill>
+                    <Pill active={wet} onClick={() => setWet(!wet)}>{t("ui.eventComposer.rained")}</Pill>
                   </div>
                 </>
               )}
@@ -642,18 +657,18 @@ export default function EventComposer({
                 <>
                   <div className="flex flex-wrap items-end gap-1.5">
                     {NTH.map((n) => (
-                      <Pill key={n} active={nth === n} onClick={() => setNth(n)}>{NTH_LABEL[n]}</Pill>
+                      <Pill key={n} active={nth === n} onClick={() => setNth(n)}>{t(NTH_LABEL[n])}</Pill>
                     ))}
                   </div>
                   <div className="flex flex-wrap items-end gap-1.5">
                     {PHASE_PILLS.map((p) => (
                       <Pill key={p.key} active={phase === p.key} onClick={() => setPhase(p.key)}
-                        title={`${p.label} moon`}>
-                        {p.glyph} {p.label}
+                        title={t("ui.eventComposer.phaseMoon", { phase: t(p.label) })}>
+                        {p.glyph} {t(p.label)}
                       </Pill>
                     ))}
                   </div>
-                  <MonthDay label="On or after" value={after} onChange={setAfter} />
+                  <MonthDay label={t("ui.eventComposer.onOrAfter")} value={after} onChange={setAfter} />
                 </>
               )}
             </div>
@@ -673,7 +688,7 @@ export default function EventComposer({
             {ready && (previewBusy || (preview && !stale)) && (
               <div className="mt-3 text-[0.8125rem]">
                 {previewBusy ? (
-                  <p className="text-[0.78125rem] text-ink-soft">Working out the dates…</p>
+                  <p className="text-[0.78125rem] text-ink-soft">{t("ui.eventComposer.workingOut")}</p>
                 ) : (
                   <ul className="space-y-1">
                     {preview!.events.map((e) => {
@@ -681,21 +696,21 @@ export default function EventComposer({
                       return (
                         <li key={e.ref ?? e.event}>
                           <b>{e.event}</b>{" — "}
-                          {when ? day(when) : "not this season"}
+                          {when ? day(when) : t("ui.eventComposer.notThisSeason")}
                           {e.window && (
                             <span className="data text-[0.6875rem] text-ink-soft">
                               {" "}({day(e.window.from)}–{day(e.window.to)})
                             </span>
                           )}
                           {e.days_away != null && (
-                            <span className="data text-[0.6875rem] text-ink-soft"> · in {e.days_away} days</span>
+                            <span className="data text-[0.6875rem] text-ink-soft">{t("ui.eventComposer.inDays", { n: e.days_away })}</span>
                           )}
                         </li>
                       );
                     })}
                     {preview!.events.length === 0 && (
                       <li className="text-[0.78125rem] text-ink-soft">
-                        Nothing to date from this yet — it is recorded all the same.
+                        {t("ui.eventComposer.nothingToDate")}
                       </li>
                     )}
                   </ul>
@@ -703,7 +718,7 @@ export default function EventComposer({
                 {previewAt && !stale && (
                   <>
                     <p className="data mt-1 text-[0.65625rem] text-ink-soft">
-                      Good Earth worked these out on your ground, not this browser.
+                      {t("ui.eventComposer.workedOut")}
                     </p>
                     {/* The preview is a paid read like any other, so it says so and
                         says what it cost. A figure that appears for free invites the
@@ -718,7 +733,7 @@ export default function EventComposer({
               {/* `+ Record`, like every other editor on the site. "Record 2 events"
                   counted the rows in a sentence on the button; the count is beside
                   it, where a count belongs. */}
-              <IconButton path={ICON.add} label="Record" tour="wildlife.record"
+              <IconButton path={ICON.add} label={t("ui.eventComposer.record")} tour="wildlife.record"
                 disabled={!ready || submit.busy}
                 onClick={() => {
                   if (typeof rows === "string") { setError(rows); return; }
@@ -737,14 +752,12 @@ export default function EventComposer({
               )}
               {supersedes.length > 0 && (
                 <span className="data text-[0.6875rem] text-ink-soft">
-                  The previous {supersedes.length}-row cycle is kept as history and
-                  comes off the calendar.
+                  {t("ui.eventComposer.previousCycle", { n: supersedes.length })}
                 </span>
               )}
               {ready && (
                 <span className="data text-[0.6875rem] text-ink-soft">
-                  {(rows as SavedWildlife[]).length} row
-                  {(rows as SavedWildlife[]).length === 1 ? "" : "s"}, one write
+                  {t("ui.eventComposer.rowsOneWrite", { count: (rows as SavedWildlife[]).length })}
                 </span>
               )}
             </div>
@@ -753,10 +766,7 @@ export default function EventComposer({
               animal's case, and this form takes ewes, does, sows and queen bees on
               the same clock. */}
           <Note>
-            The counts are yours. Good Earth adds the days you give it to the day
-            you saw and says when the window opens. How long a thing takes belongs
-            to your animals and your breed, and your own records beat any average
-            this service could ship.
+            {t("ui.eventComposer.countsAreYours")}
           </Note>
           </div>
         </div>

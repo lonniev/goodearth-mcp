@@ -8,26 +8,31 @@
 
 import type { Quote } from "@tollbooth-dpyc/web";
 import type { QuoteScrollerClassNames } from "@tollbooth-dpyc/web/react";
+import { tr } from "../i18n/index.ts";
+import type { MessageKey } from "../i18n/en.ts";
+
+/** Quotes whose words are read from `lib.quotes.<set>.<n>` each time one is
+ *  shown, so the scroller speaks the language on screen. The author's name
+ *  stays as written. One array per set, so callers still pass a constant. */
+function worded(set: string, authors: string[]): ReadonlyArray<Quote> {
+  return authors.map((author, i) => ({
+    author,
+    get text() { return tr(`lib.quotes.${set}.${i + 1}` as MessageKey); },
+  }));
+}
 
 export const AGRARIAN_SOURCE =
   "https://raw.githubusercontent.com/lonniev/dpyc-community/main/quotes-agrarian.json";
 
-export const AGRARIAN_QUOTES: ReadonlyArray<Quote> = [
-  { text: "If more of us valued food and cheer and song above hoarded gold, it would be a merrier world.",
-    author: "J.R.R. Tolkien, The Hobbit" },
-  { text: "Those who labour in the earth are the chosen people of God, if ever He had a chosen people.",
-    author: "Thomas Jefferson, Notes on the State of Virginia" },
-  { text: "O fortunate farmers, excessively fortunate, if only they knew their own blessings!",
-    author: "Virgil, Georgics" },
-  { text: "No race can prosper till it learns that there is as much dignity in tilling a field as in writing a poem.",
-    author: "Booker T. Washington, Up From Slavery" },
-  { text: "Farming looks mighty easy when your plow is a pencil and you're a thousand miles from the corn field.",
-    author: "Dwight D. Eisenhower" },
-  { text: "Too much capitalism does not mean too many capitalists, but too few capitalists.",
-    author: "G.K. Chesterton, The Uses of Diversity" },
-  { text: "Observe the seasons, and do each thing in its own time.",
-    author: "Hesiod, Works and Days" },
-];
+export const AGRARIAN_QUOTES: ReadonlyArray<Quote> = worded("agrarian", [
+  "J.R.R. Tolkien, The Hobbit",
+  "Thomas Jefferson, Notes on the State of Virginia",
+  "Virgil, Georgics",
+  "Booker T. Washington, Up From Slavery",
+  "Dwight D. Eisenhower",
+  "G.K. Chesterton, The Uses of Diversity",
+  "Hesiod, Works and Days",
+]);
 
 /// Shown while a subject's life cycle is looked up: the naturalist's
 /// tradition of the field study, going out and looking closely. The corpus,
@@ -35,32 +40,22 @@ export const AGRARIAN_QUOTES: ReadonlyArray<Quote> = [
 /// dpyc-community registry; this copy shows at once and when it cannot be read.
 /// What a grower reads while a first lookup runs. True by construction: the
 /// service gives the edit at most 90 s (`llm_answer.TIMEOUT_S`).
-export const RESEARCH_WAIT =
-  "Our Research Assistant has your question and takes under 90 seconds to get the facts. Be patient.";
+export const researchWait = (): string => tr("lib.quotes.researchWait");
 
 export const NATURALIST_SOURCE =
   "https://raw.githubusercontent.com/lonniev/dpyc-community/main/quotes-naturalist.json";
 
-export const NATURALIST_QUOTES: ReadonlyArray<Quote> = [
-  { text: "All nature is so full that that district produces the greatest variety which is the most examined.",
-    author: "Gilbert White, The Natural History of Selborne" },
-  { text: "I frequently tramped eight or ten miles through the deepest snow to keep an appointment with a beech-tree, or a yellow-birch, or an old acquaintance among the pines.",
-    author: "Henry David Thoreau, Walden" },
-  { text: "The question is not what you look at, but what you see.",
-    author: "Henry David Thoreau, Journal, 5 August 1851" },
-  { text: "Heaven is under our feet as well as over our heads.",
-    author: "Henry David Thoreau, Walden" },
-  { text: "In every walk with Nature one receives far more than he seeks.",
-    author: "John Muir, Steep Trails" },
-  { text: "It is interesting to contemplate an entangled bank, clothed with many plants of many kinds, with birds singing on the bushes, with various insects flitting about, and with worms crawling through the damp earth…",
-    author: "Charles Darwin, On the Origin of Species" },
-  { text: "Instructions for living a life: Pay attention. Be astonished. Tell about it.",
-    author: "Mary Oliver, Sometimes" },
-  { text: "Those who contemplate the beauty of the earth find reserves of strength that will endure as long as life lasts.",
-    author: "Rachel Carson, The Sense of Wonder" },
-  { text: "There are some who can live without wild things, and some who cannot.",
-    author: "Aldo Leopold, A Sand County Almanac" },
-];
+export const NATURALIST_QUOTES: ReadonlyArray<Quote> = worded("naturalist", [
+  "Gilbert White, The Natural History of Selborne",
+  "Henry David Thoreau, Walden",
+  "Henry David Thoreau, Journal, 5 August 1851",
+  "Henry David Thoreau, Walden",
+  "John Muir, Steep Trails",
+  "Charles Darwin, On the Origin of Species",
+  "Mary Oliver, Sometimes",
+  "Rachel Carson, The Sense of Wonder",
+  "Aldo Leopold, A Sand County Almanac",
+]);
 
 /** The almanac's look: a soft-ink eyebrow, a display-face italic quote between
  *  honey marks, the author in the data face. */

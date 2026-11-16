@@ -6,27 +6,32 @@
 // one sentence.
 
 import { useUnits } from "./Units";
+import { languageLocale } from "@tollbooth-dpyc/web";
+import { Tx } from "@tollbooth-dpyc/web/react";
+import { useT, WORDS } from "../i18n";
+import type { MessageKey } from "../i18n/en";
 import { useState } from "react";
 import { isDate } from "../lib/seasonDays";
 import type { FrostLevel, FrostNight, FrostWindowResult } from "../lib/mcp";
 
-const TONE: Record<FrostLevel, { border: string; chip: string; word: string }> = {
-  hard_freeze: { border: "border-l-clay",  chip: "bg-clay/15 text-clay",   word: "Hard freeze" },
-  frost_likely:{ border: "border-l-frost", chip: "bg-frost/15 text-frost", word: "Frost likely" },
-  frost_watch: { border: "border-l-frost", chip: "bg-frost/10 text-frost", word: "Frost watch" },
-  clear:       { border: "border-l-growth",chip: "bg-growth/10 text-growth", word: "Nothing near freezing" },
+const TONE: Record<FrostLevel, { border: string; chip: string; word: MessageKey }> = {
+  hard_freeze: { border: "border-l-clay",  chip: "bg-clay/15 text-clay",   word: "ui.frostCard.hardFreeze" },
+  frost_likely:{ border: "border-l-frost", chip: "bg-frost/15 text-frost", word: "ui.frostCard.frostLikely" },
+  frost_watch: { border: "border-l-frost", chip: "bg-frost/10 text-frost", word: "ui.frostCard.frostWatch" },
+  clear:       { border: "border-l-growth",chip: "bg-growth/10 text-growth", word: "ui.frostCard.nothingNear" },
 };
 
 const day = (iso: string) =>
-  new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+  new Date(iso + "T12:00:00").toLocaleDateString(languageLocale(), { weekday: "long", month: "short", day: "numeric" });
 
 /// Month and day alone. The weekday is worth saying about a night the grower
 /// may be out covering beds; it is noise on a median drawn from eight years.
 const shortDay = (iso: string) =>
-  new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  new Date(iso + "T12:00:00").toLocaleDateString(languageLocale(), { month: "short", day: "numeric" });
 
 export default function FrostCard({ data }: { data: FrostWindowResult }) {
   const u = useUnits();
+  const t = useT();
   const w = data.worst_night;
   const tone = TONE[w?.level ?? "clear"];
   const offset = data.across_region.coldest_ground_offset_f;
@@ -35,28 +40,29 @@ export default function FrostCard({ data }: { data: FrostWindowResult }) {
     <div className={`mb-3 rounded-md border border-rule ${tone.border} border-l-4 bg-panel px-4 py-3.5`}>
       <div className="flex flex-wrap items-baseline gap-2">
         <h3 className="figure text-[0.96875rem] font-semibold">
-          {w ? `${tone.word} · ${day(w.date)}` : "Frost outlook"}
+          {w ? `${t(tone.word)} · ${day(w.date)}` : t("ui.frostCard.outlook")}
         </h3>
         <span className={`rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold ${tone.chip}`}>
-          {data.nights.length}-night outlook
+          {t("ui.frostCard.nightOutlook", { n: data.nights.length })}
         </span>
       </div>
 
       {w && w.level !== "clear" ? (
         <p className="mt-1.5 text-[0.8125rem] leading-relaxed">
-          Forecast low <b>{u.showTemp(w.forecast_low_f)}</b>, but the coldest ground on your
-          land sits near <b>{u.showTemp(w.low_ground_f)}</b> — {w.reason}.
+          <Tx ns={WORDS} k="ui.frostCard.lowVsGround"
+            vars={{ low: u.showTemp(w.forecast_low_f), ground: u.showTemp(w.low_ground_f), reason: w.reason }}
+            components={{ b: <b /> }} />
           {/* An offset is a DIFFERENCE between two temperatures, so it converts
               without the 32-degree shift — the same arithmetic a degree-day
               gets, which is why it borrows that helper. */}
           {offset > 0 && (
-            <> Low ground runs about {u.degreeDays(offset).toFixed(1)}{u.tempUnit} under the forecast on a night like this.</>
+            <>{" "}{t("ui.frostCard.lowGroundRuns", { n: u.degreeDays(offset).toFixed(1), unit: u.tempUnit })}</>
           )}
         </p>
       ) : (
         <p className="mt-1.5 text-[0.8125rem] leading-relaxed">
-          Nothing within reach of freezing in the next {data.nights.length} nights.
-          {w && <> The coldest is {u.showTemp(w.low_ground_f)} on low ground, {day(w.date)}.</>}
+          {t("ui.frostCard.nothingInReach", { n: data.nights.length })}
+          {w && <>{" "}{t("ui.frostCard.coldestIs", { temp: u.showTemp(w.low_ground_f), day: day(w.date) })}</>}
         </p>
       )}
 
@@ -68,7 +74,7 @@ export default function FrostCard({ data }: { data: FrostWindowResult }) {
 
       {data.across_region.terrain_correction === "unavailable" && (
         <p className="data mt-2 text-[0.625rem] text-clay">
-          Terrain unavailable — this is the forecast low with no drainage applied.
+          {t("ui.frostCard.terrainUnavailable")}
         </p>
       )}
     </div>
@@ -89,15 +95,16 @@ function FirstFrostDates({ first, daysOut }: {
   first: NonNullable<FrostWindowResult["first_frost"]>;
   daysOut: number | null;
 }) {
+  const t = useT();
   const cells = [
-    { k: "earliest", label: "earliest", date: first.earliest },
-    { k: "median", label: "usually", date: first.median, lead: true },
-    { k: "latest", label: "latest", date: first.latest },
+    { k: "earliest", label: t("ui.frostCard.earliest"), date: first.earliest },
+    { k: "median", label: t("ui.frostCard.usually"), date: first.median, lead: true },
+    { k: "latest", label: t("ui.frostCard.latest"), date: first.latest },
   ].filter((c) => isDate(c.date));
   if (!cells.length) return null;
   return (
     <div className="mt-2.5">
-      <div className="eyebrow mb-1 text-ink-soft">First frost</div>
+      <div className="eyebrow mb-1 text-ink-soft">{t("ui.frostCard.firstFrost")}</div>
       <div className="flex flex-col gap-1.5 sm:flex-row sm:items-stretch sm:gap-0">
         {cells.map((c) => (
           <div key={c.k}
@@ -112,8 +119,8 @@ function FirstFrostDates({ first, daysOut }: {
         ))}
       </div>
       <p className="data mt-1.5 text-[0.65625rem] text-ink-soft">
-        {first.years_on_record} seasons on record
-        {daysOut != null && daysOut > 0 && ` · ${daysOut} days out`}
+        {t("ui.frostCard.seasonsOnRecord", { n: first.years_on_record })}
+        {daysOut != null && daysOut > 0 && ` · ${t("ui.frostCard.daysOut", { n: daysOut })}`}
       </p>
     </div>
   );
@@ -127,6 +134,7 @@ function FirstFrostDates({ first, daysOut }: {
 /// finger can never reach, which on a tablet means nowhere at all.
 function NightStrip({ nights }: { nights: FrostNight[] }) {
   const u = useUnits();
+  const t = useT();
   const [open, setOpen] = useState<string | null>(null);
   const lows = nights.map((n) => n.low_ground_f);
   const min = Math.min(...lows, 28), max = Math.max(...lows, 60);
@@ -148,7 +156,7 @@ function NightStrip({ nights }: { nights: FrostNight[] }) {
               key={n.date}
               onClick={() => setOpen(isOpen ? null : n.date)}
               aria-pressed={isOpen}
-              aria-label={`${day(n.date)}, coldest ground ${Math.round(n.low_ground_f)} degrees`}
+              aria-label={t("ui.frostCard.nightAria", { day: day(n.date), n: Math.round(n.low_ground_f) })}
               className={`flex min-h-11 min-w-11 flex-1 flex-col items-center justify-end gap-1 rounded pb-1 ${
                 isOpen ? "bg-band" : "active:bg-band"
               }`}
@@ -156,7 +164,7 @@ function NightStrip({ nights }: { nights: FrostNight[] }) {
               <span className="data text-[0.625rem] text-ink-soft">{Math.round(n.low_ground_f)}</span>
               <div className={`w-full max-w-14 rounded-sm ${color}`} style={{ height: h(n.low_ground_f) }} />
               <span className="data text-[0.625rem] text-ink-soft">
-                {new Date(n.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "narrow" })}
+                {new Date(n.date + "T12:00:00").toLocaleDateString(languageLocale(), { weekday: "narrow" })}
               </span>
             </button>
           );
@@ -165,11 +173,12 @@ function NightStrip({ nights }: { nights: FrostNight[] }) {
 
       {shown && (
         <p className="mt-1.5 rounded bg-band/60 px-3 py-2 text-[0.78125rem] leading-relaxed">
-          <b>{day(shown.date)}</b> — coldest ground {u.showTemp(shown.low_ground_f)},
-          forecast {u.showTemp(shown.forecast_low_f)}. {shown.reason}.
-          {shown.wind_mph != null && ` Wind ${Math.round(shown.wind_mph)} mph`}
-          {shown.cloud_pct != null && `, ${Math.round(shown.cloud_pct)}% cloud`}
-          {shown.dew_point_f != null && `, dew point ${u.showTemp(shown.dew_point_f)}`}.
+          <Tx ns={WORDS} k="ui.frostCard.nightDetail"
+            vars={{ day: day(shown.date), ground: u.showTemp(shown.low_ground_f), low: u.showTemp(shown.forecast_low_f), reason: shown.reason }}
+            components={{ b: <b /> }} />
+          {shown.wind_mph != null && ` ${t("ui.frostCard.wind", { n: Math.round(shown.wind_mph) })}`}
+          {shown.cloud_pct != null && `, ${t("ui.frostCard.cloud", { n: Math.round(shown.cloud_pct) })}`}
+          {shown.dew_point_f != null && `, ${t("ui.frostCard.dewPoint", { temp: u.showTemp(shown.dew_point_f) })}`}.
         </p>
       )}
     </>

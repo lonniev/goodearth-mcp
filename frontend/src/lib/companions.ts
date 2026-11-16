@@ -5,6 +5,9 @@
 // wheel). This file groups and labels; it decides nothing about plants.
 
 import type { Chosen } from "./basket.ts";
+import { languageLocale } from "@tollbooth-dpyc/web";
+import { tr } from "../i18n/index.ts";
+import type { MessageKey } from "../i18n/en.ts";
 
 /// The eight hues the wheel knows. The service refuses any other.
 export const HUES = ["red", "orange", "yellow", "green", "blue", "violet", "pink", "white"] as const;
@@ -15,7 +18,16 @@ export const HUE_GLYPH: Record<Hue, string> = {
   red: "🔴", orange: "🟠", yellow: "🟡", green: "🟢", blue: "🔵", violet: "🟣", pink: "🩷", white: "⚪",
 };
 
-export const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
+/// A month's short name in the reader's language: 0 is January.
+export function monthShort(i: number): string {
+  return new Date(Date.UTC(2000, i, 15)).toLocaleDateString(languageLocale(), { month: "short", timeZone: "UTC" });
+}
+
+/// The twelve short month names, "Jan" to "Dec". Each is read in the reader's
+/// language when it is looked at, so a list drawn after a language change
+/// shows the new names.
+export const MONTHS: readonly string[] = Object.defineProperties(new Array<string>(12),
+  Object.fromEntries(Array.from({ length: 12 }, (_, i) => [i, { get: () => monthShort(i), enumerable: true }])));
 
 export type Kind = "synergy" | "design";
 export type Where = "this_plot" | "grown_before" | "example";
@@ -55,20 +67,26 @@ export interface CompanionsResult {
 }
 
 /// How a relation reads: one glyph, a tone, a short word for the title.
+/// The word is `lib.companions.relation.<relation>`, read when it is shown.
+const relation = (key: string, glyph: string, tone: string) =>
+  ({ glyph, tone, get label() { return tr(`lib.companions.relation.${key}` as MessageKey); } });
+
 export const RELATION: Record<string, { glyph: string; tone: string; label: string }> = {
-  helped_by:     { glyph: "🤝", tone: "border-growth/50 bg-growth/8", label: "helps this" },
-  helps:         { glyph: "🤝", tone: "border-growth/50 bg-growth/8", label: "this helps it" },
-  avoid:         { glyph: "⛔", tone: "border-clay/40 bg-clay/8",     label: "keep apart" },
-  watch:         { glyph: "👀", tone: "border-honey/50 bg-honey/8",   label: "same family" },
-  complementary: { glyph: "🎨", tone: "border-growth/50 bg-growth/8", label: "complementary" },
-  analogous:     { glyph: "🎨", tone: "border-honey/50 bg-honey/8",   label: "analogous" },
-  foil:          { glyph: "🎨", tone: "border-rule bg-band",          label: "a foil" },
-  other:         { glyph: "🎨", tone: "border-rule bg-band",          label: "neither" },
-  same:          { glyph: "🎨", tone: "border-rule bg-band",          label: "the same colour" },
+  helped_by:     relation("helped_by", "🤝", "border-growth/50 bg-growth/8"),
+  helps:         relation("helps", "🤝", "border-growth/50 bg-growth/8"),
+  avoid:         relation("avoid", "⛔", "border-clay/40 bg-clay/8"),
+  watch:         relation("watch", "👀", "border-honey/50 bg-honey/8"),
+  complementary: relation("complementary", "🎨", "border-growth/50 bg-growth/8"),
+  analogous:     relation("analogous", "🎨", "border-honey/50 bg-honey/8"),
+  foil:          relation("foil", "🎨", "border-rule bg-band"),
+  other:         relation("other", "🎨", "border-rule bg-band"),
+  same:          relation("same", "🎨", "border-rule bg-band"),
 };
 
 export const WHERE_LABEL: Record<Where, string> = {
-  this_plot: "On this plot", grown_before: "Grown before", example: "Examples",
+  get this_plot() { return tr("lib.companions.where.thisPlot"); },
+  get grown_before() { return tr("lib.companions.where.grownBefore"); },
+  get example() { return tr("lib.companions.where.example"); },
 };
 
 /// Rows in the order the service ranked them, split by where they came from.

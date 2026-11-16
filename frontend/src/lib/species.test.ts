@@ -189,6 +189,9 @@ describe("a picture is only shown when the answer admits to the name", () => {
 import { describe as describeWire, it as itWire } from "node:test";
 import assertWire from "node:assert/strict";
 import { nearbyArgs } from "./wire.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 describeWire("an optional argument at its default", () => {
   itWire("is not sent at all", () => {

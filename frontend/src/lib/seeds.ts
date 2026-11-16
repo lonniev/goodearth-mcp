@@ -13,6 +13,8 @@ import type { ItemRow } from "./mcp";
 import type { RepeatDraft } from "./rotation.ts";
 import { baseName } from "./successions.ts";
 import { newItemId } from "./submit.ts";
+import { languageLocale } from "@tollbooth-dpyc/web";
+import { tr } from "../i18n/index.ts";
 
 export interface SeedLot {
   id: string;
@@ -50,9 +52,9 @@ export interface SeedInput {
 /// The server's bounds, in its words. A bound on what a figure can mean,
 /// never on how much seed a grower may hold.
 const RANGE = {
-  daysToMaturity: [1, 730, "Days to maturity should be between 1 and 730."],
-  germinationPct: [0, 100, "Germination is a percentage, 0 to 100."],
-  packedFor: [1900, 2200, "The packet year should be a year, like 2026."],
+  daysToMaturity: [1, 730, "lib.seeds.badDays"],
+  germinationPct: [0, 100, "lib.seeds.badGermination"],
+  packedFor: [1900, 2200, "lib.seeds.badYear"],
 } as const;
 
 function figure(text: string | undefined): number | undefined | null {
@@ -64,21 +66,21 @@ function figure(text: string | undefined): number | undefined | null {
 
 export function makeSeedLot(i: SeedInput, id?: string): SeedLot | string {
   const crop = i.crop.trim();
-  if (!crop) return "Name the crop this is seed of.";
+  if (!crop) return tr("lib.seeds.needCrop");
   const out: SeedLot = { id: id ?? newItemId("se"), crop };
   for (const key of ["daysToMaturity", "germinationPct", "packedFor"] as const) {
     const n = figure(i[key]);
     const [lo, hi, msg] = RANGE[key];
-    if (n === null || (n !== undefined && (n < lo || n > hi))) return msg;
+    if (n === null || (n !== undefined && (n < lo || n > hi))) return tr(msg);
     if (n !== undefined) out[key] = n;
   }
   const q = figure(i.quantity);
-  if (q === null || (q !== undefined && q < 0)) return "How much you have is a number, 0 or more.";
+  if (q === null || (q !== undefined && q < 0)) return tr("lib.seeds.badQuantity");
   if (q !== undefined) out.quantity = q;
   const tested = (i.testedOn ?? "").trim();
   if (tested) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(tested) || Number.isNaN(Date.parse(tested)))
-      return "The test date must be YYYY-MM-DD.";
+      return tr("lib.seeds.badTested");
     out.testedOn = tested;
   }
   for (const key of ["variety", "unit", "source", "lot"] as const) {
@@ -138,16 +140,17 @@ export function lotsFor(crop: string, taxonId: number | undefined, lots: readonl
 }
 
 const month = (iso: string) =>
-  new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" });
+  new Date(iso + "T12:00:00").toLocaleDateString(languageLocale(), { month: "short", year: "numeric" });
 
 /// A lot, in one line of what its packet says.
 export function lotLine(l: SeedLot): string {
   return [
     l.variety,
-    l.daysToMaturity != null && `${l.daysToMaturity} days`,
-    l.germinationPct != null
-      && `${l.germinationPct}% germination${l.testedOn ? ` (tested ${month(l.testedOn)})` : ""}`,
-    l.packedFor != null && `packed for ${l.packedFor}`,
+    l.daysToMaturity != null && tr("lib.seeds.days", { count: l.daysToMaturity }),
+    l.germinationPct != null && (l.testedOn
+      ? tr("lib.seeds.germinationTested", { pct: l.germinationPct, month: month(l.testedOn) })
+      : tr("lib.seeds.germination", { pct: l.germinationPct })),
+    l.packedFor != null && tr("lib.seeds.packedFor", { year: l.packedFor }),
   ].filter(Boolean).join(" · ");
 }
 

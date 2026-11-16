@@ -10,6 +10,9 @@
 // it reads as part of the furniture and can never compete with a frost warning.
 // prefers-reduced-motion parks it with the bees settled on the skep.
 
+import { useT } from "../i18n";
+import type { MessageKey } from "../i18n/en";
+
 export type HiveMood = "flying" | "quiet" | "closed" | "unknown";
 
 /// Honeybees stop foraging below roughly 55 °F. A live frost watch shuts the
@@ -20,14 +23,15 @@ export function hiveMood(tempF: number | null, frostWatch: boolean): HiveMood {
   return tempF >= 55 ? "flying" : "quiet";
 }
 
-const LABEL: Record<HiveMood, string> = {
-  flying: "Warm enough for the bees to be working.",
-  quiet: "Below flight temperature — the hive is quiet.",
-  closed: "Frost watch — the hive is shut.",
-  unknown: "",
-};
+const LABEL = {
+  flying: "ui.hive.flying",
+  quiet: "ui.hive.quiet",
+  closed: "ui.hive.closed",
+  unknown: "ui.hive.beehive",
+} as const satisfies Record<HiveMood, MessageKey>;
 
 export default function Hive({ mood = "unknown" }: { mood?: HiveMood }) {
+  const t = useT();
   // Bee count IS the reading. Two out foraging when warm, one at the entrance
   // when cold, none when shut.
   const quiet = mood === "quiet";
@@ -40,7 +44,7 @@ export default function Hive({ mood = "unknown" }: { mood?: HiveMood }) {
       // instead of overflowing it.
       className="pointer-events-none mx-auto block h-auto w-full max-w-[112px] opacity-45"
       role="img"
-      aria-label={LABEL[mood] || "Beehive"}
+      aria-label={t(LABEL[mood])}
     >
       {/* Heavier in viewBox units than a full-page drawing would need: at rail
           width these lines land under a pixel, and a hairline on dark ground

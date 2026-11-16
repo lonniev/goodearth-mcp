@@ -12,6 +12,8 @@
 // not only to fix them but to make the failure local when one is missed.
 
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { WORDS } from "../i18n";
+import { Tx } from "@tollbooth-dpyc/web/react";
 
 interface Props {
   children: ReactNode;
@@ -47,11 +49,9 @@ export default class Boundary extends Component<Props, State> {
     if (!this.state.message) return this.props.children;
     return (
       <div className="rounded-md border border-clay/30 bg-clay/10 p-4 text-[0.8125rem] text-clay">
-        <p className="font-semibold">{this.props.what} could not be drawn.</p>
+        <p className="font-semibold"><Tx ns={WORDS} k="ui.boundary.failed" vars={{ what: this.props.what }} /></p>
         <p className="mt-1">
-          Your record is safe — this is a fault in the page, not in what you
-          saved. The rest of Good Earth still works; pick another view and come
-          back.
+          <Tx ns={WORDS} k="ui.boundary.safe" />
         </p>
         <p className="mt-2 font-mono text-[0.6875rem] opacity-70">{this.state.message}</p>
       </div>

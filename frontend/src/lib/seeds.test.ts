@@ -7,6 +7,10 @@ import { readFileSync } from "node:fs";
 import { draftFromLot, lotLine, lotsFor, makeSeedLot, onHand, seedCodec,
   type SeedLot } from "./seeds.ts";
 import { BUNDLE_KINDS } from "./farmBundle.ts";
+import en from "../i18n/en.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 const lot = (over: Partial<SeedLot> = {}): SeedLot => ({ id: "se-1", crop: "Zinnia", ...over });
 
@@ -127,7 +131,7 @@ describe("the seed kind, end to end", () => {
     assert.match(ledger, /<SeedRow[\s\S]*?onBind=/);
     assert.match(crops, /<CropLedger[\s\S]*?seeding=\{\{/);
     assert.doesNotMatch(crops, /title="Seeds on hand"/);
-    assert.match(crops, /title="When to sow"/);
+    assert.match(crops, /title=\{t\("views\.crops\.whenToSow"\)\}/);
   });
 
   it("the form asks for a packet, never for the plant it is already on", () => {
@@ -140,7 +144,8 @@ describe("the seed kind, end to end", () => {
     // "500" and "seeds" are two halves of one answer. Two separately-labelled
     // boxes made the grower say it twice.
     const form = readFileSync(new URL("../components/SeedForm.tsx", import.meta.url), "utf8");
-    assert.match(form, /<QuantityField[\s\S]*?label="Inventory count"/);
+    assert.match(form, /<QuantityField[\s\S]*?label=\{t\("ui\.seedForm\.inventoryCount"\)\}/);
+    assert.equal(en["ui.seedForm.inventoryCount"], "Inventory count");
     assert.doesNotMatch(form, /name="qty"/);
     assert.doesNotMatch(form, /name="unit"/);
   });
@@ -149,8 +154,10 @@ describe("the seed kind, end to end", () => {
     // "Tested on" beside a date said nothing about WHAT was tested, and "Lot"
     // alone could as easily have meant the grower's own numbering.
     const form = readFileSync(new URL("../components/SeedForm.tsx", import.meta.url), "utf8");
-    assert.match(form, /Germination tested/);
-    assert.match(form, /Supplier’s lot/);
+    assert.match(form, /t\("ui\.seedForm\.germinationTested"\)/);
+    assert.equal(en["ui.seedForm.germinationTested"], "Germination tested");
+    assert.match(form, /t\("ui\.seedForm\.suppliersLot"\)/);
+    assert.equal(en["ui.seedForm.suppliersLot"], "Supplier’s lot");
     assert.doesNotMatch(form, /^\s*Tested on$/m);
   });
 

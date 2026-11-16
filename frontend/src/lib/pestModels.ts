@@ -11,6 +11,7 @@
 
 import { newItemId } from "./submit.ts";
 import type { PestModel } from "./mcp";
+import { tr } from "../i18n/index.ts";
 
 export interface SavedPest extends PestModel {
   id: string;
@@ -41,7 +42,7 @@ export function makeWatch(
   pest: string, regionId: string,
   extra?: { taxonId?: number; scientificName?: string },
 ): SavedPest | string {
-  if (!pest.trim()) return "Give the pest a name.";
+  if (!pest.trim()) return tr("lib.pestModels.needName");
   return {
     id: newItemId("pe"),
     pest: pest.trim(), regionId, watch: true, stages: [],
@@ -55,7 +56,7 @@ export function makePest(
   pest: string, baseTemp: number, stagesRaw: string, regionId: string, biofix?: string,
   extra?: { taxonId?: number; scientificName?: string },
 ): SavedPest | string {
-  if (!pest.trim()) return "Give the pest a name.";
+  if (!pest.trim()) return tr("lib.pestModels.needName");
 
   // No stages means WATCH IT, the same way a blank target and set-out on the
   // Crops form mean a presence row. It used to be a rejection: tapping a
@@ -64,9 +65,9 @@ export function makePest(
   // forward that did not involve inventing a threshold.
   if (!stagesRaw.trim()) return makeWatch(pest, regionId, extra);
   if (!Number.isFinite(baseTemp) || baseTemp < 20 || baseTemp > 80)
-    return "Base temperature must be between 20 and 80 °F.";
+    return tr("lib.pestModels.badBase");
   if (biofix && (!/^\d{4}-\d{2}-\d{2}$/.test(biofix) || Number.isNaN(Date.parse(biofix))))
-    return "Biofix must be YYYY-MM-DD, or left empty to count from Jan 1.";
+    return tr("lib.pestModels.badBiofix");
 
   // "first flight 375, second flight 1400" — one stage per comma.
   const stages = stagesRaw.split(",").map((chunk) => {
@@ -77,7 +78,7 @@ export function makePest(
     return { stage: m[1].trim(), gdd: g };
   });
   if (!stages.length || stages.some((s) => s === null))
-    return 'Stages look like "first flight 375, second flight 1400".';
+    return tr("lib.pestModels.badStages");
 
   return {
     id: newItemId("pe"),

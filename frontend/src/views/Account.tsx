@@ -1,7 +1,7 @@
 // Account — who you are, what you hold, and how the app behaves for you.
 // Its own chunk, since the wallet and profile panels are needed only here.
 
-import { AccountPage, NostrProfilePanel, WalletFunds, WalletStatement } from "@tollbooth-dpyc/web/react";
+import { AccountPage, LanguageChooser, NostrProfilePanel, WalletFunds, WalletStatement, useLanguageLocale } from "@tollbooth-dpyc/web/react";
 import { getStoredNpub } from "@tollbooth-dpyc/web";
 import { decorateTile } from "../lib/tiles";
 import { USAGE, USAGE_FIGURES, UsageRow } from "../components/usageDress";
@@ -11,6 +11,7 @@ import ForgetMe from "../components/ForgetMe";
 import { latOf, type SavedRegion } from "../lib/regions";
 import type { Prefs } from "../lib/prefs";
 import { tour } from "../lib/tour/targets";
+import { useT } from "../i18n";
 
 export default function Account({ spent, prefs, onPrefs, region, onForgotten, onSignOut }: {
   spent: number;
@@ -24,15 +25,17 @@ export default function Account({ spent, prefs, onPrefs, region, onForgotten, on
   // the app behaves for you on the right. The page is one flat list,
   // so the columns are CSS columns with the settings forced to the
   // second; one column on a phone, in the same order.
+  const t = useT();
+  const locale = useLanguageLocale();
   return (
     <AccountPage
       npub={getStoredNpub()}
-      heading="Account"
+      heading={t("views.account.heading")}
       before={
         <div className="grid gap-3" {...tour("account.summary")}>
           {spent > 0 && (
             <span className="data justify-self-start rounded-full bg-band px-2.5 py-1 text-[0.65625rem] text-ink-soft">
-              {spent.toLocaleString()} drawn today
+              {t("views.account.drawnToday", { n: spent.toLocaleString(locale) })}
             </span>
           )}
           <WalletFunds decorateTile={decorateTile} />
@@ -50,6 +53,10 @@ export default function Account({ spent, prefs, onPrefs, region, onForgotten, on
         <div className="grid gap-3 lg:break-before-column">
           <NostrProfilePanel npub={getStoredNpub()} />
           <Preferences prefs={prefs} lat={latOf(region.region)} onChange={onPrefs} />
+          <div className="rounded-xl border border-rule bg-panel px-4 py-3">
+            <div className="eyebrow mb-2">{t("views.account.language")}</div>
+            <LanguageChooser />
+          </div>
           {/* Publishing is a once-per-region setup step, so it sits with
               the other settings rather than at the top of the working page. */}
           <CalendarFeed region={region} />
@@ -59,7 +66,7 @@ export default function Account({ spent, prefs, onPrefs, region, onForgotten, on
         </div>
       }
       onSignOut={onSignOut}
-      signOutLabel="Sign out"
+      signOutLabel={t("views.account.signOut")}
       classNames={{
         root: "gap-3 lg:columns-2 [&>*]:mb-3 [&>*]:break-inside-avoid",
         heading: "figure mb-3 text-[1.625rem] font-bold [column-span:all]",

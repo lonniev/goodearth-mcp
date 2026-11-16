@@ -20,7 +20,7 @@ import { once } from "../lib/once";
 import { useShare } from "../components/Share";
 import { todoSheet } from "../lib/exports";
 import Provenance from "../components/Provenance";
-import { QuoteScroller } from "@tollbooth-dpyc/web/react";
+import { QuoteScroller, useLanguageLocale } from "@tollbooth-dpyc/web/react";
 import { AGRARIAN_QUOTES, AGRARIAN_SOURCE, quoteStyles } from "../lib/quotes";
 import { Pager, SortHeaders, type Column } from "../components/RecordTable";
 import SearchBox from "../components/SearchBox";
@@ -40,29 +40,30 @@ import type { SavedRegion } from "../lib/regions";
 import { useTour } from "@tollbooth-dpyc/web/react";
 import AddPanel from "../components/AddPanel";
 import { tour } from "../lib/tour/targets";
+import { useT, type Translate } from "../i18n";
 
-const nice = (iso?: string | null) =>
+const nice = (iso: string | null | undefined, locale: string) =>
   iso ? new Date(iso.length > 10 ? iso : iso + "T12:00:00")
-    .toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—";
+    .toLocaleDateString(locale, { month: "short", day: "numeric" }) : "—";
 
 const hhmm = (t?: string | null) => (t ? t.slice(0, 5) : "");
 
-const FRAMES: { key: Timeframe; label: string }[] = [
-  { key: "day", label: "Day" },
-  { key: "week", label: "Week" },
-  { key: "month", label: "Month" },
-  { key: "season", label: "Season" },
-  { key: "all", label: "All" },
+const frames = (t: Translate): { key: Timeframe; label: string }[] => [
+  { key: "day", label: t("views.todo.frame.day") },
+  { key: "week", label: t("views.todo.frame.week") },
+  { key: "month", label: t("views.todo.frame.month") },
+  { key: "season", label: t("views.todo.frame.season") },
+  { key: "all", label: t("views.todo.frame.all") },
 ];
 
 /// Column header text and the sort key it asks the server for. A header that
 /// is not in this list cannot be sorted by, which mirrors the server's own
 /// whitelist rather than hoping the two agree.
-const COLS: Column<TaskSort>[] = [
-  { key: "done", label: "Done?" },
-  { key: "title", label: "Task" },
-  { key: "due", label: "Due" },
-  { key: "starts", label: "Time" },
+const cols = (t: Translate): Column<TaskSort>[] => [
+  { key: "done", label: t("views.todo.col.done") },
+  { key: "title", label: t("views.todo.col.task") },
+  { key: "due", label: t("views.todo.col.due") },
+  { key: "starts", label: t("views.todo.col.time") },
   { label: "" },
 ];
 
@@ -73,6 +74,8 @@ export default function TodoView({
   onCost: (sats: number) => void;
   onView?: (v: "account") => void;
 }) {
+  const t = useT();
+  const locale = useLanguageLocale();
   const [page, setPage] = useState<{ rows: TaskRow[]; total: number; page: number; pages: number } | null>(null);
   /// The page of tasks in hand, for the share button in the top bar.
   useShare(useMemo(() => (page ? todoSheet(region, page.rows, page.total) : null), [region, page]));
@@ -100,17 +103,17 @@ export default function TodoView({
         timeframe: frame, search, sort_col: sortCol, sort_dir: sortDir,
         page: pageNo, page_size: 20,
       });
-      if (!r.success) { setErr(r.error || "The task list could not be read."); return; }
+      if (!r.success) { setErr(r.error || t("views.todo.err.read")); return; }
       setPage({ rows: r.rows ?? [], total: r.total ?? 0, page: r.page ?? 0, pages: r.pages ?? 1 });
       setRanAt(new Date());
     } catch (e) {
       if (isNetworkError(e)) {
-        setErr("No signal. The list loads when the signal is back — tasks you add now wait and are sent then.");
+        setErr(t("views.todo.err.noSignal"));
         setPage((p) => p ?? { rows: [], total: 0, page: 0, pages: 1 });
       } else setErr((e as Error).message);
     }
     finally { setBusy(false); }
-  }, [region.id, frame, search, sortCol, sortDir, pageNo]);
+  }, [region.id, frame, search, sortCol, sortDir, pageNo, t]);
 
   // Tasks written without signal, laid over the list until they are sent. The
   // list is read again whenever the outbox shrinks, so a sent task trades its
@@ -165,7 +168,7 @@ export default function TodoView({
     const form = e.currentTarget;
     const f = new FormData(form);
     const title = String(f.get("title") ?? "").trim();
-    if (!title) { setErr("A task needs a title."); return; }
+    if (!title) { setErr(t("views.todo.err.title")); return; }
     setErr("");
     await once(addingRef, async () => {
       setAdding(true);
@@ -178,7 +181,7 @@ export default function TodoView({
           ends_at: reminderOnly ? undefined : String(f.get("ends") ?? "") || undefined,
           reminder_only: reminderOnly,
         });
-        if (!r.success) { setErr(r.error || "The task could not be saved."); return; }
+        if (!r.success) { setErr(r.error || t("views.todo.err.save")); return; }
         refreshFeed.now();
         form.reset();
         setReminderOnly(true);
@@ -204,15 +207,15 @@ export default function TodoView({
     () => makeFeedRefresher(region, feedToken), [region, feedToken],
   );
 
-  const startEdit = (t: TaskRow) => setDraft({
-    task_id: t.id, title: t.title, note: t.note ?? "", due: t.due ?? "",
-    starts_at: hhmm(t.starts_at), ends_at: hhmm(t.ends_at),
-    reminder_only: t.reminder_only,
+  const startEdit = (task: TaskRow) => setDraft({
+    task_id: task.id, title: task.title, note: task.note ?? "", due: task.due ?? "",
+    starts_at: hhmm(task.starts_at), ends_at: hhmm(task.ends_at),
+    reminder_only: task.reminder_only,
   });
 
   async function commit() {
     if (!draft) return;
-    if (!draft.title.trim()) { setErr("A task needs a title."); return; }
+    if (!draft.title.trim()) { setErr(t("views.todo.err.title")); return; }
     setSaving(true); setErr("");
     try {
       const r = await taskSave(region.id, {
@@ -221,7 +224,7 @@ export default function TodoView({
         starts_at: draft.reminder_only ? "" : draft.starts_at,
         ends_at: draft.reminder_only ? "" : draft.ends_at,
       });
-      if (!r.success) { setErr(r.error || "The task could not be saved."); return; }
+      if (!r.success) { setErr(r.error || t("views.todo.err.save")); return; }
       setDraft(null);
       refreshFeed.now();
       void load();
@@ -236,26 +239,26 @@ export default function TodoView({
       {/* The iCal control stays on the toggle's row: it opens a settings page
           and belongs in the page's own row. The ADD button is at the foot of
           the form, where the thing it submits actually is. */}
-      <AddPanel label="New Task?" open={addOpen} onOpen={setAddOpen}
+      <AddPanel label={t("views.todo.newTask")} open={addOpen} onOpen={setAddOpen}
         aside={
           <IconButton path={ICON.settings} label="iCal" tone="quiet" tour="todo.gear"
-            title="Calendar feed settings" onClick={() => onView?.("account")} />
+            title={t("views.todo.feedSettings")} onClick={() => onView?.("account")} />
         }>
       <form id="new-task" onSubmit={add} className="mb-4 rounded-md border border-rule bg-panel p-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="block text-[0.6875rem] text-ink-soft lg:col-span-2" {...tour("todo.title")}>
-            What needs doing
-            <input name="title" placeholder="Cover the east beds" className={FIELD} />
+            {t("views.todo.whatNeedsDoing")}
+            <input name="title" placeholder={t("views.todo.titlePlaceholder")} className={FIELD} />
           </label>
           <label className="block text-[0.6875rem] text-ink-soft" {...tour("todo.due")}>
-            Due
+            {t("views.todo.due")}
             <input name="due" type="date" className={FIELD} />
           </label>
           <label className="flex min-h-11 items-center gap-2 self-end text-[0.78125rem]" {...tour("todo.reminder")}>
             <input type="checkbox" checked={reminderOnly}
               onChange={(e) => setReminderOnly(e.target.checked)}
               className="h-5 w-5 accent-[var(--color-ink)]" />
-            Reminder only?
+            {t("views.todo.reminderOnlyQ")}
           </label>
         </div>
 
@@ -264,11 +267,11 @@ export default function TodoView({
         {!reminderOnly && (
           <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" {...tour("todo.times")}>
             <label className="block text-[0.6875rem] text-ink-soft">
-              From
+              {t("views.todo.from")}
               <input name="starts" type="time" className={FIELD} />
             </label>
             <label className="block text-[0.6875rem] text-ink-soft">
-              To
+              {t("views.todo.to")}
               <input name="ends" type="time" className={FIELD} />
             </label>
           </div>
@@ -280,23 +283,23 @@ export default function TodoView({
           * that height back. */}
         <div className="mt-3 flex items-end gap-3">
           <label className="block min-w-0 flex-1 text-[0.6875rem] text-ink-soft">
-            Note
-            <input name="note" placeholder="Row cover is in the east barn" className={FIELD} {...tour("todo.note")} />
+            {t("views.todo.note")}
+            <input name="note" placeholder={t("views.todo.notePlaceholder")} className={FIELD} {...tour("todo.note")} />
           </label>
-          <IconButton path={ICON.add} label={adding ? "Adding…" : "Task"} form="new-task" tour="todo.add"
-            title="Add task" disabled={adding} />
+          <IconButton path={ICON.add} label={adding ? t("views.todo.adding") : t("views.todo.task")} form="new-task" tour="todo.add"
+            title={t("views.todo.addTask")} disabled={adding} />
         </div>
       </form>
       </AddPanel>
 
       {/* ── What's on the list ─────────────────────────────────────────── */}
-      <Section emoji="✅" title="Planned Tasks" tour="todo.list">
+      <Section emoji="✅" title={t("views.todo.planned")} tour="todo.list">
         <Provenance tool="goodearth_task_list" at={ranAt} onCost={onCost} />
       </Section>
 
       <div className="mb-2.5 flex flex-wrap items-center gap-1.5">
         <span className="flex flex-wrap items-center gap-1.5" {...tour("todo.frames")}>
-        {FRAMES.map((f) => (
+        {frames(t).map((f) => (
           <Pill key={f.key} active={frame === f.key}
             onClick={() => { setFrame(f.key); setPageNo(0); }}>
             {f.label}
@@ -306,45 +309,45 @@ export default function TodoView({
             character, so typing "mulch" billed five task_list calls. */}
         </span>
         <span {...tour("todo.search")}>
-        <SearchBox value={search} placeholder="regex ok, e.g. mulch|cover"
-          onSearch={(t) => { setSearch(t); setPageNo(0); }} />
+        <SearchBox value={search} placeholder={t("views.todo.searchPlaceholder")}
+          onSearch={(q) => { setSearch(q); setPageNo(0); }} />
         </span>
       </div>
 
       {busy && !page ? (
-        <div className="rounded-md border border-rule bg-panel"><QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Reading your list" intervalMs={6500} classNames={quoteStyles} /></div>
+        <div className="rounded-md border border-rule bg-panel"><QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading={t("views.todo.reading")} intervalMs={6500} classNames={quoteStyles} /></div>
       ) : shown && shown.rows.length ? (
         <>
           <div className="overflow-x-auto rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">
             <table className="w-full text-[0.8125rem]">
               <thead>
-                <SortHeaders cols={COLS} sort={sortCol} dir={sortDir} onSort={sortBy} />
+                <SortHeaders cols={cols(t)} sort={sortCol} dir={sortDir} onSort={sortBy} />
               </thead>
               <tbody>
-                {shown.rows.map((t) => (draft?.task_id === t.id ? (
-                  <Editor key={t.id} draft={draft} onChange={setDraft} onCommit={commit}
+                {shown.rows.map((task) => (draft?.task_id === task.id ? (
+                  <Editor key={task.id} draft={draft} onChange={setDraft} onCommit={commit}
                     onCancel={() => setDraft(null)} saving={saving} />
                 ) : (
-                  <tr key={t.id} className="border-b border-rule last:border-b-0">
+                  <tr key={task.id} className="border-b border-rule last:border-b-0">
                     <td className="px-3 py-2.5">
-                      <input type="checkbox" checked={t.done}
-                        onChange={async () => { await taskSetDone(t.id, !t.done); refreshFeed.soon(); void load(); }}
-                        aria-label={`Mark ${t.title} ${t.done ? "not done" : "done"}`}
+                      <input type="checkbox" checked={task.done}
+                        onChange={async () => { await taskSetDone(task.id, !task.done); refreshFeed.soon(); void load(); }}
+                        aria-label={task.done ? t("views.todo.markNotDone", { title: task.title }) : t("views.todo.markDone", { title: task.title })}
                         className="h-5 w-5 accent-[var(--color-ink)]" />
                     </td>
-                    <td onClick={() => startEdit(t)}
-                      className={`cursor-text px-3 py-2.5 ${t.done ? "text-ink-soft line-through" : "font-medium"}`}>
-                      {t.title}
-                      {shown.pending.has(t.id) && (
-                        <small className="ml-1.5 text-[0.65625rem] font-normal text-ink-soft">⇡ waiting for signal</small>
+                    <td onClick={() => startEdit(task)}
+                      className={`cursor-text px-3 py-2.5 ${task.done ? "text-ink-soft line-through" : "font-medium"}`}>
+                      {task.title}
+                      {shown.pending.has(task.id) && (
+                        <small className="ml-1.5 text-[0.65625rem] font-normal text-ink-soft">{t("views.todo.waiting")}</small>
                       )}
-                      {t.note &&<small className="block text-[0.6875rem] font-normal text-ink-soft">{t.note}</small>}
+                      {task.note &&<small className="block text-[0.6875rem] font-normal text-ink-soft">{task.note}</small>}
                     </td>
-                    <td onClick={() => startEdit(t)}
-                      className="data cursor-text px-3 py-2.5 whitespace-nowrap text-[0.75rem]">{nice(t.due)}</td>
-                    <td onClick={() => startEdit(t)}
+                    <td onClick={() => startEdit(task)}
+                      className="data cursor-text px-3 py-2.5 whitespace-nowrap text-[0.75rem]">{nice(task.due, locale)}</td>
+                    <td onClick={() => startEdit(task)}
                       className="data cursor-text px-3 py-2.5 whitespace-nowrap text-[0.75rem] text-ink-soft">
-                      {t.reminder_only ? "reminder" : `${hhmm(t.starts_at)}–${hhmm(t.ends_at)}`}
+                      {task.reminder_only ? t("views.todo.reminder") : `${hhmm(task.starts_at)}–${hhmm(task.ends_at)}`}
                     </td>
                     <td className="px-3 py-2.5 text-right">
                       <button onClick={async () => {
@@ -354,19 +357,19 @@ export default function TodoView({
                         // everything needed to rebuild it has to be kept here,
                         // because after the delete there is nothing to read.
                         remembered({
-                          kind: "task", blockId: region.id, label: t.title,
+                          kind: "task", blockId: region.id, label: task.title,
                           item: {
-                            task_id: t.id, title: t.title,
-                            ...(t.note ? { note: t.note } : {}),
-                            ...(t.due ? { due: t.due } : {}),
-                            ...(t.starts_at ? { starts_at: t.starts_at } : {}),
-                            ...(t.ends_at ? { ends_at: t.ends_at } : {}),
-                            reminder_only: t.reminder_only, done: t.done,
+                            task_id: task.id, title: task.title,
+                            ...(task.note ? { note: task.note } : {}),
+                            ...(task.due ? { due: task.due } : {}),
+                            ...(task.starts_at ? { starts_at: task.starts_at } : {}),
+                            ...(task.ends_at ? { ends_at: task.ends_at } : {}),
+                            reminder_only: task.reminder_only, done: task.done,
                           },
                         });
-                        await taskDelete(t.id); refreshFeed.soon(); void load();
+                        await taskDelete(task.id); refreshFeed.soon(); void load();
                       }}
-                        aria-label={`Remove ${t.title}`} title="Remove"
+                        aria-label={t("views.todo.removeTitle", { title: task.title })} title={t("views.todo.remove")}
                         className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-clay"><TrashGlyph /></button>
                     </td>
                   </tr>
@@ -381,8 +384,8 @@ export default function TodoView({
       ) : (
         <Empty>
           {search || frame !== "all"
-            ? "Nothing matches that. Widen the timeframe, or clear the search."
-            : `Nothing on the list for ${region.name} yet. Add one above.`}
+            ? t("views.todo.noMatch")
+            : t("views.todo.empty", { plot: region.name })}
         </Empty>
       )}
 
@@ -403,6 +406,7 @@ function Editor({ draft, onChange, onCommit, onCancel, saving }: {
   onCancel: () => void;
   saving: boolean;
 }) {
+  const t = useT();
   const cell = CELL;
   const set = (patch: Partial<TaskInput>) => onChange({ ...draft, ...patch });
 
@@ -411,7 +415,7 @@ function Editor({ draft, onChange, onCommit, onCancel, saving }: {
       <td className="px-3 py-2.5 align-top" />
       <td className="px-3 py-2 align-top">
         <input autoFocus value={draft.title} className={cell}
-          placeholder="Cover the east beds"
+          placeholder={t("views.todo.titlePlaceholder")}
           onChange={(e) => set({ title: e.target.value })}
           // Enter saves and Escape abandons, because a row editor that can
           // only be dismissed with the mouse is slower than the form it replaced.
@@ -420,7 +424,7 @@ function Editor({ draft, onChange, onCommit, onCancel, saving }: {
             if (e.key === "Escape") onCancel();
           }} />
         <input value={draft.note ?? ""} className={`${cell} mt-1 text-[0.75rem]`}
-          placeholder="Row cover is in the east barn"
+          placeholder={t("views.todo.notePlaceholder")}
           onChange={(e) => set({ note: e.target.value })} />
       </td>
       <td className="px-3 py-2 align-top">
@@ -432,7 +436,7 @@ function Editor({ draft, onChange, onCommit, onCancel, saving }: {
           <input type="checkbox" checked={draft.reminder_only ?? true}
             onChange={(e) => set({ reminder_only: e.target.checked })}
             className="h-4 w-4 accent-[var(--color-ink)]" />
-          Reminder only
+          {t("views.todo.reminderOnly")}
         </label>
         {/* Times mean nothing for a reminder, so they are not offered for one. */}
         {!draft.reminder_only && (
@@ -446,7 +450,7 @@ function Editor({ draft, onChange, onCommit, onCancel, saving }: {
         )}
       </td>
       <td className="px-3 py-2 text-right align-top whitespace-nowrap">
-        <RowActions onCommit={onCommit} onCancel={onCancel} saving={saving} what="task" />
+        <RowActions onCommit={onCommit} onCancel={onCancel} saving={saving} what={t("views.todo.whatTask")} />
       </td>
     </tr>
   );

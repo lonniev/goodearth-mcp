@@ -11,27 +11,32 @@ import { getStoredNpub } from "@tollbooth-dpyc/web";
 import { useTimezone } from "@tollbooth-dpyc/web/react";
 import { clockTime } from "../lib/clock";
 import { flushOutbox } from "../lib/mcp";
+import { tr, useT } from "../i18n";
+import type { MessageKey } from "../i18n/en";
 
-const KIND: Record<string, [string, string]> = {
-  planting: ["planting", "plantings"],
-  pest: ["pest", "pests"],
-  wildlife: ["fauna entry", "fauna entries"],
-  observation: ["field note", "field notes"],
+/// A record kind's count, as a key read with `{ count }`.
+const KIND: Record<string, MessageKey> = {
+  planting: "ui.outboxChip.planting",
+  pest: "ui.outboxChip.pest",
+  wildlife: "ui.outboxChip.fauna",
+  observation: "ui.outboxChip.note",
 };
 
+/// Called at render, so the words follow the language on screen.
 function describe(p: Pending): string {
   const a = p.args;
-  if (p.tool === "task_save") return `Task: ${String(a.title ?? "")}`;
-  if (p.tool === "task_set_done") return a.done ? "A task ticked done" : "A task unticked";
-  if (p.tool === "task_delete") return "A task removed";
-  const [one, many] = KIND[String(a.kind)] ?? ["entry", "entries"];
+  if (p.tool === "task_save") return tr("ui.outboxChip.task", { title: String(a.title ?? "") });
+  if (p.tool === "task_set_done") return a.done ? tr("ui.outboxChip.ticked") : tr("ui.outboxChip.unticked");
+  if (p.tool === "task_delete") return tr("ui.outboxChip.taskRemoved");
+  const kind = KIND[String(a.kind)] ?? "ui.outboxChip.entry";
   const saved = (a.items as unknown[] | undefined)?.length ?? 0;
   const gone = (a.retire_ids as unknown[] | undefined)?.length ?? 0;
-  if (gone && !saved) return `${gone} ${gone === 1 ? one : many} removed`;
-  return `${saved} ${saved === 1 ? one : many}`;
+  if (gone && !saved) return tr("ui.outboxChip.removed", { what: tr(kind, { count: gone }) });
+  return tr(kind, { count: saved });
 }
 
 export default function OutboxChip() {
+  const t = useT();
   const [list, setList] = useState<Pending[]>(() => entries());
   const [open, setOpen] = useState(false);
   const [, zone] = useTimezone();
@@ -48,11 +53,11 @@ export default function OutboxChip() {
     go();
     window.addEventListener("online", go);
     document.addEventListener("visibilitychange", go);
-    const t = window.setInterval(go, 30_000);
+    const timer = window.setInterval(go, 30_000);
     return () => {
       window.removeEventListener("online", go);
       document.removeEventListener("visibilitychange", go);
-      window.clearInterval(t);
+      window.clearInterval(timer);
     };
   }, [waitingN]);
 
@@ -64,19 +69,18 @@ export default function OutboxChip() {
       <button
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        title="Recorded without signal. It is sent when the signal is back."
+        title={t("ui.outboxChip.title")}
         className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-[1.5px] border-honey px-3 text-[0.75rem] text-ink active:bg-band"
       >
         {waitingN > 0 && (
-          <span>⇡ {waitingN}<span className="hidden sm:inline"> waiting for signal</span></span>
+          <span>⇡ {waitingN}<span className="hidden sm:inline">{t("ui.outboxChip.waiting")}</span></span>
         )}
-        {refusedN > 0 && <span className="text-clay">{refusedN} not saved</span>}
+        {refusedN > 0 && <span className="text-clay">{t("ui.outboxChip.notSavedN", { n: refusedN })}</span>}
       </button>
       {open && (
         <div className="absolute right-0 top-12 z-30 w-72 max-w-[calc(100vw-2rem)] rounded-md border border-rule bg-panel p-3 text-[0.78125rem] shadow-lg">
           <p className="mb-2 text-ink-soft">
-            Recorded here without signal. Each one is sent, in order, when the
-            signal is back.
+            {t("ui.outboxChip.lede")}
           </p>
           <ul className="space-y-1.5">
             {mine.map((p) => (
@@ -84,12 +88,12 @@ export default function OutboxChip() {
                 <span>
                   {describe(p)}
                   <span className="text-ink-soft"> · {clockTime(p.queuedAt, zone)}</span>
-                  {p.refused && <span className="block text-clay">Not saved: {p.refused}</span>}
+                  {p.refused && <span className="block text-clay">{t("ui.outboxChip.notSaved", { why: p.refused })}</span>}
                 </span>
                 {p.refused && (
                   <button onClick={() => discard(p.id)}
                     className="shrink-0 rounded border border-rule px-2 py-0.5 text-[0.71875rem] active:bg-band">
-                    Discard
+                    {t("ui.outboxChip.discard")}
                   </button>
                 )}
               </li>
@@ -98,7 +102,7 @@ export default function OutboxChip() {
           {waitingN > 0 && (
             <button onClick={() => void flushOutbox()}
               className="mt-3 min-h-9 w-full rounded-md bg-ink px-3 text-[0.78125rem] text-paper">
-              Send now
+              {t("ui.outboxChip.send")}
             </button>
           )}
         </div>

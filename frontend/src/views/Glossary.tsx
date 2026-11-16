@@ -16,11 +16,13 @@ import { GLOSSARY, GROUPS, searchGlossary } from "../lib/glossary";
 import { FIELD } from "../components/ui";
 import { useShare } from "../components/Share";
 import { termsSheet } from "../lib/exports";
+import { useT } from "../i18n";
 
 /// One column on a phone, two on a tablet, three on a wide screen.
 const GRID = "grid items-start gap-3 md:grid-cols-2 xl:grid-cols-3";
 
 export default function Glossary() {
+  const t = useT();
   const [q, setQ] = useState("");
   const hits = searchGlossary(q);
   const searching = q.trim().length > 0;
@@ -31,19 +33,18 @@ export default function Glossary() {
   return (
     <div>
       <h1 className="figure text-[1.625rem] leading-tight font-bold">
-        What the words mean
+        {t("views.glossary.title")}
       </h1>
       <p className="mt-1.5 text-[0.84375rem] leading-relaxed text-ink-soft">
-        Every term this site uses. Several of them are figures you supply
-        rather than ones it knows — those say so.
+        {t("views.glossary.intro")}
       </p>
 
       <div className="sticky top-0 z-10 -mx-1 mt-3 bg-paper px-1 pt-1 pb-2">
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search the words"
-          aria-label="Search the glossary"
+          placeholder={t("views.glossary.searchPlaceholder")}
+          aria-label={t("views.glossary.searchLabel")}
           className={FIELD}
         />
       </div>
@@ -51,8 +52,8 @@ export default function Glossary() {
       {searching && (
         <p className="data mb-2 text-[0.6875rem] text-ink-soft">
           {hits.length === 0
-            ? "Nothing by that name."
-            : `${hits.length} of ${GLOSSARY.length}`}
+            ? t("views.glossary.nothing")
+            : t("views.glossary.hits", { n: hits.length, total: GLOSSARY.length })}
         </p>
       )}
 

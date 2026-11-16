@@ -10,6 +10,9 @@
 // Kept in lib, without JSX, so the router and the tests can read it. The
 // content itself is in `views/howto/`.
 
+import { tr } from "../i18n/index.ts";
+import type { MessageKey } from "../i18n/en.ts";
+
 /// The pages that have a guide, in the rail's order.
 export const GUIDED = [
   "plots", "ledger", "almanac", "crops", "pests", "wildlife", "todo", "reports",
@@ -39,39 +42,23 @@ export function pageOf(key: string): GuidedView | null {
 ///
 /// `title` is the page's rail label, so the guide is found under the word the
 /// reader already knows. `said` is the one line on its card.
-export const GUIDE_META: Record<GuidedView, {
-  title: string; emoji: string; eyebrow: string; said: string;
-}> = {
-  plots: {
-    title: "My Plots", emoji: "🗺️", eyebrow: "the ground every answer is about",
-    said: "Draw or pin your ground, switch between plots, and see the sun on each.",
-  },
-  ledger: {
-    title: "Dashboard", emoji: "🌡️", eyebrow: "where the season stands",
-    said: "The season's heat against ten years, with frost, soil, drying and disease under it.",
-  },
-  almanac: {
-    title: "Almanac", emoji: "🌤️", eyebrow: "what the sky is doing",
-    said: "Today, the fortnight, and each measure of the season so far, each against its normal.",
-  },
-  crops: {
-    title: "Flora", emoji: "🌱", eyebrow: "what you grow, and where each stands",
-    said: "The plant ledger: what finishes before frost, when to sow, what grew here, and what grows beside what.",
-  },
-  pests: {
-    title: "Pests", emoji: "🐛", eyebrow: "what to scout for, and when",
-    said: "Your pest models timed on this ground, and the published ones dated for it.",
-  },
-  wildlife: {
-    title: "Fauna", emoji: "🦌", eyebrow: "the other creatures on the same clocks",
-    said: "Arrivals, emergences, broods and lambing, each on the clock it actually runs on.",
-  },
-  todo: {
-    title: "Tasks", emoji: "✅", eyebrow: "the work, by the day",
-    said: "Write a task down, see what is due, and carry it to the calendar you already read.",
-  },
-  reports: {
-    title: "Field Reports", emoji: "📓", eyebrow: "what you saw, and what it teaches",
-    said: "Frost, first bloom and emergence as you saw them, turned into a correction on the model.",
-  },
+const EMOJI: Record<GuidedView, string> = {
+  plots: "🗺️",
+  ledger: "🌡️",
+  almanac: "🌤️",
+  crops: "🌱",
+  pests: "🐛",
+  wildlife: "🦌",
+  todo: "✅",
+  reports: "📓",
 };
+
+interface GuideMeta { title: string; emoji: string; eyebrow: string; said: string }
+
+/// The words are read from `lib.guides.<page>.*` whenever they are shown.
+export const GUIDE_META = Object.fromEntries(Object.entries(EMOJI).map(([page, emoji]) => [page, {
+  emoji,
+  get title() { return tr(`lib.guides.${page}.title` as MessageKey); },
+  get eyebrow() { return tr(`lib.guides.${page}.eyebrow` as MessageKey); },
+  get said() { return tr(`lib.guides.${page}.said` as MessageKey); },
+}])) as Record<GuidedView, GuideMeta>;

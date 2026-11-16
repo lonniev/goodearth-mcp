@@ -20,6 +20,7 @@
 
 import type { ItemRow, Region, TaskRow } from "./mcp.ts";
 import type { SavedRegion } from "./regions.ts";
+import { tr } from "../i18n/index.ts";
 
 export const BUNDLE_FORMAT = "goodearth.farm-bundle";
 export const BUNDLE_VERSION = 1;
@@ -140,19 +141,19 @@ export type ReadResult =
 /// A file someone else made, read as untrusted.
 export function readBundle(text: string): ReadResult {
   let raw: unknown;
-  try { raw = JSON.parse(text); } catch { return { error: "That file is not a farm bundle — it is not JSON." }; }
+  try { raw = JSON.parse(text); } catch { return { error: tr("lib.farmBundle.notJson") }; }
   if (!isObj(raw) || raw.format !== BUNDLE_FORMAT) {
-    return { error: "That file is not a Good Earth farm bundle." };
+    return { error: tr("lib.farmBundle.notBundle") };
   }
   if (!num(raw.version) || raw.version > BUNDLE_VERSION) {
-    return { error: "That bundle was made by a newer Good Earth. Reload the page and try again." };
+    return { error: tr("lib.farmBundle.newer") };
   }
 
   const plot = raw.plot;
-  if (!isObj(plot)) return { error: "That bundle has no plot in it." };
+  if (!isObj(plot)) return { error: tr("lib.farmBundle.noPlot") };
   const name = typeof plot.name === "string" ? plot.name.trim() : "";
-  if (!name || name.length > MAX_NAME_LEN) return { error: "That bundle's plot has no usable name." };
-  if (!validGeometry(plot.geometry)) return { error: "That bundle's plot outline is not one Good Earth can read." };
+  if (!name || name.length > MAX_NAME_LEN) return { error: tr("lib.farmBundle.noName") };
+  if (!validGeometry(plot.geometry)) return { error: tr("lib.farmBundle.badOutline") };
   const base = num(plot.base_temp_f) && plot.base_temp_f >= MIN_BASE_F && plot.base_temp_f <= MAX_BASE_F
     ? plot.base_temp_f : 50;
 
@@ -160,23 +161,23 @@ export function readBundle(text: string): ReadResult {
   for (const k of BUNDLE_KINDS) items[k] = [];
   const skipped: string[] = [];
   const given = raw.items ?? {};
-  if (!isObj(given)) return { error: "That bundle's items are not a list Good Earth can read." };
+  if (!isObj(given)) return { error: tr("lib.farmBundle.badItems") };
   for (const [kind, list] of Object.entries(given)) {
     if (!(BUNDLE_KINDS as readonly string[]).includes(kind)) { skipped.push(kind); continue; }
     if (!Array.isArray(list) || !list.every(isObj)) {
-      return { error: `That bundle's ${kind} list is not one Good Earth can read.` };
+      return { error: tr("lib.farmBundle.badList", { kind: kindWord(kind as BundleKind) }) };
     }
     items[kind as BundleKind] = list.map(cleanItem);
   }
 
   const givenTasks = raw.tasks ?? [];
   if (!Array.isArray(givenTasks) || !givenTasks.every(isObj)) {
-    return { error: "That bundle's tasks are not a list Good Earth can read." };
+    return { error: tr("lib.farmBundle.badTasks") };
   }
   const tasks: BundleTask[] = [];
   for (const t of givenTasks) {
     const clean = cleanTask(t);
-    if (!clean) return { error: "That bundle has a task with no title." };
+    if (!clean) return { error: tr("lib.farmBundle.untitledTask") };
     tasks.push(clean);
   }
 
@@ -201,7 +202,7 @@ export function importName(name: string, taken: readonly string[]): string {
   const fit = (s: string) => s.slice(0, MAX_NAME_LEN);
   if (!have.has(fold(name))) return fit(name);
   for (let n = 1; ; n += 1) {
-    const tail = n === 1 ? " (shared)" : ` (shared ${n})`;
+    const tail = n === 1 ? tr("lib.farmBundle.shared") : tr("lib.farmBundle.sharedN", { n });
     const candidate = fit(name.slice(0, MAX_NAME_LEN - tail.length) + tail);
     if (!have.has(fold(candidate))) return candidate;
   }
@@ -219,15 +220,20 @@ export function bundleFileName(name: string): string {
   return `${slug || "plot"}.goodearth.json`;
 }
 
+/// A kind of item, in words: the kind itself is its name in the record.
+export function kindWord(kind: BundleKind): string {
+  return tr(`lib.farmBundle.kind.${kind}`);
+}
+
 /// "3 plantings · 1 pest · 2 wildlife · 4 seed lots", or that nothing is tracked.
 export function countLine(b: FarmBundle): string {
   const n = (k: BundleKind) => b.items[k].length;
   const parts = [
-    n("planting") && `${n("planting")} planting${n("planting") === 1 ? "" : "s"}`,
-    n("pest") && `${n("pest")} pest${n("pest") === 1 ? "" : "s"}`,
-    n("wildlife") && `${n("wildlife")} fauna`,
-    n("seed") && `${n("seed")} seed lot${n("seed") === 1 ? "" : "s"}`,
-    b.tasks.length && `${b.tasks.length} task${b.tasks.length === 1 ? "" : "s"}`,
+    n("planting") && tr("lib.farmBundle.count.planting", { count: n("planting") }),
+    n("pest") && tr("lib.farmBundle.count.pest", { count: n("pest") }),
+    n("wildlife") && tr("lib.farmBundle.count.wildlife", { count: n("wildlife") }),
+    n("seed") && tr("lib.farmBundle.count.seed", { count: n("seed") }),
+    b.tasks.length && tr("lib.farmBundle.count.task", { count: b.tasks.length }),
   ].filter(Boolean);
-  return parts.length ? parts.join(" · ") : "nothing tracked yet";
+  return parts.length ? parts.join(" · ") : tr("lib.farmBundle.nothing");
 }

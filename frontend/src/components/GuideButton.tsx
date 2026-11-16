@@ -12,14 +12,16 @@ import { guideFor } from "../lib/guides";
 import type { ViewKey } from "../lib/views";
 import { tour } from "../lib/tour/targets";
 import { Glyph, ICON } from "./ui";
+import { useT } from "../i18n";
 
 export default function GuideButton({ view, onView }: {
   view: ViewKey;
   onView: (v: ViewKey) => void;
 }) {
+  const t = useT();
   const guide = guideFor(view);
   if (!guide) return null;
-  const label = "How this page works";
+  const label = t("ui.guideButton.label");
   return (
     <button type="button" aria-label={label} title={label} {...tour("shell.guide")}
       onClick={() => onView(guide)}

@@ -18,16 +18,18 @@ import type { Due } from "../lib/husbandry";
 import type { WildlifeRow } from "../lib/mcp";
 import { FIELD, Pill, SpeciesMark } from "./ui";
 import { tour } from "../lib/tour/targets";
+import { useLanguageLocale } from "@tollbooth-dpyc/web/react";
+import { tr, useT } from "../i18n";
 
-const day = (iso: string) =>
-  new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+const dayIn = (iso: string, locale: string) =>
+  new Date(iso + "T12:00:00").toLocaleDateString(locale, { month: "short", day: "numeric" });
 
 /// "in 6 days" / "today" / "2 days ago" — the phrasing a grower would use.
 function when(days: number): string {
-  if (days === 0) return "today";
-  if (days === 1) return "tomorrow";
-  if (days === -1) return "yesterday";
-  return days > 0 ? `in ${days} days` : `${-days} days ago`;
+  if (days === 0) return tr("ui.dueSoon.today");
+  if (days === 1) return tr("ui.dueSoon.tomorrow");
+  if (days === -1) return tr("ui.dueSoon.yesterday");
+  return days > 0 ? tr("ui.dueSoon.inDays", { n: days }) : tr("ui.dueSoon.daysAgo", { n: -days });
 }
 
 export default function DueSoon({
@@ -44,6 +46,9 @@ export default function DueSoon({
 }) {
   /// The row whose "what day was it?" is open, and the day chosen. One at a
   /// time: this is a list of prompts, not a form.
+  const t = useT();
+  const locale = useLanguageLocale();
+  const day = (iso: string) => dayIn(iso, locale);
   const [open, setOpen] = useState("");
   const [on, setOn] = useState(today);
 
@@ -51,7 +56,7 @@ export default function DueSoon({
 
   return (
     <div className="mb-5 rounded-md border border-rule border-l-4 border-l-honey bg-panel px-4 py-3" {...tour("wildlife.due")}>
-      <span className="eyebrow">Due soon</span>
+      <span className="eyebrow">{t("ui.dueSoon.title")}</span>
       <ul className="mt-1.5 space-y-2.5">
         {due.map(({ row, daysAway, settled }) => {
           const id = row.ref ?? `${row.species}·${row.event}`;
@@ -65,7 +70,7 @@ export default function DueSoon({
                 <span className={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-[0.65625rem] font-semibold ${
                   settled ? "bg-growth/12 text-growth"
                     : daysAway < 0 ? "bg-clay/12 text-clay" : "bg-band text-ink-soft"}`}>
-                  {settled ? "seen" : when(daysAway)}
+                  {settled ? t("ui.dueSoon.seen") : when(daysAway)}
                 </span>
               </div>
 
@@ -73,14 +78,14 @@ export default function DueSoon({
                 {date && day(date)}
                 {/* The window, not the day. Gestation and incubation both
                     vary, and this is the service saying by how much. */}
-                {row.window && ` · between ${day(row.window.from)} and ${day(row.window.to)}`}
+                {row.window && t("ui.dueSoon.window", { from: day(row.window.from), to: day(row.window.to) })}
                 {row.threshold && ` · ${row.threshold}`}
               </p>
 
               {open === id ? (
                 <div className="mt-1.5 flex flex-wrap items-end gap-2">
                   <label className="block text-[0.6875rem] text-ink-soft">
-                    What day did you see it?
+                    {t("ui.dueSoon.whatDay")}
                     <input type="date" value={on} max={today}
                       onChange={(e) => setOn(e.target.value)} className={FIELD} />
                   </label>
@@ -88,9 +93,9 @@ export default function DueSoon({
                     onClick={() => {
                       void onObserved(row, on).then(() => setOpen(""));
                     }}>
-                    Record it
+                    {t("ui.dueSoon.record")}
                   </Pill>
-                  <Pill onClick={() => setOpen("")}>not yet</Pill>
+                  <Pill onClick={() => setOpen("")}>{t("ui.dueSoon.notYet")}</Pill>
                 </div>
               ) : (
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -99,12 +104,12 @@ export default function DueSoon({
                       {/* Defaulted to the day it was DUE when that has passed,
                           because that is the likeliest answer and the grower
                           can still move it. Today, when it has not. */}
-                      I saw it
+                      {t("ui.dueSoon.sawIt")}
                     </Pill>
                   )}
                   {canRepeat(row.species) && (
                     <Pill onClick={() => onRepeat(row.species)}>
-                      Start another
+                      {t("ui.dueSoon.another")}
                     </Pill>
                   )}
                 </div>

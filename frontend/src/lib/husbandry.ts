@@ -22,6 +22,7 @@ import type {
 } from "./mcp";
 import { makeWildlife, type SavedWildlife } from "./wildlifeModels.ts";
 import type { SpeciesHit } from "./species.ts";
+import { tr } from "../i18n/index.ts";
 
 /// One animal the composer can offer, from wherever it was learned.
 export interface Pick {
@@ -246,10 +247,10 @@ export function monthDay(iso: string): string {
 export function cycleRows(
   d: CycleDraft, regionId: string,
 ): SavedWildlife[] | string {
-  if (!d.species.trim()) return "Which animal?";
-  if (!d.startLabel.trim()) return "What happened — 'laying on eggs', 'bred'?";
+  if (!d.species.trim()) return tr("lib.husbandry.which");
+  if (!d.startLabel.trim()) return tr("lib.husbandry.what");
   const on = monthDay(d.startOn);
-  if (!on) return "Pick the day it happened.";
+  if (!on) return tr("lib.husbandry.pickDay");
 
   const shared = {
     species: d.species.trim(),
@@ -304,8 +305,8 @@ export function nextCycle(
 ): CycleDraft | string {
   const start = rows.find((r) => r.driver === "calendar");
   const steps = rows.filter((r) => r.driver === "interval" && Number.isFinite(r.days));
-  if (!start && !steps.length) return "There is no cycle here to start again.";
-  if (!monthDay(startOn)) return "Pick the day it started.";
+  if (!start && !steps.length) return tr("lib.husbandry.noCycle");
+  if (!monthDay(startOn)) return tr("lib.husbandry.pickStart");
 
   const first = start ?? steps[0];
   return {
@@ -313,7 +314,7 @@ export function nextCycle(
     scientificName: first.scientific_name,
     taxonId: first.taxon_id,
     emoji: first.emoji ?? undefined,
-    startLabel: start?.event ?? "started",
+    startLabel: start?.event ?? tr("lib.husbandry.started"),
     startOn,
     steps: steps.map((s) => ({ label: s.event, days: s.days as number })),
   };

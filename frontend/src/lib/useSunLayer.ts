@@ -14,6 +14,7 @@ import { readPrefs, writePrefs } from "./prefs";
 import type { SavedRegion } from "./regions";
 import { decodeGrid, summary, type SunGrid, type SunSummary, type SunView } from "./sunGrid";
 import type { SunState } from "./sunOverlay";
+import { tr } from "../i18n/index.ts";
 
 export const JUNE = 5;
 
@@ -80,7 +81,7 @@ export function useSunLayer(active: SavedRegion): SunLayerHandle {
     loadSunlight(active.id)
       .then(async (r) => {
         if (read.current !== mine) return;
-        if (!r.success || !r.grid) { setError(r.error || "Sunlight could not be read for this plot."); return; }
+        if (!r.success || !r.grid) { setError(r.error || tr("lib.useSunLayer.unread")); return; }
         const g = await decodeGrid(r.grid);
         if (read.current !== mine) return;
         setResult(r); setGrid(g);

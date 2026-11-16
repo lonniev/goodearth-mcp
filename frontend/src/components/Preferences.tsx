@@ -1,6 +1,7 @@
 // Viewing preferences, on the Account page beside the Nostr profile.
 
 import { TimezonePicker } from "@tollbooth-dpyc/web/react";
+import { useT } from "../i18n";
 import type { Prefs, ThemeChoice } from "../lib/prefs";
 import { SEASONS, seasonOf } from "../lib/season";
 import { useTour, useTourSwitch } from "@tollbooth-dpyc/web/react";
@@ -18,16 +19,17 @@ export default function Preferences({
   // The account page's own tour: the package's panels, then these switches.
   useTour("account");
   const tutorial = useTourSwitch();
+  const t = useT();
   return (
     <div className="rounded-xl border border-rule bg-panel px-4 py-3">
-      <div className="eyebrow mb-2">Viewing</div>
+      <div className="eyebrow mb-2">{t("ui.preferences.viewing")}</div>
       <div className="mb-2 flex flex-wrap gap-x-6 gap-y-2">
 
       {/* The seasons shift hue and never polarity — this is a change of light,
           not a dark mode. "Follow the season" is the default because a farm
           calendar that did not would be a strange thing. */}
       <div {...tour("account.season")}>
-        <div className="mb-1 text-[0.84375rem]">🍂 Season</div>
+        <div className="mb-1 text-[0.84375rem]">{t("ui.preferences.season")}</div>
         <div className="flex flex-wrap gap-1.5">
           {(["follow", ...SEASONS] as ThemeChoice[]).map((s) => (
             <button
@@ -39,7 +41,9 @@ export default function Preferences({
                   : "border-rule text-ink-soft active:bg-band"
               }`}
             >
-              {s === "follow" ? `Follow · ${seasonOf(new Date(), lat)}` : s}
+              {s === "follow"
+                ? t("ui.preferences.follow", { season: t(`ui.preferences.${seasonOf(new Date(), lat)}` as const) })
+                : t(`ui.preferences.${s}` as const)}
             </button>
           ))}
         </div>
@@ -49,7 +53,7 @@ export default function Preferences({
           not rewrite it — a threshold entered as 50 °F is still 50 °F, shown
           as 10 °C. */}
       <div {...tour("account.degrees")}>
-        <div className="mb-1 text-[0.84375rem]">🌡️ Degrees</div>
+        <div className="mb-1 text-[0.84375rem]">{t("ui.preferences.degrees")}</div>
         <div className="flex gap-1.5">
           {(["F", "C"] as Unit[]).map((u) => (
             <button
@@ -71,7 +75,7 @@ export default function Preferences({
           frame taken. A frost night or a planting date is the farm's calendar
           and stays where the farm is. */}
       <TimezonePicker
-        label="🕐 Time zone"
+        label={t("ui.preferences.timeZone")}
         classNames={{
           label: "mb-1 block text-[0.84375rem]",
           select: "min-h-11 max-w-full rounded-full border border-rule bg-panel px-4 text-[0.78125rem] font-medium text-ink",
@@ -89,11 +93,9 @@ export default function Preferences({
           className="h-5 w-5 accent-[color:var(--color-honey)]"
         />
         <span className="text-[0.84375rem]">
-          🧭 Live tutorial
+          {t("ui.preferences.tutorial")}
           <span className="block text-[0.75rem] leading-snug text-ink-soft">
-            A short walk around each page, offered the first time it sits quiet
-            a moment, pointing at what to do. Any popover can stop it; this
-            switch starts it again.
+            {t("ui.preferences.tutorialNote")}
           </span>
         </span>
       </label>
@@ -106,12 +108,9 @@ export default function Preferences({
           className="h-5 w-5 accent-[color:var(--color-honey)]"
         />
         <span className="text-[0.84375rem]">
-          🐝 Foraging bees
+          {t("ui.preferences.bees")}
           <span className="block text-[0.75rem] leading-snug text-ink-soft">
-            They read the day&rsquo;s high against the{" "}
-            {showTemp(55, prefs.units)} flight threshold — more of them the
-            warmer it is, none during a frost watch. Turn them off if you would
-            rather nothing moved.
+            {t("ui.preferences.beesNote", { temp: showTemp(55, prefs.units) })}
           </span>
         </span>
       </label>

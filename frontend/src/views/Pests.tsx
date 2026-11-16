@@ -10,7 +10,7 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import Provenance from "../components/Provenance";
-import { QuoteScroller, TableFilter, useTimezone } from "@tollbooth-dpyc/web/react";
+import { QuoteScroller, TableFilter, useLanguageLocale, useTimezone } from "@tollbooth-dpyc/web/react";
 import { clockTime } from "../lib/clock";
 import { AGRARIAN_QUOTES, AGRARIAN_SOURCE, quoteStyles } from "../lib/quotes";
 import { Pager, SortHeaders, type Column } from "../components/RecordTable";
@@ -50,9 +50,10 @@ import { useTour } from "@tollbooth-dpyc/web/react";
 import AddPanel, { showForm } from "../components/AddPanel";
 import { tour } from "../lib/tour/targets";
 import CommunityObservations from "../components/CommunityObservations";
+import { useT, type Translate } from "../i18n";
 
-const d = (iso: string) =>
-  new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+const shortDate = (iso: string, locale: string) =>
+  new Date(iso + "T12:00:00").toLocaleDateString(locale, { month: "short", day: "numeric" });
 
 /// Sort keys mirror the server's whitelist. The accumulation and the stage
 /// chips are computed for the page in hand, not held in the record, so they
@@ -62,26 +63,20 @@ const d = (iso: string) =>
 /// Three of these four headings are terms of art, and a grower should not have
 /// to already know them to read the row underneath. The definition sits behind
 /// a ⓘ rather than on the page.
-function columns(ddLabel: string): Column<ItemSort>[] {
+function columns(t: Translate, ddLabel: string): Column<ItemSort>[] {
   return [
-    { key: "name", label: "Pest" },
+    { key: "name", label: t("views.pests.col.pest") },
     {
-      key: "starts_on", label: "Biofix",
-      info: <>The day the count starts for this pest — usually the first
-        sustained trap catch, sometimes just the first of January. Everything
-        in the row is measured from it.</>,
+      key: "starts_on", label: t("views.pests.col.biofix"),
+      info: t("views.pests.col.biofixInfo"),
     },
     {
       label: ddLabel,
-      info: <>Growing Degree Days banked since the Biofix: each day contributes
-        the degrees its mean temperature ran above this pest&rsquo;s base. It is
-        a running total, not a stage.</>,
+      info: t("views.pests.col.ddInfo"),
     },
     {
-      label: "Stages", width: "44%",
-      info: <>Your thresholds. A stage is a life-cycle event — first flight,
-        egg hatch — paired with the degree-day total it arrives at. Filled when
-        it has been reached, otherwise showing the date it is due.</>,
+      label: t("views.pests.col.stages"), width: "44%",
+      info: t("views.pests.col.stagesInfo"),
     },
     { label: "" },
   ];
@@ -93,6 +88,9 @@ export default function Pests({
   // Degrees are read in whatever scale this browser is set to. The record
   // stays Fahrenheit — a base of 50 °F is still 50 °F, shown as 10 °C.
   const u = useUnits();
+  const t = useT();
+  const locale = useLanguageLocale();
+  const d = (iso: string) => shortDate(iso, locale);
   // Order, search and paging belong to the database — it sorts every pest on
   // the block, not the twenty in hand. Search runs on submit: a read costs sats.
   const [sort, setSort] = useState<ItemSort>("name");
@@ -180,11 +178,11 @@ export default function Pests({
       const r = await pestThreshold(
         region.id, list.map(({ id, regionId: _r, ...m }) => ({ ...m, ref: id })),
       );
-      if (!r.success) { setError(r.error || "What you are watching could not be read."); return; }
+      if (!r.success) { setError(r.error || t("views.pests.err.read")); return; }
       setData(r); setRanAt(new Date());
     } catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
-  }, [region]);
+  }, [region, t]);
 
   useEffect(() => { void run(models); }, [run, models]);
 
@@ -218,7 +216,7 @@ export default function Pests({
   async function askRefresh(m: SavedPest) {
     const r = await lifeCycle(region.id, "pest",
       lookupBy(m.pest, { taxonId: m.taxon_id, scientificName: m.scientific_name }));
-    if (!r.success) throw new Error(r.error || "The pest could not be looked up.");
+    if (!r.success) throw new Error(r.error || t("views.pests.err.lookup"));
     return pestDiff(m, r, { temp: (f) => u.showTemp(f), dd: (n) => u.showDD(n) });
   }
   async function saveRefresh(m: SavedPest, taken: FieldDiff<SavedPest>[]) {
@@ -286,20 +284,20 @@ export default function Pests({
     try {
       const r = await pestCatalog(region.id);
       if (r.success) { setCat(r); setCatAt(new Date()); }
-      else setError(r.error || "The pest catalogue could not be read.");
+      else setError(r.error || t("views.pests.err.catalog"));
     } finally { setCatBusy(false); }
-  }, [region.id]);
+  }, [region.id, t]);
 
   return (
     <>
-      <PageTitle>Pests</PageTitle>
+      <PageTitle>{t("views.pests.title")}</PageTitle>
 
       {error && <ErrorBox>{error}</ErrorBox>}
 
 
       {data && data.scout_now.length > 0 && (
         <div className="mb-5 rounded-md border border-rule border-l-4 border-l-honey bg-panel px-4 py-3" {...tour("pests.active")}>
-          <span className="eyebrow">Active now</span>
+          <span className="eyebrow">{t("views.pests.activeNow")}</span>
           <ul className="mt-1.5 space-y-1 text-[0.8125rem]">
             {data.scout_now.map((s) => <li key={s}>{s}</li>)}
           </ul>
@@ -307,7 +305,7 @@ export default function Pests({
       )}
 
       {/* ── Watch a pest ───────────────────────────────────────────────── */}
-      <AddPanel label="New pest" open={addOpen} onOpen={setAddOpen}>
+      <AddPanel label={t("views.pests.newPest")} open={addOpen} onOpen={setAddOpen}>
       <form id="new-pest" onSubmit={add} className="mb-4 rounded-md border border-rule bg-panel p-4">
         {/* Every caption on one line, every box one height, and the act at the
             end of the flow rather than on a row of its own — the same shape
@@ -320,14 +318,14 @@ export default function Pests({
               already holds a chipmunk and a slug, and neither is an insect. A
               typed name still stands when iNaturalist has not heard of it —
               "pest" is the grower's word for whatever is eating the crop. */}
-          <Field label="Pest" width="min-w-[15rem] flex-1" tour="pests.species">
+          <Field label={t("views.pests.col.pest")} width="min-w-[15rem] flex-1" tour="pests.species">
             <SpeciesPicker key={pickKey} kingdom="animals" seed={seedName}
               value={picked && {
                 commonName: picked.commonName ?? undefined,
                 scientificName: picked.scientificName,
                 thumb: picked.thumb,
               }}
-              placeholder="aster leafhopper, vole, slug…"
+              placeholder={t("views.pests.speciesPlaceholder")}
               onPick={(hit) => { setPicked(hit); setReading(null); setSavedNote(""); setPestName(hit.commonName || hit.scientificName); }}
               onClear={() => { setPicked(null); setPestName(""); }}
               onText={setPestName}
@@ -347,12 +345,10 @@ export default function Pests({
               50: it is the number this ground's season curve is accumulated
               from, so leaving the field alone now agrees with the chart
               instead of quietly disagreeing with it. */}
-          <Field label={`Base${u.tempUnit}`} htmlFor="pest-base" width="w-[7rem]" tour="pests.base"
+          <Field label={t("views.pests.base", { unit: u.tempUnit })} htmlFor="pest-base" width="w-[7rem]" tour="pests.base"
             hint={
               <Term of="base_temp">
-                A codling moth counts from 50&nbsp;°F and a cabbage maggot from
-                40&nbsp;°F on the same acre. Left blank it takes{" "}
-                {region.name}&rsquo;s {u.showTemp(region.baseTempF)}.
+                {t("views.pests.baseHint", { plot: region.name, base: u.showTemp(region.baseTempF) })}
               </Term>
             }>
             <input id="pest-base" name="base" inputMode="numeric"
@@ -360,30 +356,28 @@ export default function Pests({
               className={FIELD} />
           </Field>
 
-          <Field label="Biofix" htmlFor="pest-biofix" width="w-[10rem]" tour="pests.biofix"
+          <Field label={t("views.pests.col.biofix")} htmlFor="pest-biofix" width="w-[10rem]" tour="pests.biofix"
             hint={
               <Term of="biofix">
-                Leave it empty and the count runs from the first of January.
+                {t("views.pests.biofixHint")}
               </Term>
             }>
             <input id="pest-biofix" name="biofix" type="date" className={FIELD} />
           </Field>
 
-          <Field label="Stages" htmlFor="pest-stages" width="min-w-[15rem] flex-1" tour="pests.stages"
+          <Field label={t("views.pests.col.stages")} htmlFor="pest-stages" width="min-w-[15rem] flex-1" tour="pests.stages"
             hint={
               <Term of="threshold">
-                A life-cycle event and the degree-day total it arrives at, comma
-                separated. Good Earth times them against this ground and does not
-                publish entomology. Leave it empty to just watch the creature.
+                {t("views.pests.stagesHint")}
               </Term>
             }>
-            <input id="pest-stages" name="stages" placeholder="first flight 375, second flight 1400"
+            <input id="pest-stages" name="stages" placeholder={t("views.pests.stagesPlaceholder")}
               className={FIELD} />
           </Field>
 
           <span className="pt-3.5">
-            <IconButton path={ICON.bug} label="Pest" hideLabel form="new-pest" tour="pests.add"
-              title="Watch a pest" disabled={submit.busy} />
+            <IconButton path={ICON.bug} label={t("views.pests.col.pest")} hideLabel form="new-pest" tour="pests.add"
+              title={t("views.pests.watchPest")} disabled={submit.busy} />
           </span>
         </div>
         {formErr && <p className="mt-2 text-[0.75rem] text-clay">{formErr}</p>}
@@ -396,7 +390,7 @@ export default function Pests({
           who={{ taxonId: picked.id, scientificName: picked.scientificName,
                  commonName: picked.commonName ?? undefined }}
           tracked={trackedPest} onCost={onCost}
-          trackLabel={(n) => `Watch these ${n}`}
+          trackLabel={(n) => t("views.pests.watchThese", { n })}
           onTrack={async (chosen, r) => {
             const name = picked.commonName || picked.scientificName;
             const { stages, watches } = splitPestEvents(chosen);
@@ -411,8 +405,8 @@ export default function Pests({
               const rows = wildlifeRows(name, watches, region.id,
                 { scientificName: picked.scientificName, role: "foe" });
               const res = await blockItemSave(region.id, "wildlife", { items: rows.map(wildlifeCodec.to) });
-              if (!res?.success) throw new Error(res?.error || "Its watches could not be saved.");
-              setSavedNote(`🐾 ${watches.length} on Fauna`);
+              if (!res?.success) throw new Error(res?.error || t("views.pests.err.watches"));
+              setSavedNote(t("views.pests.onFauna", { n: watches.length }));
             }
             setPestName(""); setPicked(null); setSeedName(""); setReading(null);
           }} />
@@ -426,30 +420,30 @@ export default function Pests({
           list the list already shows. */}
       <div className="mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <Section emoji="🐛" first tour="pests.list"
-          title={`Pests ledger${ranAt
-            ? ` (at ${clockTime(ranAt, zone)})`
-            : ""}`}>
+          title={ranAt
+            ? t("views.pests.ledgerAt", { time: clockTime(ranAt, zone) })
+            : t("views.pests.ledger")}>
           {models.length > 0 && (
             <Provenance tool="goodearth_pest_threshold" at={ranAt} onCost={onCost} hideTime />
           )}
         </Section>
         <div className="ml-auto flex items-center gap-2">
           <span {...tour("pests.filter")}>
-          <TableFilter classNames={TABLE_FILTER} clearLabel="Clear" clearPlacement="panel"
+          <TableFilter classNames={TABLE_FILTER} clearLabel={t("views.pests.clear")} clearPlacement="panel"
             onClear={() => { setFilter(NO_PEST_FILTER); setPageNo(0); }}
             questions={{
               value: filter, summary: pestFilterWords(filter),
               onChange: (f) => { setFilter(f); setPageNo(0); },
               icon: <Glyph path={ICON.filter} size={16} />,
               questions: [
-                { kind: "number", key: "dueDays", label: "Due within", unit: "days" },
-                { kind: "toggle", key: "crossed", label: "Crossed this season" },
-                { kind: "toggle", key: "watchedOnly", label: "Watched, no model" },
+                { kind: "number", key: "dueDays", label: t("views.pests.filter.dueWithin"), unit: t("views.pests.filter.days") },
+                { kind: "toggle", key: "crossed", label: t("views.pests.filter.crossed") },
+                { kind: "toggle", key: "watchedOnly", label: t("views.pests.filter.watchedOnly") },
               ],
             }} />
           </span>
-          <SearchBox value={search} placeholder="regex ok, e.g. moth|borer"
-            onSearch={(t) => { setSearch(t); setPageNo(0); }} />
+          <SearchBox value={search} placeholder={t("views.pests.searchPlaceholder")}
+            onSearch={(q) => { setSearch(q); setPageNo(0); }} />
         </div>
       </div>
 
@@ -459,14 +453,14 @@ export default function Pests({
           from its neighbours. */}
       {busy && !data ? (
         <div className="rounded-md border border-rule bg-panel">
-          <QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Checking what you're watching" intervalMs={6500} classNames={quoteStyles} />
+          <QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading={t("views.pests.reading")} intervalMs={6500} classNames={quoteStyles} />
         </div>
       ) : models.length ? (
         <>
           <div className="overflow-x-auto overscroll-x-contain rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">
             <table className="w-full border-collapse text-[0.8125rem]">
               <thead>
-                <SortHeaders cols={columns(`${u.ddUnit.trim()} to date`)}
+                <SortHeaders cols={columns(t, t("views.pests.col.toDate", { unit: u.ddUnit.trim() }))}
                   sort={sort} dir={dir} onSort={sortBy} />
               </thead>
               <tbody>
@@ -490,13 +484,13 @@ export default function Pests({
                             with no heat model states a fact that isn't. */}
                         {!m.watch && (
                           <small className="block text-[0.6875rem] font-normal text-ink-soft">
-                            base {u.showTemp(m.base_temp ?? region.baseTempF)}
+                            {t("views.pests.rowBase", { base: u.showTemp(m.base_temp ?? region.baseTempF) })}
                           </small>
                         )}
                       </td>
                       <td onClick={() => { setEditing(m.id); setDraft(m); }}
                         className="cursor-text px-3 py-2.5 whitespace-nowrap">
-                        {m.watch ? "—" : m.biofix ? d(m.biofix) : "Jan 1"}
+                        {m.watch ? "—" : m.biofix ? d(m.biofix) : t("views.pests.jan1")}
                       </td>
                       <td className="data px-3 py-2.5 whitespace-nowrap text-[0.75rem] text-ink-soft">
                         {a && !m.watch && a.gdd_accumulated != null
@@ -509,22 +503,22 @@ export default function Pests({
                               <StatusChip key={st.stage} tone={st.reached ? "reached" : "pending"}>
                                 {/* The remaining-GDD figure was in a title
                                     attribute, which is unreachable with a finger. */}
-                                <span>{st.stage} <span className="data text-[0.65625rem] text-ink-soft">{u.degreeDays(st.gdd).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></span>
+                                <span>{st.stage} <span className="data text-[0.65625rem] text-ink-soft">{u.degreeDays(st.gdd).toLocaleString(locale, { maximumFractionDigits: 0 })}</span></span>
                                 {st.reached
                                   ? <span className="text-honey">
                                       {st.crossed_on ? d(st.crossed_on) : "✓"}
                                     </span>
                                   : <span className="data text-[0.65625rem] text-ink-soft">
-                                      · {st.projected_date ? d(st.projected_date) : `${Math.round(u.degreeDays(st.gdd_remaining))} to go`}
+                                      · {st.projected_date ? d(st.projected_date) : t("views.pests.toGo", { n: Math.round(u.degreeDays(st.gdd_remaining)) })}
                                     </span>}
                               </StatusChip>
                             ))}
                           </div>
                         ) : m.watch ? (
-                          <span className="data text-[0.6875rem] text-ink-soft">watched all season</span>
+                          <span className="data text-[0.6875rem] text-ink-soft">{t("views.pests.watchedAllSeason")}</span>
                         ) : m.model ? (
                           <span className="data text-[0.6875rem] text-ink-soft">
-                            {m.model.toUpperCase()} model · no dated stage for this ground yet
+                            {t("views.pests.modelNoStage", { model: m.model.toUpperCase() })}
                           </span>
                         ) : (
                           /* The server refused this row and said why. Until
@@ -535,7 +529,7 @@ export default function Pests({
                             onClick={() => { setEditing(m.id); setDraft(m); }}
                             className="data text-left text-[0.6875rem] text-clay underline decoration-dotted underline-offset-2"
                           >
-                            {skipped.get(m.pest) ? "no thresholds — tap to set" : "not yet read"}
+                            {skipped.get(m.pest) ? t("views.pests.noThresholds") : t("views.pests.notRead")}
                           </button>
                         )}
                       </td>
@@ -549,15 +543,15 @@ export default function Pests({
                           });
                           void retirePest(m.id);
                         }}
-                          aria-label={`Remove ${m.pest}`} title="Remove"
+                          aria-label={t("views.pests.removeRow", { name: m.pest })} title={t("views.pests.remove")}
                           className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-clay"><TrashGlyph /></button>
                       </td>
                     </tr>
                     {refreshing === m.id && (
-                      <RefreshFromAI<SavedPest> colSpan={columns("").length} tool="goodearth_life_cycle"
-                        ask={() => askRefresh(m)} onSave={(t) => saveRefresh(m, t)}
+                      <RefreshFromAI<SavedPest> colSpan={columns(t, "").length} tool="goodearth_life_cycle"
+                        ask={() => askRefresh(m)} onSave={(taken) => saveRefresh(m, taken)}
                         onCancel={() => setRefreshing("")} onCost={onCost}
-                        missing="The reference has nothing to set beside this pest." />
+                        missing={t("views.pests.missing")} />
                     )}
                     </Fragment>
                   )
@@ -570,31 +564,31 @@ export default function Pests({
               than counting past a list it is not describing. */}
           {narrowed ? (
             <p className="data mt-1 text-[0.6875rem] text-ink-soft">
-              {shown.length} of {models.length}
-              {total > models.length ? ` · filtering the first ${models.length} of ${total}` : ""}
+              {t("views.pests.shownOf", { n: shown.length, total: models.length })}
+              {total > models.length ? t("views.pests.filteringFirst", { n: models.length, total }) : ""}
             </p>
           ) : (
             <Pager page={page} pages={pages} total={total} noun="pest" onPage={setPageNo} />
           )}
         </>
       ) : modelsLoading ? (
-        <Empty>Reading what you have on {region.name}…</Empty>
+        <Empty>{t("views.pests.readingRecord", { plot: region.name })}</Empty>
       ) : modelsUnknown ? (
-        <ErrorBox>This browser is set to ground the record does not have. Pick the block again from My Plots, or draw it there.</ErrorBox>
+        <ErrorBox>{t("views.pests.unknownBlock")}</ErrorBox>
       ) : modelsError ? (
-        <ErrorBox>Could not read your record for {region.name}: {modelsError}</ErrorBox>
+        <ErrorBox>{t("views.pests.readFailed", { plot: region.name, err: modelsError })}</ErrorBox>
       ) : (
         <Empty>
           {search
-            ? "Nothing matches that. Clear the search to see everything you watch."
-            : `Nothing being watched on ${region.name} yet. Take one from Nearby below, or add your own above.`}
+            ? t("views.pests.noMatch")
+            : t("views.pests.empty", { plot: region.name })}
         </Empty>
       )}
 
-      <Section emoji="🐛" title="When they appear here" tour="pests.catalog">
+      <Section emoji="🐛" title={t("views.pests.whenTheyAppear")} tour="pests.catalog">
         {!cat && (
           <Pill onClick={loadCatalog} disabled={catBusy} active>
-            {catBusy ? "🧠 Reading…" : "🧠 What's here?"}
+            {catBusy ? t("views.pests.catReading") : t("views.pests.whatsHere")}
           </Pill>
         )}
         {cat && <Provenance tool="goodearth_pest_catalog" at={catAt} onCost={onCost} />}
@@ -607,7 +601,7 @@ export default function Pests({
               <Chiclet key={e.model} emoji={e.passed ? "🐛" : "🥚"} name={e.name}
                 figure={d(e.date)}
                 tone={e.passed ? "border-honey/50 bg-honey/8" : "border-rule bg-panel"}
-                title={`${e.name} — due ${d(e.date)} here. Tap to put ${e.pest ?? e.name} on your list.`}
+                title={t("views.pests.catChip", { name: e.name, date: d(e.date), pest: e.pest ?? e.name })}
                 onClick={() => nameFromCatalog(e.pest || e.name)} />
             ))}
           </div>
@@ -615,12 +609,11 @@ export default function Pests({
               answered with a heat total rather than a date is this service's
               own bookkeeping — it changes nothing the grower does. */}
           <Note>
-            A published degree-day model, dated for this ground. Edit a pest
-            to set its own thresholds.
+            {t("views.pests.catNote")}
           </Note>
         </>
       ) : (
-        <Note>Plot-specific pests from USA-NPN.</Note>
+        <Note>{t("views.pests.catEmpty")}</Note>
       )}
 
       {/* ── What is actually out there ──────────────────────────────────
@@ -633,7 +626,7 @@ export default function Pests({
           blockName={region.name}
           kingdom="insects"
           adding={addingMany}
-          hint="What people have actually seen near here, rather than what is modelled above. Choose any number, keep searching, then add them all — they go on as watched, with no thresholds. A degree-day model is yours to add, and voles and slugs never get one."
+          hint={t("views.pests.communityHint")}
           onAdd={addChosen}
         />
       </CommunityObservations>
@@ -654,6 +647,7 @@ function Editor({ draft, onChange, onCommit, onCancel, saving }: {
   saving: boolean;
 }) {
   const u = useUnits();
+  const t = useT();
   const set = (patch: Partial<SavedPest>) => onChange({ ...draft, ...patch });
   /// Shown in the reader's scale, held in Fahrenheit. `defaultValue` rather
   /// than `value`: rounding a converted figure on every keystroke would fight
@@ -683,11 +677,11 @@ function Editor({ draft, onChange, onCommit, onCancel, saving }: {
   /// untouched: this form does not invent a figure, and it does not destroy a
   /// row for want of one.
   const parseStages = (text: string) => text.split(",").map((chunk) => {
-    const t = chunk.trim();
-    if (!t) return null;
-    const m = t.match(/^(.*?)[\s:]+(\d+(?:\.\d+)?)$/);
+    const c = chunk.trim();
+    if (!c) return null;
+    const m = c.match(/^(.*?)[\s:]+(\d+(?:\.\d+)?)$/);
     if (m) return { stage: m[1].trim(), gdd: Number(m[2]) };
-    const kept = (draft.stages ?? []).find((s) => s.stage === t);
+    const kept = (draft.stages ?? []).find((s) => s.stage === c);
     return kept ?? null;
   }).filter((x): x is { stage: string; gdd: number } => x !== null);
 
@@ -697,7 +691,7 @@ function Editor({ draft, onChange, onCommit, onCancel, saving }: {
         <input autoFocus value={draft.pest} className={CELL} onKeyDown={keys}
           onChange={(e) => set({ pest: e.target.value })} />
         <input inputMode="numeric" defaultValue={base} className={`${CELL} mt-1`}
-          placeholder={`base${u.tempUnit}`} onKeyDown={keys}
+          placeholder={t("views.pests.basePlaceholder", { unit: u.tempUnit })} onKeyDown={keys}
           onChange={(e) => set({
             base_temp: e.target.value.trim() === "" ? undefined : u.toF(Number(e.target.value)),
           })} />
@@ -708,11 +702,11 @@ function Editor({ draft, onChange, onCommit, onCancel, saving }: {
       </td>
       <td className="px-3 py-2 align-top" colSpan={2}>
         <input defaultValue={asText} className={CELL} onKeyDown={keys}
-          placeholder="first flight 375, second flight 1400"
+          placeholder={t("views.pests.stagesPlaceholder")}
           onChange={(e) => set({ stages: parseStages(e.target.value) })} />
       </td>
       <td className="px-2 py-2 text-right align-top whitespace-nowrap">
-        <RowActions onCommit={onCommit} onCancel={onCancel} saving={saving} what="pest" />
+        <RowActions onCommit={onCommit} onCancel={onCancel} saving={saving} what={t("views.pests.whatPest")} />
       </td>
     </tr>
   );

@@ -21,6 +21,8 @@ import { addLabel, clampPage, finderState, holds, toggle,
   type Chosen } from "../lib/basket";
 import { FIELD, ICON, IconButton, LIFECYCLE, LifecycleMark, Pill } from "./ui";
 import SpeciesCard from "./SpeciesCard";
+import { useT } from "../i18n";
+import { useLanguageLocale } from "@tollbooth-dpyc/web/react";
 
 /// Long enough not to search on every keystroke, short enough to feel live.
 const DEBOUNCE_MS = 300;
@@ -47,6 +49,8 @@ export default function SpeciesFinder({
   adding?: boolean;
   hint?: string;
 }) {
+  const t = useT();
+  const locale = useLanguageLocale();
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState<NearbyItem[]>([]);
@@ -74,7 +78,7 @@ export default function SpeciesFinder({
 
   useEffect(() => {
     const ac = new AbortController();
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       setBusy(true);
       nearbySpecies(block, kingdom, q.trim(), page, onlyCycle)
         .then((r) => {
@@ -82,7 +86,7 @@ export default function SpeciesFinder({
           if (!r.success) {
             // Clear the page as well. Rows from the last good search sitting
             // under an error about this one is the same lie in reverse.
-            setErr(r.error || "Nothing could be read.");
+            setErr(r.error || t("ui.speciesFinder.nothingRead"));
             setRows([]); setTotal(0); setPages(1);
             return;
           }
@@ -94,8 +98,8 @@ export default function SpeciesFinder({
         .catch((e) => { if (!ac.signal.aborted) setErr(String((e as Error).message ?? e)); })
         .finally(() => { if (!ac.signal.aborted) setBusy(false); });
     }, DEBOUNCE_MS);
-    return () => { ac.abort(); clearTimeout(t); };
-  }, [block, kingdom, q, page, onlyCycle]);
+    return () => { ac.abort(); clearTimeout(timer); };
+  }, [block, kingdom, q, page, onlyCycle, t]);
 
   const go = (to: number) => setPage(clampPage(to, total, 20));
   const state = finderState({ busy, error: err, rows: rows.length, total, page, pages });
@@ -104,13 +108,13 @@ export default function SpeciesFinder({
     <div>
       <div className="flex flex-wrap items-end gap-2">
         <label className="block flex-1 text-[0.6875rem] text-ink-soft" style={{ minWidth: 180 }}>
-          Search what is recorded near {blockName}
+          {t("ui.speciesFinder.searchNear", { name: blockName })}
           <input value={q} onChange={(e) => setQ(e.target.value)}
-            placeholder="bumble, maple, chanterelle…" autoComplete="off"
+            placeholder={t("ui.speciesFinder.placeholder")} autoComplete="off"
             className={FIELD} />
         </label>
         <IconButton path={ICON.add}
-          label={adding ? "Adding…" : addLabel(basket, blockName)}
+          label={adding ? t("ui.speciesFinder.adding") : addLabel(basket, blockName)}
           onClick={() => { void onAdd(basket).then(() => setBasket([])); }}
           disabled={!basket.length || adding} />
       </div>
@@ -129,8 +133,8 @@ export default function SpeciesFinder({
           </Pill>
         ))}
         <Pill active={onlyCycle} onClick={() => setOnlyCycle((v) => !v)}
-          title="Only the ones USA-NPN publishes a life cycle for">
-          {LIFECYCLE} With Lifecycle
+          title={t("ui.speciesFinder.lifecycleTitle")}>
+          {LIFECYCLE} {t("ui.speciesFinder.withLifecycle")}
         </Pill>
       </div>
       {err && <p className="mt-2 text-[0.78125rem] text-clay">{err}</p>}
@@ -144,10 +148,12 @@ export default function SpeciesFinder({
           nothing was asked. */}
       {state.kind !== "failed" && (
         <p className="data mt-2 text-[0.6875rem] text-ink-soft">
-          {state.kind === "busy" ? "Looking…"
-            : state.kind === "empty" ? "Nothing recorded by that name near here."
-            : `${state.shown} of ${state.total.toLocaleString()} · page ${state.page} of ${state.pages}`}
-          {basket.length > 0 && ` · ${basket.length} chosen`}
+          {state.kind === "busy" ? t("ui.speciesFinder.looking")
+            : state.kind === "empty" ? t("ui.speciesFinder.nothingByName")
+            : t("ui.speciesFinder.shownOf", {
+                shown: state.shown, total: state.total.toLocaleString(locale),
+                page: state.page, pages: state.pages })}
+          {basket.length > 0 && t("ui.speciesFinder.chosen", { n: basket.length })}
         </p>
       )}
 
@@ -165,7 +171,7 @@ export default function SpeciesFinder({
                   you were adding was to add it. */}
               <div className="flex items-center gap-2.5 px-2.5 py-2">
                 <input type="checkbox" className="size-4 shrink-0" checked={on}
-                  aria-label={`Choose ${r.name}`}
+                  aria-label={t("ui.speciesFinder.choose", { name: r.name })}
                   onChange={() => setBasket((b) => toggle(b, {
                     taxonId: id, name: r.name,
                     scientificName: r.scientific_name, photo: r.photo,
@@ -173,7 +179,7 @@ export default function SpeciesFinder({
                 <button type="button"
                   onClick={() => setReading((cur) => (cur === id ? null : id))}
                   aria-expanded={reading === id}
-                  title={`What is ${r.name}?`}
+                  title={t("ui.speciesFinder.whatIs", { name: r.name })}
                   className="flex min-w-0 flex-1 items-center gap-2.5 text-left active:bg-band">
                   {r.photo
                     ? <img src={r.photo} alt="" width={32} height={32} loading="lazy"
@@ -188,7 +194,7 @@ export default function SpeciesFinder({
                     )}
                   </span>
                   <span className="data shrink-0 text-right text-[0.65625rem] text-ink-soft">
-                    {(r.observations ?? 0).toLocaleString()}
+                    {(r.observations ?? 0).toLocaleString(locale)}
                     {/* The glyph, not the sentence. It carries the glossary's
                         own words, so it can be asked what it means wherever it
                         appears rather than only in the legend. */}
@@ -216,8 +222,7 @@ export default function SpeciesFinder({
         })}
         {state.kind === "empty" && (
           <li className="px-3 py-4 text-[0.78125rem] text-ink-soft">
-            Nothing here. Try a shorter word, or clear the search to see what is
-            most recorded.
+            {t("ui.speciesFinder.nothingHere")}
           </li>
         )}
       </ul>
@@ -227,11 +232,11 @@ export default function SpeciesFinder({
         <div className="mt-2 flex items-center gap-2">
           <button onClick={() => go(page - 1)} disabled={page <= 1}
             className="min-h-11 rounded-full border border-rule px-3.5 text-[0.78125rem] disabled:opacity-40">
-            ‹ Back
+            {t("ui.speciesFinder.back")}
           </button>
           <button onClick={() => go(page + 1)} disabled={page >= pages}
             className="min-h-11 rounded-full border border-rule px-3.5 text-[0.78125rem] disabled:opacity-40">
-            More ›
+            {t("ui.speciesFinder.more")}
           </button>
 
         </div>

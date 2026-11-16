@@ -19,9 +19,9 @@ import SearchBox from "../components/SearchBox";
 import { apply as applyFilter, isOn as filterOn, NO_FILTER, summarise as filterWords,
   type LedgerFilter as Filter } from "../lib/ledgerFilter";
 import { baseBounds, parseBase } from "../lib/baseTemp";
-import { QuoteScroller, TableFilter, useTimezone } from "@tollbooth-dpyc/web/react";
+import { QuoteScroller, TableFilter, Tx, useLanguageLocale, useTimezone } from "@tollbooth-dpyc/web/react";
 import { clockTime } from "../lib/clock";
-import { AGRARIAN_QUOTES, AGRARIAN_SOURCE, RESEARCH_WAIT, quoteStyles } from "../lib/quotes";
+import { AGRARIAN_QUOTES, AGRARIAN_SOURCE, researchWait, quoteStyles } from "../lib/quotes";
 import { blockItemList, blockItemSave, cropGddStatus, cropSuitability, diseaseRisk, plantProfile, plantingWindow,
   treeSuitability, treeYear,
   type CropLedgerResult, type DiseaseRiskResult, type PlantingWindowResult, type SuitabilityResult,
@@ -61,9 +61,10 @@ import { useTour } from "@tollbooth-dpyc/web/react";
 import AddPanel, { showForm } from "../components/AddPanel";
 import { tour } from "../lib/tour/targets";
 import CommunityObservations from "../components/CommunityObservations";
+import { useT, WORDS } from "../i18n";
 
-const short = (iso: string) =>
-  new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+const shortDate = (iso: string, locale: string) =>
+  new Date(iso + "T12:00:00").toLocaleDateString(locale, { month: "short", day: "numeric" });
 
 /// One glyph vocabulary, two questions.
 ///
@@ -116,6 +117,9 @@ export default function Crops({
   onCost: (sats: number) => void;
 }) {
   const u = useUnits();
+  const t = useT();
+  const locale = useLanguageLocale();
+  const short = (iso: string) => shortDate(iso, locale);
   // The grower's record, read from the server under their npub — not from
   // this browser. What they saved on the laptop is what the phone shows.
   // Order, search and paging are the database's — it sorts every planting on
@@ -181,7 +185,7 @@ export default function Crops({
   function removeLot(l: SeedLot) {
     remembered({
       kind: "seed", blockId: region.id,
-      label: `${l.crop}${l.variety ? ` · ${l.variety}` : ""} seed`,
+      label: t("views.crops.seedLabel", { crop: `${l.crop}${l.variety ? ` · ${l.variety}` : ""}` }),
       item: seedCodec.to(l),
     });
     void retireLot(l.id).catch((e) => setFormErr(String(e.message ?? e)));
@@ -198,11 +202,11 @@ export default function Crops({
     const r = await plantProfile(region.id, {
       ...lookupBy(p.crop, p), ...(p.setOut ? { set_out: p.setOut } : {}),
     });
-    if (!r.success) throw new Error(r.error || "The plant could not be looked up.");
+    if (!r.success) throw new Error(r.error || t("views.crops.err.lookup"));
     return plantingDiff(p, r, show);
-  }, [region.id, show]);
+  }, [region.id, show, t]);
   async function saveRefresh(p: Planting, taken: FieldDiff<Planting>[]) {
-    await storePlanting(applyTaken(p, taken, new Set(taken.map((t) => t.field))));
+    await storePlanting(applyTaken(p, taken, new Set(taken.map((d) => d.field))));
     setRefreshing("");
   }
 
@@ -248,7 +252,7 @@ export default function Crops({
 
   async function commitRow() {
     if (!draft) return;
-    if (!draft.crop.trim()) { setFormErr("A planting needs a crop."); return; }
+    if (!draft.crop.trim()) { setFormErr(t("views.crops.err.needCrop")); return; }
     setSavingRow(true); setFormErr("");
     try {
       await storePlanting(draft);
@@ -303,7 +307,7 @@ export default function Crops({
       });
       // A different plant picked while this one was being looked up wins.
       if (lookedUp.current !== h) return;
-      if (!r.success) { setFormErr(r.error || "The plant could not be looked up."); return; }
+      if (!r.success) { setFormErr(r.error || t("views.crops.err.lookup")); return; }
       const want = fillFrom(r, u);
       for (const [name, value] of Object.entries(want) as [keyof Fill, string][]) {
         const el = field(name);
@@ -321,7 +325,7 @@ export default function Crops({
     } finally {
       setLooking(false);
     }
-  }, [region.id, u]);
+  }, [region.id, u, t]);
   /// Planted moves the heat window, so a plant already looked up is refitted.
   const refit = useCallback(() => {
     if (lookedUp.current) void fillFor(lookedUp.current);
@@ -434,12 +438,12 @@ export default function Crops({
         })),
         region.baseTempF,
       );
-      if (!r.success) { setError(r.error || "The ledger could not be read."); return; }
+      if (!r.success) { setError(r.error || t("views.crops.err.ledger")); return; }
       setLedger(r); setRanAt(new Date());
     } catch (e) {
       setError((e as Error).message);
     } finally { setBusy(false); }
-  }, [region]);
+  }, [region, t]);
 
   useEffect(() => { void run(plantings); }, [run, plantings]);
 
@@ -467,11 +471,11 @@ export default function Crops({
           frost_hardy: c.frostHardy ?? false,
         })),
       );
-      if (!r.success) { setError(r.error || "Suitability could not be read."); return; }
+      if (!r.success) { setError(r.error || t("views.crops.err.suitability")); return; }
       setFit(r); setFitAt(new Date());
     } catch (e) { setError((e as Error).message); }
     finally { setFitBusy(false); }
-  }, [region, heatRated]);
+  }, [region, heatRated, t]);
 
   // "How much heat does it need" and "when does it go in" are different
   // questions. This is the second one, from the block's own frost and soil.
@@ -487,11 +491,11 @@ export default function Crops({
           frost_hardy: c.frostHardy ?? false,
         })),
       );
-      if (!r.success) { setError(r.error || "The planting window could not be read."); return; }
+      if (!r.success) { setError(r.error || t("views.crops.err.window")); return; }
       setWhen(r); setWhenAt(new Date());
     } catch (e) { setError((e as Error).message); }
     finally { setWhenBusy(false); }
-  }, [region, heatRated]);
+  }, [region, heatRated, t]);
 
   /// Succession schedules, per crop, asked for one crop at a time — a tomato
   /// is not succession-sown, and asking for it would spend a fare on nothing.
@@ -511,7 +515,7 @@ export default function Crops({
         frost_hardy: src.frostHardy ?? false,
         succession_days: every,
       }]);
-      if (!r.success) { setError(r.error || "The succession schedule could not be read."); return; }
+      if (!r.success) { setError(r.error || t("views.crops.err.succession")); return; }
       setPlans((p) => ({ ...p, [cropName]: { every, rows: r.crops[0]?.successions ?? [] } }));
     } catch (e) { setError((e as Error).message); }
     finally { setPlanning(""); }
@@ -530,12 +534,12 @@ export default function Crops({
       const r = await blockItemList(region.id, "planting", {
         include_retired: true, sort_col: "starts_on", sort_dir: "desc", page_size: 200,
       });
-      if (!r.success) { setError(r.error || "The record could not be read."); return; }
+      if (!r.success) { setError(r.error || t("views.crops.err.record")); return; }
       const rows = (r.items ?? []).map(fromRow);
       const fams = await familiesFor(rows.map((p) => p.taxonId).filter((n): n is number => n != null));
       setRotationRows(rotation(rows, fams));
       setRotationMore((r.total ?? 0) > rows.length
-        ? `The latest ${rows.length} of ${r.total} plantings on record.` : "");
+        ? t("views.crops.rotationLatest", { n: rows.length, total: r.total }) : "");
     } catch (e) {
       setError((e as Error).message);
     } finally { setRotationBusy(false); }
@@ -561,7 +565,7 @@ export default function Crops({
     }
     setRepeating(d);
     setFormKey((k) => k + 1);
-    setAdded(`${p.crop} from ${season} — choose the day it goes in, then add it.`);
+    setAdded(t("views.crops.fromSeason", { crop: p.crop, season }));
     showForm(setAddOpen, "new-planting");
   }
 
@@ -586,7 +590,7 @@ export default function Crops({
     setPicked(hit ?? null);
     setRepeating(null);
     setFormKey((k) => k + 1);
-    setAdded(`${row.name} — choose the day it goes in, then add it.`);
+    setAdded(t("views.crops.chooseDay", { crop: row.name }));
     showForm(setAddOpen, "new-planting");
   }
 
@@ -631,10 +635,9 @@ export default function Crops({
     try {
       const { made, skipped } = toPlantings(src, plan.rows, plantings, region.id);
       if (made.length) await storeMany(made);
-      setAdded(
-        `${made.length} succession${made.length === 1 ? "" : "s"} of ${baseName(src.crop)} on the ledger`
-        + (skipped ? ` · ${skipped} already there.` : "."),
-      );
+      setAdded(skipped
+        ? t("views.crops.successionsAddedSkipped", { count: made.length, crop: baseName(src.crop), skipped })
+        : t("views.crops.successionsAdded", { count: made.length, crop: baseName(src.crop) }));
     } catch (e) {
       setFormErr(String((e as Error).message ?? e));
     } finally { setAddingPlan(""); }
@@ -649,11 +652,11 @@ export default function Crops({
     setYearBusy(true); setError("");
     try {
       const r = await treeYear(region.id);
-      if (!r.success) { setError(r.error || "The tree year could not be read."); return; }
+      if (!r.success) { setError(r.error || t("views.crops.err.treeYear")); return; }
       setYear(r); setYearAt(new Date());
     } catch (e) { setError((e as Error).message); }
     finally { setYearBusy(false); }
-  }, [region]);
+  }, [region, t]);
 
   const treeOf = (crop: string): TreeAssessment | null =>
     treeFit?.trees.find((r) => r.tree === crop) ?? null;
@@ -672,16 +675,16 @@ export default function Crops({
           ...(c.hardyToF != null ? { hardy_to_f: c.hardyToF } : {}),
         })),
       );
-      if (!r.success) { setError(r.error || "The tree record could not be read."); return; }
+      if (!r.success) { setError(r.error || t("views.crops.err.trees")); return; }
       setTreeFit(r); setTreeAt(new Date());
     } catch (e) { setError((e as Error).message); }
     finally { setTreeBusy(false); }
-  }, [region, winterRated]);
+  }, [region, winterRated, t]);
 
 
   function add(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!picked) { setFormErr("Search for the plant and pick it from the list."); return; }
+    if (!picked) { setFormErr(t("views.crops.err.pick")); return; }
     const f = new FormData(e.currentTarget);
     // Typed in the scale on screen, held in the Fahrenheit the record keeps —
     // and only a temperature the service accepts, refused here in the
@@ -695,8 +698,10 @@ export default function Crops({
     const stages = chosenStages.stages;
     if (stages.length && parsed.f != null && chosenStages.baseF != null
         && Math.abs(parsed.f - chosenStages.baseF) > 0.5) {
-      setFormErr(`Its stages count from ${Math.round(u.temp(chosenStages.baseF))}${u.tempUnit}; `
-        + `Base says ${Math.round(u.temp(parsed.f))}${u.tempUnit}.`);
+      setFormErr(t("views.crops.err.baseMismatch", {
+        stages: `${Math.round(u.temp(chosenStages.baseF))}${u.tempUnit}`,
+        base: `${Math.round(u.temp(parsed.f))}${u.tempUnit}`,
+      }));
       return;
     }
     const base = parsed.f ?? (stages.length ? chosenStages.baseF : undefined);
@@ -735,7 +740,7 @@ export default function Crops({
     // a failure leaves the form as the grower left it, ready to try again.
     submit.run(async (key) => {
       await storePlanting(withId(made, key));
-      setAdded(`${named} — on the ledger.`);
+      setAdded(t("views.crops.onLedger", { crop: named }));
       setPicked(null);
       setChosenStages(NO_STAGES);
       form.reset();
@@ -773,7 +778,7 @@ export default function Crops({
         },
       )).filter((m): m is Planting => typeof m !== "string");
       await storeMany(made);
-      setAdded(`${made.length} on the ledger. Dates and targets are yours to add.`);
+      setAdded(t("views.crops.manyOnLedger", { n: made.length }));
     } catch (e) {
       setFormErr(String((e as Error).message ?? e));
     } finally { setAddingMany(false); }
@@ -818,14 +823,14 @@ export default function Crops({
 
   return (
     <>
-      <PageTitle>Flora</PageTitle>
+      <PageTitle>{t("views.crops.title")}</PageTitle>
 
       {error && (
         <ErrorBox>{error}</ErrorBox>
       )}
 
       {/* ── Add a planting ─────────────────────────────────────────────── */}
-      <AddPanel label="New planting" open={addOpen} onOpen={setAddOpen}>
+      <AddPanel label={t("views.crops.newPlanting")} open={addOpen} onOpen={setAddOpen}>
       <form key={formKey} id="new-planting" ref={formRef} onSubmit={add} className="mb-4 rounded-md border border-rule bg-panel p-4">
         {/* The Pests form's shape: every caption on one line, every box one
             height, each as wide as what goes in it, and the act at the end of
@@ -838,7 +843,7 @@ export default function Crops({
               inside a label can be handed to the label's input instead — on
               the iPad the grower tapped "sugar maple", the caret went back
               into the box, and nothing was chosen. */}
-          <Field label="Species" width="min-w-[15rem] flex-1" tour="crops.species">
+          <Field label={t("views.crops.species")} width="min-w-[15rem] flex-1" tour="crops.species">
             <SpeciesPicker
               kingdom={FLORA}
               value={picked && {
@@ -853,16 +858,16 @@ export default function Crops({
                 if (!isFungus(h)) void fillFor(h);
               }}
               onClear={() => { setPicked(null); lookedUp.current = null; }}
-              placeholder="sugar maple, zinnia, shiitake…" />
+              placeholder={t("views.crops.speciesPlaceholder")} />
           </Field>
-          <Field label="Your name for it" htmlFor="pl-label" width="min-w-[12rem] flex-1" tour="crops.label">
-            <input id="pl-label" name="label" placeholder="succession 4, north lot" className={FIELD}
+          <Field label={t("views.crops.yourName")} htmlFor="pl-label" width="min-w-[12rem] flex-1" tour="crops.label">
+            <input id="pl-label" name="label" placeholder={t("views.crops.yourNamePlaceholder")} className={FIELD}
               defaultValue={repeating?.label ?? ""} />
           </Field>
-          <Field label="GDD target" htmlFor="pl-target" width="w-[7rem]" tour="crops.target"
+          <Field label={t("views.crops.gddTarget")} htmlFor="pl-target" width="w-[7rem]" tour="crops.target"
             hint={
               <Term of="gdd_target">
-                Leave it blank for a tree, or for anything you are not pacing.
+                {t("views.crops.gddTargetHint")}
               </Term>
             }>
             <input id="pl-target" name="target" inputMode="numeric" placeholder={looking ? "…" : "780"}
@@ -870,16 +875,16 @@ export default function Crops({
               defaultValue={repeating?.gddTargetF != null
                 ? String(Math.round(u.degreeDays(repeating.gddTargetF))) : ""} />
           </Field>
-          <Field label="Planted" htmlFor="pl-setout" width="w-[10rem]" tour="crops.setout">
+          <Field label={t("views.crops.planted")} htmlFor="pl-setout" width="w-[10rem]" tour="crops.setout">
             <input id="pl-setout" name="setout" type="date" className={FIELD} onBlur={refit} />
           </Field>
           {/* A number field bounded to what the service accepts, in the
               reader's scale. `submit` checks it again: a number field still
               lets a thumb type 780 into it. */}
-          <Field label={`Base${u.tempUnit}`} htmlFor="pl-base" width="w-[7rem]" tour="crops.base"
+          <Field label={t("views.crops.base", { unit: u.tempUnit })} htmlFor="pl-base" width="w-[7rem]" tour="crops.base"
             hint={
               <Term of="base_temp">
-                Blank takes {region.name}&rsquo;s {u.showTemp(region.baseTempF)}.
+                {t("views.crops.baseHint", { plot: region.name, base: u.showTemp(region.baseTempF) })}
               </Term>
             }>
             <input id="pl-base" name="base" type="number" inputMode="decimal" step="1"
@@ -893,23 +898,23 @@ export default function Crops({
               own facts and all three are optional; a planting without them is
               simply not paired by colour. A native select, so a phone shows its
               own picker; the caption is a label FOR it, never around it. */}
-          <Field label="Flower" htmlFor="pl-color" width="w-auto" tour="crops.flower">
+          <Field label={t("views.crops.flower")} htmlFor="pl-color" width="w-auto" tour="crops.flower">
             <select id="pl-color" name="color" defaultValue="" className={`${FIELD} w-auto pr-8`}>
               <option value="">—</option>
               {HUES.map((h) => <option key={h} value={h}>{HUE_GLYPH[h]} {h}</option>)}
             </select>
           </Field>
-          <Field label="Height, in" htmlFor="pl-height" width="w-[6rem]" tour="crops.height">
+          <Field label={t("views.crops.height")} htmlFor="pl-height" width="w-[6rem]" tour="crops.height">
             <input id="pl-height" name="height" type="number" inputMode="decimal" step="1" min={1} max={600}
               placeholder="30" className={FIELD} />
           </Field>
-          <Field label="Blooms" htmlFor="pl-bloom-from" width="w-auto" tour="crops.blooms">
+          <Field label={t("views.crops.blooms")} htmlFor="pl-bloom-from" width="w-auto" tour="crops.blooms">
             <span className="flex items-center gap-1">
-              <select id="pl-bloom-from" name="bloom_from" defaultValue="" aria-label="Blooms from" className={`${FIELD} w-auto pr-7`}>
+              <select id="pl-bloom-from" name="bloom_from" defaultValue="" aria-label={t("views.crops.bloomsFrom")} className={`${FIELD} w-auto pr-7`}>
                 <option value="">—</option>
                 {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
               </select>
-              <select name="bloom_to" defaultValue="" aria-label="Blooms to" className={`${FIELD} w-auto pr-7`}>
+              <select name="bloom_to" defaultValue="" aria-label={t("views.crops.bloomsTo")} className={`${FIELD} w-auto pr-7`}>
                 <option value="">—</option>
                 {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
               </select>
@@ -919,22 +924,22 @@ export default function Crops({
             <label className="flex min-h-11 items-center gap-2">
               <input type="checkbox" name="hardy" className="size-4" {...tour("crops.hardy")}
                 defaultChecked={!!repeating?.frostHardy} />
-              Handles Light Frost
+              {t("views.crops.handlesFrost")}
             </label>
             <label className="flex min-h-11 items-center gap-2">
               <input type="checkbox" name="taps" className="size-4" {...tour("crops.taps")}
                 defaultChecked={!!repeating?.taps} />
-              Sap Producer
+              {t("views.crops.sapProducer")}
             </label>
           </span>
           <span className="ml-auto pt-3.5">
-            <IconButton path={ICON.seed} label="Planting" hideLabel form="new-planting" tour="crops.add"
-              title="Add a planting" disabled={submit.busy} />
+            <IconButton path={ICON.seed} label={t("views.crops.planting")} hideLabel form="new-planting" tour="crops.add"
+              title={t("views.crops.addPlanting")} disabled={submit.busy} />
           </span>
         </div>
         {/* A first lookup has its sources read and edited; a kept one fills
             the form before this line could be read. */}
-        {looking && <p role="status" className="mt-2 text-[0.75rem] text-ink-soft">{RESEARCH_WAIT}</p>}
+        {looking && <p role="status" className="mt-2 text-[0.75rem] text-ink-soft">{researchWait()}</p>}
         {formErr && <p className="mt-2 text-[0.75rem] text-clay">{formErr}</p>}
         {added && !formErr && <p className="mt-2 text-[0.75rem] text-growth">{added}</p>}
       </form>
@@ -953,14 +958,14 @@ export default function Crops({
           who={{ taxonId: picked.id, scientificName: picked.scientificName,
                  commonName: picked.commonName ?? undefined }}
           tracked={NO_TRACKED} onCost={onCost}
-          trackLabel={(n) => `Watch these ${n}`}
+          trackLabel={(n) => t("views.crops.watchThese", { n })}
           onTrack={async (chosen) => {
             const name = picked.commonName || picked.scientificName;
             const rows = wildlifeRows(name, chosen, region.id,
               { scientificName: picked.scientificName, emoji: "🍄", role: "watch" });
             const res = await blockItemSave(region.id, "wildlife", { items: rows.map(wildlifeCodec.to) });
-            if (!res?.success) throw new Error(res?.error || "Its watches could not be saved.");
-            setAdded(`🍄 ${chosen.length} on Fauna`);
+            if (!res?.success) throw new Error(res?.error || t("views.crops.err.watches"));
+            setAdded(t("views.crops.onFauna", { n: chosen.length }));
             setPicked(null);
           }} />
       )}
@@ -972,39 +977,39 @@ export default function Crops({
           sentence was answering are the filter's now. */}
       <div className="mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <Section emoji="🌱" first tour="crops.ledgerhead"
-          title={`Plants ledger${ranAt
-            ? ` (at ${clockTime(ranAt, zone)})`
-            : ""}`}>
+          title={ranAt
+            ? t("views.crops.ledgerAt", { time: clockTime(ranAt, zone) })
+            : t("views.crops.ledger")}>
           {plantings.length > 0 && (
             <Provenance tool="goodearth_crop_gdd_status" at={ranAt} onCost={onCost} hideTime />
           )}
         </Section>
         <div className="ml-auto flex items-center gap-2">
           <span {...tour("crops.filter")}>
-          <TableFilter classNames={TABLE_FILTER} clearLabel="Clear" clearPlacement="panel"
+          <TableFilter classNames={TABLE_FILTER} clearLabel={t("views.crops.clear")} clearPlacement="panel"
             onClear={() => { setFilter(NO_FILTER); setPageNo(0); }}
             questions={{
               value: filter, summary: filterWords(filter),
               onChange: (f) => { setFilter(f); setPageNo(0); },
               icon: <Glyph path={ICON.filter} size={16} />,
               questions: [
-                { kind: "toggle", key: "readyBeforeFrost", label: "Ready before frost" },
-                { kind: "toggle", key: "hasSeed", label: "Has seed" },
-                { kind: "number", key: "withinDays", label: "Projected within", unit: "days" },
-                { kind: "number", key: "gddUnder", label: "Heat left under", unit: "GDD" },
+                { kind: "toggle", key: "readyBeforeFrost", label: t("views.crops.filter.readyBeforeFrost") },
+                { kind: "toggle", key: "hasSeed", label: t("views.crops.filter.hasSeed") },
+                { kind: "number", key: "withinDays", label: t("views.crops.filter.within"), unit: t("views.crops.filter.days") },
+                { kind: "number", key: "gddUnder", label: t("views.crops.filter.heatLeft"), unit: "GDD" },
               ],
             }} />
           </span>
           <span {...tour("crops.search")}>
-          <SearchBox value={search} placeholder="regex ok, e.g. zinnia|dahlia"
-            onSearch={(t) => { setSearch(t); setPageNo(0); }} />
+          <SearchBox value={search} placeholder={t("views.crops.searchPlaceholder")}
+            onSearch={(q) => { setSearch(q); setPageNo(0); }} />
           </span>
         </div>
       </div>
 
       {busy && !ledger ? (
         <div className="rounded-md border border-rule bg-panel">
-          <QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Reading the ledger" intervalMs={6500} classNames={quoteStyles} />
+          <QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading={t("views.crops.reading")} intervalMs={6500} classNames={quoteStyles} />
         </div>
       ) : ledger ? (
         <>
@@ -1056,8 +1061,8 @@ export default function Crops({
               not describing. */}
           {narrowed ? (
             <p className="data mt-1 text-[0.6875rem] text-ink-soft">
-              {shown.length} of {plantings.length}
-              {total > plantings.length ? ` · filtering the first ${plantings.length} of ${total}` : ""}
+              {t("views.crops.shownOf", { n: shown.length, total: plantings.length })}
+              {total > plantings.length ? t("views.crops.filteringFirst", { n: plantings.length, total }) : ""}
             </p>
           ) : (
             <Pager page={page} pages={pages} total={total} noun="planting"
@@ -1065,10 +1070,10 @@ export default function Crops({
           )}
           {orphans.length > 0 && (
             <p className="data mt-1 flex flex-wrap items-center gap-x-1.5 text-[0.6875rem] text-ink-soft">
-              <span>Seed with no plant here:</span>
+              <span>{t("views.crops.orphanSeed")}</span>
               {orphans.map((l) => (
                 <button key={l.id} onClick={() => void plantForLot(l)}
-                  title={`Add ${l.crop} to the ledger`}
+                  title={t("views.crops.addToLedger", { crop: l.crop })}
                   className="min-h-9 rounded px-1 underline decoration-dotted underline-offset-2 active:bg-band">
                   {l.crop}{l.variety ? ` · ${l.variety}` : ""}
                 </button>
@@ -1077,33 +1082,31 @@ export default function Crops({
           )}
           {seenTotal > seen.length && (
             <p className="data mt-1 text-[0.6875rem] text-ink-soft">
-              Harvest totals count your latest {seen.length} field observations of
-              the {seenTotal} this season.
+              {t("views.crops.harvestTotals", { n: seen.length, total: seenTotal })}
             </p>
           )}
         </>
       ) : plantingsLoading ? (
-        <Empty>Reading what you have on {region.name}…</Empty>
+        <Empty>{t("views.crops.readingRecord", { plot: region.name })}</Empty>
       ) : plantingsUnknown ? (
-        <ErrorBox>This browser is set to ground the record does not have. Pick the block again from My Plots, or draw it there.</ErrorBox>
+        <ErrorBox>{t("views.crops.unknownBlock")}</ErrorBox>
       ) : plantingsError ? (
         // The record is the truth here, so a failure to read it must say so.
         // Showing an empty page would claim this ground grows nothing.
-        <ErrorBox>Could not read your record for {region.name}: {plantingsError}</ErrorBox>
+        <ErrorBox>{t("views.crops.readFailed", { plot: region.name, err: plantingsError })}</ErrorBox>
       ) : (
         <Empty>
           {search
-            ? "Nothing matches that. Clear the search to see everything you grow."
-            : `No plantings on ${region.name} yet. Add one above and the ledger will `
-              + "tell you where it stands and whether it finishes before frost."}
+            ? t("views.crops.noMatch")
+            : t("views.crops.empty", { plot: region.name })}
         </Empty>
       )}
 
       {/* ── Rotation ───────────────────────────────────────────────── */}
-      <Section emoji="🔄" title="Rotation" tour="crops.rotation">
+      <Section emoji="🔄" title={t("views.crops.rotation")} tour="crops.rotation">
         {!rotationRows && (
           <Pill onClick={() => void readRotation()} disabled={rotationBusy} active>
-            {rotationBusy ? "Reading…" : "What grew here?"}
+            {rotationBusy ? t("views.crops.readingShort") : t("views.crops.whatGrewHere")}
           </Pill>
         )}
       </Section>
@@ -1112,18 +1115,16 @@ export default function Crops({
           onRepeat={(p, season) => void plantAgain(p, season)} />
       ) : (
         <p className="mb-3 text-[0.78125rem] leading-relaxed text-ink-soft">
-          Every planting on this plot, season by season and grouped by plant
-          family — the ones since cleared from the ledger included. What grew
-          where, as your record has it.
+          {t("views.crops.rotationIntro")}
         </p>
       )}
 
       {/* ── Grows here ─────────────────────────────────────────────── */}
-      <Section emoji="🌾" title="Grows here" tour="crops.fit">
+      <Section emoji="🌾" title={t("views.crops.growsHere")} tour="crops.fit">
         {!fit && (
           <Pill onClick={checkFit} disabled={fitBusy || !heatRated.length} active
-            title={heatRated.length ? undefined : "No crop on this plot has a heat target yet"}>
-            {fitBusy ? "🧠 Reading…" : "🧠 What?"}
+            title={heatRated.length ? undefined : t("views.crops.noHeatTarget")}>
+            {fitBusy ? t("views.crops.brainReading") : t("views.crops.what")}
           </Pill>
         )}
         {/* The perennial half of the same question, and a separate call
@@ -1133,14 +1134,14 @@ export default function Crops({
             an answer about them. */}
         {!treeFit && (
           <Pill onClick={checkTrees} disabled={treeBusy || !winterRated.length}
-            title={winterRated.length ? undefined : "No tree on this plot has a winter figure yet"}>
-            {treeBusy ? "🌳 Reading…" : "🌳 Trees?"}
+            title={winterRated.length ? undefined : t("views.crops.noWinterFigure")}>
+            {treeBusy ? t("views.crops.treesReading") : t("views.crops.trees")}
           </Pill>
         )}
         {fit && <Provenance tool="goodearth_crop_suitability" at={fitAt} onCost={onCost} />}
         {!year && (
           <Pill onClick={checkYear} disabled={yearBusy}>
-            {yearBusy ? "🍁 Reading…" : "🍁 This year?"}
+            {yearBusy ? t("views.crops.yearReading") : t("views.crops.thisYear")}
           </Pill>
         )}
         {treeFit && <Provenance tool="goodearth_tree_suitability" at={treeAt} onCost={onCost} />}
@@ -1155,17 +1156,19 @@ export default function Crops({
           <p className="text-[0.8125rem]">{year.summary}</p>
           <div className="mt-2 flex flex-wrap gap-x-6 gap-y-2">
             {year.spring && ([
-              ["🌱", "first leaf", year.spring.first_leaf],
-              ["🌸", "first bloom", year.spring.first_bloom],
+              ["🌱", t("views.crops.firstLeaf"), year.spring.first_leaf],
+              ["🌸", t("views.crops.firstBloom"), year.spring.first_bloom],
             ] as const).map(([emoji, label, s]) => s?.on && (
-              <span key={label} className="text-[0.78125rem]">
+              <span key={emoji} className="text-[0.78125rem]">
                 <span className="mr-1">{emoji}</span>
                 <b className="figure text-[0.875rem]">{short(s.on)}</b>
                 <span className="data ml-1.5 text-[0.6875rem] text-ink-soft">
                   {label}
                   {s.days_from_normal != null && (
-                    <> · {s.days_from_normal === 0 ? "on its normal"
-                      : `${Math.abs(s.days_from_normal)}d ${s.days_from_normal < 0 ? "early" : "late"}`}</>
+                    <> · {s.days_from_normal === 0 ? t("views.crops.onNormal")
+                      : s.days_from_normal < 0
+                        ? t("views.crops.daysEarly", { n: Math.abs(s.days_from_normal) })
+                        : t("views.crops.daysLate", { n: Math.abs(s.days_from_normal) })}</>
                   )}
                 </span>
               </span>
@@ -1175,9 +1178,11 @@ export default function Crops({
                 <span className="mr-1">🍁</span>
                 <b className="figure text-[0.875rem]">{year.sap.cycles}</b>
                 <span className="data ml-1.5 text-[0.6875rem] text-ink-soft">
-                  sap days{year.sap.started_on && <> from {short(year.sap.started_on)}</>}
-                  {year.sap.state === "over" && " · run over"}
-                  {year.sap.state === "paused" && " · paused by the cold"}
+                  {year.sap.started_on
+                    ? t("views.crops.sapDaysFrom", { date: short(year.sap.started_on) })
+                    : t("views.crops.sapDays")}
+                  {year.sap.state === "over" && t("views.crops.sapOver")}
+                  {year.sap.state === "paused" && t("views.crops.sapPaused")}
                 </span>
               </span>
             )}
@@ -1185,7 +1190,7 @@ export default function Crops({
                 block used to show nothing at all until the first thaw. */}
             {year.sap && year.sap.cycles === 0 && year.sap.state === "not_started" && (
               <span className="data text-[0.6875rem] text-ink-soft">
-                🍁 the sap window is open — no freeze-and-thaw day yet
+                {t("views.crops.sapWindowOpen")}
               </span>
             )}
           </div>
@@ -1193,7 +1198,7 @@ export default function Crops({
               is here and why a neighbouring block has none. */}
           {year.tapped.length > 0 && (
             <p className="data mt-1.5 text-[0.6875rem] text-ink-soft">
-              tapped: {year.tapped.join(" · ")}
+              {t("views.crops.tapped", { trees: year.tapped.join(" · ") })}
             </p>
           )}
         </div>
@@ -1204,9 +1209,10 @@ export default function Crops({
           <p className="text-[0.8125rem]">{treeFit.summary}</p>
           {treeFit.chill && (
             <p className="data mt-1 text-[0.71875rem] text-ink-soft">
-              {treeFit.chill.median_hours} h median chill · lowest{" "}
-              {treeFit.chill.lowest_hours} h · {treeFit.chill.winters_on_record} winters ·{" "}
-              {treeFit.chill.window}
+              {t("views.crops.chillLine", {
+                median: treeFit.chill.median_hours ?? "", lowest: treeFit.chill.lowest_hours ?? "",
+                winters: treeFit.chill.winters_on_record ?? "", window: treeFit.chill.window ?? "",
+              })}
             </p>
           )}
         </div>
@@ -1215,19 +1221,23 @@ export default function Crops({
       {fit ? (
         <div className="mb-3 rounded-md border border-rule border-l-4 border-l-growth bg-panel px-4 py-3">
           <p className="text-[0.8125rem]">
-            <b className="figure text-[1rem]">{fit.budget.frost_free_days} frost-free days</b>
-            {fit.budget.gdd_by_base["50"] != null && (
-              <> · about <b>{Math.round(fit.budget.gdd_by_base["50"]).toLocaleString()} GDD₅₀</b> inside them</>
+            {fit.budget.gdd_by_base["50"] != null ? (
+              <Tx ns={WORDS} k="views.crops.budgetWithHeat" vars={{
+                days: fit.budget.frost_free_days ?? "",
+                gdd: Math.round(fit.budget.gdd_by_base["50"]).toLocaleString(locale),
+                seasons: fit.budget.seasons_on_record,
+              }} components={{ days: <b className="figure text-[1rem]" />, b: <b /> }} />
+            ) : (
+              <Tx ns={WORDS} k="views.crops.budget" vars={{
+                days: fit.budget.frost_free_days ?? "", seasons: fit.budget.seasons_on_record,
+              }} components={{ days: <b className="figure text-[1rem]" /> }} />
             )}
-            , median over {fit.budget.seasons_on_record} seasons.
           </p>
           <p className="mt-1 text-[0.78125rem] text-ink-soft">{fit.summary}</p>
         </div>
       ) : (
         <p className="mb-3 text-[0.78125rem] leading-relaxed text-ink-soft">
-          Two farms in the same county — one on a bench, one in a hollow — do not
-          grow the same things. Measuring your ground gives its own frost-free
-          window and the heat inside it, then rates every plant below against it.
+          {t("views.crops.fitIntro")}
         </p>
       )}
 
@@ -1239,9 +1249,9 @@ export default function Crops({
       {(fit || treeFit || when) && plantings.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {plantings.map((pl) => {
-            const t = treeOf(pl.crop);
+            const tree = treeOf(pl.crop);
             const v = verdictOf(pl.crop);
-            const mark = t ? MARK_TREE[t.hardiness.verdict] : v ? MARK_CROP[v] : null;
+            const mark = tree ? MARK_TREE[tree.hardiness.verdict] : v ? MARK_CROP[v] : null;
             const tone = mark?.tone ?? "border-rule bg-panel";
             const row = fit?.crops.find((r) => r.crop === pl.crop);
             const w = when?.crops.find((r) => r.crop === pl.crop);
@@ -1250,8 +1260,8 @@ export default function Crops({
               <span key={pl.id}
                 title={[
                   pl.scientificName,
-                  t?.hardiness.note, t?.chill.note, row?.note,
-                  w && `out ${w.earliest_out ? short(w.earliest_out) : "—"}`,
+                  tree?.hardiness.note, tree?.chill.note, row?.note,
+                  w && t("views.crops.out", { date: w.earliest_out ? short(w.earliest_out) : "—" }),
                 ].filter(Boolean).join(" — ")}
                 className={`flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-[0.78125rem] ${tone}`}>
                 {thumb
@@ -1261,7 +1271,7 @@ export default function Crops({
                 <span className="font-medium">{pl.crop}</span>
                 {mark && <span className={`text-[0.6875rem] ${mark.ink}`}>{mark.glyph}</span>}
                 {w?.sow_now && (
-                  <span className="rounded-full bg-growth/15 px-1.5 text-[0.625rem] font-semibold text-growth">now</span>
+                  <span className="rounded-full bg-growth/15 px-1.5 text-[0.625rem] font-semibold text-growth">{t("views.crops.now")}</span>
                 )}
               </span>
             );
@@ -1271,18 +1281,18 @@ export default function Crops({
 
       {fit && (
         <p className="data mt-2 text-[0.65625rem] text-ink-soft">
-          <span className="text-growth">✓ finishes comfortably</span>{" · "}
-          <span className="text-honey">⚠ tight — a cool year could take it</span>{" · "}
-          <span className="text-clay">✕ will not finish outdoors here</span>
+          <span className="text-growth">{t("views.crops.legend.comfortable")}</span>{" · "}
+          <span className="text-honey">{t("views.crops.legend.tight")}</span>{" · "}
+          <span className="text-clay">{t("views.crops.legend.tooShort")}</span>
         </p>
       )}
 
       {/* ── When to sow ────────────────────────────────────────────── */}
-      <Section emoji="🌱" title="When to sow" tour="crops.sow">
+      <Section emoji="🌱" title={t("views.crops.whenToSow")} tour="crops.sow">
         {!when && (
           <Pill onClick={checkWhen} disabled={whenBusy || !heatRated.length} active
-            title={heatRated.length ? undefined : "No crop on this plot has a heat target yet"}>
-            {whenBusy ? "🧠 Reading…" : "🧠 When?"}
+            title={heatRated.length ? undefined : t("views.crops.noHeatTarget")}>
+            {whenBusy ? t("views.crops.brainReading") : t("views.crops.when")}
           </Pill>
         )}
         {when && <Provenance tool="goodearth_planting_window" at={whenAt} onCost={onCost} />}
@@ -1293,31 +1303,35 @@ export default function Crops({
           <div className="mb-2.5 rounded-md border border-rule border-l-4 border-l-frost bg-panel px-4 py-3">
             <p className="text-[0.8125rem]">
               {when.season != null && when.season > new Date().getFullYear() && (
-                <b className="mr-1.5">Planning {when.season}:</b>
+                <b className="mr-1.5">{t("views.crops.planning", { season: when.season })}</b>
               )}
-              Last spring frost <b>{when.frost.last_spring_median && short(when.frost.last_spring_median)}</b>
-              {" · "}first fall frost <b>{when.frost.first_fall_median && short(when.frost.first_fall_median)}</b>
-              {" — medians over "}{when.frost.seasons_on_record} seasons.
+              <Tx ns={WORDS} k="views.crops.frostMedians" vars={{
+                spring: when.frost.last_spring_median ? short(when.frost.last_spring_median) : "",
+                fall: when.frost.first_fall_median ? short(when.frost.first_fall_median) : "",
+                seasons: when.frost.seasons_on_record,
+              }} components={{ b: <b /> }} />
             </p>
             {Object.keys(when.soil_warming).length > 0 && (
               <p className="mt-1 text-[0.78125rem] text-ink-soft">
-                Soil reaches{" "}
-                {Object.entries(when.soil_warming)
-                  .sort(([a], [b]) => Number(a) - Number(b))
-                  .map(([t, d]) => `${u.showTemp(Number(t))} on ${short(d)}`)
-                  .join(" · ")}
+                {t("views.crops.soilReaches", {
+                  list: Object.entries(when.soil_warming)
+                    .sort(([a], [b]) => Number(a) - Number(b))
+                    .map(([temp, d]) => t("views.crops.soilOn", { temp: u.showTemp(Number(temp)), date: short(d) }))
+                    .join(" · "),
+                })}
               </p>
             )}
             {when.sow_now.length > 0 && (
               <p className="mt-1.5 text-[0.8125rem]">
-                <b>In the window now:</b> {when.sow_now.join(", ")}
+                <b>{t("views.crops.inWindowNow")}</b> {when.sow_now.join(", ")}
               </p>
             )}
           </div>
           <div className="mb-3 overflow-x-auto rounded-md border border-rule bg-panel [-webkit-overflow-scrolling:touch]">
             <table className="w-full text-[0.8125rem]">
               <thead><tr>
-                {["Plant", "Seed indoors", "Out", "Last sowing", "Window", "Successions"].map((h) => (
+                {[t("views.crops.col.plant"), t("views.crops.col.seedIndoors"), t("views.crops.col.out"),
+                  t("views.crops.col.lastSowing"), t("views.crops.col.window"), t("views.crops.col.successions")].map((h) => (
                   <th key={h} className="data border-b-[1.5px] border-ink px-3 py-2.5 text-left text-[0.625rem] font-medium uppercase tracking-[.1em] text-ink-soft">{h}</th>
                 ))}
               </tr></thead>
@@ -1341,31 +1355,31 @@ export default function Crops({
                           <div key={line} className="data text-[0.65625rem] text-ink-soft">🌰 {line}</div>
                         ))}
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">{r.start_seed_indoors ? short(r.start_seed_indoors) : <span className="text-ink-soft">direct sow</span>}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">{r.start_seed_indoors ? short(r.start_seed_indoors) : <span className="text-ink-soft">{t("views.crops.directSow")}</span>}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap">{r.earliest_out ? short(r.earliest_out) : "—"}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap">{r.latest_out ? short(r.latest_out) : "—"}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       {r.state === "will_not_fit"
-                        ? <span className="rounded-full bg-clay/15 px-2 py-0.5 text-[0.6875rem] font-semibold text-clay">won't fit</span>
+                        ? <span className="rounded-full bg-clay/15 px-2 py-0.5 text-[0.6875rem] font-semibold text-clay">{t("views.crops.wontFit")}</span>
                         : r.state === "year_round"
-                          ? <span className="text-ink-soft">any time</span>
+                          ? <span className="text-ink-soft">{t("views.crops.anyTime")}</span>
                         : r.state === "narrow"
-                          ? <span className="rounded-full bg-honey/15 px-2 py-0.5 text-[0.6875rem] font-semibold text-honey">{r.window_days}d — narrow</span>
-                          : <span className="text-ink-soft">{r.window_days}d</span>}
-                      {r.sow_now && <span className="ml-1.5 rounded-full bg-growth/15 px-2 py-0.5 text-[0.6875rem] font-semibold text-growth">now</span>}
+                          ? <span className="rounded-full bg-honey/15 px-2 py-0.5 text-[0.6875rem] font-semibold text-honey">{t("views.crops.narrow", { n: r.window_days ?? "" })}</span>
+                          : <span className="text-ink-soft">{t("views.crops.windowDays", { n: r.window_days ?? "" })}</span>}
+                      {r.sow_now && <span className="ml-1.5 rounded-full bg-growth/15 px-2 py-0.5 text-[0.6875rem] font-semibold text-growth">{t("views.crops.now")}</span>}
                     </td>
                     <td className="px-3 py-2">
                       {/* A native select, so a phone shows its own picker. */}
                       <select
-                        aria-label={`Sow ${r.crop} in succession`}
+                        aria-label={t("views.crops.sowInSuccession", { crop: r.crop })}
                         value={plans[r.crop]?.every ?? 0}
                         disabled={r.state === "will_not_fit" || planning === r.crop}
                         onChange={(e) => void planSuccessions(r.crop, Number(e.target.value))}
                         className="min-h-9 rounded-md border border-rule bg-white px-2 text-[0.78125rem] disabled:opacity-40"
                       >
-                        <option value={0}>{planning === r.crop ? "Reading…" : "—"}</option>
+                        <option value={0}>{planning === r.crop ? t("views.crops.readingShort") : "—"}</option>
                         {[7, 10, 14, 21, 28].map((d) => (
-                          <option key={d} value={d}>every {d} days</option>
+                          <option key={d} value={d}>{t("views.crops.everyDays", { n: d })}</option>
                         ))}
                       </select>
                     </td>
@@ -1387,25 +1401,15 @@ export default function Crops({
             </table>
           </div>
           <p className="mb-2 text-[0.75rem] text-ink-soft">
-            Dates are this block&rsquo;s own frost and soil, against the figures
-            on each planting.
+            {t("views.crops.datesAre")}
           </p>
           <p className="mb-4 text-[0.75rem] leading-relaxed text-ink-soft">
-            A tender plant's "out" date is the <b>median</b> last frost — half of
-            seasons frost later than that, so it is a coin toss rather than a
-            green light. The last-sowing date, and each succession&rsquo;s
-            finish, count this ground&rsquo;s typical heat day by day, so a late
-            sowing is given September&rsquo;s slower heat rather than
-            July&rsquo;s. A typical year, not a forecast.
+            <Tx ns={WORDS} k="views.crops.tenderOut" components={{ b: <b /> }} />
           </p>
         </>
       ) : (
         <p className="mb-3 text-[0.78125rem] leading-relaxed text-ink-soft">
-          Heat requirement says whether a plant <i>can</i> finish here. It says
-          nothing about when to start — which is the decision you make with a
-          seed packet in hand in February. Dating your ground gives three:
-          when seed goes in under lights, when the plant can go out, and the
-          last day a sowing still beats the frost.
+          <Tx ns={WORDS} k="views.crops.sowIntro" components={{ i: <i /> }} />
         </p>
       )}
 
@@ -1421,12 +1425,12 @@ export default function Crops({
           blockName={region.name}
           kingdom={near}
           kingdoms={[
-            { key: "plants", label: "🌿 Plants" },
-            { key: "fungi", label: "🍄 Fungi" },
+            { key: "plants", label: t("views.crops.kingdom.plants") },
+            { key: "fungi", label: t("views.crops.kingdom.fungi") },
           ]}
           onKingdom={(k) => setNear(k as "plants" | "fungi")}
           adding={addingMany}
-          hint="What people have actually seen near here, most-seen first. Choose any number, keep searching, then add them all. They land on the ledger with no dates and no figures — those are yours to fill in."
+          hint={t("views.crops.communityHint")}
           onAdd={addChosen}
         />
       </CommunityObservations>

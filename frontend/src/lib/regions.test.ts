@@ -11,6 +11,9 @@
 
 import assert from "node:assert/strict";
 import { beforeEach, describe, it } from "node:test";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 const store = new Map<string, string>();
 (globalThis as { window?: unknown }).window = {

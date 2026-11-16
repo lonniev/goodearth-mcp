@@ -12,8 +12,9 @@ import { aboutDate, eventKey, initialChoice, toAdd } from "../lib/lifeCycle";
 import type { SavedRegion } from "../lib/regions";
 import Provenance from "./Provenance";
 import { ErrorBox } from "./ui";
+import { useT } from "../i18n";
 import { QuoteScroller } from "@tollbooth-dpyc/web/react";
-import { NATURALIST_QUOTES, NATURALIST_SOURCE, RESEARCH_WAIT, quoteStyles } from "../lib/quotes";
+import { NATURALIST_QUOTES, NATURALIST_SOURCE, researchWait, quoteStyles } from "../lib/quotes";
 
 export interface Who {
   taxonId?: number;
@@ -38,6 +39,7 @@ export default function LifeCycleStory({
   onTrack?: (chosen: LifeCycleEvent[], result: LifeCycleResult) => Promise<void>;
   trackLabel?: (n: number) => string;
 }) {
+  const t = useT();
   const [result, setResult] = useState<LifeCycleResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -58,7 +60,7 @@ export default function LifeCycleStory({
     })
       .then((r) => {
         if (!live) return;
-        if (!r.success) { setError(r.error || "Its life cycle could not be read."); return; }
+        if (!r.success) { setError(r.error || t("ui.lifeCycleStory.couldNotRead")); return; }
         setResult(r); setAt(new Date());
         setChosen(initialChoice(r.events ?? [], tracked));
       })
@@ -93,7 +95,7 @@ export default function LifeCycleStory({
     return (
       <div className="mt-3 rounded-md border border-rule bg-band/40">
         <QuoteScroller quotes={NATURALIST_QUOTES} source={NATURALIST_SOURCE}
-          heading={RESEARCH_WAIT} intervalMs={6500} classNames={quoteStyles} />
+          heading={researchWait()} intervalMs={6500} classNames={quoteStyles} />
       </div>
     );
   }
@@ -114,7 +116,7 @@ export default function LifeCycleStory({
             <li key={k}>
               <label className={`flex min-h-11 items-start gap-3 rounded px-2 py-1.5 ${
                 fixed ? "opacity-70" : "cursor-pointer active:bg-band"}`}
-                title={fixed ? "Already tracked" : undefined}>
+                title={fixed ? t("ui.lifeCycleStory.alreadyTracked") : undefined}>
                 <input type="checkbox" className="mt-1 size-4 shrink-0" checked={on}
                   disabled={fixed} onChange={() => toggle(e)} />
                 <span className="data w-[4.5rem] shrink-0 pt-0.5 text-[0.75rem] text-ink-soft">
@@ -123,7 +125,7 @@ export default function LifeCycleStory({
                 <span className="w-6 shrink-0 text-center text-[1.0625rem] leading-none">{e.emoji ?? "•"}</span>
                 <span className="min-w-0 flex-1">
                   <span className="text-[0.84375rem] font-semibold">{e.name}</span>
-                  {fixed && <span className="ml-1.5 text-ink-soft" aria-label="Already tracked">✓</span>}
+                  {fixed && <span className="ml-1.5 text-ink-soft" aria-label={t("ui.lifeCycleStory.alreadyTracked")}>✓</span>}
                   {e.summary && (
                     <span className="block text-[0.75rem] leading-snug text-ink-soft">{e.summary}</span>
                   )}
@@ -132,7 +134,7 @@ export default function LifeCycleStory({
                   <a href={e.source_url} target="_blank" rel="noopener noreferrer"
                     onClick={(ev) => ev.stopPropagation()}
                     className="shrink-0 pt-0.5 text-[0.75rem] text-ink-soft underline underline-offset-2"
-                    title={e.source_url}>source</a>
+                    title={e.source_url}>{t("ui.lifeCycleStory.source")}</a>
                 )}
               </label>
             </li>
@@ -149,7 +151,7 @@ export default function LifeCycleStory({
               finally { setSaving(false); }
             }}
             className="min-h-11 rounded-full bg-ink px-5 text-[0.8125rem] font-semibold text-paper disabled:opacity-40">
-            {saving ? "Saving…" : trackLabel ? trackLabel(adding.length) : `Track these ${adding.length}`}
+            {saving ? t("ui.lifeCycleStory.saving") : trackLabel ? trackLabel(adding.length) : t("ui.lifeCycleStory.trackThese", { n: adding.length })}
           </button>
         )}
         <Provenance tool="goodearth_life_cycle" at={at} onCost={onCost} />

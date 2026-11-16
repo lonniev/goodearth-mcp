@@ -4,23 +4,34 @@
 // `worst.at` is on the BLOCK's clock and carries no zone; it is read as text,
 // never through the device's time zone.
 
+import { languageLocale } from "@tollbooth-dpyc/web";
+import { tr } from "../i18n/index.ts";
+import type { MessageKey } from "../i18n/en.ts";
 import type { StormSignal } from "./mcp.ts";
 
-const LEVEL: Record<StormSignal["level"], string> = {
-  none: "", unsettled: "Unsettled", "storm likely": "Storm likely", severe: "Severe storm signal",
+const LEVEL: Record<StormSignal["level"], MessageKey | ""> = {
+  none: "", unsettled: "lib.storm.level.unsettled", "storm likely": "lib.storm.level.likely",
+  severe: "lib.storm.level.severe",
 };
 
 export function stormLevel(s: StormSignal): string {
-  return LEVEL[s.level];
+  const key = LEVEL[s.level];
+  return key ? tr(key) : "";
+}
+
+/// Whether the worst fall is already here.
+export function stormIsNow(s: StormSignal): boolean {
+  const at = s.worst?.at;
+  return !at || at <= s.at;
 }
 
 /// "now", or the weekday of the worst fall when it is ahead.
 export function stormWhen(s: StormSignal): string {
   const at = s.worst?.at;
-  if (!at || at <= s.at) return "now";
-  if (at.slice(0, 10) === s.at.slice(0, 10)) return "today";
+  if (!at || stormIsNow(s)) return tr("lib.storm.now");
+  if (at.slice(0, 10) === s.at.slice(0, 10)) return tr("lib.storm.today");
   return new Date(`${at.slice(0, 10)}T12:00:00Z`)
-    .toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" });
+    .toLocaleDateString(languageLocale(), { weekday: "short", timeZone: "UTC" });
 }
 
 export function stormWords(s: StormSignal): string {
@@ -40,6 +51,11 @@ export const FACE = {
     { from: 1036, to: 1045, word: "dry" },
   ],
 } as const;
+
+/// A zone's word as the face shows it. `word` itself is the zone's name in code.
+export function faceWord(word: (typeof FACE.zones)[number]["word"]): string {
+  return tr(`lib.storm.face.${word}`);
+}
 
 /// Where a reading sits on that face, 0..1, held to its ends.
 export function onFace(hpa: number): number {

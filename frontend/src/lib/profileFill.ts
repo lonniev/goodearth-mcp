@@ -6,6 +6,7 @@
 
 import type { PlantProfileResult } from "./mcp";
 import { HUES } from "./companions.ts";
+import { tr } from "../i18n/index.ts";
 
 /// The form's own field names, and the text each would hold.
 export interface Fill {
@@ -70,10 +71,11 @@ export function provenance(r: PlantProfileResult): string {
   const name = p.common_name || p.scientific_name;
   const dtm = p.days_to_maturity;
   const heat = here.basis === "published"
-    ? `GDD as published (base ${here.base_temp_f}°F)`
+    ? tr("lib.profileFill.published", { base: String(here.base_temp_f) })
     : dtm && here.gdd_target != null
-      ? `about ${dtm.typical} days (${dtm.low}–${dtm.high}) from ${dtm.counted_from}, in a typical year here (${here.record})`
+      ? tr("lib.profileFill.fromDays", {
+        typical: dtm.typical, low: dtm.low, high: dtm.high, from: dtm.counted_from, record: String(here.record) })
       : "";
   const sources = (p.sources ?? []).map((s) => s.title).slice(0, 3).join(" · ");
-  return [name, heat, sources && `Sources: ${sources}`].filter(Boolean).join(" — ");
+  return [name, heat, sources && tr("lib.profileFill.sources", { sources })].filter(Boolean).join(" — ");
 }

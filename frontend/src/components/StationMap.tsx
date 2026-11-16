@@ -9,6 +9,7 @@ import { useEnlarged } from "./MapFrame";
 import { EnlargeButton, Pill } from "./ui";
 import { fielddataStationsNear } from "../lib/mcp";
 import { stationMarkers, type StationMarker } from "../lib/stationMap";
+import { useT } from "../i18n";
 
 const GROWTH = "#4C7A3D";
 const HONEY = "#D99A06";
@@ -22,6 +23,7 @@ export default function StationMap({ block, currentId, onPick }: {
   currentId: string;
   onPick: (station: StationMarker) => void;
 }) {
+  const t = useT();
   const host = useRef<HTMLDivElement | null>(null);
   const map = useRef<L.Map | null>(null);
   const size = useEnlarged(map);
@@ -76,20 +78,20 @@ export default function StationMap({ block, currentId, onPick }: {
     <div className="mt-2 grid gap-1.5">
       <div className={size.frame}>
         <div ref={host} className="h-full w-full" />
-        <EnlargeButton big={size.big} onClick={size.toggle} label="the map" />
+        <EnlargeButton big={size.big} onClick={size.toggle} label={t("ui.stationMap.theMap")} />
         {tapped && (
           <div className="absolute inset-x-2 bottom-6 z-[500] flex flex-wrap items-center gap-2 rounded-md bg-panel px-3 py-2 text-[0.78125rem] shadow">
             <span className="min-w-0 flex-1">
               <b>{tapped.name}</b> <span className="data text-[0.65625rem] text-ink-soft">{tapped.distance_km.toFixed(1)} km</span>
             </span>
             {tapped.station_id === currentId
-              ? <span className="text-ink-soft">This plot's station</span>
-              : <Pill active onClick={() => onPick(tapped)}>Use this station</Pill>}
+              ? <span className="text-ink-soft">{t("ui.stationMap.current")}</span>
+              : <Pill active onClick={() => onPick(tapped)}>{t("ui.stationMap.use")}</Pill>}
           </div>
         )}
       </div>
-      {count === null && !problem && <p role="status" className="animate-pulse text-[0.75rem] text-ink-soft motion-reduce:animate-none">Finding stations…</p>}
-      {count === 0 && <p className="text-[0.75rem] text-ink-soft">No published station stands within {REACH_KM} km of {placeName}.</p>}
+      {count === null && !problem && <p role="status" className="animate-pulse text-[0.75rem] text-ink-soft motion-reduce:animate-none">{t("ui.stationMap.finding")}</p>}
+      {count === 0 && <p className="text-[0.75rem] text-ink-soft">{t("ui.stationMap.none", { km: REACH_KM, place: placeName })}</p>}
       {problem && <p role="alert" className="text-[0.75rem] text-clay">{problem}</p>}
     </div>
   );

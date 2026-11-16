@@ -13,6 +13,9 @@ import { GUIDED } from "./guides.ts";
 import type { AlmanacResult, Measure } from "./mcp.ts";
 import type { SavedRegion } from "./regions.ts";
 import { showDD, showTemp } from "./units.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 const src = (rel: string) => readFileSync(new URL(`../${rel}`, import.meta.url), "utf8");
 

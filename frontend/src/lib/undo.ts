@@ -23,6 +23,7 @@
 // stack itself is arithmetic over a list and is where the mistakes would be.
 import { newItemId } from "./submit.ts";
 import type { ItemKind } from "./mcp.ts";
+import { tr } from "../i18n/index.ts";
 
 /// How many removals stay recoverable. Five is the owner's figure and it is a
 /// reasonable one: an undo list long enough to scroll is a second record to
@@ -137,9 +138,9 @@ export function clear(): UndoEntry[] {
 /// there. Coarse on purpose: the exact second is not the decision.
 export function since(at: number, now = Date.now()): string {
   const mins = Math.floor((now - at) / 60_000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins} min ago`;
+  if (mins < 1) return tr("lib.age.justNow");
+  if (mins < 60) return tr("lib.age.minutes", { n: mins });
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs} h ago`;
-  return `${Math.floor(hrs / 24)} d ago`;
+  if (hrs < 24) return tr("lib.age.hours", { n: hrs });
+  return tr("lib.age.daysShort", { n: Math.floor(hrs / 24) });
 }

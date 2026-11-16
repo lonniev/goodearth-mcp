@@ -30,6 +30,8 @@ import L from "leaflet";
 import {
   areaM2, distanceM, formatArea, isDrawable, type LatLng,
 } from "../lib/geo";
+import { useT } from "../i18n";
+import { useLanguageLocale } from "@tollbooth-dpyc/web/react";
 
 export type DrawMode = "polygon" | "pin";
 
@@ -50,13 +52,13 @@ interface Props {
 
 export const BASEMAPS = {
   satellite: {
-    label: "Satellite",
+    label: "ui.fieldMap.satellite",
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     attribution: "Imagery © Esri, Maxar, Earthstar Geographics",
     maxZoom: 19,
   },
   street: {
-    label: "Map",
+    label: "ui.fieldMap.map",
     url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
     attribution: "© OpenStreetMap contributors",
     maxZoom: 19,
@@ -104,6 +106,7 @@ export default function FieldMap({ value, onChange, others = [], centreOn }: Pro
   const tiles = useRef<L.TileLayer | null>(null);
   const drawn = useRef<L.LayerGroup | null>(null);
   const [layer, setLayer] = useState<keyof typeof BASEMAPS>("satellite");
+  const t = useT();
 
   // The callback the map handlers close over must always be current, or a
   // click three renders later commits to a stale ring.
@@ -242,7 +245,7 @@ export default function FieldMap({ value, onChange, others = [], centreOn }: Pro
         {(Object.keys(BASEMAPS) as (keyof typeof BASEMAPS)[]).map((k) => (
           <button key={k} onClick={() => setLayer(k)}
             className={`min-h-11 px-4 font-medium ${layer === k ? "bg-ink text-paper" : "text-ink active:bg-band"}`}>
-            {BASEMAPS[k].label}
+            {t(BASEMAPS[k].label)}
           </button>
         ))}
       </div>
@@ -255,6 +258,8 @@ export default function FieldMap({ value, onChange, others = [], centreOn }: Pro
 /// The number that tells a grower the polygon is right. Sits on the map, not
 /// beside it, so the eye never leaves the field while drawing.
 function MapReadout({ value, onFit }: { value: MapValue; onFit: () => void }) {
+  const t = useT();
+  const locale = useLanguageLocale();
   const m2 =
     value.mode === "polygon"
       ? isDrawable(value.ring) ? areaM2(value.ring) : 0
@@ -271,8 +276,8 @@ function MapReadout({ value, onFit }: { value: MapValue; onFit: () => void }) {
     return (
       <div className="absolute bottom-2 left-2 z-[400] rounded-md border border-ink/25 bg-panel/95 px-3 py-1.5 text-[0.75rem] text-ink-soft shadow">
         {value.mode === "polygon"
-          ? "Click each corner of your field. Three corners and it has an area."
-          : "Click the middle of your field, then set the radius."}
+          ? t("ui.fieldMap.clickCorners")
+          : t("ui.fieldMap.clickMiddle")}
       </div>
     );
   }
@@ -282,10 +287,10 @@ function MapReadout({ value, onFit }: { value: MapValue; onFit: () => void }) {
       <div className="figure text-[1.0625rem] leading-none">{formatArea(m2)}</div>
       <div className="data mt-1 text-[0.625rem] text-ink-soft">
         {value.mode === "polygon"
-          ? `${value.ring.length} corners · ${Math.round(perimeter).toLocaleString()} m around`
-          : `${value.radiusM.toLocaleString()} m radius`}
+          ? t("ui.fieldMap.corners", { corners: value.ring.length, metres: Math.round(perimeter).toLocaleString(locale) })
+          : t("ui.fieldMap.radius", { metres: value.radiusM.toLocaleString(locale) })}
         {" · "}
-        <button onClick={onFit} className="underline hover:text-ink">fit</button>
+        <button onClick={onFit} className="underline hover:text-ink">{t("ui.fieldMap.fit")}</button>
       </div>
     </div>
   );

@@ -4,6 +4,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { compareOutlook, departure } from "./outlookSummary.ts";
 import type { AlmanacResult, Measure } from "./mcp.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 const measure = (m: Partial<Measure>): Measure => ({
   unit: "°F", actual: [], forecast: [], normal: null, accumulates: false, ...m,

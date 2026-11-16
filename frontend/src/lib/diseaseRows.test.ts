@@ -4,6 +4,9 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { along, began, cropWatch, estimatesInfo, order, relevant, rowDate, stripAxis, stripMarks, stripMonths, toneOf, TONE_WORD } from "./diseaseRows.ts";
 import type { DiseaseRiskResult, DiseaseVerdict } from "./mcp.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 function model(over: Partial<DiseaseVerdict> = {}): DiseaseVerdict {
   return {

@@ -18,6 +18,7 @@ import { ICON, IconButton } from "../components/ui";
 import { GUIDE_META, type GuidedView } from "../lib/guides";
 import type { ViewKey } from "../lib/views";
 import type { Guide } from "./howto/types";
+import { useT, type Translate } from "../i18n";
 import { almanac } from "./howto/almanac";
 import { crops } from "./howto/crops";
 import { ledger } from "./howto/ledger";
@@ -27,7 +28,8 @@ import { reports } from "./howto/reports";
 import { todo } from "./howto/todo";
 import { wildlife } from "./howto/wildlife";
 
-const GUIDES: Record<GuidedView, Guide> = {
+/// Each guide is drawn in the language on screen, so each is a function of the words.
+const GUIDES: Record<GuidedView, (t: Translate) => Guide> = {
   plots, ledger, almanac, crops, pests, wildlife, todo, reports,
 };
 
@@ -35,25 +37,26 @@ export default function HowTo({ page, onView }: {
   page: GuidedView;
   onView: (v: ViewKey) => void;
 }) {
+  const t = useT();
   const meta = GUIDE_META[page];
-  const g = GUIDES[page];
+  const g = GUIDES[page](t);
   return (
     <article>
       <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="figure mb-1 text-[1.5rem] font-bold">
             <span className="mr-1.5" aria-hidden="true">{meta.emoji}</span>
-            How {meta.title} works
+            {t("views.howTo.title", { page: meta.title })}
           </h1>
           <p className="eyebrow">{meta.eyebrow}</p>
         </div>
         <div className="flex gap-1.5">
-          <IconButton path={ICON.frame} label={`Open ${meta.title}`} tone="quiet"
-            title={`Go to ${meta.title}`} onClick={() => onView(page)} />
+          <IconButton path={ICON.frame} label={t("views.howTo.open", { page: meta.title })} tone="quiet"
+            title={t("views.howTo.goTo", { page: meta.title })} onClick={() => onView(page)} />
           {/* The same page, with its tour running: the guide in motion. */}
           <TourButton page={page} onView={onView} />
-          <IconButton path={ICON.ask} label="Guides" tone="quiet"
-            title="All the guides" onClick={() => onView("welcome")} />
+          <IconButton path={ICON.ask} label={t("views.howTo.guides")} tone="quiet"
+            title={t("views.howTo.allGuides")} onClick={() => onView("welcome")} />
         </div>
       </div>
 
@@ -63,12 +66,10 @@ export default function HowTo({ page, onView }: {
 
       {/* ── Using the page ───────────────────────────────────────────── */}
       <h2 className="figure mt-7 mb-1 text-[1.125rem] font-semibold">
-        <span className="mr-0.5">🧭</span>Using the page
+        <span className="mr-0.5">🧭</span>{t("views.howTo.using")}
       </h2>
       <p className="mb-3 text-[0.78125rem] text-ink-soft">
-        The control on the left, what it does on the right. Everything saved
-        goes to your record under your npub, so the phone and the laptop show
-        the same ground.
+        {t("views.howTo.usingIntro")}
       </p>
       {g.using.map((u) => (
         <section key={u.heading} className="mb-4">
@@ -88,32 +89,27 @@ export default function HowTo({ page, onView }: {
 
       {/* ── From an agent ────────────────────────────────────────────── */}
       <h2 className="figure mt-7 mb-1 text-[1.125rem] font-semibold">
-        <span className="mr-0.5">🤖</span>From an agent
+        <span className="mr-0.5">🤖</span>{t("views.howTo.fromAgent")}
       </h2>
       <p className="mb-3 text-[0.84375rem] leading-relaxed">{g.agent.lead}</p>
       <div className="rounded-md border border-rule border-l-4 border-l-honey bg-panel px-4 py-3">
-        <p className="eyebrow">You say</p>
-        <p className="mt-1 text-[0.84375rem] italic leading-relaxed">“{g.agent.say}”</p>
-        <p className="eyebrow mt-3">The agent</p>
+        <p className="eyebrow">{t("views.howTo.youSay")}</p>
+        <p className="mt-1 text-[0.84375rem] italic leading-relaxed">{t("views.howTo.quoted", { say: g.agent.say })}</p>
+        <p className="eyebrow mt-3">{t("views.howTo.theAgent")}</p>
         <p className="mt-1 text-[0.84375rem] leading-relaxed">{g.agent.does}</p>
         <p className="mt-2.5 flex flex-wrap gap-1.5">
-          {g.agent.tools.map((t) => (
-            <code key={t} className="data rounded-full border border-rule bg-paper px-2 py-0.5 text-[0.65625rem]">
-              {t}
+          {g.agent.tools.map((tool) => (
+            <code key={tool} className="data rounded-full border border-rule bg-paper px-2 py-0.5 text-[0.65625rem]">
+              {tool}
             </code>
           ))}
         </p>
       </div>
       <p className="mt-3 text-[0.78125rem] leading-relaxed text-ink-soft">
-        The share button beside the (?) in the top bar shows this page's
-        table — braces copy it as JSON for an agent, the two pages copy it as
-        text for a note or a mail.
+        {t("views.howTo.share")}
       </p>
       <p className="mt-3 text-[0.78125rem] leading-relaxed text-ink-soft">
-        Connecting is on the About page: the MCP endpoint goes into Claude.ai
-        or Claude Desktop under Connectors, and the first call asks for your
-        npub and a Nostr reply to prove it. The same record answers either way
-        — a planting saved by an agent is on Flora the next time you look.
+        {t("views.howTo.connecting")}
       </p>
     </article>
   );

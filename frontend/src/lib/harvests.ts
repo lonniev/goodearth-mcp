@@ -13,6 +13,7 @@
 import type { FieldReport } from "./reports.ts";
 import type { Planting } from "./plantings.ts";
 import { newItemId } from "./submit.ts";
+import { tr } from "../i18n/index.ts";
 
 export const HARVEST = "harvest";
 
@@ -39,11 +40,11 @@ export function makeHarvest(
   opts: { id?: string; today?: string } = {},
 ): FieldReport | string {
   const today = opts.today ?? isoToday();
-  if (!h.on || Number.isNaN(Date.parse(h.on))) return "When was it cut?";
-  if (h.on > today) return "That day has not come yet.";
-  if (p.setOut && h.on < p.setOut) return "It cannot have been cut before it was set out.";
+  if (!h.on || Number.isNaN(Date.parse(h.on))) return tr("lib.harvests.when");
+  if (h.on > today) return tr("lib.harvests.future");
+  if (p.setOut && h.on < p.setOut) return tr("lib.harvests.beforeSetOut");
   if (h.amount != null && (!Number.isFinite(h.amount) || h.amount < 0))
-    return "How much — as a number?";
+    return tr("lib.harvests.badAmount");
   const unit = h.unit?.trim();
   return {
     id: opts.id ?? newItemId("hv"),
@@ -96,9 +97,9 @@ const num = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
 /// "3 cuts · first Aug 12 · 140 stems, 2.5 lb" — or "1 cut · Aug 12 · 40 stems".
 export function describeHarvest(s: HarvestSummary, day: (iso: string) => string): string {
-  const when = s.cuts === 1 ? day(s.first) : `first ${day(s.first)}`;
+  const when = s.cuts === 1 ? day(s.first) : tr("lib.harvests.first", { day: day(s.first) });
   const gave = s.totals.map((t) => `${num(t.amount)}${t.unit ? ` ${t.unit}` : ""}`).join(", ");
-  return [`${s.cuts} ${s.cuts === 1 ? "cut" : "cuts"}`, when, gave].filter(Boolean).join(" · ");
+  return [tr("lib.harvests.cuts", { count: s.cuts }), when, gave].filter(Boolean).join(" · ");
 }
 
 /// The unit last used for a crop of this name, to offer again. Zinnias cut by

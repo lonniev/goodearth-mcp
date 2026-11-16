@@ -10,6 +10,7 @@
 import { useState, type ReactNode } from "react";
 import type { Target } from "../lib/tour/targets";
 import { Glyph, ICON } from "./ui";
+import { useT } from "../i18n";
 
 export default function CommunityObservations({ blockName, tour, children }: {
   blockName: string;
@@ -18,6 +19,7 @@ export default function CommunityObservations({ blockName, tour, children }: {
   /// The finder, drawn only while the fold is open.
   children: ReactNode;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   return (
     <section className="mt-7">
@@ -25,7 +27,7 @@ export default function CommunityObservations({ blockName, tour, children }: {
         <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
           className="flex min-h-11 items-center gap-2.5 text-left">
           <span className="mr-0.5" aria-hidden="true">🔭</span>
-          Community Observations
+          {t("ui.communityObservations.title")}
           <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full border border-rule text-ink-soft transition-transform ${
             open ? "rotate-180" : ""}`}>
             <Glyph path={ICON.chevron} size={18} />
@@ -33,7 +35,7 @@ export default function CommunityObservations({ blockName, tour, children }: {
         </button>
       </h2>
       <p className="mb-2.5 text-[0.78125rem] text-ink-soft">
-        What people have recorded near {blockName}, ready to add.
+        {t("ui.communityObservations.lede", { blockName })}
       </p>
       {open && children}
     </section>

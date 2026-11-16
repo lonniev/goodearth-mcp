@@ -16,6 +16,8 @@
 // data does not contain. If an hourly feed is ever plotted here, add the level
 // then and it will have something to say.
 
+import { languageLocale } from "@tollbooth-dpyc/web";
+
 export interface DateTick {
   /// Day number in the chart's own domain — whatever `isoAt` indexes.
   d: number;
@@ -32,10 +34,10 @@ export interface DateTick {
 const at = (iso: string) => new Date(iso + "T12:00:00Z");
 
 const MONTH = (iso: string) =>
-  at(iso).toLocaleString("en-US", { month: "short", timeZone: "UTC" }).toUpperCase();
+  at(iso).toLocaleString(languageLocale(), { month: "short", timeZone: "UTC" }).toUpperCase();
 
 const DAY_OF_MONTH = (iso: string) =>
-  at(iso).toLocaleString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  at(iso).toLocaleString(languageLocale(), { month: "short", day: "numeric", timeZone: "UTC" });
 
 /// "Sat 2", composed rather than formatted.
 ///
@@ -44,7 +46,7 @@ const DAY_OF_MONTH = (iso: string) =>
 /// neighbours are "Sep 8". The two parts are asked for separately and joined.
 const WEEKDAY = (iso: string) => {
   const d = at(iso);
-  const wd = d.toLocaleString("en-US", { weekday: "short", timeZone: "UTC" });
+  const wd = d.toLocaleString(languageLocale(), { weekday: "short", timeZone: "UTC" });
   return `${wd} ${d.getUTCDate()}`;
 };
 

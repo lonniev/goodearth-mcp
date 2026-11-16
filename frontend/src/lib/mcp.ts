@@ -18,6 +18,7 @@ import type { SunPath, WireGrid } from "./sunGrid.ts";
 import type { CompanionsResult, Kind } from "./companions.ts";
 import type { PlantingStage } from "./plantings.ts";
 import { nearbyArgs } from "./wire";
+import { tr } from "../i18n/index.ts";
 import { callLine, resultLine } from "./debugSummary";
 import {
   callTool as callOperator,
@@ -1649,7 +1650,7 @@ export interface PlotConditions {
 
 /// A tool's refusal arrives as `success: false`, and a page must not read it as an answer.
 function answered<T>(r: T & { success?: boolean; error?: string }): T {
-  if (r.success === false) throw new Error(r.error ?? "That could not be done.");
+  if (r.success === false) throw new Error(r.error ?? tr("lib.mcp.couldNotBeDone"));
   return r;
 }
 

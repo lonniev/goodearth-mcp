@@ -22,6 +22,7 @@
 // chart, Escape, or simply waiting all put it away.
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useT } from "../i18n";
 
 export const HOLD_MS = 450;
 /// How far a finger may wander and still count as held rather than dragged.
@@ -40,6 +41,7 @@ export default function GestureHint({ isZoomed, children }: {
   isZoomed: boolean;
   children: React.ReactNode;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const timer = useRef<number | null>(null);
   const from = useRef<{ x: number; y: number } | null>(null);
@@ -54,10 +56,10 @@ export default function GestureHint({ isZoomed, children }: {
   // While it is up: leave by itself, and on Escape.
   useEffect(() => {
     if (!open) return;
-    const t = window.setTimeout(() => setOpen(false), SHOW_MS);
+    const timer = window.setTimeout(() => setOpen(false), SHOW_MS);
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
     document.addEventListener("keydown", esc);
-    return () => { window.clearTimeout(t); document.removeEventListener("keydown", esc); };
+    return () => { window.clearTimeout(timer); document.removeEventListener("keydown", esc); };
   }, [open]);
 
   return (
@@ -92,7 +94,7 @@ export default function GestureHint({ isZoomed, children }: {
           <span className="data text-[0.6875rem] leading-relaxed text-ink">
             {gestureText(isZoomed)}
           </span>
-          <span className="data mt-0.5 block text-[0.625rem] text-ink-soft">tap to dismiss</span>
+          <span className="data mt-0.5 block text-[0.625rem] text-ink-soft">{t("ui.gestureHint.dismiss")}</span>
         </button>
       )}
     </div>

@@ -7,7 +7,7 @@
 // on three days with the hidden stretches dashed. It is small static SVG, so
 // it is plain JSX; no zoom, no frame.
 
-import { useTimezone } from "@tollbooth-dpyc/web/react";
+import { Tx, useLanguageLocale, useTimezone } from "@tollbooth-dpyc/web/react";
 import { useEffect, useMemo, useState } from "react";
 import {
   arrayKwhPerKw, capacityKw, dailyIncomeUsd, dailyKwh, dailyUpkeepUsd, footprintBounds, installUsd, MAX_M, MIN_M,
@@ -23,15 +23,21 @@ import {
 } from "../lib/sunGrid";
 import Provenance from "./Provenance";
 import { Glyph, ICON } from "./ui";
+import { useT, WORDS } from "../i18n";
+import type { MessageKey } from "../i18n/en";
 
-const CLASS_NAME: Record<LightClass, string> = { full_sun: "Full sun", part_shade: "Part shade", full_shade: "Full shade" };
+const CLASS_NAME: Record<LightClass, MessageKey> = {
+  full_sun: "ui.sunSpotCard.fullSun", part_shade: "ui.sunSpotCard.partShade", full_shade: "ui.sunSpotCard.fullShade",
+};
 const CLASS_CHIP: Record<LightClass, string> = {
   full_sun: "bg-[#F2C64F]/30 text-ink", part_shade: "bg-[#8E6488]/25 text-ink", full_shade: "bg-[#273049]/15 text-ink",
 };
 const HILLS = "#A9773F";
 const TREES = "#66731F";
 
-const FULL_MONTH = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+/// A month's whole name, in the reader's language.
+const fullMonth = (m: number, locale: string): string =>
+  new Date(2000, m, 1).toLocaleDateString(locale, { month: "long" });
 
 export default function SunSpotCard({ grid, result, cell, month, fullLeaf, onCost, array, onArray }: {
   grid: SunGrid | null;
@@ -48,6 +54,8 @@ export default function SunSpotCard({ grid, result, cell, month, fullLeaf, onCos
   // re-fired the price report on every render — and this card now renders
   // on every pixel of a drag.
   const at = useMemo(() => new Date(), [result]);
+  const t = useT();
+  const locale = useLanguageLocale();
   // Nothing until a tap: the line under the map already says to tap, and a
   // row of cards saying it again would be the space the answer needs.
   if (!grid || !result || cell < 0) return null;
@@ -62,9 +70,9 @@ export default function SunSpotCard({ grid, result, cell, month, fullLeaf, onCos
   const canopy = result.sources.find((s) => s.name.includes("canopy"));
   const years = result.solar?.radiation_years;
   const sourcesLine = [
-    canopy?.observed ? `canopy imagery ${canopy.observed}` : "canopy imagery",
-    "terrain 30 m",
-    years ? `${years} years of sunshine` : null,
+    canopy?.observed ? t("ui.sunSpotCard.canopyObserved", { observed: canopy.observed }) : t("ui.sunSpotCard.canopy"),
+    t("ui.sunSpotCard.terrain"),
+    years ? t("ui.sunSpotCard.sunshineYears", { years }) : null,
   ].filter(Boolean).join(" · ");
 
   // One row, three cards — the same grid and chrome as the block summary
@@ -75,47 +83,51 @@ export default function SunSpotCard({ grid, result, cell, month, fullLeaf, onCos
     <div className="mt-3 grid gap-3 sm:grid-cols-3">
       <div className="rounded-md border border-rule bg-panel px-4 py-3.5">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <h3 className="figure text-[0.96875rem]">This spot</h3>
-          <span className={`rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold ${CLASS_CHIP[cls]}`}>{CLASS_NAME[cls]}</span>
+          <h3 className="figure text-[0.96875rem]">{t("ui.sunSpotCard.thisSpot")}</h3>
+          <span className={`rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold ${CLASS_CHIP[cls]}`}>{t(CLASS_NAME[cls])}</span>
         </div>
-        <p className="mt-1"><span className="figure text-[1.625rem] leading-none">{hours.toFixed(1)}</span>
-          <span className="ml-1 text-[0.75rem] text-ink-soft">h of direct sun a day in {FULL_MONTH[month]}</span></p>
+        <p className="mt-1"><Tx ns={WORDS} k="ui.sunSpotCard.hoursIn"
+          vars={{ hours: hours.toFixed(1), month: fullMonth(month, locale) }}
+          components={{
+            n: <span className="figure text-[1.625rem] leading-none" />,
+            soft: <span className="ml-1 text-[0.75rem] text-ink-soft" />,
+          }} /></p>
         <SkyDome grid={grid} cell={cell} paths={result.sun_paths} fullLeaf={fullLeaf} leafOn={result.light.leaf_on_months.includes(month + 1)} />
         <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[0.65625rem] text-ink-soft">
-          <Key colour={HILLS}>Hills</Key>
-          <Key colour={TREES} faint>Trees</Key>
+          <Key colour={HILLS}>{t("ui.sunSpotCard.hills")}</Key>
+          <Key colour={TREES} faint>{t("ui.sunSpotCard.trees")}</Key>
           {pathsAt(cellCentre(grid, cell).lat).map(({ colour, label }) => <Key key={label} colour={colour}>{label}</Key>)}
-          <span>dashed = sun hidden</span>
+          <span>{t("ui.sunSpotCard.dashedHidden")}</span>
         </div>
       </div>
 
       <div className="rounded-md border border-rule bg-panel px-4 py-3.5">
-        <h3 className="figure text-[0.96875rem]">Direct sun, month by month</h3>
+        <h3 className="figure text-[0.96875rem]">{t("ui.sunSpotCard.monthByMonth")}</h3>
         <MonthBars grid={grid} cell={cell} month={month} fullLeaf={fullLeaf} />
         <p className="mt-2 text-[0.75rem] text-ink-soft">
-          Least light in {FULL_MONTH[low]}: {hoursOf(grid, cell, low, fullLeaf).toFixed(1)} h a day.
+          {t("ui.sunSpotCard.leastLight", { month: fullMonth(low, locale), hours: hoursOf(grid, cell, low, fullLeaf).toFixed(1) })}
         </p>
       </div>
 
       <div className="rounded-md border border-rule bg-panel px-4 py-3.5">
-        <h3 className="figure text-[0.96875rem]">Panels here</h3>
+        <h3 className="figure text-[0.96875rem]">{t("ui.sunSpotCard.panelsHere")}</h3>
         {kwh !== null && access !== null ? (
           <>
             <div className="mt-2 grid grid-cols-2 gap-2">
               <div className="rounded border border-rule px-3 py-2">
-                <div className="figure text-[1.25rem] leading-tight">{Math.round(kwh).toLocaleString()}</div>
-                <div className="text-[0.6875rem] text-ink-soft">kWh per kW a year</div>
+                <div className="figure text-[1.25rem] leading-tight">{Math.round(kwh).toLocaleString(locale)}</div>
+                <div className="text-[0.6875rem] text-ink-soft">{t("ui.sunSpotCard.kwhPerKw")}</div>
               </div>
               <div className="rounded border border-rule px-3 py-2">
                 <div className="figure text-[1.25rem] leading-tight">{Math.round(access)}%</div>
-                <div className="text-[0.6875rem] text-ink-soft">of open-sky yield</div>
+                <div className="text-[0.6875rem] text-ink-soft">{t("ui.sunSpotCard.openSky")}</div>
               </div>
             </div>
             <ArrayRows perKw={kwh} prices={result.kw_prices} array={array} onArray={onArray} />
-            <p className="mt-2 text-[0.75rem] text-ink-soft">A screening estimate, not a site survey.</p>
+            <p className="mt-2 text-[0.75rem] text-ink-soft">{t("ui.sunSpotCard.screening")}</p>
           </>
         ) : (
-          <p className="mt-1 text-[0.75rem] text-ink-soft">No solar figures for this plot.</p>
+          <p className="mt-1 text-[0.75rem] text-ink-soft">{t("ui.sunSpotCard.noSolar")}</p>
         )}
         <div className="mt-2 flex items-baseline gap-2">
           <span className="data text-[0.65625rem] text-ink-soft">{sourcesLine}</span>
@@ -168,6 +180,7 @@ export function SkyDome({ grid, cell, paths, fullLeaf, leafOn }: {
   grid: SunGrid; cell: number; paths?: SunlightResult["sun_paths"]; fullLeaf: boolean; leafOn: boolean;
 }) {
   const [, zone] = useTimezone();
+  const t = useT();
   const paths3 = pathsAt(cellCentre(grid, cell).lat);
   // The hours are marked on the summer path, the long day.
   const summer = paths3.find((p) => p.summer)!.key;
@@ -219,16 +232,16 @@ export function SkyDome({ grid, cell, paths, fullLeaf, leafOn }: {
   }
   return (
     <svg viewBox={`0 0 ${S} ${S + 4}`} className="mx-auto mt-1 block w-full max-w-[220px]" role="img"
-      aria-label="Sky above this spot: the tree and hill silhouette with the sun's path in June, at the equinoxes and in December">
+      aria-label={t("ui.sunSpotCard.skyAria")}>
       <circle cx={CX} cy={CY} r={R} fill="#FFFBF2" />
       <path d={wedge((b) => Math.max(canopy[b], terrain[b]))} fill={TREES} opacity={0.55} />
       <path d={wedge((b) => terrain[b])} fill={HILLS} opacity={0.85} />
       {[0, 30, 60].map((e) => (
         <circle key={e} cx={CX} cy={CY} r={(R * (90 - e)) / 90} fill="none" stroke="#D8B26E" strokeWidth={e ? 0.6 : 1} />
       ))}
-      {([["N", 0], ["E", 90], ["S", 180], ["W", 270]] as [string, number][]).map(([t, a]) => {
+      {([["ui.sunSpotCard.north", 0], ["ui.sunSpotCard.east", 90], ["ui.sunSpotCard.south", 180], ["ui.sunSpotCard.west", 270]] as [MessageKey, number][]).map(([k, a]) => {
         const [x, y] = pt(a, -9);
-        return <text key={t} x={x} y={y + 3} textAnchor="middle" fontSize={10} fontWeight={500} fill="#3A2210">{t}</text>;
+        return <text key={k} x={x} y={y + 3} textAnchor="middle" fontSize={10} fontWeight={500} fill="#3A2210">{t(k)}</text>;
       })}
       {[30, 60].map((e) => { const [x, y] = pt(322, e); return <text key={e} x={x} y={y} fontSize={8} fill="#6A566F">{e}°</text>; })}
       {lines.map((l, i) => (
@@ -251,8 +264,10 @@ export function MonthBars({ grid, cell, month, fullLeaf }: { grid: SunGrid; cell
   const W = 280, H = 118, L = 20, B = 16, T = 6, HMAX = 15;
   const y = (h: number) => T + (H - T - B) * (1 - Math.min(h, HMAX) / HMAX);
   const bw = (W - L) / 12;
+  const t = useT();
+  const locale = useLanguageLocale();
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="mt-1 block w-full" role="img" aria-label="Hours of direct sun a day at this spot, month by month">
+    <svg viewBox={`0 0 ${W} ${H}`} className="mt-1 block w-full" role="img" aria-label={t("ui.sunSpotCard.barsAria")}>
       {[0, 3, 6, 9, 12, 15].map((t) => <text key={t} x={L - 4} y={y(t) + 3} textAnchor="end" fontSize={8} fill="#6A566F">{t}</text>)}
       <line x1={L} x2={W} y1={y(0)} y2={y(0)} stroke="#D8B26E" />
       {MONTHS.map((name, m) => {
@@ -263,7 +278,7 @@ export function MonthBars({ grid, cell, month, fullLeaf }: { grid: SunGrid; cell
           <g key={name}>
             <rect x={x} y={y(h)} width={bw - 6} height={y(0) - y(h)} fill={CLASS_COLOUR[classOf(h)]}
               stroke={sel ? "#3A2210" : undefined} strokeWidth={sel ? 1.5 : undefined} />
-            <text x={x + (bw - 6) / 2} y={H - 4} textAnchor="middle" fontSize={8} fill={sel ? "#3A2210" : "#6A566F"} fontWeight={sel ? 500 : 400}>{name}</text>
+            <text x={x + (bw - 6) / 2} y={H - 4} textAnchor="middle" fontSize={8} fill={sel ? "#3A2210" : "#6A566F"} fontWeight={sel ? 500 : 400}>{new Date(2000, m, 1).toLocaleDateString(locale, { month: "short" })}</text>
           </g>
         );
       })}
@@ -287,6 +302,8 @@ function ArrayRows({ perKw, prices, array, onArray }: {
 }) {
   const [sellCents, setSellCents] = useState<number | null>(() => readPrefs().sellCents);
   const [editing, setEditing] = useState(false);
+  const t = useT();
+  const locale = useLanguageLocale();
   const m2 = array.w * array.l;
   const kw = prices ? capacityKw(array, prices.array_w_per_m2) : null;
   const cost = prices && kw != null ? installUsd(kw, prices) : null;
@@ -306,25 +323,25 @@ function ArrayRows({ perKw, prices, array, onArray }: {
   return (
     <>
       <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.78125rem]">
-        <span className="text-ink-soft">Array</span>
-        <Metres value={array.w} glyph="⟷" label="Width, metres east to west" onChange={(w) => onArray({ ...array, w })} />
-        <Metres value={array.l} glyph="↕" label="Length, metres north to south" onChange={(l) => onArray({ ...array, l })} />
+        <span className="text-ink-soft">{t("ui.sunSpotCard.array")}</span>
+        <Metres value={array.w} glyph="⟷" label={t("ui.sunSpotCard.widthLabel")} onChange={(w) => onArray({ ...array, w })} />
+        <Metres value={array.l} glyph="↕" label={t("ui.sunSpotCard.lengthLabel")} onChange={(l) => onArray({ ...array, l })} />
         <span className="data text-ink-soft">
-          {m2.toLocaleString()} m²{kw != null && <> · {kw < 10 ? kw.toFixed(1) : Math.round(kw).toLocaleString()} kW</>}
+          {m2.toLocaleString(locale)} m²{kw != null && <> · {kw < 10 ? kw.toFixed(1) : Math.round(kw).toLocaleString(locale)} kW</>}
         </span>
       </div>
       {prices ? (
         <>
           <div className="mt-2 grid grid-cols-3 gap-2">
-            <Fig big={cost == null ? "—" : usd(roughly(cost))} small="to install" why={cost == null ? prices.reasons.install : undefined} />
-            <Fig big={made == null ? "—" : Math.round(made).toLocaleString()} small="kWh a day" />
-            <Fig big={net == null ? "—" : usd(roughly(net), 2)} small="a day, net" why={rate ? prices.reasons.install : prices.reasons.sell} />
+            <Fig big={cost == null ? "—" : usd(roughly(cost))} small={t("ui.sunSpotCard.toInstall")} why={cost == null ? prices.reasons.install : undefined} />
+            <Fig big={made == null ? "—" : Math.round(made).toLocaleString(locale)} small={t("ui.sunSpotCard.kwhDay")} />
+            <Fig big={net == null ? "—" : usd(roughly(net), 2)} small={t("ui.sunSpotCard.dayNet")} why={rate ? prices.reasons.install : prices.reasons.sell} />
           </div>
           <div className="data mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[0.65625rem] text-ink-soft">
             {prices.install
-              ? <span>DOE benchmark {prices.install.quarter}</span>
-              : <span title={prices.reasons.install}>no benchmark read</span>}
-            {payback != null && <span>· {payback < 1 ? "under a year" : `${Math.round(payback)} yr`} to pay back</span>}
+              ? <span>{t("ui.sunSpotCard.benchmark", { quarter: prices.install.quarter })}</span>
+              : <span title={prices.reasons.install}>{t("ui.sunSpotCard.noBenchmark")}</span>}
+            {payback != null && <span>{payback < 1 ? t("ui.sunSpotCard.paybackUnder") : t("ui.sunSpotCard.paybackYears", { n: Math.round(payback) })}</span>}
             {/* Each separator rides with what follows it, so a wrap never strands a dot. */}
             {editing ? (
               <span className="inline-flex items-center gap-1">· <RateInput initial={sellCents ?? prices.sell?.cents_per_kwh ?? null} onDone={setRate} /></span>
@@ -334,9 +351,9 @@ function ArrayRows({ perKw, prices, array, onArray }: {
                 <span aria-hidden="true">·</span>
                 {rate
                   ? <span>{rate.label} · {rate.cents.toFixed(1)} ¢/kWh</span>
-                  : <span title={prices.reasons.sell}>no tariff on file</span>}
+                  : <span title={prices.reasons.sell}>{t("ui.sunSpotCard.noTariff")}</span>}
                 <button type="button" onClick={() => setEditing(true)}
-                  aria-label="Set what a kWh sells for" title="What your utility pays for a kWh"
+                  aria-label={t("ui.sunSpotCard.setRate")} title={t("ui.sunSpotCard.setRateTitle")}
                   className="inline-flex h-7 w-7 items-center justify-center rounded text-ink-soft active:text-ink">
                   <Glyph path={ICON.edit} size={14} />
                 </button>
@@ -345,7 +362,7 @@ function ArrayRows({ perKw, prices, array, onArray }: {
           </div>
         </>
       ) : (
-        <p className="mt-2 text-[0.75rem] text-ink-soft">No prices came with this reading.</p>
+        <p className="mt-2 text-[0.75rem] text-ink-soft">{t("ui.sunSpotCard.noPrices")}</p>
       )}
     </>
   );
@@ -392,6 +409,7 @@ function Metres({ value, glyph, label, onChange }: {
 /// The ¢/kWh a grower types; empty clears it and the read rate stands again.
 function RateInput({ initial, onDone }: { initial: number | null; onDone: (v: number | null) => void }) {
   const [text, setText] = useState(initial == null ? "" : String(initial));
+  const t = useT();
   const done = () => {
     const n = Number(text);
     onDone(text.trim() && Number.isFinite(n) && n > 0 && n < 200 ? Math.round(n * 10) / 10 : null);
@@ -399,12 +417,12 @@ function RateInput({ initial, onDone }: { initial: number | null; onDone: (v: nu
   return (
     <span className="flex items-center gap-1">
       <input type="number" inputMode="decimal" min={0} max={200} step={0.1} value={text} autoFocus
-        aria-label="Cents per kWh your utility pays"
+        aria-label={t("ui.sunSpotCard.centsAria")}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => { if (e.key === "Enter") done(); if (e.key === "Escape") onDone(initial); }}
         className="data h-7 w-16 rounded border border-rule bg-paper px-1.5 text-right text-[0.6875rem]" />
       <span>¢/kWh</span>
-      <button type="button" onClick={done} aria-label="Keep this rate"
+      <button type="button" onClick={done} aria-label={t("ui.sunSpotCard.keepRate")}
         className="inline-flex h-7 w-7 items-center justify-center rounded text-growth">✓</button>
     </span>
   );

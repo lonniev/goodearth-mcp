@@ -7,6 +7,9 @@ import type { LifeCycleEvent, LifeCycleResult, PlantProfileResult } from "./mcp.
 import type { Planting } from "./plantings.ts";
 import type { SavedPest } from "./pestModels.ts";
 import type { SavedWildlife } from "./wildlifeModels.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 const F = { temp: (f: number) => `${f}°F`, dd: (n: number) => `${n} GDD` };
 const C = { temp: (f: number) => `${Math.round(((f - 32) * 5) / 9)}°C`, dd: (n: number) => `${Math.round((n * 5) / 9)} GDD°C` };

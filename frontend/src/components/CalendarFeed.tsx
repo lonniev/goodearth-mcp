@@ -14,8 +14,11 @@ import { calendarList, calendarRevoke, type CalendarFeedResult, type FeedRow } f
 import { publishRegion } from "../lib/publishFeed";
 import type { SavedRegion } from "../lib/regions";
 import { ErrorBox } from "./ui";
+import { Tx } from "@tollbooth-dpyc/web/react";
+import { useT, WORDS } from "../i18n";
 
 export default function CalendarFeed({ region }: { region: SavedRegion }) {
+  const t = useT();
   const [feeds, setFeeds] = useState<FeedRow[]>([]);
   const [fresh, setFresh] = useState<CalendarFeedResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -36,63 +39,60 @@ export default function CalendarFeed({ region }: { region: SavedRegion }) {
     setBusy(true); setErr(""); setMsg("");
     try {
       const r = await publishRegion(region, token);
-      if (!r.success) { setErr(r.error || "The calendar could not be published."); return; }
+      if (!r.success) { setErr(r.error || t("ui.calendarFeed.couldNotPublish")); return; }
       setFresh(r);
-      setMsg(token ? "Refreshed — subscribers update in place." : "Published.");
+      setMsg(token ? t("ui.calendarFeed.refreshed") : t("ui.calendarFeed.published"));
       void refreshFeeds();
     } catch (e) { setErr((e as Error).message); }
     finally { setBusy(false); }
-  }, [region, refreshFeeds]);
+  }, [region, refreshFeeds, t]);
 
   const url = fresh?.url ?? mine?.url;
   const webcal = fresh?.webcal_url ?? (mine ? mine.url.replace(/^https:/, "webcal:") : undefined);
 
   return (
     <div className="rounded-xl border border-rule border-l-4 border-l-growth bg-panel px-4 py-3">
-      <div className="eyebrow mb-1">🗓️ Calendar feed</div>
+      <div className="eyebrow mb-1">🗓️ {t("ui.calendarFeed.title")}</div>
       {err && <ErrorBox>{err}</ErrorBox>}
         {url ? (
           <>
             <p className="text-[0.8125rem]">
-              <b>{region.name}</b> is published.
-              {fresh?.entries != null && ` ${fresh.entries} entries.`}
+              <Tx ns={WORDS} k="ui.calendarFeed.isPublished" vars={{ name: region.name }} components={{ b: <b /> }} />
+              {fresh?.entries != null && ` ${t("ui.calendarFeed.entries", { n: String(fresh.entries) })}`}
             </p>
             <div className="mt-2.5 flex flex-wrap gap-1.5">
               <a href={webcal}
                 className="inline-flex min-h-11 items-center rounded-full border-[1.5px] border-ink bg-ink px-4 text-[0.78125rem] font-semibold text-paper">
-                Subscribe on this device
+                {t("ui.calendarFeed.subscribe")}
               </a>
-              <button onClick={() => { void navigator.clipboard?.writeText(url); setMsg("Link copied."); }}
+              <button onClick={() => { void navigator.clipboard?.writeText(url); setMsg(t("ui.calendarFeed.linkCopied")); }}
                 className="min-h-11 rounded-full border-[1.5px] border-ink px-4 text-[0.78125rem] font-semibold active:bg-ink active:text-paper">
-                Copy link for Google Calendar
+                {t("ui.calendarFeed.copyLink")}
               </button>
               <button onClick={() => void publish(mine?.token ?? fresh?.token)} disabled={busy}
                 className="min-h-11 rounded-full border border-rule px-4 text-[0.78125rem] text-ink-soft active:bg-band disabled:opacity-40">
-                {busy ? "Recomputing…" : "Recompute"}
+                {busy ? t("ui.calendarFeed.recomputing") : t("ui.calendarFeed.recompute")}
               </button>
               {mine && (
                 <button onClick={async () => { await calendarRevoke(mine.token); setFresh(null); void refreshFeeds(); }}
                   className="min-h-11 rounded-full px-4 text-[0.78125rem] text-ink-soft active:text-clay">
-                  Stop publishing
+                  {t("ui.calendarFeed.stop")}
                 </button>
               )}
             </div>
             <p className="data mt-2.5 break-all text-[0.65625rem] text-ink-soft">{url}</p>
             <p className="mt-2 text-[0.75rem] leading-relaxed text-ink-soft">
-              Your client re-reads this on its own schedule. <b>Recompute</b> rebuilds it
-              against current weather and rewrites the same feed in place, so subscribers
-              update rather than ending up with two of everything.
+              <Tx ns={WORDS} k="ui.calendarFeed.howItWorks" components={{ b: <b /> }} />
             </p>
           </>
         ) : (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <p className="min-w-[14rem] flex-1 text-[0.8125rem] leading-snug">
-              Publish <b>{region.name}</b> once and its season events and reminders arrive
-              in whatever calendar you already read.
+              <Tx ns={WORDS} k="ui.calendarFeed.publishOnce" vars={{ name: region.name }} components={{ b: <b /> }} />
             </p>
             <button onClick={() => void publish()} disabled={busy}
               className="min-h-11 shrink-0 rounded-full border-[1.5px] border-ink bg-ink px-4 text-[0.78125rem] font-semibold text-paper disabled:opacity-40">
-              {busy ? "Publishing…" : "Publish this region"}
+              {busy ? t("ui.calendarFeed.publishing") : t("ui.calendarFeed.publishRegion")}
             </button>
           </div>
         )}
@@ -107,7 +107,7 @@ export default function CalendarFeed({ region }: { region: SavedRegion }) {
             a row that names no date. */}
         {(fresh?.skipped?.length ?? 0) > 0 && (
           <div className="mt-3 border-t border-rule pt-2.5">
-            <span className="eyebrow">Not on the calendar</span>
+            <span className="eyebrow">{t("ui.calendarFeed.notOnCalendar")}</span>
             <ul className="mt-1 space-y-1 text-[0.75rem] text-ink-soft">
               {fresh!.skipped!.map((sk, i) => (
                 <li key={`${sk.name}-${i}`}>
@@ -116,8 +116,7 @@ export default function CalendarFeed({ region }: { region: SavedRegion }) {
               ))}
             </ul>
             <p className="mt-1.5 text-[0.71875rem] leading-relaxed text-ink-soft">
-              Everything else published. A row with nothing to date is still on
-              your record; it just has no day to put on a calendar.
+              {t("ui.calendarFeed.everythingElse")}
             </p>
           </div>
         )}

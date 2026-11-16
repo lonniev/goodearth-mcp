@@ -4,6 +4,9 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { skillChip } from "./forecastSkill.ts";
 import type { ForecastSkill } from "./mcp.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 const F = { tempDelta: (f: number) => `${f}°F`, pressureDelta: (h: number) => `${(h / 33.8639).toFixed(2)} inHg` };
 const C = { tempDelta: (f: number) => `${((f * 5) / 9).toFixed(1)}°C`, pressureDelta: (h: number) => `${h} hPa` };

@@ -71,9 +71,11 @@ describe("the figure itself", () => {
 
 describe("the source is named where the site names its sources", () => {
   it("References carries Growstuff, with its licence", () => {
+    // The page holds the link; its English words are in the views catalog.
     const page = readFileSync(new URL("../views/References.tsx", import.meta.url), "utf8");
+    const words = readFileSync(new URL("../i18n/en/views.ts", import.meta.url), "utf8");
     assert.match(page, /growstuff\.org/i);
-    assert.match(page, /CC[- ]BY[- ]SA/i);
+    assert.match(words, /"views\.references\.growstuff\.note": "Data under CC[- ]BY[- ]SA/i);
   });
 
   it("nothing claims to look up what only the packet knows", () => {

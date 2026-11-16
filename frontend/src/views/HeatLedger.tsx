@@ -19,7 +19,7 @@ import PulseTile, { type Gauge } from "../components/PulseTile";
 import DryingStrip from "../components/DryingStrip";
 import WaterStrip from "../components/WaterStrip";
 import { waterLine } from "../lib/waterLine";
-import { FACE, onFace, stormWords, tendencyArrow } from "../lib/storm";
+import { FACE, faceWord, onFace, stormWords, tendencyArrow } from "../lib/storm";
 import Term from "../components/Term";
 import Provenance from "../components/Provenance";
 import { QuoteScroller } from "@tollbooth-dpyc/web/react";
@@ -39,6 +39,9 @@ import type { SavedRegion } from "../lib/regions";
 import { loadAlmanac, loadLedger } from "../lib/pageLoads";
 import { useTour } from "@tollbooth-dpyc/web/react";
 import { tour } from "../lib/tour/targets";
+import { languageLocale } from "@tollbooth-dpyc/web";
+import { tr, useT, type Translate } from "../i18n";
+import type { MessageKey } from "../i18n/en";
 
 /// Stable, so the record hooks do not refetch on every render.
 const ROLL_UP = { includeInside: true } as const;
@@ -56,6 +59,7 @@ interface Props {
 
 export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
   const u = useUnits();
+  const t = useT();
   const [data, setData] = useState<SeasonCurveResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -106,7 +110,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
     setBusy(true); setError("");
     try {
       const r = await loadLedger(region);
-      if (!r.success) { setError(r.error || "The service could not answer for this ground."); return; }
+      if (!r.success) { setError(r.error || t("views.heatLedger.err.answer")); return; }
       setData(r);
       setRanAt(new Date());
     } catch (e) {
@@ -114,7 +118,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
     } finally {
       setBusy(false);
     }
-  }, [region]);
+  }, [region, t]);
 
   const runFrost = useCallback(async () => {
     try {
@@ -250,10 +254,10 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
     try {
       const a = await loadAlmanac(region);
       if (a.success) { setAlmanac(a); setAlmanacAt(new Date()); }
-      else setError(a.error || "The weather could not be read.");
+      else setError(a.error || t("views.heatLedger.err.weather"));
     } catch (e) { setError((e as Error).message); }
     finally { setWxBusy(false); }
-  }, [wx, almanac, region]);
+  }, [wx, almanac, region, t]);
 
   // Reading a different block means the old block's weather is wrong.
   useEffect(() => { setAlmanac(null); setWx(0); }, [region.id]);
@@ -271,17 +275,19 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
           the ground, so neither is repeated here. What is left is the two
           dials a grower actually set, and the way to the sources. */}
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1.5">
-        <h1 className="figure text-[1.375rem] font-bold leading-none">Dashboard</h1>
+        <h1 className="figure text-[1.375rem] font-bold leading-none">{t("views.heatLedger.title")}</h1>
         {data && (
           <div className="flex flex-wrap items-center gap-1.5" {...tour("ledger.chips")}>
-            <Tag>base {u.showTemp(data.base_temp_f)}</Tag>
-            <Tag>from {fmt(data.season_start)}</Tag>
+            <Tag>{t("views.heatLedger.tag.base", { base: u.showTemp(data.base_temp_f) })}</Tag>
+            <Tag>{t("views.heatLedger.tag.from", { date: fmt(data.season_start) })}</Tag>
             {data.region && (
-              <Tag>{data.region.sample_count} samples · {Math.round(data.region.grid_spacing_m)} m</Tag>
+              <Tag>{t("views.heatLedger.tag.samples", {
+                count: data.region.sample_count, m: Math.round(data.region.grid_spacing_m),
+              })}</Tag>
             )}
             <button onClick={() => onView?.("references")}
               className="data rounded-full border border-rule px-2.5 py-1 text-[0.625rem] text-ink-soft active:bg-band">
-              sources ↗
+              {t("views.heatLedger.sources")}
             </button>
           </div>
         )}
@@ -290,7 +296,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
       {error && (
         <div className="mb-4 rounded-md border border-clay/30 bg-clay/10 p-3 text-[0.8125rem] text-clay">
           {error}
-          <button onClick={run} className="ml-3 underline">Try again</button>
+          <button onClick={run} className="ml-3 underline">{t("views.heatLedger.tryAgain")}</button>
         </div>
       )}
 
@@ -299,8 +305,8 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
         <PulseTile
           emoji="🌡️" tourId="ledger.heat"
           value={g && data ? `${Math.round(g.mean)}${sub(data.base_temp_f)}` : busy ? "…" : "—"}
-          unit={g ? "GDD total" : ""}
-          label={data ? `since ${fmt(data.season_start)}` : "this season"}
+          unit={g ? t("views.heatLedger.pulse.gddTotal") : ""}
+          label={data ? t("views.heatLedger.pulse.since", { date: fmt(data.season_start) }) : t("views.heatLedger.pulse.thisSeason")}
           gauge={heatGauge(data)}
         />
         <PulseTile
@@ -308,15 +314,15 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
           value={g && data ? `${Math.round(g.spread)}${sub(data.base_temp_f)}` : busy ? "…" : "—"}
           unit={g ? "GDD Δ" : ""}
           muted={!g || g.spread <= 0}
-          title="Coolest to warmest ground on this block"
+          title={t("views.heatLedger.pulse.spreadTitle")}
           label={
             !g
-              ? "across the block"
+              ? t("views.heatLedger.pulse.acrossBlock")
               : g.spread <= 0
-                ? "all alike"
+                ? t("views.heatLedger.pulse.allAlike")
                 : daysApart(g, data) != null
-                  ? `≈ ${daysApart(g, data)} days apart`
-                  : "across the block"
+                  ? t("views.heatLedger.pulse.daysApart", { count: daysApart(g, data) ?? 0 })
+                  : t("views.heatLedger.pulse.acrossBlock")
           }
           gauge={spreadGauge(g)}
         />
@@ -324,11 +330,11 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
           emoji={ahead == null ? "📊" : ahead >= 0 ? "📈" : "📉"}
           tourId="ledger.ahead"
           value={ahead == null || !data ? "—" : `${Math.abs(Math.round(ahead))}${sub(data.base_temp_f)}`}
-          unit={ahead == null || !data ? "" : ahead >= 0 ? "GDD ahead" : "GDD behind"}
+          unit={ahead == null || !data ? "" : ahead >= 0 ? t("views.heatLedger.pulse.gddAhead") : t("views.heatLedger.pulse.gddBehind")}
           tone={ahead == null ? undefined : ahead >= 0 ? "growth" : "frost"}
           gauge={aheadGauge(data)}
-          title={data?.normals ? `Against ${data.normals.span_years} seasons${bandScale(data)}` : undefined}
-          label={data?.normals ? `vs ${data.normals.span_years} seasons` : "vs recent seasons"}
+          title={data?.normals ? t("views.heatLedger.pulse.against", { n: data.normals.span_years, band: bandScale(data) }) : undefined}
+          label={data?.normals ? t("views.heatLedger.pulse.vs", { n: data.normals.span_years }) : t("views.heatLedger.pulse.vsRecent")}
         />
         <PulseTile emoji="❄️" tone="frost" tourId="ledger.frost" value={frostTile.value} label={frostTile.label}
           muted={frostTile.muted} title={frostTile.title} gauge={frostGauge(frost, frostTile.iso)} />
@@ -339,9 +345,11 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
           muted={!frost?.worst_night}
           gauge={coldGauge(frost, u.showTemp, u.temp)}
           title={frost?.worst_night
-            ? `Coldest ground ${shortDate(frost.worst_night.date)}; the forecast says ${u.showTemp(frost.worst_night.forecast_low_f)}`
+            ? t("views.heatLedger.pulse.coldestTitle", {
+              date: shortDate(frost.worst_night.date), low: u.showTemp(frost.worst_night.forecast_low_f),
+            })
             : undefined}
-          label={frost?.worst_night ? `coldest · ${shortDate(frost.worst_night.date)}` : "coldest ahead"}
+          label={frost?.worst_night ? t("views.heatLedger.pulse.coldest", { date: shortDate(frost.worst_night.date) }) : t("views.heatLedger.pulse.coldestAhead")}
         />
         {/* The barometer, read on the drying call the Dashboard already makes
             — no second fare. The figure is the reading; the words are the
@@ -357,42 +365,42 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
             muted={!storm}
             title={storm?.reason}
             gauge={storm ? baroGauge(storm.now_hpa) : null}
-            label={!storm ? "barometer"
+            label={!storm ? t("views.heatLedger.pulse.barometer")
               : storm.level !== "none" ? `${tendencyArrow(storm)} ${stormWords(storm)}`
-              : `${tendencyArrow(storm)} ${storm.tendency?.direction ?? "steady"}`}
+              : `${tendencyArrow(storm)} ${direction(t, storm.tendency?.direction)}`}
           />
         </button>
       </div>
 
       <div className="mb-2.5 flex flex-wrap items-center gap-2">
         <button onClick={() => setShowGround((v) => !v)} {...tour("ledger.ground")}
-          title="Ghost your ground's satellite still behind the curve"
+          title={t("views.heatLedger.groundTitle")}
           className={`min-h-11 rounded-full border px-3.5 text-[0.75rem] font-medium ${
             showGround ? "border-ink bg-ink text-paper" : "border-rule text-ink-soft active:bg-band"}`}>
-          🛰️ Ground
+          {t("views.heatLedger.ground")}
         </button>
         {flags.length > 0 && (
           <button onClick={() => setShowFlags((v) => !v)} {...tour("ledger.events")}
-            title="Your crops, pests and watches, placed where they meet this curve"
+            title={t("views.heatLedger.eventsTitle")}
             className={`min-h-11 rounded-full border px-3.5 text-[0.75rem] font-medium ${
               showFlags ? "border-ink bg-ink text-paper" : "border-rule text-ink-soft active:bg-band"}`}>
-            🔔 Events
+            {t("views.heatLedger.events")}
           </button>
         )}
         <button onClick={cycleWeather} disabled={wxBusy} {...tour("ledger.weather")}
-          title="Tap to cycle a weather reading behind the curve; tap past the last to clear it"
+          title={t("views.heatLedger.weatherTitle")}
           className={`min-h-11 rounded-full border px-3.5 text-[0.75rem] font-medium ${
             wx > 0 ? "border-ink bg-ink text-paper" : "border-rule text-ink-soft active:bg-band"}`}>
-          {wxBusy ? "…" : wx === 0 ? "🌦️ Weather" : `${WEATHER[wx - 1].emoji} ${WEATHER[wx - 1].label}`}
+          {wxBusy ? "…" : wx === 0 ? t("views.heatLedger.weather") : `${WEATHER[wx - 1].emoji} ${t(WEATHER[wx - 1].label)}`}
         </button>
         <span className="ml-auto flex flex-wrap items-center justify-end gap-x-3">
           {flags.length > 0 && (
             <label className="flex items-center gap-1.5">
               <input type="search" value={find} onChange={(e) => onFind(e.target.value)}
-                placeholder="find an event" aria-label="Find an event on the chart"
+                placeholder={t("views.heatLedger.findPlaceholder")} aria-label={t("views.heatLedger.findLabel")}
                 className={`h-9 w-44 rounded-full border bg-white px-3 text-[0.8125rem] focus:outline-none ${
                   findMiss ? "border-clay" : "border-rule focus:border-honey"}`} />
-              {findMiss && <span className="data text-[0.65625rem] text-clay">no match</span>}
+              {findMiss && <span className="data text-[0.65625rem] text-clay">{t("views.heatLedger.noMatch")}</span>}
             </label>
           )}
           {almanacAt && (
@@ -404,10 +412,10 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
 
       {busy && !data ? (
         <div className="rounded-md border border-rule bg-panel">
-          <QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading={`Reading the season for ${region.name}`} intervalMs={6500} classNames={quoteStyles} />
+          <QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading={t("views.heatLedger.reading", { plot: region.name })} intervalMs={6500} classNames={quoteStyles} />
         </div>
       ) : data ? (
-        <ChartFrame label="The season's heat" tour="ledger.chart">
+        <ChartFrame label={t("views.heatLedger.chartLabel")} tour="ledger.chart">
           <SeasonChart data={data} frostDayIndex={frostIndex(data, frostTile.iso)} frostTitle={frostTile.title}
             flags={showFlags ? flags : []} onFlag={setOpenFlag} showGround={showGround}
             overlay={overlay} bands={wetBands} focus={focus} />
@@ -421,13 +429,13 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
           it; one heading shown when any trend is, is the same thing plainly. */}
       {(frost || soil || dryLine || sick) && (
         <h2 className="figure mt-6 mb-1 text-[1.125rem] font-semibold" {...tour("ledger.trends")}>
-          <span className="mr-0.5">🔔</span>Trends
+          <span className="mr-0.5">🔔</span>{t("views.heatLedger.trends")}
         </h2>
       )}
 
       {frost && (
         <>
-          <TrendLabel emoji="❄️" label="Freezing">
+          <TrendLabel emoji="❄️" label={t("views.heatLedger.trend.freezing")}>
             <Provenance tool="goodearth_frost_window" at={frostAt} onCost={onCost} from={readingTime(frost)} />
           </TrendLabel>
           <FrostCard data={frost} />
@@ -436,7 +444,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
 
       {soil && (
         <>
-          <TrendLabel emoji="🪱" label="Soil Temp">
+          <TrendLabel emoji="🪱" label={t("views.heatLedger.trend.soil")}>
             <Provenance tool="goodearth_soil_temp_projection" at={soilAt} onCost={onCost} from={readingTime(soil)} />
           </TrendLabel>
           <SoilCard data={soil} />
@@ -448,7 +456,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
           one chart would be two stories at once. */}
       {dryLine && drying && (
         <>
-          <TrendLabel emoji="🌾" label="Drying">
+          <TrendLabel emoji="🌾" label={t("views.heatLedger.trend.drying")}>
             <Provenance tool="goodearth_drying_window" at={dryingAt} onCost={onCost} from={readingTime(drying)} />
           </TrendLabel>
           <div className="mb-3 rounded-md border border-rule bg-panel px-3 pt-2.5 pb-3">
@@ -463,7 +471,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
 
       {water && (
         <>
-          <TrendLabel emoji="💧" label="Water">
+          <TrendLabel emoji="💧" label={t("views.heatLedger.trend.water")}>
             <Provenance tool="goodearth_water_balance" at={waterAt} onCost={onCost} from={readingTime(water)} />
           </TrendLabel>
           <div className="mb-3 rounded-md border border-rule bg-panel px-3 pt-2.5 pb-3">
@@ -478,7 +486,7 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
 
       {sick && (
         <>
-          <TrendLabel emoji="🍄" label="Diseases">
+          <TrendLabel emoji="🍄" label={t("views.heatLedger.trend.diseases")}>
             <Provenance tool="goodearth_disease_risk" at={sickAt} onCost={onCost} from={readingTime(sick)} />
           </TrendLabel>
           <DiseaseCard data={sick} plantings={cropNames} />
@@ -492,21 +500,21 @@ export default function HeatLedger({ region, onCost, onFrost, onView }: Props) {
         <EventDetail flag={openFlag} curve={data} onClose={() => setOpenFlag(null)} />
       )}
 
-      <h2 className="figure mt-7 mb-2.5 text-[1.125rem] font-semibold" {...tour("ledger.doors")}>🧭 More Views</h2>
+      <h2 className="figure mt-7 mb-2.5 text-[1.125rem] font-semibold" {...tour("ledger.doors")}>🧭 {t("views.heatLedger.moreViews")}</h2>
       <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
         {[
-          { to: "almanac" as const, emoji: "🌤️", title: "Almanac",
-            line: "Rain, dew point, sun and moon — the rest of what the season is doing." },
-          { to: "crops" as const, emoji: "🌱", title: "Flora",
-            line: "Where each planting stands, and whether it finishes before frost." },
-          { to: "pests" as const, emoji: "🐛", title: "Pests",
-            line: "What to watch for on your ground, and when it arrives." },
-          { to: "wildlife" as const, emoji: "🦋", title: "Fauna",
-            line: "Owls, coyotes, bats — what is recorded around you, on the same clocks." },
-          { to: "reports" as const, emoji: "📓", title: "Field Reports",
-            line: "What you saw. Enough of them and your ground gets its own calendar." },
-          { to: "plots" as const, emoji: "🗺️", title: "My Plots",
-            line: "Switch ground, or draw another block." },
+          { to: "almanac" as const, emoji: "🌤️", title: t("views.almanac.title"),
+            line: t("views.heatLedger.door.almanac") },
+          { to: "crops" as const, emoji: "🌱", title: t("views.heatLedger.door.floraTitle"),
+            line: t("views.heatLedger.door.flora") },
+          { to: "pests" as const, emoji: "🐛", title: t("views.pests.title"),
+            line: t("views.heatLedger.door.pests") },
+          { to: "wildlife" as const, emoji: "🦋", title: t("views.wildlife.title"),
+            line: t("views.heatLedger.door.fauna") },
+          { to: "reports" as const, emoji: "📓", title: t("views.fieldReports.title"),
+            line: t("views.heatLedger.door.reports") },
+          { to: "plots" as const, emoji: "🗺️", title: t("views.plots.title"),
+            line: t("views.heatLedger.door.plots") },
         ].map((c) => (
           <button key={c.to} onClick={() => onView?.(c.to)}
             className="rounded-md border border-rule bg-panel px-3.5 py-3 text-left active:border-ink">
@@ -555,7 +563,17 @@ function frostIndex(curve: SeasonCurveResult, median: string | undefined): numbe
 }
 
 const shortDate = (iso: string) =>
-  new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  new Date(iso + "T12:00:00").toLocaleDateString(languageLocale(), { month: "short", day: "numeric" });
+
+/// Which way the barometer is heading, in words. The key is the service's own.
+function direction(t: Translate, d: string | undefined): string {
+  const words: Record<string, string> = {
+    rising: t("views.heatLedger.dir.rising"),
+    falling: t("views.heatLedger.dir.falling"),
+    steady: t("views.heatLedger.dir.steady"),
+  };
+  return words[d ?? "steady"] ?? d ?? words.steady;
+}
 
 /// The grid the normal band was actually read from, as a short suffix.
 ///
@@ -568,7 +586,7 @@ function bandScale(data: SeasonCurveResult | null): string {
   const band = data?.sources?.find((s) => s.role.includes("normal band"));
   if (!band) return "";
   const m = band.resolution_m;
-  return m >= 1000 ? ` · ${Math.round(m / 1000)} km band` : ` · ${m} m band`;
+  return m >= 1000 ? tr("views.heatLedger.bandKm", { n: Math.round(m / 1000) }) : tr("views.heatLedger.bandM", { n: m });
 }
 
 /// Where this season sits inside the ten-season range, as a 0..1 position.
@@ -579,10 +597,10 @@ function heatGauge(data: SeasonCurveResult | null): Gauge | null {
   if (!t || mean == null || t.max <= t.min) return null;
   return {
     kind: "range",
-    ticks: [{ pos: (t.mean - t.min) / (t.max - t.min), label: "normal" }],
+    ticks: [{ pos: (t.mean - t.min) / (t.max - t.min), label: tr("views.heatLedger.gauge.normal") }],
     pos: (mean - t.min) / (t.max - t.min),
-    lo: <><Wide>coolest </Wide>{Math.round(t.min).toLocaleString()}</>,
-    hi: <>{Math.round(t.max).toLocaleString()}<Wide> warmest</Wide></>,
+    lo: <><Wide>{tr("views.heatLedger.gauge.coolest")} </Wide>{Math.round(t.min).toLocaleString(languageLocale())}</>,
+    hi: <>{Math.round(t.max).toLocaleString(languageLocale())}<Wide> {tr("views.heatLedger.gauge.warmest")}</Wide></>,
   };
 }
 
@@ -595,8 +613,8 @@ function spreadGauge(g?: { min: number; mean: number; max: number; spread: numbe
   return {
     kind: "range",
     pos: (g.mean - g.min) / (g.max - g.min),
-    lo: `🥶 ${Math.round(g.min).toLocaleString()}`,
-    hi: `${Math.round(g.max).toLocaleString()} ☀️`,
+    lo: `🥶 ${Math.round(g.min).toLocaleString(languageLocale())}`,
+    hi: `${Math.round(g.max).toLocaleString(languageLocale())} ☀️`,
   };
 }
 
@@ -612,7 +630,7 @@ function baroGauge(hpa: number): Gauge {
       ({ from: onFace(z.from), to: onFace(z.to), className: shade[z.word] })),
     ticks: FACE.zones.slice(1).map((z) => ({ pos: onFace(z.from) })),
     labels: FACE.zones.filter((z) => ["rain", "change", "fair"].includes(z.word))
-      .map((z) => ({ pos: onFace((z.from + z.to) / 2), text: z.word })),
+      .map((z) => ({ pos: onFace((z.from + z.to) / 2), text: faceWord(z.word) })),
   };
 }
 
@@ -642,7 +660,7 @@ function aheadGauge(data: SeasonCurveResult | null): Gauge | null {
   if (!t || ahead == null) return null;
   const reach = ahead >= 0 ? t.max - t.mean : t.mean - t.min;
   if (reach <= 0) return null;
-  return { kind: "diverge", value: ahead / reach, lo: "behind", hi: "ahead" };
+  return { kind: "diverge", value: ahead / reach, lo: tr("views.heatLedger.gauge.behind"), hi: tr("views.heatLedger.gauge.ahead") };
 }
 
 const dayMs = (iso: string) => new Date(iso + "T12:00:00").getTime();
@@ -657,9 +675,9 @@ function frostGauge(frost: FrostWindowResult | null | undefined, iso?: string): 
   const at = (d: string) => (dayMs(d) - lo) / (hi - lo);
   return {
     kind: "range", pos: at(iso),
-    ticks: [{ pos: at(rec.median), label: `median ${shortDate(rec.median)}` }],
-    lo: <><Wide>earliest </Wide>{shortDate(rec.earliest)}</>,
-    hi: <>{shortDate(rec.latest)}<Wide> latest</Wide></>,
+    ticks: [{ pos: at(rec.median), label: tr("views.heatLedger.gauge.median", { date: shortDate(rec.median) }) }],
+    lo: <><Wide>{tr("views.heatLedger.gauge.earliest")} </Wide>{shortDate(rec.earliest)}</>,
+    hi: <>{shortDate(rec.latest)}<Wide> {tr("views.heatLedger.gauge.latest")}</Wide></>,
   };
 }
 
@@ -689,9 +707,9 @@ function coldGauge(
       zone(th.frost, th.watch, "bg-frost/14"),
     ],
     ticks: [
-      { pos: at(th.hard_freeze), label: `hard freeze ${show(th.hard_freeze)}`, mark: deg(th.hard_freeze) },
-      { pos: at(th.frost), label: `frost ${show(th.frost)}`, mark: deg(th.frost) },
-      { pos: at(th.watch), label: `frost watch ${show(th.watch)}`, mark: deg(th.watch) },
+      { pos: at(th.hard_freeze), label: tr("views.heatLedger.gauge.hardFreeze", { t: show(th.hard_freeze) }), mark: deg(th.hard_freeze) },
+      { pos: at(th.frost), label: tr("views.heatLedger.gauge.frost", { t: show(th.frost) }), mark: deg(th.frost) },
+      { pos: at(th.watch), label: tr("views.heatLedger.gauge.frostWatch", { t: show(th.watch) }), mark: deg(th.watch) },
     ],
   };
 }
@@ -711,13 +729,14 @@ function daysApart(
 }
 
 /// The cycle. Order runs from what a grower checks most often to least.
-const WEATHER: { key: MeasureKey; label: string; emoji: string; colour: string; bars?: boolean }[] = [
-  { key: "precip",    label: "Rain",      emoji: "🌧️", colour: "var(--color-frost)", bars: true },
-  { key: "temp_max",  label: "High",      emoji: "🌡️", colour: "var(--color-clay)" },
-  { key: "temp_min",  label: "Low",       emoji: "🌙", colour: "var(--color-frost)" },
-  { key: "dew_point", label: "Dew point", emoji: "💧", colour: "var(--color-frost)" },
-  { key: "sunshine",  label: "Sunshine",  emoji: "☀️", colour: "var(--color-honey)" },
-  { key: "wind_max",  label: "Wind",      emoji: "🌬️", colour: "var(--color-ink-soft)" },
+/// `label` is a key, read in the language on screen when it is drawn.
+const WEATHER: { key: MeasureKey; label: MessageKey; emoji: string; colour: string; bars?: boolean }[] = [
+  { key: "precip",    label: "views.heatLedger.wx.rain",     emoji: "🌧️", colour: "var(--color-frost)", bars: true },
+  { key: "temp_max",  label: "views.heatLedger.wx.high",     emoji: "🌡️", colour: "var(--color-clay)" },
+  { key: "temp_min",  label: "views.heatLedger.wx.low",      emoji: "🌙", colour: "var(--color-frost)" },
+  { key: "dew_point", label: "views.heatLedger.wx.dewPoint", emoji: "💧", colour: "var(--color-frost)" },
+  { key: "sunshine",  label: "views.heatLedger.wx.sunshine", emoji: "☀️", colour: "var(--color-honey)" },
+  { key: "wind_max",  label: "views.heatLedger.wx.wind",     emoji: "🌬️", colour: "var(--color-ink-soft)" },
 ];
 
 /// Splice the almanac's actual + forecast into one series on the curve's own
@@ -731,7 +750,7 @@ function buildOverlay(
   if (!m) return null;
   return {
     key: spec.key,
-    label: spec.label,
+    label: tr(spec.label),
     emoji: spec.emoji,
     unit: m.unit,
     colour: spec.colour,
@@ -743,7 +762,7 @@ function buildOverlay(
 const SUBS = "₀₁₂₃₄₅₆₇₈₉";
 const sub = (n: number) => String(Math.round(n)).split("").map((c) => SUBS[+c] ?? c).join("");
 const fmt = (iso: string) =>
-  new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  new Date(iso + "T12:00:00").toLocaleDateString(languageLocale(), { month: "short", day: "numeric" });
 
 /// The first-frost tile and the chart's frost line, which mark the same day:
 /// the projection, with the record's average beneath it. This season's frost
@@ -753,23 +772,23 @@ const fmt = (iso: string) =>
 function firstFrost(frost: FrostWindowResult | null | undefined): {
   value: string; label: string; muted?: boolean; iso?: string; title?: string;
 } {
-  if (frost?.frost_free) return { value: "none", label: "no frost on record", muted: true };
+  if (frost?.frost_free) return { value: tr("views.heatLedger.frost.none"), label: tr("views.heatLedger.frost.noneOnRecord"), muted: true };
   const rec = frost?.first_frost;
   const now = frost?.this_season;
-  const label = rec ? `ave is ${shortDate(rec.median)}` : "first frost";
+  const label = rec ? tr("views.heatLedger.frost.ave", { date: shortDate(rec.median) }) : tr("views.heatLedger.frost.first");
   if (now?.first_frost) {
-    return { value: shortDate(now.first_frost), iso: now.first_frost, title: "First frost this season", label };
+    return { value: shortDate(now.first_frost), iso: now.first_frost, title: tr("views.heatLedger.frost.thisSeason"), label };
   }
   const coming = frost?.nights?.find((n) => n.level === "frost_likely" || n.level === "hard_freeze");
   if (coming) {
-    return { value: shortDate(coming.date), iso: coming.date, title: "Frost in the forecast", label };
+    return { value: shortDate(coming.date), iso: coming.date, title: tr("views.heatLedger.frost.inForecast"), label };
   }
   if (!rec) return { value: "—", label, muted: true };
   const later = now?.given_none_yet;
   if (later && (frost?.days_to_median_first_frost ?? 0) < 0) {
     return later.median
-      ? { value: shortDate(later.median), iso: later.median, title: "Projected first frost", label }
-      : { value: "any night", label };
+      ? { value: shortDate(later.median), iso: later.median, title: tr("views.heatLedger.frost.projected"), label }
+      : { value: tr("views.heatLedger.frost.anyNight"), label };
   }
-  return { value: shortDate(rec.median), iso: rec.median, title: "Projected first frost", label };
+  return { value: shortDate(rec.median), iso: rec.median, title: tr("views.heatLedger.frost.projected"), label };
 }

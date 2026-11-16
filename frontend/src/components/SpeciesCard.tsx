@@ -14,6 +14,8 @@ import { useEffect, useState } from "react";
 import { LifecycleMark } from "./ui";
 import { speciesDetail, type SpeciesDetail } from "../lib/species";
 import Term from "./Term";
+import { useLanguageLocale } from "@tollbooth-dpyc/web/react";
+import { useT } from "../i18n";
 
 export default function SpeciesCard({
   taxonId, fallbackName, chosen, onToggle, onClose, hasYear, nearby,
@@ -34,6 +36,8 @@ export default function SpeciesCard({
   onClose: () => void;
   hasYear?: boolean;
 }) {
+  const t = useT();
+  const locale = useLanguageLocale();
   const [info, setInfo] = useState<SpeciesDetail | null>(null);
   const [busy, setBusy] = useState(true);
   const [err, setErr] = useState("");
@@ -67,14 +71,14 @@ export default function SpeciesCard({
             {info.kingdom}
           </span>
         )}
-        <button onClick={onClose} aria-label="Close"
+        <button onClick={onClose} aria-label={t("ui.speciesCard.close")}
           className="ml-auto inline-flex h-11 w-11 items-center justify-center text-[1.125rem] text-ink-soft active:text-ink">
           ×
         </button>
       </div>
 
       {err && <p className="mt-1 text-[0.78125rem] text-clay">{err}</p>}
-      {busy && !err && <p className="data mt-1 text-[0.6875rem] text-ink-soft">Reading…</p>}
+      {busy && !err && <p className="data mt-1 text-[0.6875rem] text-ink-soft">{t("ui.speciesCard.reading")}</p>}
 
       {info && (
         <>
@@ -93,11 +97,11 @@ export default function SpeciesCard({
               <p className="mt-1 data text-[0.65625rem] text-ink-soft">
                 <Term
                   label={nearby != null
-                    ? `${nearby.toLocaleString()} near here`
-                    : "observations"}
+                    ? t("ui.speciesCard.nearHere", { n: nearby.toLocaleString(locale) })
+                    : t("ui.speciesCard.observations")}
                   of="observations" />
                 {" · "}
-                {info.observations.toLocaleString()} worldwide
+                {t("ui.speciesCard.worldwide", { n: info.observations.toLocaleString(locale) })}
                 {hasYear && <> · <LifecycleMark /></>}
               </p>
             </div>
@@ -111,7 +115,7 @@ export default function SpeciesCard({
             {onToggle && <button onClick={onToggle}
               className={`min-h-11 rounded-full border px-4 text-[0.78125rem] font-semibold ${
                 chosen ? "border-ink bg-ink text-paper" : "border-ink"}`}>
-              {chosen ? "Chosen — tap to drop" : "Choose this one"}
+              {chosen ? t("ui.speciesCard.chosen") : t("ui.speciesCard.choose")}
             </button>}
             <a href={info.inatUrl} target="_blank" rel="noreferrer"
               className="text-[0.75rem] underline decoration-dotted underline-offset-2 text-ink-soft">

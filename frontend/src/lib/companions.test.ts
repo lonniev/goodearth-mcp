@@ -1,6 +1,9 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { groupByWhere, monthsBetween, monthSpan, searchFor, toChosen, type CompanionRow } from "./companions.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 const row = (over: Partial<CompanionRow>): CompanionRow => ({
   name: "x", where: "example", relation: "helps", why: "", basis: "tradition", cite: "", ...over,

@@ -18,6 +18,7 @@
 // at least one reader before being corrected.)
 
 import type { Region } from "./mcp";
+import { tr } from "../i18n/index.ts";
 
 /// `KEY_BASE` alone — with no npub appended — is the UNSCOPED pile every
 /// patron on this browser wrote to before the scoping below. It is
@@ -187,16 +188,16 @@ export function setActiveRegionId(id: string): void {
 /// so the grower is told in the form rather than by a failed paid call.
 /// A first block, proposed around a point. Named for what it is rather than
 /// where: a grower renames it, and "Home block" is true until they do.
-export function proposeHomeBlock(lat: number, lon: number, name = "Home block"): SavedRegion | string {
+export function proposeHomeBlock(lat: number, lon: number, name = tr("lib.regions.homeBlock")): SavedRegion | string {
   return pinRegion(name, lat, lon, HOME_RADIUS_M);
 }
 
 export function pinRegion(name: string, lat: number, lon: number, radiusM: number, baseTempF = 50): SavedRegion | string {
-  if (!name.trim()) return "Give your ground a name you'll recognise.";
-  if (!Number.isFinite(lat) || lat < -90 || lat > 90) return "Latitude must be between -90 and 90.";
-  if (!Number.isFinite(lon) || lon < -180 || lon > 180) return "Longitude must be between -180 and 180.";
-  if (!Number.isFinite(radiusM) || radiusM <= 0) return "Radius must be a positive number of metres.";
-  if (radiusM > 50_000) return "Radius must be 50 km or less — draw a polygon for anything larger.";
+  if (!name.trim()) return tr("lib.regions.needName");
+  if (!Number.isFinite(lat) || lat < -90 || lat > 90) return tr("lib.regions.badLat");
+  if (!Number.isFinite(lon) || lon < -180 || lon > 180) return tr("lib.regions.badLon");
+  if (!Number.isFinite(radiusM) || radiusM <= 0) return tr("lib.regions.badRadius");
+  if (radiusM > 50_000) return tr("lib.regions.radiusTooBig");
   return {
     id: `pin-${Date.now().toString(36)}`,
     name: name.trim(),
@@ -210,17 +211,17 @@ export function pinRegion(name: string, lat: number, lon: number, radiusM: numbe
 /// it by hand.
 export function parsePastedGeoJSON(text: string, name: string, baseTempF = 50): SavedRegion | string {
   let obj: unknown;
-  try { obj = JSON.parse(text); } catch { return "That isn't valid JSON."; }
+  try { obj = JSON.parse(text); } catch { return tr("lib.regions.notJson"); }
   const o = obj as Record<string, unknown>;
   const geom = (o?.type === "Feature" ? o.geometry : o) as Record<string, unknown> | undefined;
   if (!geom || geom.type !== "Polygon" || !Array.isArray(geom.coordinates)) {
-    return "Expected a GeoJSON Polygon (or a Feature wrapping one).";
+    return tr("lib.regions.notPolygon");
   }
   const ring = (geom.coordinates as unknown[])[0];
   if (!Array.isArray(ring) || ring.length < 4) {
-    return "A polygon ring needs at least 4 positions, with the first repeated as the last.";
+    return tr("lib.regions.shortRing");
   }
-  if (!name.trim()) return "Give your ground a name you'll recognise.";
+  if (!name.trim()) return tr("lib.regions.needName");
   return {
     id: `poly-${Date.now().toString(36)}`,
     name: name.trim(),

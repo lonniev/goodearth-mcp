@@ -6,6 +6,7 @@
 
 import type { WaterBalanceResult } from "./mcp.ts";
 import type { Unit } from "./units.ts";
+import { tr } from "../i18n/index.ts";
 
 const MM_PER_IN = 25.4;
 
@@ -21,15 +22,16 @@ function days(from: string, to: string): number {
 export function waterLine(r: WaterBalanceResult, unit: Unit): string {
   const t = r.today;
   const span = days(t.since, t.date);
+  const amount = depth(Math.abs(t.balance_mm), unit);
   const stand = Math.abs(t.balance_mm) < 0.5
-    ? `Even over ${span} days`
-    : `${depth(Math.abs(t.balance_mm), unit)} ${t.balance_mm < 0 ? "short" : "to spare"} over ${span} days`;
-  const parts = [stand, `${depth(t.rain_mm, unit)} rain, ${depth(t.et0_mm, unit)} to the air`];
+    ? tr("lib.waterLine.even", { span })
+    : tr(t.balance_mm < 0 ? "lib.waterLine.short" : "lib.waterLine.spare", { amount, span });
+  const parts = [stand, tr("lib.waterLine.rainAir", { rain: depth(t.rain_mm, unit), air: depth(t.et0_mm, unit) })];
   const change = r.ahead.balance_change_mm;
   if (r.ahead.until > t.date) {
     parts.push(Math.abs(change) < 0.5
-      ? "the week ahead holds it"
-      : `${change > 0 ? "+" : "−"}${depth(Math.abs(change), unit)} in the week ahead`);
+      ? tr("lib.waterLine.holds")
+      : tr("lib.waterLine.ahead", { change: `${change > 0 ? "+" : "−"}${depth(Math.abs(change), unit)}` }));
   }
   return parts.join(" · ");
 }

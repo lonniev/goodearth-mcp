@@ -34,6 +34,8 @@
 //   * **The buttons**, which always work and are 44 px.
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { tr } from "../i18n/index.ts";
+import type { MessageKey } from "../i18n/en.ts";
 
 export interface Window1D {
   /// Fractional bounds within the full domain, 0..1.
@@ -60,13 +62,17 @@ export const FULL: ZoomState = { x: { lo: 0, hi: 1 }, y: { lo: 0, hi: 1 } };
 /// and "Annual" is the whole timeline, which is what "Season" used to do.
 /// Those two were one button, and it showed a grower asking for the season a
 /// year of it.
+/// A timescale's word is `lib.useChartZoom.<key>`, read when the button is drawn.
+const timescale = (key: string, days: number | null) =>
+  ({ key, days, get label() { return tr(`lib.useChartZoom.${key}` as MessageKey); } });
+
 export const TIMESCALES: { key: string; label: string; days: number | null }[] = [
-  { key: "season", label: "Season", days: null },
-  { key: "annual", label: "Annual", days: null },
-  { key: "quarter", label: "3 months", days: 90 },
-  { key: "month", label: "Month", days: 30 },
-  { key: "fortnight", label: "2 weeks", days: 14 },
-  { key: "week", label: "Week", days: 7 },
+  timescale("season", null),
+  timescale("annual", null),
+  timescale("quarter", 90),
+  timescale("month", 30),
+  timescale("fortnight", 14),
+  timescale("week", 7),
 ];
 
 /// The span a chart opens on: a fortnight, with today in the middle of it.

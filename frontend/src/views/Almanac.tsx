@@ -17,11 +17,11 @@ import RadarMap from "../components/RadarMap";
 import ForecastCard from "../components/ForecastCard";
 import { readingTime } from "../lib/readingTime";
 import { trendLift } from "../lib/trend";
-import { QuoteScroller } from "@tollbooth-dpyc/web/react";
+import { QuoteScroller, useLanguageLocale } from "@tollbooth-dpyc/web/react";
 import { AGRARIAN_QUOTES, AGRARIAN_SOURCE, quoteStyles } from "../lib/quotes";
 import { type AlmanacResult, type MeasureKey, type StormSignal } from "../lib/mcp";
 import Term from "../components/Term";
-import { dayTrend, stormLevel, stormWhen } from "../lib/storm";
+import { dayTrend, stormIsNow, stormLevel, stormWhen } from "../lib/storm";
 import { clock } from "../lib/dryingLine";
 import { loadAlmanac } from "../lib/pageLoads";
 import { skillChip } from "../lib/forecastSkill";
@@ -34,28 +34,29 @@ import { useShare } from "../components/Share";
 import { almanacSheet } from "../lib/exports";
 import { useTour } from "@tollbooth-dpyc/web/react";
 import { tour } from "../lib/tour/targets";
+import { useT, type Translate } from "../i18n";
 
-const SERIES: { key: MeasureKey; label: string; emoji: ReactNode; color?: string }[] = [
-  { key: "temp_max",  label: "Daily high",  emoji: "🌡️" },
-  { key: "temp_min",  label: "Daily low",   emoji: "🌙", color: "var(--color-frost)" },
-  { key: "dew_point", label: "Dew point",   emoji: "💧", color: "var(--color-frost)" },
-  { key: "precip",    label: "Rain",        emoji: "🌧️", color: "var(--color-frost)" },
-  { key: "sunshine",  label: "Sunshine",    emoji: "☀️", color: "var(--color-honey)" },
-  { key: "daylight",  label: "Day length",  emoji: "🌅", color: "var(--color-honey)" },
-  { key: "wind_max",  label: "Wind",        emoji: "🌬️" },
+const series = (t: Translate): { key: MeasureKey; label: string; emoji: ReactNode; color?: string }[] => [
+  { key: "temp_max",  label: t("views.almanac.series.tempMax"),  emoji: "🌡️" },
+  { key: "temp_min",  label: t("views.almanac.series.tempMin"),  emoji: "🌙", color: "var(--color-frost)" },
+  { key: "dew_point", label: t("views.almanac.series.dewPoint"), emoji: "💧", color: "var(--color-frost)" },
+  { key: "precip",    label: t("views.almanac.series.precip"),   emoji: "🌧️", color: "var(--color-frost)" },
+  { key: "sunshine",  label: t("views.almanac.series.sunshine"), emoji: "☀️", color: "var(--color-honey)" },
+  { key: "daylight",  label: t("views.almanac.series.daylight"), emoji: "🌅", color: "var(--color-honey)" },
+  { key: "wind_max",  label: t("views.almanac.series.wind"),     emoji: "🌬️" },
   // Beside the dew point on purpose. The dew point is how much water the air
   // holds; this is how close it is to holding all it can, which is what
   // decides whether a leaf stays wet — and the same water reads 90% at dawn
   // and 50% by noon because the air warmed, not because anything dried.
-  { key: "humidity",  label: "Humidity",    emoji: "💦", color: "var(--color-frost)" },
+  { key: "humidity",  label: t("views.almanac.series.humidity"), emoji: "💦", color: "var(--color-frost)" },
   // The day's mean sea-level pressure. The storm signal reads the HOURLY
   // series server-side — a daily mean smooths away the three-hour fall.
-  { key: "pressure",  label: "Pressure",    emoji: <Barometer /> },
+  { key: "pressure",  label: t("views.almanac.series.pressure"), emoji: <Barometer /> },
 ];
 
 const time = (iso: string | null) => (iso ? iso.slice(11, 16) : "—");
-const day = (iso: string) =>
-  new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+const day = (iso: string, locale: string) =>
+  new Date(iso + "T12:00:00").toLocaleDateString(locale, { weekday: "short", month: "short", day: "numeric" });
 
 export default function Almanac({
   region, onCost, chartOrder, onChartOrder,
@@ -67,6 +68,9 @@ export default function Almanac({
   onChartOrder: (order: string[]) => void;
 }) {
   const u = useUnits();
+  const t = useT();
+  const locale = useLanguageLocale();
+  const SERIES = useMemo(() => series(t), [t]);
   const skillScale = {
     tempDelta: (f: number) => `${+u.degreeDays(f).toFixed(1)}${u.tempUnit.trim()}`,
     pressureDelta: (hpa: number) => `${+u.pressure(hpa).toFixed(2)} ${u.pressureUnit.trim()}`,
@@ -133,11 +137,11 @@ export default function Almanac({
     setBusy(true); setError("");
     try {
       const r = await loadAlmanac(region);
-      if (!r.success) { setError(r.error || "The almanac could not be read."); return; }
+      if (!r.success) { setError(r.error || t("views.almanac.err.read")); return; }
       setData(r); setRanAt(new Date());
     } catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
-  }, [region]);
+  }, [region, t]);
 
   useEffect(() => { void run(); }, [run]);
 
@@ -161,11 +165,11 @@ export default function Almanac({
   return (
     <>
       <div className="mb-3.5 flex items-baseline gap-3">
-        <h1 className="figure text-[1.625rem] font-bold">Almanac</h1>
+        <h1 className="figure text-[1.625rem] font-bold">{t("views.almanac.title")}</h1>
         <span className="text-[0.8125rem] text-ink-soft">{region.name}</span>
         <button onClick={toggleRadar} aria-pressed={radar}
-          title="Rain on the radar"
-          aria-label="Rain on the radar"
+          title={t("views.almanac.radar")}
+          aria-label={t("views.almanac.radar")}
           {...tour("almanac.radar")}
           className={`ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center self-center rounded border text-[1.125rem] ${
             radar ? "border-ink bg-ink" : "border-rule active:bg-band"}`}>
@@ -193,48 +197,48 @@ export default function Almanac({
           <div className="grid grid-cols-2 gap-y-4 sm:grid-cols-4 lg:grid-cols-7">
             <Stat emoji={c.sky.emoji} label={c.sky.label}
               value={`${c.high_f != null ? Math.round(u.temp(c.high_f)) : "—"}° / ${c.low_f != null ? Math.round(u.temp(c.low_f)) : "—"}°`} />
-            <Stat emoji="💧" label="dew point" value={c.dew_point_f != null ? u.showTemp(c.dew_point_f) : "—"} />
-            <Stat emoji="💦" label="humidity" value={c.humidity_pct != null ? `${Math.round(c.humidity_pct)}%` : "—"} />
-            <Stat emoji={c.wind.emoji} label="wind"
+            <Stat emoji="💧" label={t("views.almanac.stat.dewPoint")} value={c.dew_point_f != null ? u.showTemp(c.dew_point_f) : "—"} />
+            <Stat emoji="💦" label={t("views.almanac.stat.humidity")} value={c.humidity_pct != null ? `${Math.round(c.humidity_pct)}%` : "—"} />
+            <Stat emoji={c.wind.emoji} label={t("views.almanac.stat.wind")}
               value={c.wind.speed_mph != null ? `${Math.round(c.wind.speed_mph)} mph` : "—"}
-              sub={c.wind.from ? `${c.wind.arrow ?? ""} from ${c.wind.from}` : undefined} />
+              sub={c.wind.from ? t("views.almanac.stat.windFrom", { arrow: c.wind.arrow ?? "", from: c.wind.from }) : undefined} />
             {/* The barometer: the hourly reading now, and which way it is
                 going. The arrow is the tendency, which is the half that
                 forecasts; the figure alone is a dull number. */}
-            <Stat emoji={<Barometer />} label="pressure"
+            <Stat emoji={<Barometer />} label={t("views.almanac.stat.pressure")}
               value={data?.pressure ? u.showPressure(data.pressure.now_hpa)
                 : c.pressure_hpa != null ? u.showPressure(c.pressure_hpa) : "—"}
               sub={data?.pressure?.tendency
                 ? `${ARROW[data.pressure.tendency.direction]} ${data.pressure.tendency.words}`
                 : undefined} />
-            <Stat emoji="🌧️" label="chance of rain"
+            <Stat emoji="🌧️" label={t("views.almanac.stat.chanceOfRain")}
               value={c.precip_chance_pct != null ? `${Math.round(c.precip_chance_pct)}%` : "—"} />
-            <Stat emoji="🌧️" label="rain rate" sub="while it falls"
+            <Stat emoji="🌧️" label={t("views.almanac.stat.rainRate")} sub={t("views.almanac.stat.whileItFalls")}
               value={c.rain_rate_in_h != null ? `${showRain(c.rain_rate_in_h, u.unit)}/h` : "—"} />
-            <Stat emoji="🌧️" label="rain today"
+            <Stat emoji="🌧️" label={t("views.almanac.stat.rainToday")}
               value={c.precip_in != null ? showRain(c.precip_in, u.unit) : "—"} />
-            <Stat emoji="🌅" label="sun"
+            <Stat emoji="🌅" label={t("views.almanac.stat.sun")}
               value={`${time(c.sunrise)}–${time(c.sunset)}`}
-              sub={c.daylight_hours != null ? `${c.daylight_hours.toFixed(1)} h of daylight` : undefined} />
-            <Stat emoji="☀️" label="sun strength" sub="daylight average"
+              sub={c.daylight_hours != null ? t("views.almanac.stat.hDaylight", { h: c.daylight_hours.toFixed(1) }) : undefined} />
+            <Stat emoji="☀️" label={t("views.almanac.stat.sunStrength")} sub={t("views.almanac.stat.daylightAverage")}
               value={c.sun_wm2 != null ? `${Math.round(c.sun_wm2)} W/m²` : "—"} />
-            <Stat emoji="☀️" label="sunshine"
+            <Stat emoji="☀️" label={t("views.almanac.stat.sunshine")}
               value={c.sunshine_hours != null ? `${c.sunshine_hours.toFixed(1)} h` : "—"}
-              sub={c.sunshine_fraction != null ? `${Math.round(c.sunshine_fraction * 100)}% of daylight` : undefined} />
-            <Stat emoji="☀️" label="UV" sub="peak"
+              sub={c.sunshine_fraction != null ? t("views.almanac.stat.pctDaylight", { pct: Math.round(c.sunshine_fraction * 100) }) : undefined} />
+            <Stat emoji="☀️" label="UV" sub={t("views.almanac.stat.peak")}
               value={c.uv_index != null ? c.uv_index.toFixed(0) : "—"} />
             {/* The daily swing in day length was a sentence that ended in a
                 line telling the grower why to care. The figure is the useful
                 half; it reads as a reading like its neighbours. */}
-            <Stat emoji="⏳" label="day length"
+            <Stat emoji="⏳" label={t("views.almanac.stat.dayLength")}
               value={data?.sun.daylight_change_min_per_day != null
                 ? `${data.sun.daylight_change_min_per_day > 0 ? "+" : "−"}${Math.abs(data.sun.daylight_change_min_per_day).toFixed(1)} min`
                 : "—"}
-              sub="a day" />
+              sub={t("views.almanac.stat.aDay")} />
             {data?.moon && (
               <Stat emoji={data.moon.emoji} label={data.moon.name.toLowerCase()}
-                value={`${Math.round(data.moon.illumination * 100)}% lit`}
-                sub={data.moon.next_full ? `full ${day(data.moon.next_full)}` : undefined} />
+                value={t("views.almanac.stat.lit", { pct: Math.round(data.moon.illumination * 100) })}
+                sub={data.moon.next_full ? t("views.almanac.stat.full", { date: day(data.moon.next_full, locale) }) : undefined} />
             )}
           </div>
         </div>
@@ -259,11 +263,11 @@ export default function Almanac({
             const decimals = u.unit === "F" ? 2 : 0;
             return data.upcoming.map((u, i) => (
             <button key={u.date} type="button" onClick={() => setOpened(i)}
-              title="The day's forecast, to read or paste"
+              title={t("views.almanac.dayForecast")}
               style={{ transform: `translateY(${-lift[i]}px)` }}
               className="flex flex-col items-center gap-0.5 rounded-md border border-rule bg-panel px-1 py-2.5 active:bg-band">
               <span className="data text-[0.65625rem] text-ink-soft">
-                {new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" })}
+                {new Date(u.date + "T12:00:00").toLocaleDateString(locale, { weekday: "short" })}
               </span>
               <span className="text-[1.5rem] leading-none">{u.sky.emoji}</span>
               <span className="figure text-[0.9375rem]">
@@ -276,17 +280,17 @@ export default function Almanac({
                   put their rain, and fourteen cells stopped lining up. A
                   reserved line costs nothing and keeps the strip readable
                   across. */}
-              <span className="data text-[0.65625rem] text-frost" title="Chance of rain">
+              <span className="data text-[0.65625rem] text-frost" title={t("views.almanac.chanceOfRain")}>
                 {u.precip_chance_pct ? `🌧️${Math.round(u.precip_chance_pct)}%` : "\u00A0"}
               </span>
               <span className="data text-[0.65625rem] text-ink-soft"
-                title="Average relative humidity">
+                title={t("views.almanac.avgHumidity")}>
                 {u.humidity_pct != null ? `💦${Math.round(u.humidity_pct)}%` : "\u00A0"}
               </span>
               {/* The day's mean pressure, with which way it moved from the day
                   before. Always drawn, for the same reason as the rain row. */}
               <span className="data text-[0.65625rem] text-ink-soft"
-                title="Average sea-level pressure, and its change from the day before">
+                title={t("views.almanac.avgPressure")}>
                 {u.pressure_hpa != null
                   ? `${dayArrow(u.pressure_hpa, data.upcoming[i - 1]?.pressure_hpa)}${baro(u.pressure_hpa).toFixed(decimals)}`
                   : "\u00A0"}
@@ -306,7 +310,7 @@ export default function Almanac({
 
       {/* ── Measures ───────────────────────────────────────────────────── */}
       <h2 className="figure mb-2 flex items-baseline gap-2.5 text-[1.125rem] font-semibold">
-        The season so far
+        {t("views.almanac.seasonSoFar")}
         <Provenance tool="goodearth_almanac" at={ranAt} onCost={onCost} from={readingTime(data)} />
       </h2>
 
@@ -321,7 +325,7 @@ export default function Almanac({
             onPointerMove={onMove}
             onPointerUp={(e) => onUp(e, s.key)}
             onPointerCancel={() => { grab.current = null; setDragging(null); }}
-            title={`${s.label} — drag to move its chart up or down`}
+            title={t("views.almanac.dragChiclet", { label: s.label })}
             className={`min-h-11 cursor-grab touch-none rounded-full border px-3.5 text-[0.78125rem] ${
               dragging === i ? "scale-105 cursor-grabbing shadow-md" : ""} ${
               shown.has(s.key) ? "border-ink bg-ink text-paper" : "border-rule active:bg-band"}`}>
@@ -330,12 +334,12 @@ export default function Almanac({
         ))}
       </div>
       <p className="data mb-3 text-[0.65625rem] text-ink-soft">
-        Tap to show or hide · drag to reorder
+        {t("views.almanac.tapOrDrag")}
       </p>
 
       {busy && !data ? (
         <div className="rounded-md border border-rule bg-panel">
-          <QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading="Reading the season" intervalMs={6500} classNames={quoteStyles} />
+          <QuoteScroller quotes={AGRARIAN_QUOTES} source={AGRARIAN_SOURCE} heading={t("views.almanac.reading")} intervalMs={6500} classNames={quoteStyles} />
         </div>
       ) : data ? (
         <div className="space-y-3">
@@ -348,8 +352,7 @@ export default function Almanac({
             </ChartFrame>
           ))}
           <p className="data text-[0.65625rem] text-ink-soft">
-            Grey band is the range across the last {data.normals_span_years} seasons ·
-            solid is this season · dashed is the forecast
+            {t("views.almanac.legend", { n: data.normals_span_years })}
           </p>
         </div>
       ) : null}
@@ -381,10 +384,11 @@ function dayArrow(today: number, before: number | null | undefined): string {
 /// grower's call.
 function StormBanner({ storm }: { storm: StormSignal }) {
   const u = useUnits();
+  const t = useT();
   const severe = storm.level === "severe";
   const w = storm.worst;
   const ahead = stormWhen(storm);
-  const when = !w ? "" : ahead === "now" ? "now" : `by ${ahead} ${clock(w.at)}`;
+  const when = !w ? "" : stormIsNow(storm) ? ahead : t("views.almanac.storm.by", { day: ahead, time: clock(w.at) });
   return (
     <div className={`mb-4 rounded-md border border-rule border-l-4 bg-panel px-4 py-3 ${
       severe ? "border-l-clay" : "border-l-honey"}`} {...tour("almanac.storm")}>
@@ -394,13 +398,16 @@ function StormBanner({ storm }: { storm: StormSignal }) {
       </span>
       {w && (
         <p className="mt-1 text-[0.8125rem]">
-          Pressure falls {u.showPressure(w.fall_3h_hpa, u.unit === "F" ? 2 : 1)} in three hours {when}
           {w.change_24h_hpa != null && w.change_24h_hpa < 0
-            && `, ${u.showPressure(-w.change_24h_hpa, u.unit === "F" ? 2 : 1)} over the day`}.
+            ? t("views.almanac.storm.fallsAndDay", {
+              fall: u.showPressure(w.fall_3h_hpa, u.unit === "F" ? 2 : 1), when,
+              day: u.showPressure(-w.change_24h_hpa, u.unit === "F" ? 2 : 1),
+            })
+            : t("views.almanac.storm.falls", { fall: u.showPressure(w.fall_3h_hpa, u.unit === "F" ? 2 : 1), when })}
         </p>
       )}
       <p className="data mt-1 text-[0.65625rem] text-ink-soft">
-        From the forecast&rsquo;s hourly pressure, {storm.horizon_h} hours ahead.
+        {t("views.almanac.storm.from", { h: storm.horizon_h })}
       </p>
     </div>
   );

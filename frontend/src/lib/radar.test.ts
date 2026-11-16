@@ -5,6 +5,9 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { coverageHours, coverageLabel, frameLabel, RADAR_MAX_NATIVE_ZOOM, tileUrl, type RadarIndex } from "./radar.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 const IDX: RadarIndex = {
   host: "https://tilecache.rainviewer.com",

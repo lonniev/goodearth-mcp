@@ -7,6 +7,9 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { boundsFrom, fetchObservations } from "./inaturalist.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 const realFetch = globalThis.fetch;
 let lastUrl = "";

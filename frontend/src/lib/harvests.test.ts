@@ -7,6 +7,10 @@ import { readFileSync } from "node:fs";
 import { describeHarvest, lastUnit, makeHarvest, summarize } from "./harvests.ts";
 import { toObservations, type FieldReport } from "./reports.ts";
 import type { Planting } from "./plantings.ts";
+import en from "../i18n/en.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 const zinnia = { id: "pl-1", crop: "Zinnia · succession 2", setOut: "2026-06-01", gddTarget: 1200 } as Planting;
 const cut = (on: string, extra: Partial<FieldReport> = {}): FieldReport => {
@@ -101,7 +105,7 @@ describe("the row a cut is recorded in", () => {
     // row could line up however the gaps were tuned — the same fault the seed
     // row had, and the same cure.
     const r = row();
-    for (const want of [/<Field label="Cut on"/, /<QuantityField/, /<Field label="Note"/]) {
+    for (const want of [/<Field label=\{t\("ui\.cropLedger\.cutOn"\)\}/, /<QuantityField/, /<Field label=\{t\("ui\.cropLedger\.note"\)\}/]) {
       assert.match(r, want, `the cut row is missing ${want}`);
     }
     assert.doesNotMatch(r, /className=\{CELL\}/, "every control here is FIELD height");
@@ -114,6 +118,7 @@ describe("the row a cut is recorded in", () => {
   it("still says which plant the amount belongs to", () => {
     // Unlike the seed row, a cut can be open while the reader has scrolled
     // sideways, and this is the only thing naming the plant.
-    assert.match(row(), /A cut of \{planting\.crop\}/);
+    assert.match(row(), /t\("ui\.cropLedger\.aCutOf", \{ crop: planting\.crop \}\)/);
+    assert.equal(en["ui.cropLedger.aCutOf"], "A cut of {{crop}}");
   });
 });

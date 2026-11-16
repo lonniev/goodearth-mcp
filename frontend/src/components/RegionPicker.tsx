@@ -12,6 +12,7 @@ import {
   deleteRegion, EXAMPLE_ID, listRegions, parsePastedGeoJSON, pinRegion,
   type SavedRegion,
 } from "../lib/regions";
+import { useT } from "../i18n";
 
 export default function RegionPicker({
   active, onPick,
@@ -20,6 +21,7 @@ export default function RegionPicker({
   onPick: (r: SavedRegion) => void;
 }) {
   const u = useUnits();
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState<"pin" | "poly" | null>(null);
   const [regions, setRegions] = useState<SavedRegion[]>(() => listRegions());
@@ -80,10 +82,12 @@ export default function RegionPicker({
   const detail = active.id === EXAMPLE_ID
     // Said in the one place a reader always sees, because the example is
     // otherwise indistinguishable from ground they drew.
-    ? "worked example — not your ground"
+    ? t("ui.regionPicker.workedExample")
     : active.sampleCount
-      ? `${active.areaHa ? active.areaHa.toFixed(1) + " ha · " : ""}${active.sampleCount} samples`
-      : "not measured yet";
+      ? (active.areaHa
+          ? t("ui.regionPicker.areaSamples", { ha: active.areaHa.toFixed(1), n: active.sampleCount })
+          : t("ui.regionPicker.samples", { n: active.sampleCount }))
+      : t("ui.regionPicker.notMeasured");
 
   /// One plot to pick, with its groups when it is listed outside its folders.
   function row(r: SavedRegion, withGroups: boolean) {
@@ -100,18 +104,18 @@ export default function RegionPicker({
           {r.name}
           {r.id === EXAMPLE_ID && (
             <span className="ml-2 rounded-full bg-band px-1.5 py-0.5 text-[0.625rem] font-semibold text-ink-soft">
-              example
+              {t("ui.regionPicker.example")}
             </span>
           )}
           <span className="data ml-2 text-[0.625rem] text-ink-soft">
             {withGroups && r.groups?.length ? r.groups.join(" · ")
-              : "lat" in r.region ? `pin ${r.region.radius_m} m` : "polygon"}
+              : "lat" in r.region ? t("ui.regionPicker.pin", { m: r.region.radius_m }) : t("ui.regionPicker.polygon")}
           </span>
         </button>
         {r.id !== EXAMPLE_ID && (
           <button
             onClick={() => setRegions(deleteRegion(r.id))}
-            aria-label={`Forget ${r.name}`}
+            aria-label={t("ui.regionPicker.forget", { name: r.name })}
             className="flex h-11 w-11 items-center justify-center text-[1.125rem] text-ink-soft active:text-clay"
           >
             ×
@@ -139,10 +143,10 @@ export default function RegionPicker({
           the maps on My Plots and the Almanac begin right under this bar. */}
       {open && (
         <div className="absolute left-0 top-full z-[1100] mt-1.5 w-[min(22rem,calc(100vw-2rem))] rounded-md border border-rule bg-panel p-2 shadow-lg">
-          <div className="eyebrow px-2 pb-1">Your ground</div>
+          <div className="eyebrow px-2 pb-1">{t("ui.regionPicker.yourGround")}</div>
           {regions.length > 7 && (
             <input value={query} onChange={(e) => setQuery(e.target.value)} type="search"
-              placeholder="Find a plot or group" aria-label="Find a plot or group"
+              placeholder={t("ui.regionPicker.find")} aria-label={t("ui.regionPicker.find")}
               className="mb-1 min-h-11 w-full rounded border border-rule bg-white px-2 text-[1rem] text-ink focus:border-honey focus:outline-none" />
           )}
           <div role="listbox" className="max-h-80 overflow-auto overscroll-contain">
@@ -161,11 +165,11 @@ export default function RegionPicker({
           <div className="mt-2 flex gap-2 border-t border-rule pt-2">
             <button onClick={() => { setAdding("pin"); setErr(""); }}
               className="min-h-11 flex-1 rounded border-[1.5px] border-ink px-3 text-[0.78125rem] font-semibold active:bg-ink active:text-paper">
-              Add a pin
+              {t("ui.regionPicker.addPin")}
             </button>
             <button onClick={() => { setAdding("poly"); setErr(""); }}
               className="min-h-11 flex-1 rounded border-[1.5px] border-ink px-3 text-[0.78125rem] font-semibold active:bg-ink active:text-paper">
-              Paste a polygon
+              {t("ui.regionPicker.pastePolygon")}
             </button>
           </div>
 
@@ -182,19 +186,19 @@ export default function RegionPicker({
                 ));
               }}
             >
-              <Field name="name" label="Name" placeholder="East Bench" />
+              <Field name="name" label={t("ui.regionPicker.name")} placeholder={t("ui.regionPicker.namePlaceholder")} />
               <div className="flex gap-1.5">
-                <Field name="lat" label="Latitude" placeholder="44.48" />
-                <Field name="lon" label="Longitude" placeholder="-73.21" />
+                <Field name="lat" label={t("ui.regionPicker.latitude")} placeholder="44.48" />
+                <Field name="lon" label={t("ui.regionPicker.longitude")} placeholder="-73.21" />
               </div>
               <div className="flex gap-1.5">
-                <Field name="r" label="Radius (m)" placeholder="800" />
-                <Field name="base" label={`Base${u.tempUnit}`}
+                <Field name="r" label={t("ui.regionPicker.radius")} placeholder="800" />
+                <Field name="base" label={t("ui.regionPicker.base", { unit: u.tempUnit })}
                   placeholder={String(Math.round(u.temp(50)))} />
               </div>
               <button disabled={saving}
                 className="min-h-11 w-full rounded bg-ink text-[0.8125rem] font-semibold text-paper disabled:opacity-40">
-                {saving ? "Saving…" : "Save block"}</button>
+                {saving ? t("ui.regionPicker.saving") : t("ui.regionPicker.saveBlock")}</button>
             </form>
           )}
 
@@ -210,18 +214,18 @@ export default function RegionPicker({
                 ));
               }}
             >
-              <Field name="name" label="Name" placeholder="East Bench" />
+              <Field name="name" label={t("ui.regionPicker.name")} placeholder={t("ui.regionPicker.namePlaceholder")} />
               <label className="block text-[0.6875rem] text-ink-soft">
-                GeoJSON Polygon
+                {t("ui.regionPicker.geojson")}
                 <textarea name="json" rows={4}
                   placeholder='{"type":"Polygon","coordinates":[[[-73.24,44.44], …]]}'
                   className="data mt-0.5 w-full rounded border border-rule bg-white px-2 py-2 text-[1rem] focus:border-honey focus:outline-none" />
               </label>
-              <Field name="base" label={`Base${u.tempUnit}`}
+              <Field name="base" label={t("ui.regionPicker.base", { unit: u.tempUnit })}
                   placeholder={String(Math.round(u.temp(50)))} />
               <button disabled={saving}
                 className="min-h-11 w-full rounded bg-ink text-[0.8125rem] font-semibold text-paper disabled:opacity-40">
-                {saving ? "Saving…" : "Save block"}</button>
+                {saving ? t("ui.regionPicker.saving") : t("ui.regionPicker.saveBlock")}</button>
             </form>
           )}
 

@@ -19,6 +19,8 @@ import type { StationReading } from "../lib/stationNow";
 import { loadConditions, loadStation } from "../lib/pageLoads";
 import { depth, percent } from "../lib/waterLine";
 import { useUnits } from "./Units";
+import { languageLocale } from "@tollbooth-dpyc/web";
+import { useT } from "../i18n";
 
 const COL = 20;          // one day's width in chart units
 const HALF = 34;         // bar room above and below the line
@@ -28,7 +30,7 @@ const AXIS = 14;         // weekday labels
 const FULL = 0.5;
 
 function weekday(date: string): string {
-  return new Date(`${date}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "narrow", timeZone: "UTC" });
+  return new Date(`${date}T12:00:00Z`).toLocaleDateString(languageLocale(), { weekday: "narrow", timeZone: "UTC" });
 }
 
 /// The plot's own soil probes, if its station reports any. Reads through the
@@ -71,6 +73,7 @@ function Gauge({ label, sub, value, tone }: {
 
 export default function WaterStrip({ data, blockId }: { data: WaterBalanceResult; blockId: string }) {
   const u = useUnits();
+  const t = useT();
   const probes = useProbes(blockId);
   const days = data.days;
   if (!days.length) return null;
@@ -89,7 +92,7 @@ export default function WaterStrip({ data, blockId }: { data: WaterBalanceResult
   return (
     <>
       <svg viewBox={`0 0 ${width} ${height}`} className="block h-auto w-full" role="img"
-        aria-label={`Rain and evapotranspiration per day; balance ${depth(data.today.balance_mm, u.unit)} today`}>
+        aria-label={t("ui.waterStrip.aria", { balance: depth(data.today.balance_mm, u.unit) })}>
         {todayAt > 0 && (
           <rect x={todayAt * COL} y={TOP - 4} width={width - todayAt * COL} height={HALF * 2 + 6}
             className="fill-band" opacity={0.45} />
@@ -100,10 +103,13 @@ export default function WaterStrip({ data, blockId }: { data: WaterBalanceResult
           const faint = d.forecast ? 0.55 : 1;
           return (
             <g key={d.date} opacity={faint}>
-              <title>{`${d.date}: rain ${d.rain_mm == null ? "—" : depth(d.rain_mm, u.unit)}, `
-                + `ET₀ ${d.et0_mm == null ? "—" : depth(d.et0_mm, u.unit)}, `
-                + `balance ${depth(d.balance_mm, u.unit)}`
-                + (d.root_zone != null ? `, root zone ${percent(d.root_zone)}` : "")}</title>
+              <title>{t("ui.waterStrip.dayTitle", {
+                date: d.date,
+                rain: d.rain_mm == null ? "—" : depth(d.rain_mm, u.unit),
+                et0: d.et0_mm == null ? "—" : depth(d.et0_mm, u.unit),
+                balance: depth(d.balance_mm, u.unit),
+              })
+                + (d.root_zone != null ? t("ui.waterStrip.dayRootZone", { pct: percent(d.root_zone) }) : "")}</title>
               {(d.rain_mm ?? 0) > 0 && (
                 <rect x={x} y={mid - bar(d.rain_mm)} width={COL - 8} height={bar(d.rain_mm)} rx={2} className="fill-frost" />
               )}
@@ -112,7 +118,7 @@ export default function WaterStrip({ data, blockId }: { data: WaterBalanceResult
               )}
               <text x={i * COL + COL / 2} y={height - 3} textAnchor="middle"
                 className={`fill-ink-soft ${i === todayAt - 1 ? "font-bold" : ""}`} fontSize={9}>
-                {i === todayAt - 1 ? "today" : weekday(d.date)}
+                {i === todayAt - 1 ? t("ui.waterStrip.today") : weekday(d.date)}
               </text>
             </g>
           );
@@ -121,23 +127,23 @@ export default function WaterStrip({ data, blockId }: { data: WaterBalanceResult
       </svg>
 
       <div className="mt-3 flex flex-wrap gap-x-6 gap-y-3">
-        <Gauge label="topsoil, model" sub="0–9 cm" value={data.today.topsoil} tone="model" />
-        <Gauge label="root zone, model"
+        <Gauge label={t("ui.waterStrip.topsoilModel")} sub="0–9 cm" value={data.today.topsoil} tone="model" />
+        <Gauge label={t("ui.waterStrip.rootZoneModel")}
           sub={change == null ? "9–81 cm"
-            : `9–81 cm · ${change > 0 ? "▲" : change < 0 ? "▼" : "="} ${Math.abs(Math.round(change * 100))} pts this week`}
+            : `9–81 cm · ${change > 0 ? "▲" : change < 0 ? "▼" : "="} ${t("ui.waterStrip.ptsThisWeek", { n: Math.abs(Math.round(change * 100)) })}`}
           value={data.today.root_zone} tone="model" />
         {probes.map((p) => (
-          <Gauge key={`${p.channel}`} label={`probe${p.channel_name ? ` ${p.channel_name}` : ""}`}
-            sub="your station" value={p.unit === "%" ? p.quantity / 100 : p.quantity} tone="probe" />
+          <Gauge key={`${p.channel}`} label={p.channel_name ? t("ui.waterStrip.probeNamed", { name: p.channel_name }) : t("ui.waterStrip.probe")}
+            sub={t("ui.waterStrip.yourStation")} value={p.unit === "%" ? p.quantity / 100 : p.quantity} tone="probe" />
         ))}
       </div>
 
       {/* The key, once, in the chart's own marks. */}
       <p className="data mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[0.59375rem] text-ink-soft">
-        <span><span className="mr-1 inline-block h-2 w-1.5 rounded-sm bg-frost align-middle" />rain</span>
-        <span><span className="mr-1 inline-block h-2 w-1.5 rounded-sm bg-honey/70 align-middle" />to the air (ET₀)</span>
-        <span><span className="mr-1 inline-block h-0.5 w-3 bg-ink align-middle" />running balance</span>
-        <span><span className="mr-1 inline-block h-2 w-3 rounded-sm bg-band align-middle" />forecast</span>
+        <span><span className="mr-1 inline-block h-2 w-1.5 rounded-sm bg-frost align-middle" />{t("ui.waterStrip.rain")}</span>
+        <span><span className="mr-1 inline-block h-2 w-1.5 rounded-sm bg-honey/70 align-middle" />{t("ui.waterStrip.toTheAir")}</span>
+        <span><span className="mr-1 inline-block h-0.5 w-3 bg-ink align-middle" />{t("ui.waterStrip.runningBalance")}</span>
+        <span><span className="mr-1 inline-block h-2 w-3 rounded-sm bg-band align-middle" />{t("ui.waterStrip.forecast")}</span>
       </p>
     </>
   );

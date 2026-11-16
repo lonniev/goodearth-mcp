@@ -26,6 +26,7 @@ import { RESTORED_EVENT, UNDO_EVENT, restored } from "../lib/undoEvents";
 import { restore } from "../lib/undoRestore";
 import { Glyph, ICON } from "./ui";
 import { tour } from "../lib/tour/targets";
+import { useT } from "../i18n";
 
 export default function UndoChip({ blockId }: {
   /// The ground on screen. Removals from other blocks are not this mark's to
@@ -33,6 +34,7 @@ export default function UndoChip({ blockId }: {
   /// looking at.
   blockId: string;
 }) {
+  const t = useT();
   const [entries, setEntries] = useState<UndoEntry[]>(() => list());
   const [busy, setBusy] = useState("");
   const [failed, setFailed] = useState("");
@@ -80,7 +82,7 @@ export default function UndoChip({ blockId }: {
     } catch (err) {
       // The mark said this could be put back. When it cannot, it says so
       // rather than quietly removing the offer.
-      setFailed(`${e.label} could not be put back: ${(err as Error).message}`);
+      setFailed(t("ui.undoChip.couldNotPutBack", { label: e.label, error: (err as Error).message }));
     } finally {
       setBusy("");
     }
@@ -91,8 +93,8 @@ export default function UndoChip({ blockId }: {
       <button
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        title={`Put back — ${mine.length} removed`}
-        aria-label={`Put back — ${mine.length} removed`}
+        title={t("ui.undoChip.putBack", { n: mine.length })}
+        aria-label={t("ui.undoChip.putBack", { n: mine.length })}
         {...tour("shell.undo")}
         className="flex h-11 w-11 items-center justify-center rounded-full border-[1.5px] border-rule text-ink-soft active:bg-band"
       >

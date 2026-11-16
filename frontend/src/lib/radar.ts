@@ -16,6 +16,7 @@
 const INDEX = "https://api.rainviewer.com/public/weather-maps.json";
 
 import { clockTime } from "./clock.ts";
+import { tr } from "../i18n/index.ts";
 
 export interface RadarFrame {
   time: number;      // unix seconds
@@ -31,7 +32,7 @@ export interface RadarIndex {
 
 export async function fetchRadarIndex(signal?: AbortSignal): Promise<RadarIndex> {
   const r = await fetch(INDEX, { signal });
-  if (!r.ok) throw new Error(`Radar index unavailable (${r.status})`);
+  if (!r.ok) throw new Error(tr("lib.radar.unavailable", { status: r.status }));
   const d = (await r.json()) as {
     host: string;
     generated: number;
@@ -40,7 +41,7 @@ export async function fetchRadarIndex(signal?: AbortSignal): Promise<RadarIndex>
   const past = (d.radar?.past ?? []).map((f) => ({ ...f, kind: "past" as const }));
   const now = (d.radar?.nowcast ?? []).map((f) => ({ ...f, kind: "nowcast" as const }));
   const frames = [...past, ...now].sort((a, b) => a.time - b.time);
-  if (!frames.length) throw new Error("No radar frames are published right now.");
+  if (!frames.length) throw new Error(tr("lib.radar.noFrames"));
   return { host: d.host, frames, generated: d.generated };
 }
 
@@ -71,7 +72,7 @@ export function tileUrl(idx: RadarIndex, frame: RadarFrame): string {
 /// read, not a date on the farm's calendar.
 export function frameLabel(f: RadarFrame, timeZone: string): string {
   const t = clockTime(new Date(f.time * 1000), timeZone);
-  return f.kind === "nowcast" ? `${t} forecast` : t;
+  return f.kind === "nowcast" ? tr("lib.radar.forecastAt", { t }) : t;
 }
 
 /// How far back the published frames actually reach, in hours — stated rather
@@ -88,5 +89,5 @@ export function coverageHours(idx: RadarIndex): number {
 /// right until the day it quietly wasn't.
 export function coverageLabel(idx: RadarIndex): string {
   const h = Math.round(coverageHours(idx));
-  return `Latest ${h} hr${h === 1 ? "" : "s"} of Radar`;
+  return tr("lib.radar.coverage", { count: h });
 }

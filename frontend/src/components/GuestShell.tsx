@@ -13,19 +13,22 @@
 import type { ReactNode } from "react";
 import { PUBLIC_VIEWS, type ViewKey } from "../lib/views";
 import { ShareButton } from "./Share";
+import { useT } from "../i18n";
+import type { MessageKey } from "../i18n/en";
 
-const LABEL: Record<string, string> = {
-  welcome: "Welcome",
-  plant: "Plants",
-  pest: "Insects",
-  tree: "Trees",
+/// The public pages' names, as keys: the words are read at render.
+const LABEL: Record<string, MessageKey> = {
+  welcome: "ui.guestShell.welcome",
+  plant: "ui.guestShell.plants",
+  pest: "ui.guestShell.insects",
+  tree: "ui.guestShell.trees",
   // "Animals" rather than "Wildlife": the signed-in rail already has a
   // Wildlife page and the two are not the same thing.
-  animal: "Animals",
-  glossary: "Words",
-  about: "About",
-  references: "Sources",
-  prices: "Prices",
+  animal: "ui.guestShell.animals",
+  glossary: "ui.guestShell.words",
+  about: "ui.guestShell.about",
+  references: "ui.guestShell.sources",
+  prices: "ui.guestShell.prices",
 };
 
 export default function GuestShell({ view, onView, onSignIn, children }: {
@@ -34,6 +37,7 @@ export default function GuestShell({ view, onView, onSignIn, children }: {
   onSignIn: () => void;
   children: ReactNode;
 }) {
+  const t = useT();
   return (
     <div className="min-h-dvh bg-paper text-ink">
       <header className="border-b border-rule bg-panel">
@@ -55,7 +59,7 @@ export default function GuestShell({ view, onView, onSignIn, children }: {
                 className={`min-h-9 rounded-full px-3 text-[0.78125rem] font-medium ${
                   view === k ? "bg-ink text-paper" : "text-ink-soft active:bg-band"
                 }`}>
-                {LABEL[k]}
+                {t(LABEL[k])}
               </button>
             ))}
           </nav>
@@ -66,7 +70,7 @@ export default function GuestShell({ view, onView, onSignIn, children }: {
             <ShareButton />
             <button onClick={onSignIn}
               className="min-h-9 shrink-0 rounded-full border-[1.5px] border-ink px-4 text-[0.78125rem] font-semibold">
-              Sign in
+              {t("ui.guestShell.signIn")}
             </button>
           </div>
         </div>
@@ -78,8 +82,7 @@ export default function GuestShell({ view, onView, onSignIn, children }: {
       <main className="px-4 py-6 md:px-6">{children}</main>
 
       <footer className="px-4 pt-2 pb-8 text-[0.75rem] text-ink-soft md:px-6">
-        Good Earth is an operator on the DPYC network. Identity is a Nostr
-        keypair; answers are paid for in Bitcoin Lightning, per call.
+        {t("ui.guestShell.footer")}
       </footer>
     </div>
   );

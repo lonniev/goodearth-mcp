@@ -27,28 +27,19 @@ import {
   guidanceLinks, jurisdictionFor, lookupSpecies,
   type GuidanceLink, type SpeciesInfo,
 } from "../lib/species";
+import { useT } from "../i18n";
+import type { MessageKey } from "../i18n/en";
+import { useLanguageLocale } from "@tollbooth-dpyc/web/react";
 
-const KIND: Record<LedgerFlag["kind"], { label: string; tone: string; source: string }> = {
-  crop: {
-    label: "Crop target", tone: "text-growth",
-    source: "The degree-days your planting needs, counted from when it went in.",
-  },
-  pest: {
-    label: "Pest threshold", tone: "text-honey",
-    source: "Your degree-day figure for this pest — check it against your extension bulletin.",
-  },
-  wildlife: {
-    label: "Fauna event", tone: "text-frost",
-    source: "Your degree-day figure for this animal.",
-  },
-  task: {
-    label: "Your task", tone: "text-ink-soft",
-    source: "You chose the date and it's not tied to GDDs.",
-  },
+const KIND: Record<LedgerFlag["kind"], { label: MessageKey; tone: string; source: MessageKey }> = {
+  crop: { label: "ui.eventDetail.cropLabel", tone: "text-growth", source: "ui.eventDetail.cropSource" },
+  pest: { label: "ui.eventDetail.pestLabel", tone: "text-honey", source: "ui.eventDetail.pestSource" },
+  wildlife: { label: "ui.eventDetail.wildlifeLabel", tone: "text-frost", source: "ui.eventDetail.wildlifeSource" },
+  task: { label: "ui.eventDetail.taskLabel", tone: "text-ink-soft", source: "ui.eventDetail.taskSource" },
 };
 
-const nice = (iso: string) =>
-  new Date(iso + "T12:00:00").toLocaleDateString("en-US", {
+const nice = (iso: string, locale: string) =>
+  new Date(iso + "T12:00:00").toLocaleDateString(locale, {
     weekday: "long", month: "long", day: "numeric", year: "numeric",
   });
 
@@ -60,6 +51,8 @@ export default function EventDetail({
   onClose: () => void;
 }) {
   const u = useUnits();
+  const t = useT();
+  const locale = useLanguageLocale();
   const box = useRef<HTMLDivElement | null>(null);
   const k = KIND[flag.kind];
   const [info, setInfo] = useState<SpeciesInfo | null>(null);
@@ -118,13 +111,13 @@ export default function EventDetail({
   const confidence =
     isTask
       ? overdue
-        ? "Past due and not marked done."
-        : "You recorded this fixed date."
+        ? t("ui.eventDetail.pastDue")
+        : t("ui.eventDetail.fixedDate")
       : horizon === "recorded"
-      ? "It's happened, by this season's record."
+      ? t("ui.eventDetail.happened")
       : horizon === "forecast"
-        ? "Fairly sure: it's within the 7-day forecast."
-        : "A rough guess, assuming the last two weeks' warmth holds.";
+        ? t("ui.eventDetail.fairlySure")
+        : t("ui.eventDetail.roughGuess");
 
   const spread = curve.accumulated_gdd;
   const spreadDays =
@@ -154,10 +147,10 @@ export default function EventDetail({
         <div className="flex items-start gap-3">
           <span className="text-[1.875rem] leading-none">{flag.emoji ?? "•"}</span>
           <div className="min-w-0 flex-1">
-            <div className={`eyebrow ${k.tone}`}>{k.label}</div>
+            <div className={`eyebrow ${k.tone}`}>{t(k.label)}</div>
             <h2 className="figure text-[1.25rem] font-semibold leading-tight">{flag.label}</h2>
           </div>
-          <button onClick={onClose} aria-label="Close"
+          <button onClick={onClose} aria-label={t("ui.eventDetail.close")}
             className="-mt-1 -mr-1 flex h-11 w-11 shrink-0 items-center justify-center rounded text-[1.25rem] text-ink-soft active:bg-band">
             ×
           </button>
@@ -165,21 +158,21 @@ export default function EventDetail({
 
         <div className="mt-4 rounded-md border border-rule bg-paper/60 px-3.5 py-3">
           <div className="figure text-[1.0625rem]">
-            {flag.date ? nice(flag.date) : "Further out than we can project"}
+            {flag.date ? nice(flag.date, locale) : t("ui.eventDetail.furtherOut")}
           </div>
           <div className="mt-0.5 text-[0.78125rem] text-ink-soft">
-            {isTask ? (overdue ? "due · not done yet" : "due")
-              : flag.reached ? "already passed" : "expected"}
-            {flag.gdd != null && ` · at ${Math.round(flag.gdd).toLocaleString()} GDD accumulated`}
+            {isTask ? (overdue ? t("ui.eventDetail.dueNotDone") : t("ui.eventDetail.due"))
+              : flag.reached ? t("ui.eventDetail.passed") : t("ui.eventDetail.expected")}
+            {flag.gdd != null && t("ui.eventDetail.atGdd", { gdd: Math.round(flag.gdd).toLocaleString(locale) })}
           </div>
         </div>
 
         {/* ── What it is ──────────────────────────────────────────── */}
         {isTask ? null : looking ? (
-          <Row label="What it is"><span className="text-ink-soft">Looking it up…</span></Row>
+          <Row label={t("ui.eventDetail.whatItIs")}><span className="text-ink-soft">{t("ui.eventDetail.lookingUp")}</span></Row>
         ) : info ? (
           <div className="mt-3.5">
-            <div className="eyebrow">What it is</div>
+            <div className="eyebrow">{t("ui.eventDetail.whatItIs")}</div>
             <div className="mt-1 flex gap-3">
               {info.photo && (
                 <img src={info.photo.url} alt={info.commonName ?? info.scientificName}
@@ -212,37 +205,34 @@ export default function EventDetail({
             </p>
           </div>
         ) : (
-          <Row label="What it is">
+          <Row label={t("ui.eventDetail.whatItIs")}>
             <span className="text-ink-soft">
-              Not in the species lists — likely a local name — but the timing holds.
+              {t("ui.eventDetail.notListed")}
             </span>
           </Row>
         )}
 
-        <Row label="How confident?">{confidence}</Row>
-        <Row label="How determined?">{k.source}</Row>
+        <Row label={t("ui.eventDetail.howConfident")}>{confidence}</Row>
+        <Row label={t("ui.eventDetail.howDetermined")}>{t(k.source)}</Row>
 
         {flag.baseMismatch != null && (
-          <Row label="⚠ Different base temperature" tone="text-clay">
-            Placed roughly: this has a GDD base of {u.showTemp(flag.baseMismatch)}, but your
-            Plot has a GDD base of {u.showTemp(curve.base_temp_f)} — change
-            the {u.showTemp(flag.baseMismatch)} base for better placement.
+          <Row label={t("ui.eventDetail.baseMismatch")} tone="text-clay">
+            {t("ui.eventDetail.baseMismatchText", { theirs: u.showTemp(flag.baseMismatch), yours: u.showTemp(curve.base_temp_f) })}
           </Row>
         )}
 
         {!isTask && spreadDays != null && spreadDays >= 1 && (
-          <Row label="Across your ground">
-            Your warm and cool spots run about {spreadDays} day{spreadDays === 1 ? "" : "s"} apart,
-            so expect it on warm ground first.
+          <Row label={t("ui.eventDetail.acrossGround")}>
+            {t("ui.eventDetail.spreadDays", { count: spreadDays })}
           </Row>
         )}
 
         {/* ── Management: routed, never generated ─────────────────── */}
         {links.length > 0 && (
           <div className="mt-3.5">
-            <div className="eyebrow">Treatment advice</div>
+            <div className="eyebrow">{t("ui.eventDetail.treatment")}</div>
             <p className="mt-1 text-[0.8125rem] leading-relaxed">
-              Follow the bulletin below: treatment rules vary by state, and the label is the law.
+              {t("ui.eventDetail.followBulletin")}
             </p>
             <div className="mt-2 flex flex-col gap-1.5">
               {links.map((l) => (
@@ -257,8 +247,8 @@ export default function EventDetail({
         )}
 
         {!isTask && (
-          <Row label="Make it more accurate">
-            Report when you see it: your dated records improve the predictions.
+          <Row label={t("ui.eventDetail.moreAccurate")}>
+            {t("ui.eventDetail.reportIt")}
           </Row>
         )}
       </div>

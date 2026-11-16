@@ -12,6 +12,8 @@ import { zoneForecast } from "../lib/zoneForecast";
 import { toClipboard } from "./Share";
 import { useUnits } from "./Units";
 import { Glyph, ICON } from "./ui";
+import { useLanguageLocale } from "@tollbooth-dpyc/web/react";
+import { useT } from "../i18n";
 
 export default function ForecastCard({ days, index, onIndex, place, issued, storm, onClose }: {
   days: AlmanacResult["upcoming"];
@@ -22,6 +24,8 @@ export default function ForecastCard({ days, index, onIndex, place, issued, stor
   storm: StormSignal | null;
   onClose: () => void;
 }) {
+  const t = useT();
+  const locale = useLanguageLocale();
   const { unit } = useUnits();
   const box = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
@@ -41,7 +45,7 @@ export default function ForecastCard({ days, index, onIndex, place, issued, stor
   }, [onClose, onIndex, index, days.length]);
 
   async function copy() {
-    if (!(await toClipboard(text, "the forecast"))) return;
+    if (!(await toClipboard(text, t("ui.forecastCard.what")))) return;
     setCopied(true);
     setTimeout(() => setCopied(false), 1600);
   }
@@ -60,7 +64,7 @@ export default function ForecastCard({ days, index, onIndex, place, issued, stor
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label={`Forecast for ${day.date}`}
+      aria-label={t("ui.forecastCard.forDay", { date: day.date })}
     >
       <div
         ref={box}
@@ -71,20 +75,20 @@ export default function ForecastCard({ days, index, onIndex, place, issued, stor
         <div className="flex items-center gap-2">
           <span className="text-[1.875rem] leading-none" aria-hidden="true">{day.sky.emoji}</span>
           <div className="min-w-0 flex-1">
-            <div className="eyebrow">Forecast</div>
+            <div className="eyebrow">{t("ui.forecastCard.forecast")}</div>
             <h2 className="figure text-[1.25rem] font-semibold leading-tight">
-              {new Date(day.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
+              {new Date(day.date + "T12:00:00").toLocaleDateString(locale, { weekday: "long", month: "short", day: "numeric" })}
             </h2>
           </div>
-          {step(index - 1, "The day before", "‹")}
-          {step(index + 1, "The day after", "›")}
-          <button onClick={() => void copy()} title="Copy the forecast" aria-label="Copy the forecast"
+          {step(index - 1, t("ui.forecastCard.before"), "‹")}
+          {step(index + 1, t("ui.forecastCard.after"), "›")}
+          <button onClick={() => void copy()} title={t("ui.forecastCard.copy")} aria-label={t("ui.forecastCard.copy")}
             className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded border border-rule text-ink-soft active:bg-band">
             {copied
               ? <span className="text-[1rem] text-growth" aria-hidden="true">✓</span>
               : <Glyph path={ICON.copy} size={20} />}
           </button>
-          <button onClick={onClose} aria-label="Close"
+          <button onClick={onClose} aria-label={t("ui.forecastCard.close")}
             className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-[1.125rem] text-ink-soft active:text-ink">×</button>
         </div>
         <pre className="data mt-4 whitespace-pre-wrap break-words rounded border border-rule bg-paper p-3.5 text-[0.78125rem] leading-relaxed">

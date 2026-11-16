@@ -14,6 +14,8 @@ import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState
 import type { TableFilterClassNames } from "@tollbooth-dpyc/web/react";
 import Term from "./Term";
 import type { Target } from "../lib/tour/targets";
+import { useLanguageLocale } from "@tollbooth-dpyc/web/react";
+import { useT } from "../i18n";
 
 /// One field style, for every text and date input on every page.
 ///
@@ -207,7 +209,8 @@ export function EnlargeButton({ big, onClick, label, where = "absolute right-2 t
   label: string;
   where?: string;
 }) {
-  const title = big ? `Shrink ${label}` : `Enlarge ${label}`;
+  const t = useT();
+  const title = big ? t("ui.ui.shrink", { label }) : t("ui.ui.enlarge", { label });
   return (
     <button
       type="button"
@@ -232,6 +235,7 @@ export function ChartFrame({ label, tour, children }: {
   tour?: Target;
   children: ReactNode;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -268,7 +272,7 @@ export function ChartFrame({ label, tour, children }: {
       {open && (
         <div className="flex shrink-0 items-center gap-2">
           <span className="figure text-[0.9375rem] font-semibold">{label}</span>
-          <span className="data text-[0.65625rem] text-ink-soft">Esc to close</span>
+          <span className="data text-[0.65625rem] text-ink-soft">{t("ui.ui.escToClose")}</span>
           {/* Beside the title, not at the foot of the page. A close control
               parked below a short chart sat alone in half a screen of nothing,
               nowhere near where the eye goes to leave. */}
@@ -562,11 +566,12 @@ export function TrashGlyph() {
 export function RowActions({ onCommit, onCancel, saving, what }: {
   onCommit: () => void; onCancel: () => void; saving?: boolean; what: string;
 }) {
+  const t = useT();
   return (
     <>
-      <button onClick={onCommit} disabled={saving} aria-label={`Save ${what}`}
+      <button onClick={onCommit} disabled={saving} aria-label={t("ui.ui.save", { what })}
         className="inline-flex h-11 w-11 items-center justify-center text-[1.125rem] text-growth disabled:opacity-40">✓</button>
-      <button onClick={onCancel} aria-label="Cancel edit" title="Cancel edit"
+      <button onClick={onCancel} aria-label={t("ui.ui.cancelEdit")} title={t("ui.ui.cancelEdit")}
         className="inline-flex h-11 w-11 items-center justify-center text-ink-soft active:text-ink">
         <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="currentColor" aria-hidden="true">
           <path d={ICON.cancelEdit} />
@@ -631,6 +636,7 @@ export function Stepper({
   min?: number; max?: number; step?: number;
   unit?: string; label: string; id?: string;
 }) {
+  const t = useT();
   const clamp = (n: number) => Math.min(max, Math.max(min, n));
   const nudge = (by: number) =>
     onChange(clamp((typeof value === "number" ? value : min) + by));
@@ -641,7 +647,7 @@ export function Stepper({
     <div className="block text-[0.6875rem] text-ink-soft">
       <label htmlFor={id}>{label}</label>
       <span className="mt-0.5 flex items-stretch overflow-hidden rounded border border-rule bg-white">
-        <button type="button" onClick={() => nudge(-step)} aria-label={`${label} down`}
+        <button type="button" onClick={() => nudge(-step)} aria-label={t("ui.ui.stepDown", { label })}
           className="w-11 shrink-0 text-[1.125rem] text-ink-soft active:bg-band">−</button>
         <input id={id} value={value} inputMode="numeric" aria-label={id ? undefined : label}
           onChange={(e) => {
@@ -652,7 +658,7 @@ export function Stepper({
           }}
           onBlur={() => { if (typeof value === "number") onChange(clamp(value)); }}
           className="data min-w-0 flex-1 border-x border-rule px-2 py-2 text-center text-[1rem] focus:outline-none" />
-        <button type="button" onClick={() => nudge(step)} aria-label={`${label} up`}
+        <button type="button" onClick={() => nudge(step)} aria-label={t("ui.ui.stepUp", { label })}
           className="w-11 shrink-0 text-[1.125rem] text-ink-soft active:bg-band">+</button>
       </span>
       {unit && <span className="mt-0.5 block text-[0.65625rem] text-ink-soft">{unit}</span>}
@@ -660,8 +666,11 @@ export function Stepper({
   );
 }
 
-const MONTHS = ["January", "February", "March", "April", "May", "June", "July",
-  "August", "September", "October", "November", "December"];
+/// The twelve months' names, in the reader's language.
+const monthNames = (locale: string) => {
+  const name = new Intl.DateTimeFormat(locale, { month: "long" });
+  return Array.from({ length: 12 }, (_, i) => name.format(new Date(2000, i, 1)));
+};
 /// February gets 29. A date that only exists in a leap year is the grower's to
 /// choose, and the server already answers "—" for the years it does not.
 const DAYS_IN = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
@@ -675,6 +684,8 @@ const DAYS_IN = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 export function MonthDay({ value, onChange, label }: {
   value: string; onChange: (mmdd: string) => void; label: string;
 }) {
+  const t = useT();
+  const locale = useLanguageLocale();
   const [mm, dd] = /^\d{2}-\d{2}$/.test(value)
     ? value.split("-").map(Number) : [0, 0];
   const set = (m: number, d: number) => {
@@ -686,13 +697,13 @@ export function MonthDay({ value, onChange, label }: {
       {label}
       <span className="mt-0.5 flex gap-1.5">
         <select value={mm || ""} onChange={(e) => set(Number(e.target.value), dd || 1)}
-          aria-label={`${label} — month`} className={`${FIELD} flex-1`}>
-          <option value="">month…</option>
-          {MONTHS.map((name, i) => <option key={name} value={i + 1}>{name}</option>)}
+          aria-label={t("ui.ui.monthOf", { label })} className={`${FIELD} flex-1`}>
+          <option value="">{t("ui.ui.monthPick")}</option>
+          {monthNames(locale).map((name, i) => <option key={i} value={i + 1}>{name}</option>)}
         </select>
         <select value={dd || ""} onChange={(e) => set(mm || 1, Number(e.target.value))}
-          aria-label={`${label} — day`} className={`${FIELD} w-24`}>
-          <option value="">day…</option>
+          aria-label={t("ui.ui.dayOf", { label })} className={`${FIELD} w-24`}>
+          <option value="">{t("ui.ui.dayPick")}</option>
           {Array.from({ length: DAYS_IN[(mm || 1) - 1] }, (_, i) => i + 1)
             .map((d) => <option key={d} value={d}>{d}</option>)}
         </select>

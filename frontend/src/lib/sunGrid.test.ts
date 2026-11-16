@@ -5,6 +5,9 @@ import {
   bareSpan, cellAt, cellCentre, classOf, decodeGrid, kwhRamp, paint, pathsAt, ramp, summary,
   type WireField, type WireGrid, type WirePacked,
 } from "./sunGrid.ts";
+import { registerGoodEarth } from "../i18n/index.ts";
+
+await registerGoodEarth();
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 

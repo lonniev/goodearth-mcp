@@ -15,6 +15,7 @@
 // home-made.
 
 import { Field } from "./ui";
+import { useT } from "../i18n";
 
 export default function QuantityField({
   id, label, amount, unit, units, width, placeholder, unitPlaceholder,
@@ -33,6 +34,7 @@ export default function QuantityField({
   onUnit: (v: string) => void;
   onKeyDown?: (e: React.KeyboardEvent) => void;
 }) {
+  const t = useT();
   const listId = `${id}-units`;
   const inner = "min-w-0 bg-transparent text-[1rem] text-ink outline-none placeholder:text-ink-soft/60";
   return (
@@ -46,7 +48,8 @@ export default function QuantityField({
           placeholder={placeholder ?? "500"} onChange={(e) => onAmount(e.target.value)}
           className={`${inner} w-14 shrink-0 pl-2.5 text-right`} />
         <input list={units?.length ? listId : undefined} value={unit} onKeyDown={onKeyDown}
-          aria-label={`${label} unit`} placeholder={unitPlaceholder ?? "seeds"}
+          aria-label={t("ui.quantityField.unit", { label })}
+          placeholder={unitPlaceholder ?? t("ui.quantityField.unitPlaceholder")}
           onChange={(e) => onUnit(e.target.value)}
           className={`${inner} w-full pl-1.5 pr-2.5`} />
         {units?.length ? (
