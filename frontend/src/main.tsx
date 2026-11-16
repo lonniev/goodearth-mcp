@@ -1,7 +1,8 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { configureTollbooth } from "@tollbooth-dpyc/web";
+import { configureTollbooth, startLanguage } from "@tollbooth-dpyc/web";
 import App from "./App";
+import { registerGoodEarth } from "./i18n";
 import { GOOD_EARTH_TOOLS } from "./lib/debugSummary";
 import "./index.css";
 
@@ -25,6 +26,12 @@ configureTollbooth({
     "☀️", "🌧️", "❄️", "🌈", "🌙", "⛅",
   ],
 });
+
+// Good Earth's words, then the reader's language: their choice, else their
+// country's, else English. Good Earth draws its own shell, so it starts this
+// itself (the package's AppShell would otherwise).
+void registerGoodEarth();
+void startLanguage();
 
 // Lets the installed app open with no signal — see public/sw.js. Production
 // only: in development it would serve yesterday's module graph.
