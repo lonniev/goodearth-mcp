@@ -133,7 +133,7 @@ export function YearWheel({ stages, centre, foot }: {
           {centre}
         </text>
       </svg>
-      {foot && <p className="max-w-sm text-[0.8125rem] leading-relaxed text-ink-soft">{foot}</p>}
+      {foot && <p className="min-w-0 flex-1 basis-64 text-[0.8125rem] leading-relaxed text-ink-soft">{foot}</p>}
     </div>
   );
 }

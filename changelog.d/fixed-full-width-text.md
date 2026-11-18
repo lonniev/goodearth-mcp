@@ -1,0 +1,1 @@
+- A diagram's caption now fills the room beside the diagram, and wraps below it on a phone, where it stopped at 24rem.
