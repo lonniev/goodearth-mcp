@@ -1,0 +1,1 @@
+- The tap-to-define word is the shared web package's `Term` now, with the same look and the same rules: it opens on the lift, and closes on a press elsewhere, on Escape or after a reading time.

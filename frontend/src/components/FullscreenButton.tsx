@@ -6,7 +6,7 @@
 // is a panel that leaves on its own like every other (i).
 
 import { useEffect, useRef, useState } from "react";
-import { dwellMs } from "../lib/dwell";
+import { dwellMs } from "@tollbooth-dpyc/web";
 import { fullscreenMode, isFullscreen, readEnv, toggleFullscreen } from "../lib/fullscreen";
 import { ICON } from "./ui";
 import { tour } from "../lib/tour/targets";
