@@ -5,6 +5,8 @@ import { execSync } from 'child_process'
 import { readFileSync } from 'fs'
 import { agentGuide } from '@tollbooth-dpyc/web/agent-guide'
 import { agentGuideOptions } from './src/lib/agentGuideOptions'
+import { aiCatalogOf } from './src/lib/aiCatalog'
+import type { Plugin } from 'vite'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
 
@@ -24,8 +26,23 @@ function resolveCommit(): string {
   }
 }
 
+// The AI catalog is written from ../server.json at every build, never kept by hand.
+function aiCatalog(): Plugin {
+  return {
+    name: 'ai-catalog',
+    generateBundle() {
+      const server = JSON.parse(readFileSync('../server.json', 'utf-8'))
+      this.emitFile({
+        type: 'asset',
+        fileName: '.well-known/ai-catalog.json',
+        source: JSON.stringify(aiCatalogOf(server), null, 2) + '\n',
+      })
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), agentGuide(agentGuideOptions)],
+  plugins: [react(), tailwindcss(), agentGuide(agentGuideOptions), aiCatalog()],
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __BUILD_COMMIT__: JSON.stringify(resolveCommit()),
