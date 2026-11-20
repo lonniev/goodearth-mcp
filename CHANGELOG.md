@@ -7,6 +7,126 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Changes not yet released live in `changelog.d/`, one file per change — see the README there for why, and `scripts/changelog.py` for what folds them in at release time.
 
+## [0.6.1] — 2026-11-19
+
+### Added
+
+- The Almanac's current conditions carry a Change station button, which opens the FieldData station chooser in place.
+- Wallet package 3.1.1: Strike and Cash App buttons, and amount tiles that fill their section.
+
+- The station card reads in the order of today's forecast, and today's forecast adds humidity, rain rate, rain today, sun strength and UV.
+
+- The operator may bound how long the edit model reasons before it answers — `reference_edit_effort` (default, none, minimal, low, medium, high), sent as the Messages API's `output_config.effort`. `default` sends nothing, so nothing changes until it is set. The search-for-itself fallback is never bounded.
+
+- Find on map: a plot's station chooser shows the plot and the stations near it, and tapping one sets it for the plot.
+
+- 🎯 on each Almanac chart: how often the next-day forecast for that measure was right here over the last month (within ±3°F, ±5 mph, ±10%, ±3 hPa, or right about rain), with the 3-day figure in its tooltip. Scored from Open-Meteo's record of past forecast runs, so nothing is stored and a new block has a score at once.
+
+- Tap the 🎯 score on an Almanac chart to read what it means for that measure: what the forecast was held to, how often it landed there, and what it was checked against.
+
+- New tool `life_cycle`: pick a plant, pest or animal and get its year as a short story and every event a grower can track — a pumpkin's emergence, flowers and harvest; a hawk's courtship, laying and first flight — each with what times it, its source, whether it is one most growers watch, and its date on this plot. Each event is already in the shape its record stores. Looked up once per subject (per latitude band for an animal) and kept for every grower.
+
+- **Pick a subject, choose its year.** On Flora, Pests and Fauna, picking a plant, pest or animal shows its life cycle as a short story with a date on this plot beside each event. The key events start ticked, events already tracked are ticked and fixed, and one press saves the rest: a plant's as the planting's stages, a pest's as its stages, an animal's as one watch per event.
+
+- Each plant or life-cycle lookup logs each step as it starts and ends — our search, USA-NPN, iNaturalist sightings, the generation — and keeps how long each took (`looked_up_with.took_s`) and how its output divided between thinking and answer (`reasoning_tokens`, `thinking_chars`, `answer_chars`, `stop_reason`), so its limits are sized from real lookups.
+
+- Wildlife events can be timed by the moon: the first, second or third new, quarter or full moon on or after a day of the year. On the Fauna page, in the calendar feed, and for agents in `wildlife_calendar`.
+- The almanac finds each moon phase from the day the cycle crosses it, so a full moon is never skipped.
+- A weather-triggered event on Fauna is checked as weather; it was wrongly asked for a calendar date.
+
+- A planting can hold several stages (emergence, first bloom, fruit set, harvest), each a heat sum from set-out. The Plants ledger ticks each on its heat bar, the season chart marks each, the calendar feed dates each, and `crop_gdd_status` reports whether each is reached and when it is due.
+
+- A plot can read its current conditions from one FieldData station you choose. Pick it in the plot editor, and the report shows at the top of the Almanac, with `goodearth_plot_station` and `goodearth_plot_conditions` for agents.
+
+- The operator chooses which model each reference lookup runs on — `reference_edit_model` (editing what our own search found) and `reference_search_model` (searching for itself) — from the Account page or `goodearth_set_operator_property`; both default to the writer tier. A grower's units, chart order, array size and kWh price follow their account to every device; the bees and the season theme stay on each screen.
+
+- 🧠 on every Flora, Fauna and Pests row: the row beside what the reference holds for that species, one figure per line — tap yours or the AI's, and ✓ saves only what you switched.
+
+- Good Earth reads in English, French, Spanish, Japanese, Chinese and Hindi: every page, the guides, the glossary and the tours. A guest starts in their country's language; the chooser is on Account. The shared web package does the translating; Good Earth supplies only its words. Plant, pest and animal names and what the server writes stay as they come.
+- Choosing "None" for a plot's station no longer sends that word to the server as a station name.
+- Pest stages accept Chinese and Japanese commas and colons.
+
+- "Now at <station>" shows two times: when Good Earth read the station, and when the station observed what it reports.
+- `plot_conditions` returns `read_at` beside `observed_at`.
+
+- `goodearth_water_balance`: rain against what the air pulls out (FAO-56 ET0), day by day for two weeks back and one ahead, with the running balance and the weather model's soil moisture in the topsoil and the root zone.
+- The Dashboard's Water panel draws it: rain above the line, evapotranspiration below, the balance across both, and gauges for the model's soil beside your station's probe when it has one. Hidden until the tool is priced.
+
+### Changed
+
+- The Account page shows your Nostr profile at the top of its right column.
+
+- The Account page shows the Statement at the bottom of its left column.
+
+- Companion rows read as two columns: the plant on the left, its reason against the right edge.
+- The Projected column's tip says what the date is: the last fortnight's daily heat carried forward, with no weather forecast in it.
+
+- The wallet's amount tiles wear a plant's life, Seed to Orchard, in the season's colours.
+
+- Hindi addresses the reader informally (तुम), like the other languages; quotations keep their own words.
+
+- A life cycle's story spans the full width of its panel.
+
+- While a life cycle is looked up, the field naturalists keep you company: White, Thoreau, Muir, Darwin, Carson, Leopold and Mary Oliver on going out and looking closely.
+
+- The tap-to-define word is the shared web package's `Term` now, with the same look and the same rules: it opens on the lift, and closes on a press elsewhere, on Escape or after a reading time.
+
+- Each page loads the first time it opens, so the first visit downloads about two fifths less.
+
+- `plant_profile_refresh` is now `reference_refresh(key)`: it lets go of one kept plant profile or life cycle, named by the `key` its lookup returned. Kept answers live in one cache, `goodearth_reference_cache`; the plant profiles kept before are looked up again on next use.
+
+- The MCP Registry listing carries a title (Good Earth) and a link to https://goodearth.tollbooth-dpyc.com, and an icon.
+
+- While a plant is looked up for the planting form, the form says the Research Assistant has the question and takes under 90 seconds, as the life-cycle wait does.
+
+- A plant profile or a life cycle is looked up by our own search first: two Brave searches on trusted sites (universities, governments, field guides, a few seed houses), the parts of the top three pages that mention a stage, a month or a threshold, and iNaturalist sightings near the plot by month. The LLM only edits those into the answer, with no web search of its own, and may cite only the pages it was given. Without the new optional operator credential `brave_search_api_key`, or when nothing is found, the LLM searches as before. Each kept answer records how it was found (`looked_up_with.mode`).
+
+- Each plant or life-cycle lookup makes at most 3 web searches (was 4 and 6), and keeps what it spent — model, searches, input and output tokens — with its answer and in the log.
+- A fungus picked on Flora gets its own year: fruiting after rain within its season, spore release, timed by the weather and the calendar and kept as watches on Fauna. It is looked up per latitude band, as an animal is.
+
+- `/llms.txt` is built by the shared `@tollbooth-dpyc/web/agent-guide` plugin from this service's own sections, so its connecting, payments, license and links sections match the rest of the fleet.
+
+- The wallet is now the shared one from tollbooth-web 3.0.0, with a QR code on an open invoice, amounts of 100 to 25,000 plus Custom, and coupons and the statement included.
+
+- Reference lookups are sized from measured runs: the edit reasons at low effort by default (16–21 s and 1,000–1,600 output tokens across a bird, a plant and a pest, where the model's own default took 132 s and 7,538), each generation is given 90 s and 4,000 output tokens, and USA-NPN's stage names may hold a lookup at most 5 s. While a life cycle is looked up, the page says the Research Assistant has the question and takes under 90 seconds.
+
+- The station card on the Almanac uses the same tiles and marks as today's forecast, and connecting FieldData now takes one button that says what is happening at each step.
+
+- Terrain heights now come from Copernicus GLO-30 (30 m), read from the same tiles the Sun page reads, instead of Open-Meteo's 90 m elevation feed. Blocks are sampled every 30 m (up to 1,024 points, which keeps 30 m spacing to about 90 ha), so `sample_count` and `grid_spacing_m` rise on most blocks.
+- A block's terrain is read again once a year rather than kept forever, and a failed read serves the heights already held.
+
+- Text now follows the reader's text size (Profile → Appearance): every page size moved from px to the equal rem, so the standard size looks exactly as before.
+
+- The tutorial and guides cover a plot's FieldData station, the station card and today's fuller forecast.
+
+- The Almanac's "Now at <station>" report is fetched from the Dashboard ahead of time, along with the rest of the Almanac, so it is on screen when you open the page. A plot with no station asks only whether it has one.
+
+### Fixed
+
+- The Almanac's daily cards mark the chance of rain with 🌧️.
+
+- My Plots and the plot picker show each plot's sample count as the season tools read it today. The count is worked out from the plot's shape and no longer stored, so the 30 m grid shows on plots saved before it.
+
+- The elevation source is named correctly as Copernicus DEM GLO-90 (it was labelled SRTM). Open-Meteo's elevation API serves GLO-90.
+
+- Connecting FieldData always moves forward: a lapsed FieldData sign-in is replaced and the Nostr message is sent, where before Connect itself answered "Connect your FieldData account first".
+- "Now at" on the Almanac says so once, with a Connect FieldData button that sends the message.
+
+- A diagram's caption now fills the room beside the diagram, and wraps below it on a phone, where it stopped at 24rem.
+
+- A pest with no degree days (a chipmunk, a vole, a deer) gets its whole year: its degree-day stages, if any, stay on the pest's record, and its other events are kept on Fauna as foe watches.
+- When nothing in a subject's life cycle can be timed, it says so by name, refunds the fare, and remembers the answer so the same search is not paid for again.
+- An LLM provider refusal is said plainly — an empty account reads as "temporarily unavailable … No fare was charged" — rather than as a bare HTTP status.
+
+- A plant or life-cycle lookup already under way is shared: asking again while it runs waits for it instead of paying for a second generation, and a caller who gives up no longer stops it from being kept.
+- `looked_up_with.input_tokens` counts the provider's prompt-cache reads and writes too, as billed; `cached_input_tokens` says how many were cached.
+
+- A reference lookup leaves room for a model that thinks before it answers (12,000 output tokens), so a reasoning model such as a free Nemotron answers instead of stopping mid-thought; an answer cut off says so plainly.
+
+- A reference lookup may take up to five minutes, so a model that reasons before it answers is waited for rather than abandoned at 90 seconds.
+
+- A paid tool that cannot answer no longer keeps its fare. A weather feed outage now reports `upstream_unavailable`, where several tools said `invalid_request`.
+
 ## [0.6.0] — 2026-10-27
 
 ### Added

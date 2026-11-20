@@ -1,1 +1,0 @@
-- The MCP Registry listing carries a title (Good Earth) and a link to https://goodearth.tollbooth-dpyc.com, and an icon.

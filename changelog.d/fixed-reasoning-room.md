@@ -1,1 +1,0 @@
-- A reference lookup leaves room for a model that thinks before it answers (12,000 output tokens), so a reasoning model such as a free Nemotron answers instead of stopping mid-thought; an answer cut off says so plainly.

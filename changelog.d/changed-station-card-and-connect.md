@@ -1,1 +1,0 @@
-- The station card on the Almanac uses the same tiles and marks as today's forecast, and connecting FieldData now takes one button that says what is happening at each step.

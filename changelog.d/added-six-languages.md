@@ -1,3 +1,0 @@
-- Good Earth reads in English, French, Spanish, Japanese, Chinese and Hindi: every page, the guides, the glossary and the tours. A guest starts in their country's language; the chooser is on Account. The shared web package does the translating; Good Earth supplies only its words. Plant, pest and animal names and what the server writes stay as they come.
-- Choosing "None" for a plot's station no longer sends that word to the server as a station name.
-- Pest stages accept Chinese and Japanese commas and colons.
