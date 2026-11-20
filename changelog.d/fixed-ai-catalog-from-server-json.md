@@ -1,0 +1,1 @@
+- The AI catalog (`/.well-known/ai-catalog.json`) is written from `server.json` at every build, so its server card always names the version the MCP Registry does. It had said 0.6.0 after the 0.6.1 release.
