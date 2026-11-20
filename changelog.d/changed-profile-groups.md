@@ -1,0 +1,1 @@
+- The Account page now sits in folding groups — You, Money, This site — with each group's panels side by side in a grid.
