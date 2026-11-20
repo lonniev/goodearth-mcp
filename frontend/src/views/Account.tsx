@@ -21,56 +21,61 @@ export default function Account({ spent, prefs, onPrefs, region, onForgotten, on
   onForgotten: () => void;
   onSignOut: () => void;
 }) {
-  // Two columns on a landscape screen: who you are on the left, how
-  // the app behaves for you on the right. The page is one flat list,
-  // so the columns are CSS columns with the settings forced to the
-  // second; one column on a phone, in the same order.
+  // The package's folding groups, each a grid of panels side by side where
+  // they fit and one column on a phone: what you hold under Money, who you
+  // are and how the app behaves for you under You, the calendar under This site.
   const t = useT();
   const locale = useLanguageLocale();
   return (
     <AccountPage
       npub={getStoredNpub()}
       heading={t("views.account.heading")}
-      before={
-        <div className="grid gap-3" {...tour("account.summary")}>
-          {spent > 0 && (
-            <span className="data justify-self-start rounded-full bg-band px-2.5 py-1 text-[0.65625rem] text-ink-soft">
-              {t("views.account.drawnToday", { n: spent.toLocaleString(locale) })}
-            </span>
-          )}
-          <WalletFunds decorateTile={decorateTile} />
-        </div>
-      }
       profile={false}
-      between={{ usage: <WalletStatement /> }}
       usage={{ figures: USAGE_FIGURES, classNames: USAGE, renderRow: (t) => <UsageRow tool={t} /> }}
       // The time zone sits in Viewing with the season and degrees; the
       // season is Good Earth's theme; the build panel is on About.
       timezone={false}
       theme={false}
       build={false}
-      after={
-        <div className="grid gap-3 lg:break-before-column">
-          <NostrProfilePanel npub={getStoredNpub()} />
-          <Preferences prefs={prefs} lat={latOf(region.region)} onChange={onPrefs} />
-          <div className="rounded-xl border border-rule bg-panel px-4 py-3">
-            <div className="eyebrow mb-2">{t("views.account.language")}</div>
-            <LanguageChooser />
-          </div>
-          {/* Publishing is a once-per-region setup step, so it sits with
-              the other settings rather than at the top of the working page. */}
-          <CalendarFeed region={region} />
-          {/* Last, because it is the one control here that cannot be
-              taken back. */}
-          <ForgetMe onForgotten={onForgotten} />
-        </div>
-      }
+      panels={{
+        money: (
+          <>
+            <div className="grid gap-3" {...tour("account.summary")}>
+              {spent > 0 && (
+                <span className="data justify-self-start rounded-full bg-band px-2.5 py-1 text-[0.65625rem] text-ink-soft">
+                  {t("views.account.drawnToday", { n: spent.toLocaleString(locale) })}
+                </span>
+              )}
+              <WalletFunds decorateTile={decorateTile} />
+            </div>
+            <WalletStatement />
+          </>
+        ),
+        you: (
+          <>
+            <NostrProfilePanel npub={getStoredNpub()} />
+            <Preferences prefs={prefs} lat={latOf(region.region)} onChange={onPrefs} />
+            <div className="rounded-xl border border-rule bg-panel px-4 py-3">
+              <div className="eyebrow mb-2">{t("views.account.language")}</div>
+              <LanguageChooser />
+            </div>
+            {/* Last, because it is the one control here that cannot be
+                taken back. */}
+            <ForgetMe onForgotten={onForgotten} />
+          </>
+        ),
+        // Publishing is a once-per-region setup step, so it sits apart
+        // from the working page.
+        site: <CalendarFeed region={region} />,
+      }}
       onSignOut={onSignOut}
       signOutLabel={t("views.account.signOut")}
       classNames={{
-        root: "gap-3 lg:columns-2 [&>*]:mb-3 [&>*]:break-inside-avoid",
-        heading: "figure mb-3 text-[1.625rem] font-bold [column-span:all]",
-        actions: "flex justify-end",
+        root: "grid gap-5",
+        heading: "figure text-[1.625rem] font-bold",
+        groupSummary: "figure cursor-pointer py-1 text-[1.25rem]",
+        groupBody: "mt-3 grid items-start gap-3 grid-cols-[repeat(auto-fit,minmax(min(100%,26rem),1fr))]",
+        actions: "col-span-full flex justify-end",
         signOut: "min-h-11 rounded-full border border-rule px-3.5 text-[0.75rem] text-ink-soft active:bg-band",
       }}
     />

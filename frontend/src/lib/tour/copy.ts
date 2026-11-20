@@ -190,11 +190,11 @@ export const TOURS: Record<Tour["page"], Tour> = {
   ])},
 
   account: accountTour("account", worded("account", [
-    { target: "account.summary" },
     { target: "account.tutorial" },
     { target: "account.season" },
     { target: "account.degrees" },
     { target: "account.bees" },
     { target: "account.forget", side: "top" },
+    { target: "account.summary" },
   ])),
 };
