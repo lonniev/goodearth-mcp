@@ -1,1 +1,0 @@
-- The Account page shows your Nostr profile at the top of its right column.

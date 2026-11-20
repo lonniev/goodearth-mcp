@@ -1,1 +1,0 @@
-- The wallet's amount tiles wear a plant's life, Seed to Orchard, in the season's colours.

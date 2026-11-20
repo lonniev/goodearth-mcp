@@ -1,1 +1,0 @@
-- Tap the 🎯 score on an Almanac chart to read what it means for that measure: what the forecast was held to, how often it landed there, and what it was checked against.

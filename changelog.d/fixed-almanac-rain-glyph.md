@@ -1,1 +1,0 @@
-- The Almanac's daily cards mark the chance of rain with 🌧️.

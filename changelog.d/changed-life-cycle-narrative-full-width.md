@@ -1,1 +1,0 @@
-- A life cycle's story spans the full width of its panel.
