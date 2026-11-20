@@ -16,6 +16,7 @@ import { describe, it } from "node:test";
 
 import { renderAgentGuide } from "@tollbooth-dpyc/web/agent-guide";
 import { agentGuideOptions } from "./agentGuideOptions.ts";
+import { aiCatalogOf } from "./aiCatalog.ts";
 
 const html = await readFile("index.html", "utf8");
 // /llms.txt is built from agent-guide.md by the shared plugin; read what it builds.
@@ -86,12 +87,9 @@ describe("the plain files a crawler asks for first", () => {
       assert.ok(t.includes(step), `llms.txt no longer says ${step}`);
   });
 
-  it("serves an AI catalog whose server card says what server.json says", async () => {
-    // Two descriptions of one server, one for the MCP Registry and one for
-    // agents that discover by domain. They must not drift apart: a card that
-    // names another version or endpoint than the registry sends a client wrong.
-    const catalog = JSON.parse(await readFile("public/.well-known/ai-catalog.json", "utf8"));
+  it("builds the AI catalog's server card from server.json, so they cannot drift", async () => {
     const entry = JSON.parse(await readFile("../server.json", "utf8"));
+    const catalog = aiCatalogOf(entry);
     assert.equal(catalog.specVersion, "1.0");
     const [card] = catalog.entries;
     assert.equal(card.type, "application/mcp-server-card+json");
@@ -99,7 +97,9 @@ describe("the plain files a crawler asks for first", () => {
     // name's reverse-DNS prefix read forwards: io.github.lonniev → lonniev.github.io.
     assert.equal(card.identifier, "urn:air:lonniev.github.io:mcp:goodearth-mcp");
     for (const k of ["name", "title", "description", "version", "websiteUrl", "repository", "remotes"])
-      assert.deepEqual(card.data[k], entry[k], `the card's ${k} differs from server.json`);
+      assert.deepEqual((card.data as Record<string, unknown>)[k], entry[k], `the card's ${k} differs from server.json`);
+    // No hand-kept copy that could go stale beside the built one.
+    await assert.rejects(readFile("public/.well-known/ai-catalog.json", "utf8"));
   });
 
   it("serves the catalog with its media type and open CORS", async () => {
