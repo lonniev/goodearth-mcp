@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Changes not yet released live in `changelog.d/`, one file per change — see the README there for why, and `scripts/changelog.py` for what folds them in at release time.
 
+## [0.6.2] — 2026-11-20
+
+### Changed
+
+- The Account page now sits in folding groups — You, Money, This site — with each group's panels side by side in a grid.
+
+### Fixed
+
+- The AI catalog (`/.well-known/ai-catalog.json`) is written from `server.json` at every build, so its server card always names the version the MCP Registry does. It had said 0.6.0 after the 0.6.1 release.
+
 ## [0.6.1] — 2026-11-19
 
 ### Added
