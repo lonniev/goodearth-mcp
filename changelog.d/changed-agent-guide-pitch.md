@@ -1,0 +1,1 @@
+- llms.txt opens under "What to tell a person", explains blocks, and gives a one-line pitch.
