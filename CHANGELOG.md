@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Changes not yet released live in `changelog.d/`, one file per change — see the README there for why, and `scripts/changelog.py` for what folds them in at release time.
 
+## [0.6.4] — 2026-11-21
+
+### Changed
+
+- Reference lookups (plant profiles, life cycles) now send and read their LLM call through the shared SDK (`tollbooth.llm_call`). An answer missing its part now says so in the SDK's words.
+
 ## [0.6.3] — 2026-11-21
 
 ### Changed
