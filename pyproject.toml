@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "goodearth-mcp"
-version = "0.6.4"
+version = "0.6.5"
 description = "Good Earth — region-scoped farm climate analytics, monetized with Tollbooth DPYC"
 readme = "README.md"
 license = "Apache-2.0"
@@ -20,7 +20,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "shapely==2.2.0",
     "tifffile>=2024.8.30",
-    "tollbooth-dpyc[nostr]==0.128.0",
+    "tollbooth-dpyc[nostr]==0.129.0",
     "zstandard>=0.22; python_version < '3.14'",
 ]
 
