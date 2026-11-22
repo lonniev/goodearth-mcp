@@ -1,0 +1,1 @@
+- Reference lookups (plant profiles, life cycles) now send and read their LLM call through the shared SDK (`tollbooth.llm_call`). An answer missing its part now says so in the SDK's words.

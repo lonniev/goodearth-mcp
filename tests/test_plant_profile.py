@@ -13,10 +13,10 @@ import math
 from datetime import date, timedelta
 
 import pytest
+from tollbooth.llm_call import LlmAnswerError
 
 from goodearth_mcp import block_store, plant_profile, plant_profile_window, record_cache, reference_store, server
 from goodearth_mcp import region as reg
-from goodearth_mcp.llm_answer import AnswerError
 from goodearth_mcp.plant_profile import ProfileError
 
 REGION = reg.parse_region(block_store.EXAMPLE_BLOCK["geometry"])
@@ -55,7 +55,7 @@ def test_a_good_answer_reads_whole():
 
 
 def test_an_answer_without_the_tags_is_refused():
-    with pytest.raises(AnswerError):
+    with pytest.raises(LlmAnswerError):
         plant_profile.answer_text({"content": [{"type": "text", "text": json.dumps(PUMPKIN)}]})
 
 

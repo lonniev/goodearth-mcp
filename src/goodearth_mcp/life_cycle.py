@@ -23,10 +23,10 @@ import json
 import math
 from typing import Any
 
+from tollbooth.llm_call import LlmAnswerError, number, one_of, tagged, text
 from tollbooth.llm_route import TIER_WRITER
 
 from goodearth_mcp import crops, llm_answer, wildlife
-from goodearth_mcp.llm_answer import AnswerError, number, one_of, text
 from goodearth_mcp.plant_profile import subject_key
 from goodearth_mcp.reference_search import EDIT_RULE, cited
 
@@ -68,7 +68,7 @@ MAX_EVENTS = 20
 LAT_BAND = 5
 
 
-class LifeCycleError(AnswerError):
+class LifeCycleError(LlmAnswerError):
     """The life cycle could not be looked up. A ValueError, so a paid call refunds."""
 
 
@@ -157,7 +157,7 @@ async def ask(api_key: str, user: str, *, edit: bool = False,
 
 
 def answer_text(data: dict[str, Any]) -> str:
-    return llm_answer.tagged(data, "lifecycle")
+    return tagged(data, "lifecycle")
 
 
 def lat_band(lat: float) -> int:
