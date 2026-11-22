@@ -8,6 +8,8 @@ import json
 
 import httpx
 import pytest
+from tollbooth import llm_call
+from tollbooth.llm_call import LlmAnswerError
 from tollbooth.web_search import Hit, WebSearchError
 
 from goodearth_mcp import biota, life_cycle, llm_answer, plant_profile, reference_search
@@ -114,7 +116,7 @@ def test_with_no_searches_the_llm_is_given_no_tools(monkeypatch):
         sent.append(json.loads(request.content))
         return httpx.Response(200, json={"content": []})
     real = httpx.AsyncClient
-    monkeypatch.setattr(llm_answer.httpx, "AsyncClient",
+    monkeypatch.setattr(llm_call.httpx, "AsyncClient",
                         lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
     asyncio.run(llm_answer.ask("sk-test", system="s", user="u", max_tokens=10, searches=0))
     asyncio.run(llm_answer.ask("sk-test", system="s", user="u", max_tokens=10, searches=2))
@@ -189,7 +191,7 @@ def test_the_model_asked_for_is_the_model_sent(monkeypatch):
         sent.append(json.loads(request.content)["model"])
         return httpx.Response(200, json={"content": []})
     real = httpx.AsyncClient
-    monkeypatch.setattr(llm_answer.httpx, "AsyncClient",
+    monkeypatch.setattr(llm_call.httpx, "AsyncClient",
                         lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
     monkeypatch.delenv("TOLLBOOTH_LLM_MODEL_WRITER", raising=False)
     asyncio.run(llm_answer.ask("k", system="s", user="u", max_tokens=10, searches=0,
@@ -201,10 +203,10 @@ def test_the_model_asked_for_is_the_model_sent(monkeypatch):
 def test_an_answer_cut_off_is_said_plainly():
     """2026-10-29: a reasoning model spent its whole allowance thinking."""
     cut = {"stop_reason": "max_tokens", "content": [{"type": "thinking", "thinking": "hmm"}]}
-    with pytest.raises(llm_answer.AnswerError, match="ran out of room"):
-        llm_answer.tagged(cut, "lifecycle")
-    with pytest.raises(llm_answer.AnswerError, match="without a lifecycle"):
-        llm_answer.tagged({"stop_reason": "end_turn", "content": []}, "lifecycle")
+    with pytest.raises(LlmAnswerError, match="ran out of room"):
+        llm_call.tagged(cut, "lifecycle")
+    with pytest.raises(LlmAnswerError, match="without the part this asks for"):
+        llm_call.tagged({"stop_reason": "end_turn", "content": []}, "lifecycle")
 
 
 def test_both_lookups_ask_within_the_measured_ceiling_at_low_effort(monkeypatch):
@@ -232,7 +234,7 @@ def test_a_generation_is_given_the_measured_time(monkeypatch):
     def client(**kw):
         seen.append(kw["timeout"])
         return real(transport=httpx.MockTransport(handler), **kw)
-    monkeypatch.setattr(llm_answer.httpx, "AsyncClient", client)
+    monkeypatch.setattr(llm_call.httpx, "AsyncClient", client)
     asyncio.run(llm_answer.ask("k", system="s", user="u", max_tokens=10, searches=0))
     assert seen and 60 <= seen[0] <= 120
 
@@ -246,7 +248,7 @@ def test_reasoning_effort_is_sent_only_when_chosen(monkeypatch, effort, sent):
         bodies.append(json.loads(request.content))
         return httpx.Response(200, json={"content": []})
     real = httpx.AsyncClient
-    monkeypatch.setattr(llm_answer.httpx, "AsyncClient",
+    monkeypatch.setattr(llm_call.httpx, "AsyncClient",
                         lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
     asyncio.run(llm_answer.ask("k", system="s", user="u", max_tokens=10, searches=0, effort=effort))
     assert bodies[0].get("output_config") == sent

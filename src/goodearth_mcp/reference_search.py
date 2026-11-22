@@ -20,6 +20,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 import httpx
+from tollbooth import llm_call
 from tollbooth.web_search import BraveSearch, Hit, WebSearchError, allowed, fetch_text, passages
 
 from goodearth_mcp import llm_answer
@@ -180,7 +181,7 @@ EDIT_RULE = (
 
 def cited(u: Any, given: set[str] | None) -> str:
     """A cited URL, or '' — and, when sources were given, '' for one not among them."""
-    found = llm_answer.url(u)
+    found = llm_call.url(u)
     if not found or given is None:
         return found
     return found if _norm(found) in {_norm(g) for g in given} else ""
@@ -194,7 +195,7 @@ def spent(data: dict[str, Any], found: Found, steps: llm_answer.Steps) -> dict[s
     """What a lookup took: how it searched, the generation's own usage, and how
     long each step ran."""
     return {
-        **llm_answer.usage_of(data),
+        **llm_call.usage_of(data),
         "mode": "edit" if found.sources else "web_search",
         "our_searches": found.queries,
         "pages": len(found.sources),

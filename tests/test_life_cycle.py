@@ -13,6 +13,8 @@ import math
 from datetime import date, timedelta
 
 import pytest
+from tollbooth import llm_call
+from tollbooth.llm_call import LlmAnswerError
 
 from goodearth_mcp import (
     biota,
@@ -348,9 +350,9 @@ def test_an_empty_provider_account_is_said_plainly(monkeypatch):
         return httpx.Response(402, json={"error": {"message": "Insufficient credits"}})
 
     real = httpx.AsyncClient
-    monkeypatch.setattr(llm_answer.httpx, "AsyncClient",
+    monkeypatch.setattr(llm_call.httpx, "AsyncClient",
                         lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
-    with pytest.raises(llm_answer.AnswerError) as err:
+    with pytest.raises(LlmAnswerError) as err:
         asyncio.run(llm_answer.ask("sk-test", system="s", user="u", max_tokens=10, searches=1))
     assert "temporarily unavailable" in str(err.value) and "No fare was charged" in str(err.value)
     assert "402" not in str(err.value)
@@ -397,22 +399,21 @@ def test_every_lookup_is_capped_at_three_searches(monkeypatch):
 
 
 def test_what_a_lookup_spent_is_read_from_the_providers_usage():
-    from goodearth_mcp import llm_answer
 
     reported = {"model": "x-ai/grok-4.5", "content": [], "usage": {
         "input_tokens": 194877, "output_tokens": 4000, "server_tool_use": {"web_search_requests": 3}}}
-    assert llm_answer.usage_of(reported) == {
+    assert llm_call.usage_of(reported) == {
         "model": "x-ai/grok-4.5", "searches": 3, "input_tokens": 194877,
         "cached_input_tokens": 0, "output_tokens": 4000, "reasoning_tokens": None,
         "thinking_chars": 0, "answer_chars": 0, "stop_reason": ""}
     # As OpenRouter reported the 2026-10-29 hawk: 3,825 billed, 113 uncached.
     cached = {"usage": {"input_tokens": 113, "cache_read_input_tokens": 3712,
                         "output_tokens": 4942}}
-    assert llm_answer.usage_of(cached)["input_tokens"] == 3825
-    assert llm_answer.usage_of(cached)["cached_input_tokens"] == 3712
+    assert llm_call.usage_of(cached)["input_tokens"] == 3825
+    assert llm_call.usage_of(cached)["cached_input_tokens"] == 3712
     counted = {"model": "m", "content": [{"type": "server_tool_use", "name": "web_search"}] * 2}
-    assert llm_answer.usage_of(counted)["searches"] == 2
-    assert llm_answer.usage_of({})["searches"] == 0
+    assert llm_call.usage_of(counted)["searches"] == 2
+    assert llm_call.usage_of({})["searches"] == 0
 
 
 def test_a_kept_answer_carries_what_it_cost(world, monkeypatch):

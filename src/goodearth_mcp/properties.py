@@ -12,9 +12,8 @@ on it. The frontend keeps them all in `lib/prefs.ts`.
 
 from __future__ import annotations
 
+from tollbooth.llm_call import EFFORTS
 from tollbooth.properties import PropertySpec, llm_model_property
-
-from goodearth_mcp.llm_answer import EFFORTS
 
 #: Models offered beside the tiers. Any valid slug may be set.
 _MODELS = ("google/gemini-2.5-flash", "openai/gpt-5-mini", "x-ai/grok-4.3", "x-ai/grok-4.5")

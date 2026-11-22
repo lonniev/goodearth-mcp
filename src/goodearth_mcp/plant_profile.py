@@ -22,14 +22,14 @@ import json
 import re
 from typing import Any
 
+from tollbooth.llm_call import LlmAnswerError, tagged
+from tollbooth.llm_call import number as _num
+from tollbooth.llm_call import one_of as _pick
+from tollbooth.llm_call import text as _text
+from tollbooth.llm_call import whole as _int
 from tollbooth.llm_route import TIER_WRITER
 
 from goodearth_mcp import llm_answer
-from goodearth_mcp.llm_answer import AnswerError
-from goodearth_mcp.llm_answer import number as _num
-from goodearth_mcp.llm_answer import one_of as _pick
-from goodearth_mcp.llm_answer import text as _text
-from goodearth_mcp.llm_answer import whole as _int
 from goodearth_mcp.reference_search import EDIT_RULE, cited
 
 #: Flower colours the companion designer pairs on. Mirrors the frontend's HUES.
@@ -42,7 +42,7 @@ _MAX_NAME = 120
 _MAX_SOURCES = 6
 
 
-class ProfileError(AnswerError):
+class ProfileError(LlmAnswerError):
     """The plant could not be profiled. A ValueError, so a paid call refunds."""
 
 
@@ -114,7 +114,7 @@ async def ask(api_key: str, user: str, *, edit: bool = False,
 
 def answer_text(data: dict[str, Any]) -> str:
     """The text inside the last <profile> tags, across every text block."""
-    return llm_answer.tagged(data, "profile")
+    return tagged(data, "profile")
 
 
 # ── Checking the answer ──────────────────────────────────────────────────
