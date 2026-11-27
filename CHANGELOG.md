@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Changes not yet released live in `changelog.d/`, one file per change — see the README there for why, and `scripts/changelog.py` for what folds them in at release time.
 
+## [0.6.9] — 2026-11-26
+
+### Fixed
+
+- The Almanac's fortnight cards and each day's forecast text now cover the same calendar day, midnight to midnight in the time zone you chose in Preferences. The text gives that day's own low instead of a "night" paragraph that borrowed the next day's, and "today" and the issue time follow your zone too.
+
+- Crops, harvests, Wildlife, Field Reports and the pest and ledger filters now take "today" from the time zone you chose in Preferences. Field Reports and new wildlife events used Greenwich's date, which already read as tomorrow on a US evening.
+
 ## [0.6.8] — 2026-11-26
 
 ### Changed
