@@ -1,1 +1,0 @@
-- Every tool's "today" is now your date, not Greenwich's. It uses the time zone you chose in Preferences, or your ground's own zone when that is set to auto. Frost and planting windows, pest and wildlife due lists, the season, tasks, the calendar feed and the other date-driven answers no longer run a day ahead on a US evening.
