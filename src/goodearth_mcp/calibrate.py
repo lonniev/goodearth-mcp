@@ -11,10 +11,10 @@ whether there are yet enough of them to trust it.
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, date, datetime
+from datetime import date
 from typing import Any
 
-from goodearth_mcp import calibration, crops, frost, gdd, record_cache, sources
+from goodearth_mcp import calibration, crops, frost, gdd, reader_clock, record_cache, sources
 from goodearth_mcp.region import Region
 
 RECORD_SPAN_YEARS = 10
@@ -31,7 +31,7 @@ async def region_calibration(
     today: date | None = None,
 ) -> dict[str, Any]:
     """What this block's own reports say about how the model treats it."""
-    today = today or datetime.now(UTC).date()
+    today = today or reader_clock.today()
 
     if not isinstance(observations, list) or not observations:
         raise CalibrateError("observations must be a non-empty list of field reports")

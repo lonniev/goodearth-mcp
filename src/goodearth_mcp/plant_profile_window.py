@@ -9,12 +9,12 @@ ground south of the equator.
 from __future__ import annotations
 
 import logging
-from datetime import UTC, date, datetime
+from datetime import date
 from typing import Any
 
 from tollbooth.llm_route import TIER_WRITER
 
-from goodearth_mcp import llm_answer, plant_profile, reference_search, reference_store
+from goodearth_mcp import llm_answer, plant_profile, reader_clock, reference_search, reference_store
 from goodearth_mcp.plant_profile import ProfileError
 from goodearth_mcp.planting_window import PlantingWindowError, region_heat_for_days
 from goodearth_mcp.region import Region
@@ -80,7 +80,7 @@ async def block_plant_profile(
     today: date | None = None,
 ) -> dict[str, Any]:
     """The plant's profile, and its heat target and bloom season on this plot."""
-    today = today or datetime.now(UTC).date()
+    today = today or reader_clock.today()
     profile, kept = await profile_for(
         api_key=api_key, taxon_id=taxon_id, scientific_name=scientific_name,
         common_name=common_name, text=text, today=today, search_key=search_key,

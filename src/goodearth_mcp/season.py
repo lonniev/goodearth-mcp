@@ -11,10 +11,10 @@ Pure domain logic. The server module adds billing and identity.
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Any
 
-from goodearth_mcp import gdd, record_cache, sources
+from goodearth_mcp import gdd, reader_clock, record_cache, sources
 from goodearth_mcp.region import Region, cluster_to_grid, summarize
 
 # Sane bounds on a crop base temperature. 50 °F is the field-corn convention,
@@ -65,7 +65,7 @@ async def region_season_curve(
 ) -> dict[str, Any]:
     """Season-to-date GDD across ``region``, with band, forecast and projection."""
     base = _validate_base(base_f)
-    today = today or datetime.now(UTC).date()
+    today = today or reader_clock.today()
     start = gdd.season_start(today, region.centroid.lat)
 
     elevs, elev_note = await _elevations(region)

@@ -20,8 +20,10 @@ import logging
 import re
 import uuid
 from collections.abc import Sequence
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Any
+
+from goodearth_mcp import reader_clock
 
 logger = logging.getLogger(__name__)
 
@@ -211,7 +213,7 @@ async def listing(
     ``also`` names more regions to read in the same query — the plots inside
     this one, for a roll-up. Each row says which region it is on.
     """
-    today = today or datetime.now(UTC).date()
+    today = today or reader_clock.today()
     pat = clean_search(search)
     pg, size = page_bounds(page, page_size)
     window = window_for(timeframe, today, season_start)

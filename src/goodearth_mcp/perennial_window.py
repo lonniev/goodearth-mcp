@@ -17,10 +17,10 @@ are already in the cache.
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, date, datetime
+from datetime import date
 from typing import Any
 
-from goodearth_mcp import chill, perennial, record_cache, sources
+from goodearth_mcp import chill, perennial, reader_clock, record_cache, sources
 from goodearth_mcp.region import Region
 
 #: Matched to `crop_status.RECORD_SPAN_YEARS` on purpose — a different span
@@ -64,7 +64,7 @@ async def region_tree_window(
     today: date | None = None,
 ) -> dict[str, Any]:
     """Whether each tree lives and fruits on this ground, across the record."""
-    today = today or datetime.now(UTC).date()
+    today = today or reader_clock.today()
 
     if not isinstance(trees_in, list) or not trees_in:
         raise PerennialWindowError("trees must be a non-empty list")

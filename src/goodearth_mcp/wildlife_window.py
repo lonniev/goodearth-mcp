@@ -7,10 +7,10 @@ year's worth of species costs one round trip and no astronomy is guessed at.
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import date
 from typing import Any
 
-from goodearth_mcp import crops, gdd, record_cache, sources, wildlife
+from goodearth_mcp import crops, gdd, reader_clock, record_cache, sources, wildlife
 from goodearth_mcp.region import Region
 
 
@@ -37,7 +37,7 @@ async def region_wildlife(
     today: date | None = None,
 ) -> dict[str, Any]:
     """Where each event stands on this ground, and which are due soon."""
-    today = today or datetime.now(UTC).date()
+    today = today or reader_clock.today()
 
     if not isinstance(events, list) or not events:
         raise WildlifeWindowError("events must be a non-empty list")

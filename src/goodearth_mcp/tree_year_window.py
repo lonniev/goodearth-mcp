@@ -12,10 +12,10 @@ it there would be answering a question nobody on that ground asked.
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, date, datetime
+from datetime import date
 from typing import Any
 
-from goodearth_mcp import biota, catalog, gdd, record_cache, sources, tree_year
+from goodearth_mcp import biota, catalog, gdd, reader_clock, record_cache, sources, tree_year
 from goodearth_mcp.region import Region
 
 
@@ -29,7 +29,7 @@ async def region_tree_year(
     today: date | None = None,
 ) -> dict[str, Any]:
     """When spring reached this block, and what the sap did."""
-    today = today or datetime.now(UTC).date()
+    today = today or reader_clock.today()
 
     rows = [p for p in (plants if isinstance(plants, list) else []) if isinstance(p, dict)]
     names = [

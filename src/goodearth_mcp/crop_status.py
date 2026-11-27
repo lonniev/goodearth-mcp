@@ -10,10 +10,10 @@ round trip.
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, date, datetime
+from datetime import date
 from typing import Any
 
-from goodearth_mcp import crops, frost, gdd, record_cache, sources
+from goodearth_mcp import crops, frost, gdd, reader_clock, record_cache, sources
 from goodearth_mcp.crops import CropError
 from goodearth_mcp.region import Region
 
@@ -64,7 +64,7 @@ async def region_crop_ledger(
     today: date | None = None,
 ) -> dict[str, Any]:
     """Status and frost verdict for every planting on a block."""
-    today = today or datetime.now(UTC).date()
+    today = today or reader_clock.today()
 
     if not isinstance(plantings, list) or not plantings:
         raise LedgerError("plantings must be a non-empty list")

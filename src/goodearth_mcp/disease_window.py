@@ -18,10 +18,10 @@ privilege of looking like spread.
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Any
 
-from goodearth_mcp import disease, gdd, pressure, pressure_window, record_cache, sources, wetness
+from goodearth_mcp import disease, gdd, pressure, pressure_window, reader_clock, record_cache, sources, wetness
 from goodearth_mcp.region import Region
 
 #: How far ahead the hourly forecast is asked for. The model runs out at 16.
@@ -61,7 +61,7 @@ async def region_disease_window(
     season: int | None = None,
 ) -> dict[str, Any]:
     """Wet hours and what each model makes of them, on this ground."""
-    today = today or datetime.now(UTC).date()
+    today = today or reader_clock.today()
 
     if models in (None, [], ""):
         parsed, skipped = _all_models(), []

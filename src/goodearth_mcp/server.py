@@ -50,6 +50,7 @@ from goodearth_mcp import (
     fielddata_client,
     gdd,
     planting,
+    reader_clock,
     record_cache,
     reference_store,
     roster,
@@ -816,7 +817,7 @@ async def _block_region(npub: str, block: str) -> tuple[Region, dict[str, Any]]:
     found = await block_store.resolve(npub, block)
     geometry = found.get("geometry") or {}
     try:
-        return parse_region(geometry), found
+        region = parse_region(geometry)
     except RegionError as exc:
         # Stored geometry that will not parse — written by an older client, or
         # saved before a validation rule tightened. Say which block, or the
@@ -824,6 +825,37 @@ async def _block_region(npub: str, block: str) -> tuple[Region, dict[str, Any]]:
         raise block_store.BlockError(
             f"the bounds saved for {found.get('name') or block!r} cannot be read: {exc}"
         ) from exc
+    # The same boundary names the reader's clock, so every window's "today" is
+    # the grower's date rather than Greenwich's.
+    reader_clock.reading_in(await _reader_zone(npub, region))
+    return region, found
+
+
+async def _reader_zone(npub: str, region: Region | None) -> str | None:
+    """The zone this patron reads in: their chosen one, else their ground's.
+
+    Never raises: a clock that cannot be named reads UTC, as it did before.
+    """
+    if npub:
+        try:
+            stored = await (await runtime.property_store()).values(npub, cached=True)
+            chosen = reader_clock.as_zone((stored.get("timezone") or (None, ""))[0])
+            if chosen:
+                return chosen
+        except Exception as exc:  # noqa: BLE001 — a preference must not take a tool down
+            logger.info("reader zone: timezone property unreadable (%s)", exc)
+    if region is None:
+        return None
+    lat, lon = region.centroid.lat, region.centroid.lon
+    if (known := reader_clock.remembered_place_zone(lat, lon)):
+        return known
+    try:
+        place = await sources.fetch_time_zone(lat, lon)
+    except (sources.UpstreamError, OSError) as exc:
+        logger.info("reader zone: the ground's zone is unknown (%s)", exc)
+        return None
+    reader_clock.remember_place_zone(lat, lon, place)
+    return reader_clock.as_zone(place)
 
 # ---------------------------------------------------------------------------
 # Domain tools
@@ -1201,7 +1233,7 @@ async def calibration(
             # January.
             seen = seasons.recent_observations(
                 await _stored_items(npub, _found["block_id"], "observation"),
-                season, datetime.now(UTC).date(),
+                season, reader_clock.today(),
             )
         if not seen:
             span = str(season) if season is not None else "the last twelve months"
@@ -1375,7 +1407,7 @@ async def review_roster(
                     region_label=_found.get("name") or parsed.describe().get("kind", "this ground"),
                     pests=stored_pests, wildlife=stored_wild, observations=stored_obs,
                     pest_catalog=pest_cat, wildlife_catalog=wild_cat, frost=frost,
-                    today=datetime.now(UTC).date(),
+                    today=reader_clock.today(),
                 )}
     except (biota.BiotaError, OSError) as exc:
         logger.warning("review_roster failed: %s", exc)
@@ -1470,9 +1502,16 @@ async def task_list(
     """
     try:
         start = date.fromisoformat(season_start) if season_start else None
+        # The grower's clock, so "this week" is their week. Geometry that will
+        # not parse costs the clock its fallback, never the task list.
+        here = await block_store.resolve(npub, region_id)
+        try:
+            reader_clock.reading_in(await _reader_zone(npub, parse_region(here.get("geometry") or {})))
+        except RegionError:
+            reader_clock.reading_in(await _reader_zone(npub, None))
         inside: list[dict[str, Any]] = []
         if include_inside:
-            inside = await _plots_inside(npub, await block_store.resolve(npub, region_id))
+            inside = await _plots_inside(npub, here)
         page_rows = await task_store.listing(
             npub, region_id, also=[b["block_id"] for b in inside],
             timeframe=timeframe, search=search,
@@ -2048,7 +2087,7 @@ async def calendar_dataset(
     """
     parsed, found = await _block_region(npub, block)
     block_id = found["block_id"]
-    today = datetime.now(UTC).date()
+    today = reader_clock.today()
     base_temp = float(found.get("base_temp_f") or 50.0)
     region_name = found.get("name") or "My block"
 

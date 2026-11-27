@@ -8,10 +8,10 @@ temperature — the soil record.
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Any
 
-from goodearth_mcp import frost, gdd, planting, record_cache, soil, sources
+from goodearth_mcp import frost, gdd, planting, reader_clock, record_cache, soil, sources
 from goodearth_mcp.region import Region
 
 RECORD_SPAN_YEARS = 10
@@ -77,7 +77,7 @@ async def region_heat_for_days(
     a tender crop typically goes out. Summed over the typical heat for each
     calendar day across the last ten years, at the planting's base.
     """
-    today = today or datetime.now(UTC).date()
+    today = today or reader_clock.today()
     days = int(days)
     dates, tmax, tmin = await air_record(region, today)
     clim = gdd.climatology(dates, tmax, tmin, base_f)
@@ -121,7 +121,7 @@ async def region_planting_window(
     today: date | None = None,
 ) -> dict[str, Any]:
     """When each crop goes in on this ground, and how long the window is."""
-    today = today or datetime.now(UTC).date()
+    today = today or reader_clock.today()
 
     if not isinstance(crops_in, list) or not crops_in:
         raise PlantingWindowError("crops must be a non-empty list")

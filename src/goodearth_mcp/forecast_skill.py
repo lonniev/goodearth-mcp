@@ -18,10 +18,10 @@ import logging
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Any
 
-from goodearth_mcp import record_cache, sources
+from goodearth_mcp import reader_clock, record_cache, sources
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +118,7 @@ async def region_skill(lat: float, lon: float, today: date | None = None) -> dic
     Remembered for good under its span: every hour in it is past, and a span
     ending yesterday re-keys itself tomorrow.
     """
-    today = today or datetime.now(UTC).date()
+    today = today or reader_clock.today()
     end = today - timedelta(days=1)
     start = end - timedelta(days=SPAN_DAYS - 1)
     subject = f"{lat:.2f}/{lon:.2f}/{start.isoformat()}/{end.isoformat()}"

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import UTC, date, datetime
+from datetime import date
 from typing import Any
 
 from tollbooth.llm_route import TIER_WRITER
@@ -25,6 +25,7 @@ from goodearth_mcp import (
     life_cycle,
     llm_answer,
     planting,
+    reader_clock,
     reference_search,
     reference_store,
 )
@@ -121,7 +122,7 @@ async def block_life_cycle(
     today: date | None = None,
 ) -> dict[str, Any]:
     """The subject's life cycle, with each event's typical date on this plot."""
-    today = today or datetime.now(UTC).date()
+    today = today or reader_clock.today()
     lat = region.centroid.lat
     key = life_cycle.cache_key(subject=subject, taxon_id=taxon_id,
                                name=scientific_name or common_name or text, lat=lat)
