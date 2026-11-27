@@ -14,20 +14,25 @@ const day = (over: Record<string, unknown> = {}) => ({
 });
 
 describe("zoneForecast", () => {
-  it("writes a dry day and its night the Weather Service way", () => {
-    const text = dayForecast(day(), day({ date: "2026-10-28", low_f: 38.6 }), "F", "2026-10-25");
+  it("writes one calendar day the Weather Service way, with that day's own low", () => {
+    const text = dayForecast(day(), "F", "2026-10-25");
     assert.equal(text,
-      ".TUESDAY...Partly sunny, with a high near 62. West wind up to 12 mph. " +
-      "Dew point near 38. Humidity around 70 percent. Barometer 29.97 inHg. About 6 hours of sunshine.\n" +
-      ".TUESDAY NIGHT...Low around 39.");
+      ".TUESDAY...Partly sunny, with a high near 62. Low around 40. West wind up to 12 mph. " +
+      "Dew point near 38. Humidity around 70 percent. Barometer 29.97 inHg. About 6 hours of sunshine.");
   });
-  it("calls today TODAY and TONIGHT", () => {
-    const text = dayForecast(day({ date: "2026-10-25" }), day(), "F", "2026-10-25");
-    assert.match(text, /^\.TODAY\.\.\./);
-    assert.match(text, /\n\.TONIGHT\.\.\./);
+  it("calls today TODAY", () => {
+    assert.match(dayForecast(day({ date: "2026-10-25" }), "F", "2026-10-25"), /^\.TODAY\.\.\./);
   });
-  it("leaves the night out when the next morning is not known", () => {
-    assert.doesNotMatch(dayForecast(day(), undefined, "F", "2026-10-25"), /NIGHT/);
+  it("never reaches into the next day", () => {
+    const text = zoneForecast({ days: [day(), day({ date: "2026-10-28", low_f: 20 })], index: 0, unit: "F",
+      place: "Frogdale", issued: new Date("2026-10-25T11:05:00Z"), today: "2026-10-25" });
+    assert.doesNotMatch(text, /NIGHT|WEDNESDAY|around 20/);
+  });
+  it("tells the issue time in the reader's zone", () => {
+    const at = (zone: string) => zoneForecast({ days: [day()], index: 0, unit: "F", place: "F",
+      issued: new Date("2026-10-25T03:30:00Z"), today: "2026-10-25", zone }).split("\n")[1];
+    assert.match(at("America/New_York"), /Oct 24/);
+    assert.match(at("Asia/Tokyo"), /Oct 25/);
   });
   it("uses the Weather Service's chance words", () => {
     assert.equal(chanceOf(10, "rain"), null);
@@ -47,8 +52,8 @@ describe("zoneForecast", () => {
   });
   it("puts a wet day's rain first and its odds last", () => {
     const text = dayForecast(day({ sky: { label: "Rain", emoji: "🌧️" }, precip_chance_pct: 70, precip_in: 0.6 }),
-      undefined, "F", "2026-10-25");
-    assert.ok(text.startsWith(".TUESDAY...Rain likely. Mostly cloudy, with a high near 62. West wind up to 12 mph. " +
+      "F", "2026-10-25");
+    assert.ok(text.startsWith(".TUESDAY...Rain likely. Mostly cloudy, with a high near 62. Low around 40. West wind up to 12 mph. " +
       "Chance of precipitation is 70%. New rainfall amounts between a half and three quarters of an inch possible. Dew point"));
   });
   it("tells the barometer's move from the day before, in the reader's unit", () => {
@@ -61,7 +66,7 @@ describe("zoneForecast", () => {
     assert.equal(stormLine(storm, "2026-10-28"), null);
   });
   it("gives a °C reader the unit", () => {
-    assert.match(dayForecast(day(), undefined, "C", "2026-10-25"), /high near 16°C/);
+    assert.match(dayForecast(day(), "C", "2026-10-25"), /high near 16°C/);
   });
   it("heads the product with the plot and when it was read", () => {
     const text = zoneForecast({ days: [day()], index: 0, unit: "F", place: "Frogdale",

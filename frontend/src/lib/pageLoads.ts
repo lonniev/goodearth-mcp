@@ -8,7 +8,7 @@
 // twice. So neither of them knows: they both ask here.
 
 import {
-  almanacFor, gddSeasonCurve, plotConditions, plotStation,
+  almanacFor, gddSeasonCurve, plotConditions, plotStation, viewerZone,
   type AlmanacResult, type PlotConditions, type PlotStationRow, type SeasonCurveResult,
 } from "./mcp";
 import { cached, forget, warm } from "./pageCache";
@@ -18,8 +18,13 @@ export function loadLedger(ground: Ground): Promise<SeasonCurveResult> {
   return cached(pageKey("ledger", ground), () => gddSeasonCurve(ground.id, ground.baseTempF));
 }
 
+/// The Almanac's days are cut in the reader's zone, so a changed zone is a
+/// different page.
+const almanacKey = (ground: Ground, zone: string) => `${pageKey("almanac", ground)}@${zone}`;
+
 export function loadAlmanac(ground: Ground): Promise<AlmanacResult> {
-  return cached(pageKey("almanac", ground), () => almanacFor(ground.id));
+  const zone = viewerZone();
+  return cached(almanacKey(ground, zone), () => almanacFor(ground.id, zone));
 }
 
 /// The station a plot reads its conditions from, or null when it has none.
@@ -48,7 +53,8 @@ export function warmPage(page: Warmable, ground: Ground): void {
     warm(pageKey(page, ground), () => gddSeasonCurve(ground.id, ground.baseTempF));
     return;
   }
-  warm(pageKey(page, ground), () => almanacFor(ground.id));
+  const zone = viewerZone();
+  warm(almanacKey(ground, zone), () => almanacFor(ground.id, zone));
   void loadStation(ground.id)
     .then((station) => { if (station) warm(conditionsKey(ground.id), () => plotConditions(ground.id)); })
     .catch(() => {});

@@ -432,8 +432,6 @@ const words: Translation = {
   "lib.zoneForecast.sunshine_other": "日照约 {{count}} 小时。",
   "lib.zoneForecast.storm": "{{level}}：预计气压将快速下降。",
   "lib.zoneForecast.today": "今天",
-  "lib.zoneForecast.tonight": "今晚",
-  "lib.zoneForecast.night": "{{name}}夜间",
   "lib.zoneForecast.skyHigh": "{{sky}}，最高温约 {{t}}。",
   "lib.zoneForecast.skyOnly": "{{sky}}。",
   "lib.zoneForecast.low": "最低温约 {{t}}。",

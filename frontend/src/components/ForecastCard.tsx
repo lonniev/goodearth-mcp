@@ -12,7 +12,7 @@ import { zoneForecast } from "../lib/zoneForecast";
 import { toClipboard } from "./Share";
 import { useUnits } from "./Units";
 import { Glyph, ICON } from "./ui";
-import { useLanguageLocale } from "@tollbooth-dpyc/web/react";
+import { useLanguageLocale, useTimezone } from "@tollbooth-dpyc/web/react";
 import { useT } from "../i18n";
 
 export default function ForecastCard({ days, index, onIndex, place, issued, storm, onClose }: {
@@ -27,11 +27,13 @@ export default function ForecastCard({ days, index, onIndex, place, issued, stor
   const t = useT();
   const locale = useLanguageLocale();
   const { unit } = useUnits();
+  const [, zone] = useTimezone();
   const box = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
   const day = days[index];
-  const today = new Date().toLocaleDateString("en-CA");
-  const text = zoneForecast({ days, index, unit, place, issued, today, storm });
+  // Today on the reader's chosen clock, the same one the server cut the days on.
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: zone });
+  const text = zoneForecast({ days, index, unit, place, issued, today, zone, storm });
 
   useEffect(() => { box.current?.focus(); }, []);
   useEffect(() => {

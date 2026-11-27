@@ -432,8 +432,6 @@ const words: Translation = {
   "lib.zoneForecast.sunshine_other": "लगभग {{count}} घंटे धूप।",
   "lib.zoneForecast.storm": "{{level}}: बैरोमीटर के तेज़ी से गिरने का पूर्वानुमान है।",
   "lib.zoneForecast.today": "आज",
-  "lib.zoneForecast.tonight": "आज रात",
-  "lib.zoneForecast.night": "{{name}} रात",
   "lib.zoneForecast.skyHigh": "{{sky}}, अधिकतम लगभग {{t}}।",
   "lib.zoneForecast.skyOnly": "{{sky}}।",
   "lib.zoneForecast.low": "न्यूनतम लगभग {{t}}।",

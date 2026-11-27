@@ -1221,6 +1221,7 @@ async def calibration(
 @runtime.paid_tool(ALMANAC_UUID)
 async def almanac(
     block: Annotated[str, BLOCK_FIELD],
+    timezone: str = "",
     npub: PatronNpub = "",
 ) -> dict[str, Any]:
     """The sky's own record for this ground — normal, actual, and what is coming.
@@ -1244,11 +1245,14 @@ async def almanac(
 
     Args:
         block: The ground to answer for — its id, its name, or an alias.
+        timezone: The IANA zone (e.g. "America/New_York") whose midnights
+            divide the fortnight's days — the reader's own. Empty uses the
+            ground's zone.
     """
     parsed, _found = await _block_region(npub, block)
 
     try:
-        return await almanac_impl(parsed)
+        return await almanac_impl(parsed, timezone=timezone)
     except AlmanacError as exc:
         return {"success": False, "error": str(exc), "error_code": "invalid_request"}
     except (sources.UpstreamError, OSError) as exc:

@@ -110,7 +110,7 @@ def _feeds(monkeypatch):
     async def almanac_history(lat, lon, start, end):
         return _block(deep) if start.startswith("2016") else _block(season)
 
-    async def forecast(lat, lon, days=14):
+    async def forecast(lat, lon, days=14, timezone="auto"):
         return _block(ahead)
 
     monkeypatch.setattr(record_cache, "almanac_history", almanac_history)
@@ -179,7 +179,7 @@ async def test_a_forecast_crossing_new_year_looks_at_the_following_january(monke
     async def almanac_history(lat, lon, start, end):
         return deep_block() if start.startswith("2016") else _block(season)
 
-    async def forecast(lat, lon, days=14):
+    async def forecast(lat, lon, days=14, timezone="auto"):
         return _block(ahead)
 
     monkeypatch.setattr(record_cache, "almanac_history", almanac_history)

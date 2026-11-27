@@ -25,6 +25,8 @@ import {
   checkPrice,
   debugPush,
   getStoredNpub,
+  readTimezonePref,
+  resolveTimeZone,
   toolName,
 } from "@tollbooth-dpyc/web";
 import {
@@ -986,8 +988,15 @@ export interface AlmanacResult {
 }
 
 /// Temperature, dew point, rain, wind, sun and moon — normal, actual, forecast.
-export async function almanacFor(block: string): Promise<AlmanacResult> {
-  return callTool<AlmanacResult>("almanac", { block });
+/// The fortnight's days run midnight to midnight in `timezone`, the reader's
+/// chosen zone, so each card and its text hold the same calendar day.
+export async function almanacFor(block: string, timezone: string = viewerZone()): Promise<AlmanacResult> {
+  return callTool<AlmanacResult>("almanac", { block, timezone });
+}
+
+/// The IANA zone the reader chose in Preferences, or their browser's.
+export function viewerZone(): string {
+  return resolveTimeZone(readTimezonePref());
 }
 
 // ─── Wildlife calendar ───────────────────────────────────────────────────

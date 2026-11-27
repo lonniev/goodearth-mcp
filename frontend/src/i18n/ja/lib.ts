@@ -447,8 +447,6 @@ const words: Translation = {
   "lib.zoneForecast.sunshine_other": "日照 約 {{count}} 時間。",
   "lib.zoneForecast.storm": "{{level}}：気圧の急降下が予報されています。",
   "lib.zoneForecast.today": "今日",
-  "lib.zoneForecast.tonight": "今夜",
-  "lib.zoneForecast.night": "{{name}}の夜",
   "lib.zoneForecast.skyHigh": "{{sky}}、最高気温は {{t}} 前後。",
   "lib.zoneForecast.skyOnly": "{{sky}}。",
   "lib.zoneForecast.low": "最低気温は {{t}} 前後。",

@@ -432,8 +432,6 @@ const words: Translation = {
   "lib.zoneForecast.sunshine_other": "Environ {{count}} heures de soleil.",
   "lib.zoneForecast.storm": "{{level}} : une chute rapide du baromètre est prévue.",
   "lib.zoneForecast.today": "AUJOURD'HUI",
-  "lib.zoneForecast.tonight": "CETTE NUIT",
-  "lib.zoneForecast.night": "NUIT DE {{name}}",
   "lib.zoneForecast.skyHigh": "{{sky}}, maximale près de {{t}}.",
   "lib.zoneForecast.skyOnly": "{{sky}}.",
   "lib.zoneForecast.low": "Minimale autour de {{t}}.",
