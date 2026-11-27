@@ -994,15 +994,21 @@ def daily_field(record: dict[str, Any], field: str) -> tuple[list[str], list[flo
     )
 
 
-async def fetch_almanac_forecast(lat: float, lon: float, days: int = 14) -> dict[str, Any]:
-    """Everything the sky is about to do, at the region centroid."""
+async def fetch_almanac_forecast(
+    lat: float, lon: float, days: int = 14, timezone: str = "auto",
+) -> dict[str, Any]:
+    """Everything the sky is about to do, at the region centroid.
+
+    ``timezone`` is the IANA zone whose midnights cut the days; ``auto`` cuts
+    them at the ground's own.
+    """
     days = max(1, min(days, 16))
     payload = await _get(
         _FORECAST,
         {
             "latitude": lat, "longitude": lon,
             "daily": _DAILY_ALMANAC_FORECAST,
-            "forecast_days": days, "timezone": "auto",
+            "forecast_days": days, "timezone": timezone,
             "precipitation_unit": "inch",
             **_US_UNITS,
         },

@@ -1,0 +1,1 @@
+- The Almanac's fortnight cards and each day's forecast text now cover the same calendar day, midnight to midnight in the time zone you chose in Preferences. The text gives that day's own low instead of a "night" paragraph that borrowed the next day's, and "today" and the issue time follow your zone too.

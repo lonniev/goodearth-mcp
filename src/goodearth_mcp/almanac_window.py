@@ -13,6 +13,7 @@ import asyncio
 import logging
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from goodearth_mcp import almanac, forecast_skill, gdd, pressure_window, record_cache, sources
 from goodearth_mcp.region import Region
@@ -62,12 +63,38 @@ def _series(block: dict[str, list[Any]], field: str) -> list[float | None]:
     return vals
 
 
+def viewer_zone(name: str) -> str:
+    """The IANA zone the reader's days run in, or ``auto`` for the ground's own.
+
+    Checked against the zone database before it reaches the feed, because it
+    arrives as tool input.
+    """
+    name = (name or "").strip()
+    if not name or name == "auto":
+        return "auto"
+    if len(name) > 64:
+        raise AlmanacError("timezone is not an IANA zone name")
+    try:
+        ZoneInfo(name)
+    except (ZoneInfoNotFoundError, ValueError) as exc:
+        raise AlmanacError(f"unknown timezone {name!r}") from exc
+    return name
+
+
 async def region_almanac(
     region: Region,
     today: date | None = None,
+    timezone: str = "auto",
 ) -> dict[str, Any]:
-    """The sky's record for this ground: normal, actual, and what is coming."""
-    today = today or datetime.now(UTC).date()
+    """The sky's record for this ground: normal, actual, and what is coming.
+
+    The fortnight's days run midnight to midnight in ``timezone`` — the
+    reader's chosen zone — so a card dated Saturday holds Saturday as they
+    live it.
+    """
+    zone = viewer_zone(timezone)
+    today = today or (
+        datetime.now(ZoneInfo(zone)).date() if zone != "auto" else datetime.now(UTC).date())
     start = gdd.season_start(today, region.centroid.lat)
 
     actual_task = record_cache.almanac_history(
@@ -80,7 +107,7 @@ async def region_almanac(
         date(today.year - 1, 12, 31).isoformat(),
     )
     forecast_task = sources.fetch_almanac_forecast(
-        region.centroid.lat, region.centroid.lon, FORECAST_DAYS
+        region.centroid.lat, region.centroid.lon, FORECAST_DAYS, zone,
     )
 
     actual, normals, forecast, storm_read, skill = await asyncio.gather(

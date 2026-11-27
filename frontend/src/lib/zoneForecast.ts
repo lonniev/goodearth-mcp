@@ -2,7 +2,7 @@
 //
 // A grower who pastes a forecast into a text or a farm log expects the shape
 // they already read: a dotted ".TUESDAY..." heading, the chance of rain first,
-// then the sky and the high, then the wind, then how much rain. The words
+// then the sky, the high and the low, then the wind, then how much rain. The words
 // follow the Weather Service's own scale, so "Chance" and "Likely" mean here
 // what they mean there.
 //
@@ -10,9 +10,10 @@
 // plain sentences: dew point, humidity, the barometer and the sun.
 //
 // Only what the almanac read goes in. A day carries one wind figure, the
-// day's strongest, so the line says "up to" rather than inventing a range,
-// and the night's low is the next morning's low, which is the one the
-// Weather Service means by "tonight".
+// day's strongest, so the line says "up to" rather than inventing a range.
+// The text covers exactly the calendar day its card shows, in the reader's
+// time zone: the low is that day's own, and there is no night paragraph
+// reaching into the next morning.
 
 import type { AlmanacResult, StormSignal } from "./mcp.ts";
 import { dayTrend, stormLevel } from "./storm.ts";
@@ -127,20 +128,20 @@ export function stormLine(storm: StormSignal | null | undefined, date: string): 
   return tr("lib.zoneForecast.storm", { level: stormLevel(storm) });
 }
 
-/// What the heading calls a day: TODAY and TONIGHT for today, else its name.
-function names(date: string, today: string): [string, string] {
-  if (date === today) return [tr("lib.zoneForecast.today"), tr("lib.zoneForecast.tonight")];
-  const name = new Date(date + "T12:00:00")
+/// What the heading calls a day: TODAY for today, else its name.
+function dayName(date: string, today: string): string {
+  if (date === today) return tr("lib.zoneForecast.today");
+  return new Date(date + "T12:00:00")
     .toLocaleDateString(languageLocale(), { weekday: "long" }).toUpperCase();
-  return [name, tr("lib.zoneForecast.night", { name })];
 }
 
-/// The day and the night after it, as two dotted paragraphs.
+/// The one calendar day its card shows, midnight to midnight, as one dotted
+/// paragraph. Its low is that day's own; borrowing the next day's would make
+/// "Saturday" speak for Sunday morning.
 export function dayForecast(
-  day: Day, next: Day | undefined, unit: Unit, today: string,
+  day: Day, unit: Unit, today: string,
   before?: Day, storm?: StormSignal | null,
 ): string {
-  const [dayName, nightName] = names(day.date, today);
   const falls = falling(day.sky.label);
   const what = tr(`lib.zoneForecast.falls.${falls}`);
   const wet = chanceOf(day.precip_chance_pct, what);
@@ -151,35 +152,35 @@ export function dayForecast(
     day.high_f != null
       ? tr("lib.zoneForecast.skyHigh", { sky, t: degrees(day.high_f, unit) })
       : tr("lib.zoneForecast.skyOnly", { sky }),
+    day.low_f != null ? tr("lib.zoneForecast.low", { t: degrees(day.low_f, unit) }) : null,
     windLine(day.wind),
     wet?.[1],
     rainfall(day.precip_in, falls === "snow" || falls === "snowShowers"),
     stormLine(storm, day.date),
     ...dayDetails(day, before, unit),
   ].filter(Boolean);
-  const lines = [`.${dayName}...${parts.join(" ")}`];
-  if (next?.low_f != null) {
-    lines.push(`.${nightName}...${tr("lib.zoneForecast.low", { t: degrees(next.low_f, unit) })}`);
-  }
-  return lines.join("\n");
+  return `.${dayName(day.date, today)}...${parts.join(" ")}`;
 }
 
 /// The whole pasteable product: a header naming the plot and when the
 /// figures were read, then the day.
 export function zoneForecast(
-  { days, index, unit, place, issued, today, storm }: {
+  { days, index, unit, place, issued, today, zone, storm }: {
     days: Day[]; index: number; unit: Unit; place: string; issued: Date; today: string;
+    /** The reader's IANA zone: the clock "issued" is told in. */
+    zone?: string;
     storm?: StormSignal | null;
   },
 ): string {
   const at = issued.toLocaleString(languageLocale(), {
     hour: "numeric", minute: "2-digit", timeZoneName: "short",
     weekday: "short", month: "short", day: "numeric", year: "numeric",
+    ...(zone ? { timeZone: zone } : {}),
   });
   return [
     tr("lib.zoneForecast.header", { place }),
     tr("lib.zoneForecast.issued", { at }),
     "",
-    dayForecast(days[index], days[index + 1], unit, today, days[index - 1], storm),
+    dayForecast(days[index], unit, today, days[index - 1], storm),
   ].join("\n");
 }

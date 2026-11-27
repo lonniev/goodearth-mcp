@@ -62,7 +62,7 @@ def _feeds(monkeypatch):
             return _block(deep, omit={"relative_humidity_2m_mean"})
         return _block(season, omit=set())
 
-    async def forecast(lat, lon, days=14):
+    async def forecast(lat, lon, days=14, timezone="auto"):
         return _block(_days(TODAY, TODAY + timedelta(days=13)), omit=set())
 
     monkeypatch.setattr(record_cache, "almanac_history", almanac_history)

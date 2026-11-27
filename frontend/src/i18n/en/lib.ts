@@ -469,8 +469,6 @@ const words = {
   "lib.zoneForecast.storm": "{{level}}: the barometer is forecast to fall fast.",
   // Day headings, written in capitals.
   "lib.zoneForecast.today": "TODAY",
-  "lib.zoneForecast.tonight": "TONIGHT",
-  "lib.zoneForecast.night": "{{name}} NIGHT",
   "lib.zoneForecast.skyHigh": "{{sky}}, with a high near {{t}}.",
   "lib.zoneForecast.skyOnly": "{{sky}}.",
   "lib.zoneForecast.low": "Low around {{t}}.",
