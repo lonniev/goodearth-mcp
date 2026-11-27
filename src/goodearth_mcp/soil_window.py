@@ -10,10 +10,10 @@ weeks" answer different questions.
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, date, datetime
+from datetime import date
 from typing import Any
 
-from goodearth_mcp import gdd, record_cache, soil, sources
+from goodearth_mcp import gdd, reader_clock, record_cache, soil, sources
 from goodearth_mcp.region import Region
 
 RECORD_SPAN_YEARS = 8
@@ -32,7 +32,7 @@ async def region_soil_window(
 ) -> dict[str, Any]:
     """When soil at ``band`` crosses ``threshold_f``, on this ground."""
     threshold, dirn, band_key = soil.validate(threshold_f, direction, band)
-    today = today or datetime.now(UTC).date()
+    today = today or reader_clock.today()
     spec = soil.BANDS[band_key]
     lat = region.centroid.lat
 

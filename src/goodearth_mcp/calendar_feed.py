@@ -25,7 +25,7 @@ import secrets
 from datetime import UTC, date, datetime
 from typing import Any
 
-from goodearth_mcp import crops, gdd, ical, pests, record_cache, sources, wildlife
+from goodearth_mcp import crops, gdd, ical, pests, reader_clock, record_cache, sources, wildlife
 from goodearth_mcp.frost import frost_dates, summarize_frost_dates
 from goodearth_mcp.region import Region
 
@@ -119,7 +119,7 @@ async def build_feed(
     today: date | None = None,
 ) -> dict[str, Any]:
     """Compute every dated thing this block knows about, as one calendar."""
-    today = today or datetime.now(UTC).date()
+    today = today or reader_clock.today()
     stamp = datetime.now(UTC)
     start = gdd.season_start(today, region.centroid.lat)
 

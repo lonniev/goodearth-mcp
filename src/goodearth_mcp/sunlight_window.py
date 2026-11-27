@@ -21,7 +21,7 @@ import logging
 import zlib
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import date
 from typing import Any
 
 import numpy as np
@@ -30,6 +30,7 @@ from goodearth_mcp import (
     calibration,
     kw_prices,
     rasters,
+    reader_clock,
     record_cache,
     solar,
     sources,
@@ -269,7 +270,7 @@ async def region_sunlight(
     sun paths, monthly hours and solar figures. ``detail="grid"`` adds every
     cell's numbers, packed for a map overlay.
     """
-    today = today or datetime.now(UTC).date()
+    today = today or reader_clock.today()
     month = _check_month(month)
     tilt = _check_angle(panel_tilt_deg, "panel_tilt_deg", 0.0, 90.0)
     azimuth = _check_angle(panel_azimuth_deg, "panel_azimuth_deg", 0.0, 360.0)

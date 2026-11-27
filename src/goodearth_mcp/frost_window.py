@@ -14,10 +14,10 @@ reports the coldest ground explicitly, and says which night and why.
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Any
 
-from goodearth_mcp import frost, gdd, record_cache, sources
+from goodearth_mcp import frost, gdd, reader_clock, record_cache, sources
 from goodearth_mcp.region import Region, summarize
 
 RECORD_SPAN_YEARS = 10
@@ -52,7 +52,7 @@ async def region_frost_window(
     today: date | None = None,
 ) -> dict[str, Any]:
     """First-frost climatology plus this week's risk, across a region."""
-    today = today or datetime.now(UTC).date()
+    today = today or reader_clock.today()
 
     try:
         elevs = await record_cache.elevations(

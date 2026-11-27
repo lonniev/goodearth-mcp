@@ -19,10 +19,10 @@ from __future__ import annotations
 
 import asyncio
 import time
-from datetime import UTC, date, datetime
+from datetime import date
 from typing import Any
 
-from goodearth_mcp import biota, roster
+from goodearth_mcp import biota, reader_clock, roster
 from goodearth_mcp.region import Region
 
 # Which groups the wildlife catalogue asks about.
@@ -127,7 +127,7 @@ async def region_pest_catalog(region: Region, today: date | None = None) -> dict
     unreadable rather than rendered — winter_wheat reads 281 here, which is a
     convincing 8 October and is actually a heat sum.
     """
-    today = today or datetime.now(UTC).date()
+    today = today or reader_clock.today()
     lat, lon = region.centroid.lat, region.centroid.lon
 
     models = await _models()
@@ -201,7 +201,7 @@ async def region_species_habits(scientific_name: str, today: date | None = None)
     does not track returns an empty list and says so, because "we have no
     data on this bat" and "this bat does nothing" are different claims.
     """
-    today = today or datetime.now(UTC).date()
+    today = today or reader_clock.today()
     index = await _species_index()
     entry = index.get(scientific_name.strip().lower())
     if not entry:
@@ -321,7 +321,7 @@ async def region_wildlife_catalog(
         })
 
     if with_events:
-        await _attach_habit_events(groups, index, today or datetime.now(UTC).date())
+        await _attach_habit_events(groups, index, today or reader_clock.today())
 
     return {
         "success": True,
@@ -440,7 +440,7 @@ async def species_phenophases(
     comes back with `tracked: false` and no list, which is not the same claim
     as an empty one.
     """
-    today = today or datetime.now(UTC).date()
+    today = today or reader_clock.today()
     wanted = list(dict.fromkeys(n.strip() for n in names if (n or "").strip()))
     if not wanted:
         return []

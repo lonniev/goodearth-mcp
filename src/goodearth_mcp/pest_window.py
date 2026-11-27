@@ -9,10 +9,10 @@ model's stages arrive on this ground; it does not assert what those stages are.
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import date
 from typing import Any
 
-from goodearth_mcp import crops, gdd, pests, record_cache, sources
+from goodearth_mcp import crops, gdd, pests, reader_clock, record_cache, sources
 from goodearth_mcp.region import Region
 
 
@@ -39,7 +39,7 @@ async def region_pest_window(
     today: date | None = None,
 ) -> dict[str, Any]:
     """Stage status and crossing dates for each pest model on this ground."""
-    today = today or datetime.now(UTC).date()
+    today = today or reader_clock.today()
 
     if not isinstance(models, list) or not models:
         raise PestWindowError("pests must be a non-empty list of models")

@@ -9,10 +9,10 @@ it is different for a bench and a hollow on the same farm.
 from __future__ import annotations
 
 import statistics
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Any
 
-from goodearth_mcp import frost, gdd, record_cache, sources, suitability
+from goodearth_mcp import frost, gdd, reader_clock, record_cache, sources, suitability
 from goodearth_mcp.region import Region
 
 RECORD_SPAN_YEARS = 8
@@ -82,7 +82,7 @@ async def region_suitability(
     today: date | None = None,
 ) -> dict[str, Any]:
     """What finishes on this ground, and with how much room to spare."""
-    today = today or datetime.now(UTC).date()
+    today = today or reader_clock.today()
 
     if not isinstance(crops_in, list) or not crops_in:
         raise SuitabilityWindowError("crops must be a non-empty list")

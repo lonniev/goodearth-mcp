@@ -11,11 +11,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from goodearth_mcp import almanac, forecast_skill, gdd, pressure_window, record_cache, sources
+from goodearth_mcp import almanac, forecast_skill, gdd, pressure_window, reader_clock, record_cache, sources
 from goodearth_mcp.region import Region
 
 logger = logging.getLogger(__name__)
@@ -93,8 +93,9 @@ async def region_almanac(
     live it.
     """
     zone = viewer_zone(timezone)
-    today = today or (
-        datetime.now(ZoneInfo(zone)).date() if zone != "auto" else datetime.now(UTC).date())
+    if zone == "auto" and (reading := reader_clock.zone_name()):
+        zone = reading
+    today = today or (datetime.now(ZoneInfo(zone)).date() if zone != "auto" else reader_clock.today())
     start = gdd.season_start(today, region.centroid.lat)
 
     actual_task = record_cache.almanac_history(
