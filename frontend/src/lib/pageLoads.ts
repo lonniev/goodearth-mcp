@@ -8,10 +8,11 @@
 // twice. So neither of them knows: they both ask here.
 
 import {
-  almanacFor, gddSeasonCurve, plotConditions, plotStation, viewerZone,
+  almanacFor, gddSeasonCurve, plotConditions, plotStation,
   type AlmanacResult, type PlotConditions, type PlotStationRow, type SeasonCurveResult,
 } from "./mcp";
 import { cached, forget, warm } from "./pageCache";
+import { viewerZone } from "./zone";
 import { conditionsKey, pageKey, stationKey, type Ground, type Warmable } from "./peerPage";
 
 export function loadLedger(ground: Ground): Promise<SeasonCurveResult> {

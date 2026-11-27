@@ -8,6 +8,7 @@
 // changes how much to trust the date. A daylight event is astronomy and barely
 // moves; a heat event moves with the season.
 
+import { isoDay } from "../lib/zone";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useUnits } from "../components/Units";
 import Provenance from "../components/Provenance";
@@ -199,9 +200,9 @@ export default function Wildlife({
 
   useEffect(() => { void run(models); }, [run, models]);
 
-  // The grower's own date, not Greenwich's: after 7 pm in Vermont the UTC
-  // date is already tomorrow, and the due list ran a day ahead.
-  const today = new Date().toLocaleDateString("en-CA");
+  // The grower's own date, on the clock they chose: after 7 pm in Vermont
+  // the UTC date is already tomorrow, and the due list ran a day ahead.
+  const today = isoDay();
 
   /// Watches whose day is near, and the ones whose day has just been and gone
   /// with nothing recorded against them. `due_soon` answers only the first

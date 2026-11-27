@@ -19,14 +19,13 @@ import type { CompanionsResult, Kind } from "./companions.ts";
 import type { PlantingStage } from "./plantings.ts";
 import { nearbyArgs } from "./wire";
 import { tr } from "../i18n/index.ts";
+import { viewerZone } from "./zone.ts";
 import { callLine, resultLine } from "./debugSummary";
 import {
   callTool as callOperator,
   checkPrice,
   debugPush,
   getStoredNpub,
-  readTimezonePref,
-  resolveTimeZone,
   toolName,
 } from "@tollbooth-dpyc/web";
 import {
@@ -994,10 +993,6 @@ export async function almanacFor(block: string, timezone: string = viewerZone())
   return callTool<AlmanacResult>("almanac", { block, timezone });
 }
 
-/// The IANA zone the reader chose in Preferences, or their browser's.
-export function viewerZone(): string {
-  return resolveTimeZone(readTimezonePref());
-}
 
 // ─── Wildlife calendar ───────────────────────────────────────────────────
 
