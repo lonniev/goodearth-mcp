@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Changes not yet released live in `changelog.d/`, one file per change — see the README there for why, and `scripts/changelog.py` for what folds them in at release time.
 
+## [0.6.10] — 2026-11-26
+
+### Fixed
+
+- Every tool's "today" is now your date, not Greenwich's. It uses the time zone you chose in Preferences, or your ground's own zone when that is set to auto. Frost and planting windows, pest and wildlife due lists, the season, tasks, the calendar feed and the other date-driven answers no longer run a day ahead on a US evening.
+
 ## [0.6.9] — 2026-11-26
 
 ### Fixed
