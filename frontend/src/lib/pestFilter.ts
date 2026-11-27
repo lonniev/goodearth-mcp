@@ -9,6 +9,7 @@
 // Pure predicates over rows the page already holds, so nothing here costs a
 // call and all of it is testable without a browser.
 
+import { isoDay } from "./zone.ts";
 import type { PestAssessment } from "./mcp";
 import type { SavedPest } from "./pestModels";
 
@@ -39,7 +40,7 @@ function daysOut(iso: string | null | undefined, today: Date): number | null {
   // Noon, so a timezone west of UTC cannot turn today's date into yesterday.
   const then = new Date(`${iso.slice(0, 10)}T12:00:00`);
   if (Number.isNaN(then.getTime())) return null;
-  const from = new Date(`${today.toLocaleDateString("en-CA")}T12:00:00`);
+  const from = new Date(`${isoDay(today)}T12:00:00`);
   return Math.round((then.getTime() - from.getTime()) / 86_400_000);
 }
 

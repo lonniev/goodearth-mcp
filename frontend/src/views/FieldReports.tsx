@@ -9,6 +9,7 @@
 // and enough of them turn a 9 km grid into this block's own calendar. That is
 // the one thing here that gets better the longer a farm uses it.
 
+import { isoDay } from "../lib/zone";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Provenance from "../components/Provenance";
 import { QuoteScroller, useLanguageLocale } from "@tollbooth-dpyc/web/react";
@@ -33,7 +34,7 @@ import { useTour } from "@tollbooth-dpyc/web/react";
 import { tour } from "../lib/tour/targets";
 import { useT, type Translate } from "../i18n";
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => isoDay();
 const nice = (iso: string, locale: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" });
 

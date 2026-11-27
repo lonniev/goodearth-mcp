@@ -10,6 +10,7 @@
 // target toward this ground's own. Later cuts of a cut-and-come-again crop are
 // yield, not timing, and are only added up.
 
+import { isoDay } from "./zone.ts";
 import type { FieldReport } from "./reports.ts";
 import type { Planting } from "./plantings.ts";
 import { newItemId } from "./submit.ts";
@@ -28,7 +29,7 @@ export interface HarvestInput {
   note?: string;
 }
 
-const isoToday = () => new Date().toLocaleDateString("en-CA");
+const isoToday = () => isoDay();
 
 /// One cut of one planting, or the reason it cannot be one.
 ///

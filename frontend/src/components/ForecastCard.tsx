@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { AlmanacResult, StormSignal } from "../lib/mcp";
 import { zoneForecast } from "../lib/zoneForecast";
+import { isoDay } from "../lib/zone";
 import { toClipboard } from "./Share";
 import { useUnits } from "./Units";
 import { Glyph, ICON } from "./ui";
@@ -32,7 +33,7 @@ export default function ForecastCard({ days, index, onIndex, place, issued, stor
   const [copied, setCopied] = useState(false);
   const day = days[index];
   // Today on the reader's chosen clock, the same one the server cut the days on.
-  const today = new Date().toLocaleDateString("en-CA", { timeZone: zone });
+  const today = isoDay(new Date(), zone);
   const text = zoneForecast({ days, index, unit, place, issued, today, zone, storm });
 
   useEffect(() => { box.current?.focus(); }, []);

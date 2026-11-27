@@ -21,6 +21,7 @@
 // rather than the ones on this page, which is the difference between "your
 // earliest set-out" and "the earliest set-out among these twenty".
 
+import { isoDay } from "../lib/zone";
 import { Fragment, useEffect, useState } from "react";
 import { useUnits } from "./Units";
 import type { CropWatch } from "../lib/diseaseRows";
@@ -636,7 +637,7 @@ function HarvestRow({ planting, unit, onSave, onCancel }: {
   onCancel: () => void;
 }) {
   const t = useT();
-  const today = new Date().toLocaleDateString("en-CA");
+  const today = isoDay();
   const [on, setOn] = useState(today);
   const [amount, setAmount] = useState("");
   const [unitText, setUnitText] = useState(unit ?? "");

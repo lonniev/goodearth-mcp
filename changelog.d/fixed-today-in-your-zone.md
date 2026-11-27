@@ -1,0 +1,1 @@
+- Crops, harvests, Wildlife, Field Reports and the pest and ledger filters now take "today" from the time zone you chose in Preferences. Field Reports and new wildlife events used Greenwich's date, which already read as tomorrow on a US evening.

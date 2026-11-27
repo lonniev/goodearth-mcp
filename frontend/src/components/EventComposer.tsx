@@ -14,6 +14,7 @@
 // The five clocks are here, including `condition`, which the server has always
 // taken and the form has never offered.
 
+import { isoDay } from "../lib/zone";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   almanacFor, gddSeasonCurve, speciesHabits, wildlifeCalendar, wildlifeCatalog,
@@ -79,7 +80,7 @@ const ROLE_LABEL: Record<"friend" | "foe" | "watch", MessageKey> = {
 /// The same pause `SpeciesPicker` takes before it searches.
 const SEARCH_DEBOUNCE_MS = 250;
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => isoDay();
 const dayIn = (iso: string, locale: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString(locale, { month: "short", day: "numeric" });
 

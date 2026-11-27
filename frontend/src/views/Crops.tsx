@@ -6,6 +6,7 @@
 // the way the server does, so a grower is corrected here rather than by a
 // failed paid call.
 
+import { isoDay } from "../lib/zone";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CropLedger, { type LedgerRow } from "../components/CropLedger";
 import { remembered } from "../lib/undoEvents";
@@ -157,7 +158,7 @@ export default function Crops({
   // From the earliest set-out on the ledger, or a year back. It was Jan 1,
   // which split a winter crop's cuts at midnight on Dec 31: greens cut in
   // December and January read as one cut in January.
-  const yearAgo = new Date(Date.now() - 365 * 86_400_000).toLocaleDateString("en-CA");
+  const yearAgo = isoDay(new Date(Date.now() - 365 * 86_400_000));
   const cutsSince = plantings.reduce((m, p) => (p.setOut && p.setOut < m ? p.setOut : m), yearAgo);
   const { items: seen, save: storeSeen, total: seenTotal } =
     useBlockItems<FieldReport>(region.id, "observation", reportCodec, undefined, {
