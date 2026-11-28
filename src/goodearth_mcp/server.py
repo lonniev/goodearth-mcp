@@ -6,6 +6,12 @@ tollbooth-dpyc wheel. Only domain tools are defined here.
 
 Run locally:
     python -m goodearth_mcp.server
+
+Deploy bounce marker (issue #466): Horizon was still serving git commit
+894bc4bf after main moved to 806e07f (a frontend-only tip). Touching this
+server module forces a fresh Horizon wheel so
+``goodearth_service_status.build_info.fastmcp_cloud_git_commit_sha`` tracks
+main again. No runtime behavior change.
 """
 
 from __future__ import annotations

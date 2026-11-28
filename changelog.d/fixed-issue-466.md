@@ -1,0 +1,1 @@
+- Horizon redeploy bounce after main moved past a frontend-only tip while the live MCP still reported git commit `894bc4bf`.
