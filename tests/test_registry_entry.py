@@ -20,7 +20,10 @@ ENDPOINT = "https://goodearth-mcp.fastmcp.app/mcp"
 def test_it_is_under_the_namespace_the_publish_workflow_can_log_in_to():
     assert ENTRY["name"] == "io.github.lonniev/goodearth-mcp"
     workflow = (ROOT / ".github" / "workflows" / "publish-mcp-registry.yml").read_text()
-    assert "login github-oidc" in workflow
+    # OIDC login lives in the shared workflow; the caller must grant the token
+    # and point at that workflow, or a publish cannot authenticate.
+    assert "lonniev/dpyc-community/.github/workflows/mcp-registry-publish.yml@main" in workflow
+    assert "id-token: write" in workflow
 
 
 def test_its_version_is_the_services_own():
